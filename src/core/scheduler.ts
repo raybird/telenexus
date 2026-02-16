@@ -292,10 +292,14 @@ export class Scheduler {
 
   private shouldRetryAiResponse(response: string): boolean {
     const normalized = response.trim();
+    const looksLikeExecutionStub =
+      /^(我將|我會|我先|接下來)\b/.test(normalized) &&
+      /(執行|調用|呼叫|run|execute)/i.test(normalized);
     return (
       normalized.startsWith('Error calling Gemini: Process terminated with signal SIGKILL') ||
       normalized.startsWith('Error calling Gemini: Process exited with code 1') ||
-      normalized.startsWith('✨ 5分鐘內未完成')
+      normalized.startsWith('✨ 5分鐘內未完成') ||
+      looksLikeExecutionStub
     );
   }
 
@@ -382,6 +386,9 @@ AI Response:
         console.warn(`[Scheduler] Task #${schedule.id} first attempt failed, retrying once...`);
         await new Promise((resolve) => setTimeout(resolve, 2500));
         response = await this.gemini.chat(fullPrompt);
+        if (this.shouldRetryAiResponse(response)) {
+          throw new Error('AI returned incomplete execution response after retry');
+        }
       }
       console.log(
         `[Scheduler] Task #${schedule.id} completed. Response length: ${response.length}`
