@@ -96,3 +96,9 @@ MEMORIA_HOOK_QUEUE_POLL_MS=5000
 - 自動檔案回傳只允許 `workspace/temp/` 路徑
 - 可用 `/send_file 路徑 | 說明` 手動回傳專案內檔案
 - `SEND_FILE_STRICT_TEMP_ONLY=true`：啟用後，連 `/send_file` 也僅允許 `workspace/temp/`
+
+## Telegram 訊息格式
+
+- `TELEGRAM_FORMAT_MODE=auto|plain|html`（預設 `auto`）
+- `auto`：偵測 Markdown/HTML 後優先用 `HTML parse_mode`，失敗自動降級純文字
+- 超過 Telegram 單訊息長度而分段時，會自動改用純文字送出（避免分段破壞標記）

@@ -8,6 +8,15 @@ const DEFAULT_TELEGRAM_API_TIMEOUT_MS = 15000;
 const DEFAULT_TELEGRAM_API_RETRY_COUNT = 1;
 const DEFAULT_TELEGRAM_API_RETRY_DELAY_MS = 800;
 
+type TelegramParseMode = 'HTML' | 'MarkdownV2';
+
+type TelegramFormatMode = 'auto' | 'plain' | 'html';
+
+type FormattedChunk = {
+  text: string;
+  parseMode?: TelegramParseMode;
+};
+
 class TelegramApiTimeoutError extends Error {
   constructor(label: string, timeoutMs: number) {
     super(`${label} timed out after ${timeoutMs}ms`);
@@ -32,6 +41,7 @@ export class TelegramConnector implements Connector {
   private apiTimeoutMs: number;
   private apiRetryCount: number;
   private apiRetryDelayMs: number;
+  private formatMode: TelegramFormatMode;
 
   constructor(token: string, allowedUserIds: string[]) {
     this.token = token;
@@ -47,6 +57,119 @@ export class TelegramConnector implements Connector {
     this.apiRetryDelayMs = parsePositiveInteger(
       process.env.TELEGRAM_API_RETRY_DELAY_MS,
       DEFAULT_TELEGRAM_API_RETRY_DELAY_MS
+    );
+    this.formatMode = this.parseFormatMode(process.env.TELEGRAM_FORMAT_MODE);
+  }
+
+  private parseFormatMode(raw: string | undefined): TelegramFormatMode {
+    const normalized = (raw || 'auto').trim().toLowerCase();
+    if (normalized === 'plain' || normalized === 'html' || normalized === 'auto') {
+      return normalized;
+    }
+    return 'auto';
+  }
+
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  private looksLikeMarkdown(text: string): boolean {
+    return Boolean(
+      text.match(/```[\s\S]*?```/) ||
+      text.match(/`[^`\n]+`/) ||
+      text.match(/\*\*[^*]+\*\*/) ||
+      text.match(/__[^_]+__/) ||
+      text.match(/(^|\n)#{1,6}\s+/) ||
+      text.match(/(^|\n)\s*[-*]\s+/) ||
+      text.match(/(^|\n)\s*\d+\.\s+/) ||
+      text.match(/\[[^\]]+\]\((https?:\/\/[^)\s]+)\)/)
+    );
+  }
+
+  private looksLikeHtml(text: string): boolean {
+    return /<\/?[a-z][^>]*>/i.test(text);
+  }
+
+  private markdownToHtml(text: string): string {
+    const fencedBlocks: string[] = [];
+    const inlineCodes: string[] = [];
+
+    const takeFenced = text.replace(/```(?:[a-zA-Z0-9_-]+)?\n([\s\S]*?)```/g, (_full, code) => {
+      const token = `@@FENCED_${fencedBlocks.length}@@`;
+      fencedBlocks.push(`<pre><code>${this.escapeHtml(String(code || ''))}</code></pre>`);
+      return token;
+    });
+
+    const takeInline = takeFenced.replace(/`([^`\n]+)`/g, (_full, code) => {
+      const token = `@@INLINE_${inlineCodes.length}@@`;
+      inlineCodes.push(`<code>${this.escapeHtml(String(code || ''))}</code>`);
+      return token;
+    });
+
+    let html = this.escapeHtml(takeInline);
+
+    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (_full, label, url) => {
+      const safeLabel = String(label || '');
+      const safeUrl = String(url || '').replace(/&amp;/g, '&');
+      return `<a href="${this.escapeHtml(safeUrl)}">${safeLabel}</a>`;
+    });
+
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+    html = html.replace(/__([^_]+)__/g, '<b>$1</b>');
+
+    html = html
+      .split('\n')
+      .map((line) => {
+        if (/^#{1,6}\s+/.test(line)) {
+          return `<b>${line.replace(/^#{1,6}\s+/, '')}</b>`;
+        }
+        return line;
+      })
+      .join('\n');
+
+    html = html.replace(/@@INLINE_(\d+)@@/g, (_full, index) => inlineCodes[Number(index)] || '');
+    html = html.replace(/@@FENCED_(\d+)@@/g, (_full, index) => fencedBlocks[Number(index)] || '');
+
+    return html;
+  }
+
+  private formatChunkForTelegram(chunk: string): FormattedChunk {
+    if (this.formatMode === 'plain') {
+      return { text: chunk };
+    }
+
+    if (this.formatMode === 'html') {
+      const text = this.looksLikeMarkdown(chunk) ? this.markdownToHtml(chunk) : chunk;
+      return { text, parseMode: 'HTML' };
+    }
+
+    // auto mode
+    if (this.looksLikeHtml(chunk)) {
+      return { text: chunk, parseMode: 'HTML' };
+    }
+    if (this.looksLikeMarkdown(chunk)) {
+      return { text: this.markdownToHtml(chunk), parseMode: 'HTML' };
+    }
+    return { text: chunk };
+  }
+
+  private isParseModeError(error: unknown): boolean {
+    if (!error || typeof error !== 'object') {
+      return false;
+    }
+    const err = error as {
+      message?: string;
+      response?: { error_code?: number; description?: string };
+    };
+    const message = err.message || err.response?.description || '';
+    const statusCode = err.response?.error_code;
+    return (
+      statusCode === 400 &&
+      /can't parse entities|unsupported start tag|can't find end tag|parse entities/i.test(message)
     );
   }
 
@@ -205,9 +328,39 @@ export class TelegramConnector implements Connector {
     }
   }
 
-  private async sendChunk(chatId: string, chunk: string, chunkIndex: number, totalChunks: number) {
+  private async sendChunk(
+    chatId: string,
+    chunk: string,
+    chunkIndex: number,
+    totalChunks: number,
+    allowFormatting: boolean
+  ) {
     const label = `sendMessage chat=${chatId} chunk=${chunkIndex + 1}/${totalChunks}`;
-    await this.callTelegram(label, () => this.bot.telegram.sendMessage(chatId, chunk));
+    const formatted = allowFormatting ? this.formatChunkForTelegram(chunk) : { text: chunk };
+
+    const sendPlain = async () =>
+      this.callTelegram(label, () => this.bot.telegram.sendMessage(chatId, chunk));
+
+    if (!formatted.parseMode) {
+      await sendPlain();
+      return;
+    }
+
+    const parseMode: TelegramParseMode = formatted.parseMode;
+
+    try {
+      await this.callTelegram(label, () =>
+        this.bot.telegram.sendMessage(chatId, formatted.text, {
+          parse_mode: parseMode
+        })
+      );
+    } catch (error) {
+      if (!this.isParseModeError(error)) {
+        throw error;
+      }
+      console.warn(`[Telegram] ${label} parse_mode failed, fallback to plain text.`);
+      await sendPlain();
+    }
   }
 
   async initialize(): Promise<void> {
@@ -269,8 +422,9 @@ export class TelegramConnector implements Connector {
     try {
       const chunks = this.splitMessage(text);
       console.log(`[Telegram] Sending message chat=${chatId} chunks=${chunks.length}`);
+      const allowFormatting = chunks.length === 1;
       for (let i = 0; i < chunks.length; i += 1) {
-        await this.sendChunk(chatId, chunks[i]!, i, chunks.length);
+        await this.sendChunk(chatId, chunks[i]!, i, chunks.length, allowFormatting);
       }
     } catch (error) {
       console.error(`[Telegram] Failed to send message to ${chatId}:`, error);
@@ -309,16 +463,52 @@ export class TelegramConnector implements Connector {
     try {
       const chunks = this.splitMessage(newText);
       const firstChunk = chunks[0] || '';
+      const allowFormatting = chunks.length === 1;
+      const formatted = allowFormatting
+        ? this.formatChunkForTelegram(firstChunk)
+        : { text: firstChunk };
 
       // 1. Edit the original message (placeholder) with the first chunk
-      await this.callTelegram(`editMessage chat=${chatId} message=${messageId}`, () =>
-        this.bot.telegram.editMessageText(chatId, parseInt(messageId, 10), undefined, firstChunk)
-      );
+      try {
+        if (formatted.parseMode) {
+          const parseMode: TelegramParseMode = formatted.parseMode;
+          await this.callTelegram(`editMessage chat=${chatId} message=${messageId}`, () =>
+            this.bot.telegram.editMessageText(
+              chatId,
+              parseInt(messageId, 10),
+              undefined,
+              formatted.text,
+              {
+                parse_mode: parseMode
+              }
+            )
+          );
+        } else {
+          await this.callTelegram(`editMessage chat=${chatId} message=${messageId}`, () =>
+            this.bot.telegram.editMessageText(
+              chatId,
+              parseInt(messageId, 10),
+              undefined,
+              formatted.text
+            )
+          );
+        }
+      } catch (error) {
+        if (!formatted.parseMode || !this.isParseModeError(error)) {
+          throw error;
+        }
+        console.warn(
+          `[Telegram] editMessage chat=${chatId} message=${messageId} parse_mode failed, fallback to plain text.`
+        );
+        await this.callTelegram(`editMessage chat=${chatId} message=${messageId}`, () =>
+          this.bot.telegram.editMessageText(chatId, parseInt(messageId, 10), undefined, firstChunk)
+        );
+      }
 
       // 2. Send remaining chunks as new messages
       if (chunks.length > 1) {
         for (let i = 1; i < chunks.length; i++) {
-          await this.sendChunk(chatId, chunks[i]!, i, chunks.length);
+          await this.sendChunk(chatId, chunks[i]!, i, chunks.length, false);
         }
       }
     } catch (error) {
