@@ -24,6 +24,8 @@ workspace/GEMINI.md
 workspace/*.skill
 workspace/scripts/
 workspace/Memoria/
+workspace/projects/*
+!workspace/projects/.gitkeep
 
 # Local AI tool state
 /.agent/
