@@ -102,3 +102,10 @@ MEMORIA_HOOK_QUEUE_POLL_MS=5000
 - `TELEGRAM_FORMAT_MODE=auto|plain|html`（預設 `auto`）
 - `auto`：偵測 Markdown/HTML 後優先用 `HTML parse_mode`，失敗自動降級純文字
 - 超過 Telegram 單訊息長度而分段時，會自動改用純文字送出（避免分段破壞標記）
+
+## 回覆後補充摘要
+
+- `SUMMARY_FOLLOWUP_ENABLED=true|false`（預設 `true`）
+- `SUMMARY_FOLLOWUP_MIN_LENGTH`（預設 `500`）：主回覆超過此長度才會背景補一則摘要
+- `SUMMARY_FOLLOWUP_MAX_LENGTH`（預設 `320`）：補充摘要最大字數（超出會截斷）
+- 補充摘要在主回覆送出後非阻塞執行，不影響首則回覆速度

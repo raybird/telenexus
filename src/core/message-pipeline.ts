@@ -25,6 +25,22 @@ type MessagePipelineOptions = {
   writeContextSnapshots: () => void;
 };
 
+function parseBool(raw: string | undefined, fallback: boolean): boolean {
+  if (!raw) return fallback;
+  const normalized = raw.trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  return fallback;
+}
+
+function parsePositiveInt(raw: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt(raw?.trim() || '', 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+}
+
 type FileDirective = {
   path: string;
   caption?: string;
@@ -100,6 +116,9 @@ function hashToBucket(input: string): number {
 export function createMessagePipeline(options: MessagePipelineOptions) {
   const pendingNewSessionUsers = new Set<string>();
   const maxSendFileBytes = 45 * 1024 * 1024;
+  const summaryFollowupEnabled = parseBool(process.env.SUMMARY_FOLLOWUP_ENABLED, true);
+  const summaryFollowupMinLength = parsePositiveInt(process.env.SUMMARY_FOLLOWUP_MIN_LENGTH, 500);
+  const summaryFollowupMaxLength = parsePositiveInt(process.env.SUMMARY_FOLLOWUP_MAX_LENGTH, 320);
   const thinkingMessages = [
     '🤔 思考中...',
     '🧠 正在理解問題...',
@@ -204,14 +223,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       console.log(`📥 [AI] Reply length: ${response.length}`);
 
       if (response && !response.startsWith('Error')) {
-        let responseSummary: string | undefined;
-
-        if (!isPassthroughCommand && options.shouldSummarize(response)) {
-          console.log('📝 [Memory] AI response meets summary criteria, generating summary...');
-          responseSummary = await activeAgent.summarize(response);
-        }
-
-        options.memory.addMessage(userId, 'model', response, responseSummary);
+        options.memory.addMessage(userId, 'model', response);
 
         options.enqueueMemoriaSync?.({
           userId,
@@ -282,6 +294,34 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
 
           await connector.sendFile(targetChatId, resolvedPath, directive.caption);
         }
+      }
+
+      const shouldSendSummaryFollowup =
+        summaryFollowupEnabled &&
+        !isPassthroughCommand &&
+        response.length >= summaryFollowupMinLength &&
+        options.shouldSummarize(response) &&
+        !response.startsWith('Error');
+
+      if (shouldSendSummaryFollowup) {
+        void (async () => {
+          try {
+            console.log('📝 [Followup] Generating post-reply summary...');
+            const summary = await activeAgent.summarize(response);
+            const normalized = summary.trim();
+            if (!normalized) {
+              return;
+            }
+            const brief =
+              normalized.length > summaryFollowupMaxLength
+                ? normalized.slice(0, summaryFollowupMaxLength - 3) + '...'
+                : normalized;
+            const followup = `📝 補充摘要\n${brief}`;
+            await connector.sendMessage(targetChatId, followup);
+          } catch (error) {
+            console.warn('📝 [Followup] Summary generation failed:', error);
+          }
+        })();
       }
     } catch (error) {
       console.error('❌ Error processing message:', error);
