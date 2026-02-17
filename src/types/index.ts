@@ -4,10 +4,19 @@ export interface UserProfile {
   platform: 'telegram' | 'console';
 }
 
+export interface UnifiedAttachment {
+  kind: 'image';
+  path: string;
+  mimeType?: string;
+  fileName?: string;
+  fileSize?: number;
+}
+
 export interface UnifiedMessage {
   id: string;
   chatId?: string;
   content: string;
+  attachments?: UnifiedAttachment[];
   sender: UserProfile;
   timestamp: number;
   raw?: unknown; // 原始訊息 payload，保留除錯用

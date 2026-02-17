@@ -2,11 +2,13 @@ import { Telegraf } from 'telegraf';
 import { Agent } from 'https';
 import { createConnection } from 'net';
 import fs from 'fs';
+import path from 'path';
 import type { Connector, UnifiedMessage } from '../types/index.js';
 
 const DEFAULT_TELEGRAM_API_TIMEOUT_MS = 15000;
 const DEFAULT_TELEGRAM_API_RETRY_COUNT = 1;
 const DEFAULT_TELEGRAM_API_RETRY_DELAY_MS = 800;
+const DEFAULT_TELEGRAM_IMAGE_MAX_BYTES = 20 * 1024 * 1024;
 
 type TelegramParseMode = 'HTML' | 'MarkdownV2';
 
@@ -42,6 +44,7 @@ export class TelegramConnector implements Connector {
   private apiRetryCount: number;
   private apiRetryDelayMs: number;
   private formatMode: TelegramFormatMode;
+  private maxImageBytes: number;
 
   constructor(token: string, allowedUserIds: string[]) {
     this.token = token;
@@ -59,6 +62,95 @@ export class TelegramConnector implements Connector {
       DEFAULT_TELEGRAM_API_RETRY_DELAY_MS
     );
     this.formatMode = this.parseFormatMode(process.env.TELEGRAM_FORMAT_MODE);
+    this.maxImageBytes = parsePositiveInteger(
+      process.env.TELEGRAM_IMAGE_MAX_BYTES,
+      DEFAULT_TELEGRAM_IMAGE_MAX_BYTES
+    );
+  }
+
+  private isAllowedUser(userId: string): boolean {
+    return this.allowedUserIds.includes(userId);
+  }
+
+  private resolveProjectDir(): string {
+    return process.env.GEMINI_PROJECT_DIR?.trim() || process.cwd();
+  }
+
+  private resolveInboxDir(): string {
+    return path.resolve(this.resolveProjectDir(), 'workspace', 'temp', 'inbox');
+  }
+
+  private ensureInboxDir(): void {
+    fs.mkdirSync(this.resolveInboxDir(), { recursive: true });
+  }
+
+  private extensionFromMime(mimeType: string | undefined): string {
+    switch ((mimeType || '').toLowerCase()) {
+      case 'image/jpeg':
+        return '.jpg';
+      case 'image/png':
+        return '.png';
+      case 'image/webp':
+        return '.webp';
+      case 'image/gif':
+        return '.gif';
+      default:
+        return '.img';
+    }
+  }
+
+  private sanitizeBaseName(input: string): string {
+    return input
+      .replace(/[^a-zA-Z0-9._-]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 80);
+  }
+
+  private async downloadTelegramFile(fileId: string, preferredName?: string, mimeType?: string) {
+    const file = await this.callTelegram(`getFile id=${fileId}`, () =>
+      this.bot.telegram.getFile(fileId)
+    );
+    const filePath = file.file_path || '';
+
+    if (!filePath) {
+      throw new Error(`Telegram getFile missing file_path for ${fileId}`);
+    }
+
+    const estimatedSize = typeof file.file_size === 'number' ? file.file_size : 0;
+    if (estimatedSize > this.maxImageBytes) {
+      throw new Error(
+        `Image too large (${Math.ceil(estimatedSize / 1024 / 1024)}MB > ${Math.floor(this.maxImageBytes / 1024 / 1024)}MB)`
+      );
+    }
+
+    const response = await fetch(
+      `https://api.telegram.org/file/bot${this.token}/${encodeURI(filePath)}`
+    );
+    if (!response.ok) {
+      throw new Error(`Telegram file download failed: HTTP ${response.status}`);
+    }
+
+    const data = Buffer.from(await response.arrayBuffer());
+    if (data.length > this.maxImageBytes) {
+      throw new Error(
+        `Image too large (${Math.ceil(data.length / 1024 / 1024)}MB > ${Math.floor(this.maxImageBytes / 1024 / 1024)}MB)`
+      );
+    }
+
+    this.ensureInboxDir();
+    const parsed = path.parse(preferredName || path.basename(filePath));
+    const fallbackName = this.sanitizeBaseName(parsed.name || `tg_${fileId}`) || `tg_${Date.now()}`;
+    const ext = parsed.ext || this.extensionFromMime(mimeType);
+    const savedName = `${Date.now()}_${fallbackName}${ext.startsWith('.') ? ext : `.${ext}`}`;
+    const absolutePath = path.resolve(this.resolveInboxDir(), savedName);
+    fs.writeFileSync(absolutePath, data);
+
+    return {
+      absolutePath,
+      fileSize: data.length,
+      fileName: savedName,
+      mimeType: mimeType || response.headers.get('content-type') || undefined
+    };
   }
 
   private parseFormatMode(raw: string | undefined): TelegramFormatMode {
@@ -381,19 +473,72 @@ export class TelegramConnector implements Connector {
     this.bot.on('text', async (ctx) => {
       const userId = ctx.from.id.toString();
 
-      // 白名單檢查
-      if (!this.allowedUserIds.includes(userId)) {
+      if (!this.isAllowedUser(userId)) {
         console.warn(
           `[Telegram] Blocked unauthorized access from: ${userId} (${ctx.from.first_name})`
         );
         return;
       }
 
-      if (this.messageHandler) {
+      if (!this.messageHandler) {
+        return;
+      }
+
+      const unifiedMsg: UnifiedMessage = {
+        id: ctx.message.message_id.toString(),
+        chatId: ctx.chat.id.toString(),
+        content: ctx.message.text,
+        sender: {
+          id: userId,
+          name: ctx.from.first_name || 'Unknown',
+          platform: 'telegram'
+        },
+        timestamp: ctx.message.date * 1000,
+        raw: ctx.message
+      };
+      this.messageHandler(unifiedMsg);
+    });
+
+    this.bot.on('photo', async (ctx) => {
+      const userId = ctx.from.id.toString();
+
+      if (!this.isAllowedUser(userId)) {
+        console.warn(
+          `[Telegram] Blocked unauthorized photo from: ${userId} (${ctx.from.first_name})`
+        );
+        return;
+      }
+
+      if (!this.messageHandler) {
+        return;
+      }
+
+      try {
+        const photos = ctx.message.photo || [];
+        const bestPhoto = photos[photos.length - 1];
+        if (!bestPhoto) {
+          return;
+        }
+
+        const downloaded = await this.downloadTelegramFile(
+          bestPhoto.file_id,
+          undefined,
+          'image/jpeg'
+        );
+        const caption = (ctx.message.caption || '').trim();
+        const content = caption || '使用者上傳了一張圖片';
+        const attachment = {
+          kind: 'image' as const,
+          path: downloaded.absolutePath,
+          fileName: downloaded.fileName,
+          fileSize: downloaded.fileSize,
+          ...(downloaded.mimeType ? { mimeType: downloaded.mimeType } : {})
+        };
         const unifiedMsg: UnifiedMessage = {
           id: ctx.message.message_id.toString(),
           chatId: ctx.chat.id.toString(),
-          content: ctx.message.text,
+          content,
+          attachments: [attachment],
           sender: {
             id: userId,
             name: ctx.from.first_name || 'Unknown',
@@ -403,6 +548,63 @@ export class TelegramConnector implements Connector {
           raw: ctx.message
         };
         this.messageHandler(unifiedMsg);
+      } catch (error) {
+        console.error('[Telegram] Failed to process photo message:', error);
+        await this.sendMessage(ctx.chat.id.toString(), '❌ 圖片接收失敗，請稍後再試。');
+      }
+    });
+
+    this.bot.on('document', async (ctx) => {
+      const userId = ctx.from.id.toString();
+
+      if (!this.isAllowedUser(userId)) {
+        console.warn(
+          `[Telegram] Blocked unauthorized document from: ${userId} (${ctx.from.first_name})`
+        );
+        return;
+      }
+
+      if (!this.messageHandler) {
+        return;
+      }
+
+      const mimeType = (ctx.message.document.mime_type || '').toLowerCase();
+      if (!mimeType.startsWith('image/')) {
+        return;
+      }
+
+      try {
+        const downloaded = await this.downloadTelegramFile(
+          ctx.message.document.file_id,
+          ctx.message.document.file_name,
+          ctx.message.document.mime_type
+        );
+        const caption = (ctx.message.caption || '').trim();
+        const content = caption || '使用者上傳了一張圖片';
+        const attachment = {
+          kind: 'image' as const,
+          path: downloaded.absolutePath,
+          fileName: downloaded.fileName,
+          fileSize: downloaded.fileSize,
+          ...(downloaded.mimeType ? { mimeType: downloaded.mimeType } : {})
+        };
+        const unifiedMsg: UnifiedMessage = {
+          id: ctx.message.message_id.toString(),
+          chatId: ctx.chat.id.toString(),
+          content,
+          attachments: [attachment],
+          sender: {
+            id: userId,
+            name: ctx.from.first_name || 'Unknown',
+            platform: 'telegram'
+          },
+          timestamp: ctx.message.date * 1000,
+          raw: ctx.message
+        };
+        this.messageHandler(unifiedMsg);
+      } catch (error) {
+        console.error('[Telegram] Failed to process document image message:', error);
+        await this.sendMessage(ctx.chat.id.toString(), '❌ 圖片接收失敗，請稍後再試。');
       }
     });
 

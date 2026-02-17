@@ -1,4 +1,4 @@
-import type { Connector, UnifiedMessage } from '../types/index.js';
+import type { Connector, UnifiedAttachment, UnifiedMessage } from '../types/index.js';
 import type { AIAgent } from './agent.js';
 import type { CommandRouter } from './command-router.js';
 import type { MemoriaSyncTurn } from './memoria-sync.js';
@@ -23,6 +23,11 @@ type MessagePipelineOptions = {
   enqueueMemoriaSync?: (turn: MemoriaSyncTurn) => void;
   recordRuntimeIssue: (scope: string, error: unknown) => void;
   writeContextSnapshots: () => void;
+};
+
+type PendingImageBundle = {
+  attachments: UnifiedAttachment[];
+  updatedAt: number;
 };
 
 function parseBool(raw: string | undefined, fallback: boolean): boolean {
@@ -104,6 +109,73 @@ function formatFileValidationError(targetPath: string, reason: string): string {
   return `⚠️ 檔案傳送略過：${targetPath}（${reason}）`;
 }
 
+function toWorkspaceAttachmentRef(rawPath: string): string | null {
+  if (!rawPath) {
+    return null;
+  }
+
+  const projectDir = process.env.GEMINI_PROJECT_DIR?.trim() || process.cwd();
+  const workspaceDir = path.resolve(projectDir, 'workspace');
+  const resolved = path.resolve(rawPath);
+  if (!(resolved === workspaceDir || resolved.startsWith(workspaceDir + path.sep))) {
+    return null;
+  }
+
+  const relativeToWorkspace = path.relative(workspaceDir, resolved).split(path.sep).join('/');
+  return relativeToWorkspace ? `@./${relativeToWorkspace}` : null;
+}
+
+function buildAttachmentPrompt(attachments: UnifiedAttachment[] | undefined): string {
+  if (!attachments || attachments.length === 0) {
+    return '';
+  }
+
+  const imageRefs = attachments
+    .filter((item) => item.kind === 'image')
+    .map((item) => {
+      const ref = toWorkspaceAttachmentRef(item.path);
+      if (!ref) {
+        return null;
+      }
+      const label = item.fileName || path.basename(item.path);
+      return `- ${label}: ${ref}`;
+    })
+    .filter((item): item is string => Boolean(item));
+
+  if (imageRefs.length === 0) {
+    return '';
+  }
+
+  return [
+    '【使用者上傳圖片】',
+    '以下圖片為使用者剛上傳，請直接讀取並依照使用者問題分析：',
+    ...imageRefs
+  ].join('\n');
+}
+
+function parsePendingImageTtlMs(raw: string | undefined): number {
+  const fallback = 10 * 60 * 1000;
+  const parsed = Number.parseInt(raw?.trim() || '', 10);
+  if (!Number.isFinite(parsed) || parsed < 30 * 1000) {
+    return fallback;
+  }
+  return parsed;
+}
+
+function isImageOnlyPlaceholderMessage(msg: UnifiedMessage): boolean {
+  const attachments = msg.attachments || [];
+  if (attachments.length === 0) {
+    return false;
+  }
+
+  const text = msg.content.trim();
+  if (!text) {
+    return true;
+  }
+
+  return text === '使用者上傳了一張圖片';
+}
+
 function hashToBucket(input: string): number {
   let hash = 2166136261;
   for (let i = 0; i < input.length; i += 1) {
@@ -115,6 +187,8 @@ function hashToBucket(input: string): number {
 
 export function createMessagePipeline(options: MessagePipelineOptions) {
   const pendingNewSessionUsers = new Set<string>();
+  const pendingImageByUser = new Map<string, PendingImageBundle>();
+  const pendingImageTtlMs = parsePendingImageTtlMs(process.env.IMAGE_ATTACHMENT_PENDING_TTL_MS);
   const maxSendFileBytes = 45 * 1024 * 1024;
   const summaryFollowupEnabled = parseBool(process.env.SUMMARY_FOLLOWUP_ENABLED, true);
   const summaryFollowupMinLength = parsePositiveInt(process.env.SUMMARY_FOLLOWUP_MIN_LENGTH, 500);
@@ -128,11 +202,45 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
     '🎯 分析脈絡...'
   ];
 
-  return async (msg: UnifiedMessage): Promise<void> => {
+  return async (incomingMsg: UnifiedMessage): Promise<void> => {
+    const now = Date.now();
+    let msg = incomingMsg;
     const connector = options.resolveConnector?.(msg) || options.connector;
-    console.log(`📩 [${msg.sender.platform}] ${msg.sender.name}: ${msg.content}`);
+    const attachmentCount = msg.attachments?.length || 0;
+    console.log(
+      `📩 [${msg.sender.platform}] ${msg.sender.name}: ${msg.content}${attachmentCount > 0 ? ` (attachments=${attachmentCount})` : ''}`
+    );
     const userId = msg.sender.id;
     const targetChatId = msg.chatId || userId;
+
+    const pendingBundle = pendingImageByUser.get(userId);
+    if (pendingBundle && now - pendingBundle.updatedAt > pendingImageTtlMs) {
+      pendingImageByUser.delete(userId);
+    }
+
+    if (isImageOnlyPlaceholderMessage(msg)) {
+      const current = pendingImageByUser.get(userId);
+      const merged = [...(current?.attachments || []), ...(msg.attachments || [])];
+      pendingImageByUser.set(userId, { attachments: merged, updatedAt: now });
+      await connector.sendMessage(
+        targetChatId,
+        '📎 已收到圖片。請再傳一則文字描述你要我做的事，我會搭配圖片一起處理。'
+      );
+      return;
+    }
+
+    const pendingForUser = pendingImageByUser.get(userId);
+    if (
+      pendingForUser &&
+      pendingForUser.attachments.length > 0 &&
+      !msg.content.trim().startsWith('/')
+    ) {
+      msg = {
+        ...msg,
+        attachments: [...pendingForUser.attachments, ...(msg.attachments || [])]
+      };
+      pendingImageByUser.delete(userId);
+    }
 
     options.scheduler.resetSilenceTimer(userId);
     options.writeContextSnapshots();
@@ -204,6 +312,10 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       let promptForAgent = msg.content.trim();
       if (!isPassthroughCommand) {
         promptForAgent = options.buildPrompt(msg.content, userId);
+        const attachmentPrompt = buildAttachmentPrompt(msg.attachments);
+        if (attachmentPrompt) {
+          promptForAgent = `${promptForAgent}\n\n${attachmentPrompt}`;
+        }
       }
 
       if (isPassthroughCommand) {
