@@ -293,7 +293,10 @@ export class Scheduler {
   private shouldRetryAiResponse(response: string): boolean {
     const normalized = response.trim();
     const looksLikeExecutionStub =
-      /^(我將|我會|我先|接下來)\b/.test(normalized) &&
+      (normalized.startsWith('我將') ||
+        normalized.startsWith('我會') ||
+        normalized.startsWith('我先') ||
+        normalized.startsWith('接下來')) &&
       /(執行|調用|呼叫|run|execute)/i.test(normalized);
     return (
       normalized.startsWith('Error calling Gemini: Process terminated with signal SIGKILL') ||

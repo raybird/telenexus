@@ -47,6 +47,54 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function tryHttpReload(): Promise<boolean> {
+  const webPort = process.env.WEB_PORT?.trim() || '3030';
+  const explicitUrl = process.env.SCHEDULER_RELOAD_URL?.trim();
+  const candidates = [
+    explicitUrl,
+    `http://telenexus:${webPort}/api/schedules/reload`,
+    `http://127.0.0.1:${webPort}/api/schedules/reload`
+  ].filter((item): item is string => typeof item === 'string' && item.length > 0);
+
+  const authToken =
+    process.env.SCHEDULER_RELOAD_TOKEN?.trim() || process.env.WEB_AUTH_TOKEN?.trim();
+
+  for (const endpoint of candidates) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 3000);
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      if (authToken) {
+        headers.Authorization = `Bearer ${authToken}`;
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({}),
+        signal: controller.signal
+      });
+      clearTimeout(timer);
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.log(`⚠️  HTTP reload failed at ${endpoint}: ${response.status} ${text}`);
+        continue;
+      }
+
+      console.log(`✅ Reload requested via HTTP: ${endpoint}`);
+      return true;
+    } catch (error: any) {
+      const message = error?.message || String(error);
+      console.log(`⚠️  HTTP reload unavailable at ${endpoint}: ${message}`);
+    }
+  }
+
+  return false;
+}
+
 async function verifyReloadDelivery(previousReloadAt?: number): Promise<boolean> {
   for (let i = 0; i < 6; i++) {
     const health = readSchedulerHealth();
@@ -79,8 +127,13 @@ program
 /**
  * 尋找主程序的 PID 並發送 SIGUSR1 信號
  */
-async function notifyMainProcess(): Promise<boolean> {
+async function notifyMainProcess(): Promise<{ ok: boolean; method: 'http' | 'signal' | 'none' }> {
   try {
+    const httpReloaded = await tryHttpReload();
+    if (httpReloaded) {
+      return { ok: true, method: 'http' };
+    }
+
     // 尋找 node dist/main.js 或 tsx src/main.ts 的 PID（含 command line 便於除錯）
     const { stdout } = await execAsync('pgrep -af "dist/main.js|tsx.*src/main.ts"');
     const processes = stdout
@@ -116,7 +169,7 @@ async function notifyMainProcess(): Promise<boolean> {
       console.log(
         '💡 Tip: In Docker Compose, use `docker compose exec telenexus ...` (avoid `docker compose run ...`).'
       );
-      return false;
+      return { ok: false, method: 'none' };
     }
 
     console.log(`🔎 Found ${processes.length} main process candidate(s):`);
@@ -152,10 +205,10 @@ async function notifyMainProcess(): Promise<boolean> {
           '💡 Tip: You may be signaling a process in another namespace/container. Run this command inside the main service container.'
         );
       }
-      return false;
+      return { ok: false, method: 'none' };
     }
 
-    return true;
+    return { ok: true, method: 'signal' };
   } catch (error) {
     const err = error as any;
     const code = err?.code ? ` (${err.code})` : '';
@@ -168,7 +221,7 @@ async function notifyMainProcess(): Promise<boolean> {
     console.log(
       '💡 Tip: In Docker Compose, run scheduler commands with `docker compose exec telenexus ...`.'
     );
-    return false;
+    return { ok: false, method: 'none' };
   }
 }
 
@@ -196,12 +249,14 @@ program
       console.log(`   Prompt: ${prompt}`);
 
       const notified = await notifyMainProcess();
-      if (!notified) {
+      if (!notified.ok) {
         console.log(
           'ℹ️  Schedule is saved. It will take effect after service restart if reload signal is not delivered.'
         );
-      } else {
+      } else if (notified.method === 'signal') {
         await verifyReloadDelivery(beforeHealth?.lastReloadAt);
+      } else {
+        console.log('🩺 Reload accepted by HTTP endpoint.');
       }
     } catch (error) {
       console.error('❌ Error adding schedule:', error);
@@ -228,12 +283,14 @@ program
       console.log(`✅ Schedule #${scheduleId} removed successfully!`);
 
       const notified = await notifyMainProcess();
-      if (!notified) {
+      if (!notified.ok) {
         console.log(
           'ℹ️  Schedule is removed from DB. Running jobs may persist until next restart/reload.'
         );
-      } else {
+      } else if (notified.method === 'signal') {
         await verifyReloadDelivery(beforeHealth?.lastReloadAt);
+      } else {
+        console.log('🩺 Reload accepted by HTTP endpoint.');
       }
     } catch (error) {
       console.error('❌ Error removing schedule:', error);
@@ -282,11 +339,15 @@ program
   .action(async () => {
     const beforeHealth = readSchedulerHealth();
     const notified = await notifyMainProcess();
-    if (!notified) {
+    if (!notified.ok) {
       process.exit(1);
     }
-    await verifyReloadDelivery(beforeHealth?.lastReloadAt);
-    console.log('✅ Reload signal sent successfully.');
+    if (notified.method === 'signal') {
+      await verifyReloadDelivery(beforeHealth?.lastReloadAt);
+      console.log('✅ Reload signal sent successfully.');
+    } else {
+      console.log('✅ Reload requested successfully via HTTP.');
+    }
   });
 
 program
