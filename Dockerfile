@@ -25,10 +25,12 @@ WORKDIR /app
 ARG APP_GIT_SHA=unknown
 ARG APP_BUILD_TIME=unknown
 
-# 安裝執行時依賴 (不含編譯器 g++/make，比較安全)
+# 安裝執行時依賴
 # 保留 python3 (許多 MCP 需要), curl/jq/bash (工具與除錯), chromium (Puppeteer)
+# make/g++ 供 better-sqlite3 等原生 addon 編譯 (Memoria 需要)
 RUN apt-get update && apt-get install -y --no-install-recommends \
   python3 python3-venv curl jq bash git unzip \
+  make g++ \
   chromium \
   fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
   && rm -rf /var/lib/apt/lists/*
@@ -41,8 +43,8 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:$PATH"
 
-# Install global CLI tools
-RUN npm install -g @google/gemini-cli opencode-ai mcp-memory-libsql agent-browser
+# Install global CLI tools (含 pnpm，Memoria 使用)
+RUN npm install -g pnpm @google/gemini-cli opencode-ai mcp-memory-libsql agent-browser
 RUN agent-browser install
 
 # 從 Builder 階段複製編譯好的檔案
