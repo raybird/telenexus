@@ -38,8 +38,8 @@ services:
       - ./workspace/.opencode:/app/workspace/.opencode
       - ./ai-config.yaml:/app/ai-config.yaml:ro
       - gemini_auth:/root/.gemini
-      # 掛載本地 opencode 認證和資料 (需先確保本地已登入)
-      - ${HOME}/.local/share/opencode:/root/.local/share/opencode
+      # 使用容器內獨立 opencode 認證儲存 (不依賴 host)
+      - opencode_auth:/root/.local/share/opencode
       - ./skills:/app/skills:ro
       - ./GEMINI.md:/app/workspace/GEMINI.md:ro
       - ./AGENTS.md:/app/workspace/AGENTS.md:ro
@@ -66,7 +66,7 @@ services:
       - gemini_workspace_skills:/app/workspace/.gemini/skills
       - ./ai-config.yaml:/app/ai-config.yaml:ro
       - gemini_auth:/root/.gemini
-      - ${HOME}/.local/share/opencode:/root/.local/share/opencode
+      - opencode_auth:/root/.local/share/opencode
       - ./skills:/app/skills:ro
       - ./GEMINI.md:/app/workspace/GEMINI.md:ro
       - ./AGENTS.md:/app/workspace/AGENTS.md:ro
@@ -88,3 +88,4 @@ services:
 volumes:
   gemini_auth:
   gemini_workspace_skills:
+  opencode_auth:

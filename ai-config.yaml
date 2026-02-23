@@ -1,6 +1,6 @@
 # AI Provider Configuration
 # Options: gemini, opencode
-provider: gemini
+provider: opencode
 
 # Optional: Specify model
 # Examples:
