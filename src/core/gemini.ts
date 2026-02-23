@@ -72,6 +72,18 @@ function runProcess(
 }
 
 export class GeminiAgent implements AIAgent {
+  private isCompressCommand(prompt: string): boolean {
+    const trimmed = prompt.trim();
+    return trimmed.startsWith('/compress') || trimmed.startsWith('/compact');
+  }
+
+  private isInvalidArgument(stderr: string | undefined): boolean {
+    if (!stderr) {
+      return false;
+    }
+    return /Request contains an invalid argument/i.test(stderr);
+  }
+
   /**
    * 清除輸出中的 <thinking> 區塊和其他雜訊
    */
@@ -174,6 +186,10 @@ ${text}
         }
         args.push('-p', prompt);
 
+        if (options?.model) {
+          args.push('--model', options.model);
+        }
+
         console.log(
           `[Gemini] Executing passthrough via -p only: gemini ${args.join(' ')} (hook bypass)`
         );
@@ -239,10 +255,34 @@ ${text}
         console.warn('[Gemini] Returning recovered stdout despite non-zero exit/signal.');
         return recovered;
       }
+
+      const isPassthrough = options?.isPassthroughCommand === true;
+      const forceNewSession = options?.forceNewSession === true;
+      const stderr = typeof error?.stderr === 'string' ? error.stderr : '';
+
+      if (
+        isPassthrough &&
+        !forceNewSession &&
+        this.isCompressCommand(prompt) &&
+        this.isInvalidArgument(stderr)
+      ) {
+        console.warn('[Gemini] /compress invalid argument. Retrying with a new session...');
+        return this.chat(prompt, {
+          ...options,
+          forceNewSession: true
+        });
+      }
+
       if (error.code === 'ETIMEDOUT' || error.signal === 'SIGTERM') {
         return '✨ 5分鐘內未完成';
       }
-      return `Error calling Gemini: ${error.message}\nStderr: ${error.stderr || ''}`;
+
+      const wrapped: any = new Error(`Error calling Gemini: ${error.message}`);
+      wrapped.code = error.code;
+      wrapped.signal = error.signal;
+      wrapped.stderr = stderr;
+      wrapped.stdout = typeof error?.stdout === 'string' ? error.stdout : '';
+      throw wrapped;
     }
   }
 }

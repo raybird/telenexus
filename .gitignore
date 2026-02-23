@@ -16,6 +16,13 @@ workspace/.gemini/skills/*
 !workspace/.gemini/skills/.gitkeep
 workspace/.gemini/skills-backups/
 
+workspace/.opencode/auth/
+workspace/.opencode/cache/
+workspace/.opencode/.credentials
+workspace/.opencode/skills/*
+!workspace/.opencode/skills/.gitkeep
+workspace/.opencode/skills-backups/
+
 # Workspace temp files
 workspace/temp/
 workspace/context/

@@ -108,6 +108,27 @@ export class DynamicAIAgent implements AIAgent {
     this.runnerOpenUntil = 0;
   }
 
+  private isInvalidArgumentError(message: string | undefined): boolean {
+    if (!message) {
+      return false;
+    }
+    return (
+      /invalid argument/i.test(message) || /Request contains an invalid argument/i.test(message)
+    );
+  }
+
+  private isGeminiCompressPassthrough(
+    provider: string,
+    isPassthrough: boolean,
+    normalizedInput: string
+  ): boolean {
+    if (provider !== 'gemini' || !isPassthrough) {
+      return false;
+    }
+    const trimmed = normalizedInput.trim();
+    return trimmed.startsWith('/compress') || trimmed.startsWith('/compact');
+  }
+
   private async callRunner(payload: RunnerRequest): Promise<RunnerResponse> {
     if (!this.runnerEndpoint) {
       return { ok: false, error: 'RUNNER_ENDPOINT is not configured.' };
@@ -213,7 +234,28 @@ export class DynamicAIAgent implements AIAgent {
         runnerPayload.model = model;
       }
 
-      const runnerResult = await this.callRunner(runnerPayload);
+      let runnerResult = await this.callRunner(runnerPayload);
+      const isCompressPassthrough = this.isGeminiCompressPassthrough(
+        provider,
+        isPassthrough,
+        normalizedInput
+      );
+
+      if (
+        !runnerResult.ok &&
+        isCompressPassthrough &&
+        !forceNewSession &&
+        this.isInvalidArgumentError(runnerResult.error)
+      ) {
+        console.warn(
+          '[DynamicAgent] /compress failed with invalid argument; retrying once with forceNewSession.'
+        );
+        const retryPayload: RunnerRequest = {
+          ...runnerPayload,
+          forceNewSession: true
+        };
+        runnerResult = await this.callRunner(retryPayload);
+      }
 
       if (runnerResult.ok && runnerResult.output) {
         this.markRunnerSuccess();
@@ -231,6 +273,9 @@ export class DynamicAIAgent implements AIAgent {
       }
 
       const errorMessage = runnerResult.error || 'Unknown runner error';
+      if (isCompressPassthrough && this.isInvalidArgumentError(errorMessage)) {
+        return '⚠️ `/compress` 失敗：目前這個 Session 的壓縮請求被 Gemini API 拒絕（invalid argument）。請先送 `/new`，再重試 `/compress`。';
+      }
       this.markRunnerFailure(errorMessage);
       console.warn(`[DynamicAgent] Runner failed: ${errorMessage}`);
       if (!this.fallbackToLocal) {

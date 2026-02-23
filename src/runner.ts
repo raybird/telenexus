@@ -101,6 +101,19 @@ function appendAuditLine(payload: Record<string, unknown>): void {
   }
 }
 
+function classifyRunnerError(message: string): string {
+  if (/invalid argument/i.test(message)) {
+    return 'gemini_bad_request_invalid_argument';
+  }
+  if (/timed out|ETIMEDOUT|timeout/i.test(message)) {
+    return 'runner_timeout';
+  }
+  if (/unauthorized-token|Unauthorized runner token/i.test(message)) {
+    return 'runner_unauthorized';
+  }
+  return 'runner_error_other';
+}
+
 function resolveStatusPath(): string {
   const configured = process.env.RUNNER_STATUS_PATH?.trim();
   if (configured) {
@@ -427,19 +440,21 @@ const server = http.createServer(async (req, res) => {
     } catch (error: unknown) {
       const durationMs = Date.now() - startedAt;
       const message = error instanceof Error ? error.message : String(error);
+      const errorType = classifyRunnerError(message);
       appendAuditLine({
         requestId,
         timestamp: startedAt,
         durationMs,
         ok: false,
         httpStatus: 500,
-        error: message
+        error: message,
+        errorType
       });
       markRunnerResult({
         requestId,
         durationMs,
         ok: false,
-        error: message
+        error: `${errorType}: ${message}`
       });
       sendJson(res, 500, { ok: false, requestId, durationMs, error: message });
     }
