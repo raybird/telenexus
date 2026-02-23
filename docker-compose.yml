@@ -28,6 +28,14 @@ services:
       RUNNER_SHARED_SECRET: ${RUNNER_SHARED_SECRET:-}
       RUNNER_FAILURE_THRESHOLD: ${RUNNER_FAILURE_THRESHOLD:-3}
       RUNNER_COOLDOWN_MS: ${RUNNER_COOLDOWN_MS:-60000}
+      MEMORIA_SYNC_ENABLED: ${MEMORIA_SYNC_ENABLED:-auto}
+      MEMORIA_HOME: ${MEMORIA_HOME:-/app/workspace/Memoria}
+      MEMORIA_CLI_PATH: ${MEMORIA_CLI_PATH:-/app/workspace/Memoria/cli}
+      MEMORIA_SYNC_TIMEOUT_MS: ${MEMORIA_SYNC_TIMEOUT_MS:-20000}
+      MEMORIA_HOOK_QUEUE_ENABLED: ${MEMORIA_HOOK_QUEUE_ENABLED:-true}
+      MEMORIA_HOOK_QUEUE_FILE: ${MEMORIA_HOOK_QUEUE_FILE:-/app/data/memoria-hook-queue.jsonl}
+      MEMORIA_HOOK_FLUSH_SIGNAL: ${MEMORIA_HOOK_FLUSH_SIGNAL:-/app/data/memoria-hook-flush.signal}
+      MEMORIA_HOOK_QUEUE_POLL_MS: ${MEMORIA_HOOK_QUEUE_POLL_MS:-5000}
     ports:
       - ${WEB_PORT:-3030}:${WEB_PORT:-3030}
     volumes:
@@ -60,6 +68,14 @@ services:
       RUNNER_MODE: standalone
       RUNNER_PORT: 8787
       RUNNER_SHARED_SECRET: ${RUNNER_SHARED_SECRET:-}
+      MEMORIA_SYNC_ENABLED: ${MEMORIA_SYNC_ENABLED:-auto}
+      MEMORIA_HOME: ${MEMORIA_HOME:-/app/workspace/Memoria}
+      MEMORIA_CLI_PATH: ${MEMORIA_CLI_PATH:-/app/workspace/Memoria/cli}
+      MEMORIA_SYNC_TIMEOUT_MS: ${MEMORIA_SYNC_TIMEOUT_MS:-20000}
+      MEMORIA_HOOK_QUEUE_ENABLED: ${MEMORIA_HOOK_QUEUE_ENABLED:-true}
+      MEMORIA_HOOK_QUEUE_FILE: ${MEMORIA_HOOK_QUEUE_FILE:-/app/data/memoria-hook-queue.jsonl}
+      MEMORIA_HOOK_FLUSH_SIGNAL: ${MEMORIA_HOOK_FLUSH_SIGNAL:-/app/data/memoria-hook-flush.signal}
+      MEMORIA_HOOK_QUEUE_POLL_MS: ${MEMORIA_HOOK_QUEUE_POLL_MS:-5000}
     volumes:
       - ./data:/app/data
       - ./workspace:/app/workspace

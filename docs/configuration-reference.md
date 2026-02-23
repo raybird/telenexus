@@ -43,6 +43,11 @@ passthrough_commands:
 - passthrough 流程不會額外套 TeleNexus 摘要/上下文包裝
 - 一般對話的記憶檢索由 TeleNexus 在分派前統一注入，與 provider hook 解耦
 
+## Timezone
+
+- 系統時區以容器環境變數 `TZ` 為唯一來源（預設 `Asia/Taipei`）
+- `ai-config.yaml` 不再建議設定 `timezone`
+
 ## Runner Session Context（重要）
 
 目前預設聊天流量走 `agent-runner`（`CHAT_USE_RUNNER_PERCENT=100`）。
@@ -75,7 +80,7 @@ MEMORIA_SYNC_ENABLED=auto
 MEMORIA_HOME=/app/workspace/Memoria
 MEMORIA_CLI_PATH=/app/workspace/Memoria/cli
 MEMORIA_SYNC_TIMEOUT_MS=20000
-MEMORIA_HOOK_QUEUE_ENABLED=false
+MEMORIA_HOOK_QUEUE_ENABLED=true
 MEMORIA_HOOK_QUEUE_FILE=/app/data/memoria-hook-queue.jsonl
 MEMORIA_HOOK_FLUSH_SIGNAL=/app/data/memoria-hook-flush.signal
 MEMORIA_HOOK_QUEUE_POLL_MS=5000
@@ -87,8 +92,8 @@ MEMORIA_HOOK_QUEUE_POLL_MS=5000
 - `MEMORIA_SYNC_ENABLED=on`：強制啟用（即使 CLI 缺失也會持續嘗試）
 - `MEMORIA_SYNC_ENABLED=off`：完全停用同步
 - 同步失敗只記錄 warning，不會中斷主對話流程
-- `MEMORIA_HOOK_QUEUE_ENABLED=false`（預設）：完全 hook-free，只走 TeleNexus pipeline 同步
-- 只有在 `MEMORIA_HOOK_QUEUE_ENABLED=true` 時，才會啟用 hook queue 檔案輪詢與 flush 訊號機制
+- `MEMORIA_HOOK_QUEUE_ENABLED=true`（預設）：啟用 hook queue 輪詢；即使沒有 hook 輸入也不影響主流程
+- 設為 `false` 可切回完全 hook-free，只走 TeleNexus pipeline 同步
 
 ## Telegram 檔案回傳
 

@@ -7,10 +7,6 @@ provider: opencode
 #   model: gemini-2.0-flash-exp
 #   model: google/gemini-2.0-flash
 
-# Timezone Configuration
-# Supported timezones: Asia/Taipei, America/New_York, UTC, etc.
-timezone: Asia/Taipei
-
 # Slash commands passthrough whitelist (handled by CLI/Agent)
 passthrough_commands:
   - /compress
