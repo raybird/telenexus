@@ -320,8 +320,7 @@ function loadProviderStatus(): { provider: string; model: string; timezone: stri
 
     const provider = typeof parsed?.provider === 'string' ? parsed.provider : 'gemini';
     const model = typeof parsed?.model === 'string' ? parsed.model : 'default';
-    const timezone =
-      typeof parsed?.timezone === 'string' ? parsed.timezone : process.env.TZ || 'Asia/Taipei';
+    const timezone = process.env.TZ || 'Asia/Taipei';
     return { provider, model, timezone };
   } catch {
     return {

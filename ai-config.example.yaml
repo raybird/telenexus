@@ -7,9 +7,6 @@ provider: gemini
 # Optional: Specify model
 # model: gemini-2.0-flash-exp
 
-# Optional: Timezone for scheduler
-timezone: Asia/Taipei
-
 # Slash commands to passthrough directly to CLI/Agent
 # Defaults are shown explicitly here for clarity
 passthrough_commands:

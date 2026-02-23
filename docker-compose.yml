@@ -28,6 +28,14 @@ services:
       RUNNER_SHARED_SECRET: ${RUNNER_SHARED_SECRET:-}
       RUNNER_FAILURE_THRESHOLD: ${RUNNER_FAILURE_THRESHOLD:-3}
       RUNNER_COOLDOWN_MS: ${RUNNER_COOLDOWN_MS:-60000}
+      MEMORIA_SYNC_ENABLED: ${MEMORIA_SYNC_ENABLED:-auto}
+      MEMORIA_HOME: ${MEMORIA_HOME:-/app/workspace/Memoria}
+      MEMORIA_CLI_PATH: ${MEMORIA_CLI_PATH:-/app/workspace/Memoria/cli}
+      MEMORIA_SYNC_TIMEOUT_MS: ${MEMORIA_SYNC_TIMEOUT_MS:-20000}
+      MEMORIA_HOOK_QUEUE_ENABLED: ${MEMORIA_HOOK_QUEUE_ENABLED:-true}
+      MEMORIA_HOOK_QUEUE_FILE: ${MEMORIA_HOOK_QUEUE_FILE:-/app/data/memoria-hook-queue.jsonl}
+      MEMORIA_HOOK_FLUSH_SIGNAL: ${MEMORIA_HOOK_FLUSH_SIGNAL:-/app/data/memoria-hook-flush.signal}
+      MEMORIA_HOOK_QUEUE_POLL_MS: ${MEMORIA_HOOK_QUEUE_POLL_MS:-5000}
     ports:
       - ${WEB_PORT:-3030}:${WEB_PORT:-3030}
     volumes:
@@ -38,8 +46,8 @@ services:
       - ./workspace/.opencode:/app/workspace/.opencode
       - ./ai-config.yaml:/app/ai-config.yaml:ro
       - gemini_auth:/root/.gemini
-      # 掛載本地 opencode 認證和資料 (需先確保本地已登入)
-      - ${HOME}/.local/share/opencode:/root/.local/share/opencode
+      # 使用容器內獨立 opencode 認證儲存 (不依賴 host)
+      - opencode_auth:/root/.local/share/opencode
       - ./skills:/app/skills:ro
       - ./GEMINI.md:/app/workspace/GEMINI.md:ro
       - ./AGENTS.md:/app/workspace/AGENTS.md:ro
@@ -60,13 +68,21 @@ services:
       RUNNER_MODE: standalone
       RUNNER_PORT: 8787
       RUNNER_SHARED_SECRET: ${RUNNER_SHARED_SECRET:-}
+      MEMORIA_SYNC_ENABLED: ${MEMORIA_SYNC_ENABLED:-auto}
+      MEMORIA_HOME: ${MEMORIA_HOME:-/app/workspace/Memoria}
+      MEMORIA_CLI_PATH: ${MEMORIA_CLI_PATH:-/app/workspace/Memoria/cli}
+      MEMORIA_SYNC_TIMEOUT_MS: ${MEMORIA_SYNC_TIMEOUT_MS:-20000}
+      MEMORIA_HOOK_QUEUE_ENABLED: ${MEMORIA_HOOK_QUEUE_ENABLED:-true}
+      MEMORIA_HOOK_QUEUE_FILE: ${MEMORIA_HOOK_QUEUE_FILE:-/app/data/memoria-hook-queue.jsonl}
+      MEMORIA_HOOK_FLUSH_SIGNAL: ${MEMORIA_HOOK_FLUSH_SIGNAL:-/app/data/memoria-hook-flush.signal}
+      MEMORIA_HOOK_QUEUE_POLL_MS: ${MEMORIA_HOOK_QUEUE_POLL_MS:-5000}
     volumes:
       - ./data:/app/data
       - ./workspace:/app/workspace
       - gemini_workspace_skills:/app/workspace/.gemini/skills
       - ./ai-config.yaml:/app/ai-config.yaml:ro
       - gemini_auth:/root/.gemini
-      - ${HOME}/.local/share/opencode:/root/.local/share/opencode
+      - opencode_auth:/root/.local/share/opencode
       - ./skills:/app/skills:ro
       - ./GEMINI.md:/app/workspace/GEMINI.md:ro
       - ./AGENTS.md:/app/workspace/AGENTS.md:ro
@@ -88,3 +104,4 @@ services:
 volumes:
   gemini_auth:
   gemini_workspace_skills:
+  opencode_auth:
