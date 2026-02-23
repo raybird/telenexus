@@ -3,7 +3,7 @@ dist/
 
 moltbot.db**
 
-.serena/
+# .serena/
 
 .env
 ai-config.yaml
