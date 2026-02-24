@@ -13,9 +13,8 @@
     "start:runner": "node scripts/sync-skills.mjs && node dist/runner.js",
     "docker:up": "npm run docker:up:fast",
     "docker:up:fast": "docker compose up -d",
-    "docker:up:build": "docker compose up -d --build",
-    "docker:up:meta": "APP_GIT_SHA=$(git rev-parse --short HEAD) APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) docker compose up -d --build --force-recreate",
-    "docker:up:nocache": "APP_GIT_SHA=$(git rev-parse --short HEAD) APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) docker compose build --no-cache && APP_GIT_SHA=$(git rev-parse --short HEAD) APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) docker compose up -d --force-recreate",
+    "docker:up:build": "docker compose up -d --build telenexus",
+    "docker:up:meta": "APP_GIT_SHA=$(git rev-parse --short HEAD) APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) docker compose up -d --build --force-recreate telenexus",
     "docker:up:telenexus": "npm run docker:up:meta",
     "lint": "eslint \"src/**/*.ts\"",
     "format": "prettier --write \"src/**/*.ts\" \"*.md\""

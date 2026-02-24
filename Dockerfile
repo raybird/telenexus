@@ -22,6 +22,9 @@ FROM node:22-slim
 
 WORKDIR /app
 
+ARG APP_GIT_SHA=unknown
+ARG APP_BUILD_TIME=unknown
+
 # 安裝執行時依賴
 # 保留 python3 (許多 MCP 需要), curl/jq/bash (工具與除錯), chromium (Puppeteer)
 # make/g++ 供 better-sqlite3 等原生 addon 編譯 (Memoria 需要)
@@ -58,10 +61,6 @@ RUN chmod +x debug-container.sh && chmod +x workspace/.gemini/hooks/*.sh 2>/dev/
 
 ENV NODE_ENV=production
 ENV GEMINI_PROJECT_DIR=/app
-
-# 將 build metadata 參數放在最後，避免每次變更 APP_BUILD_TIME 破壞前面快取層
-ARG APP_GIT_SHA=unknown
-ARG APP_BUILD_TIME=unknown
 ENV APP_GIT_SHA=$APP_GIT_SHA
 ENV APP_BUILD_TIME=$APP_BUILD_TIME
 
