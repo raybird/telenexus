@@ -41,9 +41,8 @@ services:
     volumes:
       - ./data:/app/data
       - ./workspace:/app/workspace
-      - ./workspace/.gemini:/app/workspace/.gemini
-      - gemini_workspace_skills:/app/workspace/.gemini/skills
-      - ./workspace/.opencode:/app/workspace/.opencode
+      - vol_skills:/app/workspace/.gemini/skills
+      - vol_skills:/app/workspace/.opencode/skills
       - ./ai-config.yaml:/app/ai-config.yaml:ro
       - gemini_auth:/root/.gemini
       # 使用容器內獨立 opencode 認證儲存 (不依賴 host)
@@ -79,7 +78,8 @@ services:
     volumes:
       - ./data:/app/data
       - ./workspace:/app/workspace
-      - gemini_workspace_skills:/app/workspace/.gemini/skills
+      - vol_skills:/app/workspace/.gemini/skills
+      - vol_skills:/app/workspace/.opencode/skills
       - ./ai-config.yaml:/app/ai-config.yaml:ro
       - gemini_auth:/root/.gemini
       - opencode_auth:/root/.local/share/opencode
@@ -103,5 +103,5 @@ services:
 
 volumes:
   gemini_auth:
-  gemini_workspace_skills:
   opencode_auth:
+  vol_skills:
