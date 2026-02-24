@@ -1,18 +1,45 @@
+x-common-config: &common-config
+  build:
+    context: .
+    args:
+      APP_GIT_SHA: ${APP_GIT_SHA:-unknown}
+      APP_BUILD_TIME: ${APP_BUILD_TIME:-unknown}
+  env_file: .env
+  restart: unless-stopped
+  volumes:
+    - ./data:/app/data
+    - ./workspace:/app/workspace
+    - ./ai-config.yaml:/app/ai-config.yaml:ro
+    - gemini_auth:/root/.gemini
+    # 使用容器內獨立 opencode 認證儲存 (不依賴 host)
+    - opencode_auth:/root/.local/share/opencode
+    - ./skills:/app/skills:ro
+    - ./GEMINI.md:/app/workspace/GEMINI.md:ro
+    - ./AGENTS.md:/app/workspace/AGENTS.md:ro
+
+x-common-env: &common-env
+  TZ: Asia/Taipei
+  DB_PATH: /app/data/moltbot.db
+  DB_DIR: /app/data
+  GEMINI_PROJECT_DIR: /app
+  RUNNER_SHARED_SECRET: ${RUNNER_SHARED_SECRET:-}
+  MEMORIA_SYNC_ENABLED: ${MEMORIA_SYNC_ENABLED:-auto}
+  MEMORIA_HOME: ${MEMORIA_HOME:-/app/workspace/Memoria}
+  MEMORIA_CLI_PATH: ${MEMORIA_CLI_PATH:-/app/workspace/Memoria/cli}
+  MEMORIA_SYNC_TIMEOUT_MS: ${MEMORIA_SYNC_TIMEOUT_MS:-20000}
+  MEMORIA_HOOK_QUEUE_ENABLED: ${MEMORIA_HOOK_QUEUE_ENABLED:-true}
+  MEMORIA_HOOK_QUEUE_FILE: ${MEMORIA_HOOK_QUEUE_FILE:-/app/data/memoria-hook-queue.jsonl}
+  MEMORIA_HOOK_FLUSH_SIGNAL: ${MEMORIA_HOOK_FLUSH_SIGNAL:-/app/data/memoria-hook-flush.signal}
+  MEMORIA_HOOK_QUEUE_POLL_MS: ${MEMORIA_HOOK_QUEUE_POLL_MS:-5000}
+  OPENCODE_YOLO: "1"
+
 services:
   telenexus:
-    build:
-      context: .
-      args:
-        APP_GIT_SHA: ${APP_GIT_SHA:-unknown}
-        APP_BUILD_TIME: ${APP_BUILD_TIME:-unknown}
-    env_file: .env
+    <<: *common-config
     environment:
-      TZ: Asia/Taipei
+      <<: *common-env
       TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
       ALLOWED_USER_ID: ${ALLOWED_USER_ID}
-      DB_PATH: /app/data/moltbot.db
-      DB_DIR: /app/data
-      GEMINI_PROJECT_DIR: /app
       WEB_ENABLED: ${WEB_ENABLED:-true}
       WEB_BIND: ${WEB_BIND:-0.0.0.0}
       WEB_PORT: ${WEB_PORT:-3030}
@@ -25,83 +52,25 @@ services:
       SCHEDULE_USE_RUNNER: ${SCHEDULE_USE_RUNNER:-true}
       CHAT_USE_RUNNER_PERCENT: ${CHAT_USE_RUNNER_PERCENT:-100}
       CHAT_USE_RUNNER_ONLY_USERS: ${CHAT_USE_RUNNER_ONLY_USERS:-}
-      RUNNER_SHARED_SECRET: ${RUNNER_SHARED_SECRET:-}
       RUNNER_FAILURE_THRESHOLD: ${RUNNER_FAILURE_THRESHOLD:-3}
       RUNNER_COOLDOWN_MS: ${RUNNER_COOLDOWN_MS:-60000}
-      MEMORIA_SYNC_ENABLED: ${MEMORIA_SYNC_ENABLED:-auto}
-      MEMORIA_HOME: ${MEMORIA_HOME:-/app/workspace/Memoria}
-      MEMORIA_CLI_PATH: ${MEMORIA_CLI_PATH:-/app/workspace/Memoria/cli}
-      MEMORIA_SYNC_TIMEOUT_MS: ${MEMORIA_SYNC_TIMEOUT_MS:-20000}
-      MEMORIA_HOOK_QUEUE_ENABLED: ${MEMORIA_HOOK_QUEUE_ENABLED:-true}
-      MEMORIA_HOOK_QUEUE_FILE: ${MEMORIA_HOOK_QUEUE_FILE:-/app/data/memoria-hook-queue.jsonl}
-      MEMORIA_HOOK_FLUSH_SIGNAL: ${MEMORIA_HOOK_FLUSH_SIGNAL:-/app/data/memoria-hook-flush.signal}
-      MEMORIA_HOOK_QUEUE_POLL_MS: ${MEMORIA_HOOK_QUEUE_POLL_MS:-5000}
     ports:
       - ${WEB_PORT:-3030}:${WEB_PORT:-3030}
-    volumes:
-      - ./data:/app/data
-      - ./workspace:/app/workspace
-      - vol_skills:/app/workspace/.gemini/skills
-      - vol_skills:/app/workspace/.opencode/skills
-      - ./ai-config.yaml:/app/ai-config.yaml:ro
-      - gemini_auth:/root/.gemini
-      # 使用容器內獨立 opencode 認證儲存 (不依賴 host)
-      - opencode_auth:/root/.local/share/opencode
-      - ./skills:/app/skills:ro
-      - ./GEMINI.md:/app/workspace/GEMINI.md:ro
-      - ./AGENTS.md:/app/workspace/AGENTS.md:ro
-    restart: unless-stopped
 
   agent-runner:
-    build:
-      context: .
-      args:
-        APP_GIT_SHA: ${APP_GIT_SHA:-unknown}
-        APP_BUILD_TIME: ${APP_BUILD_TIME:-unknown}
-    env_file: .env
+    <<: *common-config
     environment:
-      TZ: Asia/Taipei
-      DB_PATH: /app/data/moltbot.db
-      DB_DIR: /app/data
-      GEMINI_PROJECT_DIR: /app
+      <<: *common-env
       RUNNER_MODE: standalone
       RUNNER_PORT: 8787
-      RUNNER_SHARED_SECRET: ${RUNNER_SHARED_SECRET:-}
-      MEMORIA_SYNC_ENABLED: ${MEMORIA_SYNC_ENABLED:-auto}
-      MEMORIA_HOME: ${MEMORIA_HOME:-/app/workspace/Memoria}
-      MEMORIA_CLI_PATH: ${MEMORIA_CLI_PATH:-/app/workspace/Memoria/cli}
-      MEMORIA_SYNC_TIMEOUT_MS: ${MEMORIA_SYNC_TIMEOUT_MS:-20000}
-      MEMORIA_HOOK_QUEUE_ENABLED: ${MEMORIA_HOOK_QUEUE_ENABLED:-true}
-      MEMORIA_HOOK_QUEUE_FILE: ${MEMORIA_HOOK_QUEUE_FILE:-/app/data/memoria-hook-queue.jsonl}
-      MEMORIA_HOOK_FLUSH_SIGNAL: ${MEMORIA_HOOK_FLUSH_SIGNAL:-/app/data/memoria-hook-flush.signal}
-      MEMORIA_HOOK_QUEUE_POLL_MS: ${MEMORIA_HOOK_QUEUE_POLL_MS:-5000}
-    volumes:
-      - ./data:/app/data
-      - ./workspace:/app/workspace
-      - vol_skills:/app/workspace/.gemini/skills
-      - vol_skills:/app/workspace/.opencode/skills
-      - ./ai-config.yaml:/app/ai-config.yaml:ro
-      - gemini_auth:/root/.gemini
-      - opencode_auth:/root/.local/share/opencode
-      - ./skills:/app/skills:ro
-      - ./GEMINI.md:/app/workspace/GEMINI.md:ro
-      - ./AGENTS.md:/app/workspace/AGENTS.md:ro
-    command: ['node', 'dist/runner.js']
+    command: [ 'node', 'dist/runner.js' ]
     healthcheck:
-      test:
-        [
-          'CMD',
-          'node',
-          '-e',
-          "fetch('http://127.0.0.1:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-        ]
+      test: [ 'CMD', 'node', '-e', "fetch('http://127.0.0.1:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 20s
-    restart: unless-stopped
 
 volumes:
   gemini_auth:
   opencode_auth:
-  vol_skills:

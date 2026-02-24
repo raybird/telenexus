@@ -64,4 +64,4 @@ ENV GEMINI_PROJECT_DIR=/app
 ENV APP_GIT_SHA=$APP_GIT_SHA
 ENV APP_BUILD_TIME=$APP_BUILD_TIME
 
-CMD ["node", "dist/main.js"]
+CMD ["npm", "start"]
