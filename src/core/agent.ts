@@ -1,4 +1,6 @@
 import fs from 'fs';
+import http from 'http';
+import https from 'https';
 import yaml from 'js-yaml';
 import { GeminiAgent } from './gemini.js';
 import { OpencodeAgent } from './opencode.js';
@@ -134,32 +136,65 @@ export class DynamicAIAgent implements AIAgent {
       return { ok: false, error: 'RUNNER_ENDPOINT is not configured.' };
     }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.runnerTimeoutMs);
+    const body = JSON.stringify(payload);
+    const endpoint = new URL(`${this.runnerEndpoint}/run`);
+    const transport = endpoint.protocol === 'https:' ? https : http;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(body).toString()
+    };
+    if (this.runnerToken) {
+      headers['x-runner-token'] = this.runnerToken;
+    }
 
     try {
-      const response = await fetch(`${this.runnerEndpoint}/run`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(this.runnerToken ? { 'x-runner-token': this.runnerToken } : {})
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal
-      });
+      const response = await new Promise<{ statusCode: number; bodyText: string }>(
+        (resolve, reject) => {
+          const req = transport.request({
+            protocol: endpoint.protocol,
+            hostname: endpoint.hostname,
+            port: endpoint.port || undefined,
+            path: `${endpoint.pathname}${endpoint.search}`,
+            method: 'POST',
+            headers
+          });
 
-      if (!response.ok) {
-        const text = await response.text();
-        return { ok: false, error: `Runner HTTP ${response.status}: ${text}` };
+          req.setTimeout(this.runnerTimeoutMs, () => {
+            req.destroy(new Error(`Runner request timed out after ${this.runnerTimeoutMs}ms`));
+          });
+
+          req.on('response', (res) => {
+            let responseText = '';
+            res.setEncoding('utf8');
+            res.on('data', (chunk) => {
+              responseText += chunk;
+            });
+            res.on('end', () => {
+              resolve({
+                statusCode: res.statusCode || 0,
+                bodyText: responseText
+              });
+            });
+          });
+
+          req.on('error', (error) => {
+            reject(error);
+          });
+
+          req.write(body);
+          req.end();
+        }
+      );
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return { ok: false, error: `Runner HTTP ${response.statusCode}: ${response.bodyText}` };
       }
 
-      const result = (await response.json()) as RunnerResponse;
+      const result = JSON.parse(response.bodyText || '{}') as RunnerResponse;
       return result;
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       return { ok: false, error: `Runner request failed: ${message}` };
-    } finally {
-      clearTimeout(timeout);
     }
   }
 
