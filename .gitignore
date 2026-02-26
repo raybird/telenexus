@@ -23,6 +23,13 @@ workspace/.opencode/skills/*
 !workspace/.opencode/skills/.gitkeep
 workspace/.opencode/skills-backups/
 
+workspace/.claude/auth/
+workspace/.claude/cache/
+workspace/.claude/.credentials
+workspace/.claude/skills/*
+!workspace/.claude/skills/.gitkeep
+workspace/.claude/skills-backups/
+
 # Workspace temp files
 workspace/temp/
 workspace/context/
