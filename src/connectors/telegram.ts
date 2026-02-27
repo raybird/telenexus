@@ -661,7 +661,12 @@ export class TelegramConnector implements Connector {
     }
   }
 
-  async editMessage(chatId: string, messageId: string, newText: string): Promise<void> {
+  async editMessage(
+    chatId: string,
+    messageId: string,
+    newText: string,
+    options?: { retries?: number; suppressFallbackSend?: boolean }
+  ): Promise<void> {
     try {
       const chunks = this.splitMessage(newText);
       const firstChunk = chunks[0] || '';
@@ -669,30 +674,37 @@ export class TelegramConnector implements Connector {
       const formatted = allowFormatting
         ? this.formatChunkForTelegram(firstChunk)
         : { text: firstChunk };
+      const callOptions = options?.retries !== undefined ? { retries: options.retries } : undefined;
 
       // 1. Edit the original message (placeholder) with the first chunk
       try {
         if (formatted.parseMode) {
           const parseMode: TelegramParseMode = formatted.parseMode;
-          await this.callTelegram(`editMessage chat=${chatId} message=${messageId}`, () =>
-            this.bot.telegram.editMessageText(
-              chatId,
-              parseInt(messageId, 10),
-              undefined,
-              formatted.text,
-              {
-                parse_mode: parseMode
-              }
-            )
+          await this.callTelegram(
+            `editMessage chat=${chatId} message=${messageId}`,
+            () =>
+              this.bot.telegram.editMessageText(
+                chatId,
+                parseInt(messageId, 10),
+                undefined,
+                formatted.text,
+                {
+                  parse_mode: parseMode
+                }
+              ),
+            callOptions
           );
         } else {
-          await this.callTelegram(`editMessage chat=${chatId} message=${messageId}`, () =>
-            this.bot.telegram.editMessageText(
-              chatId,
-              parseInt(messageId, 10),
-              undefined,
-              formatted.text
-            )
+          await this.callTelegram(
+            `editMessage chat=${chatId} message=${messageId}`,
+            () =>
+              this.bot.telegram.editMessageText(
+                chatId,
+                parseInt(messageId, 10),
+                undefined,
+                formatted.text
+              ),
+            callOptions
           );
         }
       } catch (error) {
@@ -702,8 +714,16 @@ export class TelegramConnector implements Connector {
         console.warn(
           `[Telegram] editMessage chat=${chatId} message=${messageId} parse_mode failed, fallback to plain text.`
         );
-        await this.callTelegram(`editMessage chat=${chatId} message=${messageId}`, () =>
-          this.bot.telegram.editMessageText(chatId, parseInt(messageId, 10), undefined, firstChunk)
+        await this.callTelegram(
+          `editMessage chat=${chatId} message=${messageId}`,
+          () =>
+            this.bot.telegram.editMessageText(
+              chatId,
+              parseInt(messageId, 10),
+              undefined,
+              firstChunk
+            ),
+          callOptions
         );
       }
 
@@ -716,7 +736,9 @@ export class TelegramConnector implements Connector {
     } catch (error) {
       console.error(`[Telegram] Failed to edit message ${messageId}:`, error);
       // Fallback: try sending as new message(s) if edit fails
-      await this.sendMessage(chatId, newText);
+      if (!options?.suppressFallbackSend) {
+        await this.sendMessage(chatId, newText);
+      }
     }
   }
 }

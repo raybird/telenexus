@@ -925,3 +925,37 @@
 - 若要回退即時同步，可先移除 `memory/stream` 與前端 SSE 訂閱。
 - 若要回退版本可觀測，可移除 `api/debug/version` 與 build metadata 注入。
 - 若要回退部署腳本分流，可將 `docker:up` 指令還原為單一命令。
+
+---
+
+## 2026-02-27 - Telegram placeholder 輪播覆蓋修正與圖片輸入穩定化（v2.5.22）
+
+### 階段
+
+- 修正 Telegram 在「已送出最終回覆後又跳回等待輪播文字」的競態問題。
+- 補齊圖片上傳到 CLI prompt 的穩定流程與參數文件。
+
+### 已完成
+
+- message pipeline 加入 placeholder 輪播的 in-flight 鎖與停止旗標。
+- 在送出最終回覆前，先停止輪播並等待最後一次更新完成，避免舊 `editMessage` 晚到覆蓋最終回覆。
+- Telegram connector 的 `editMessage` 新增 `retries` 與 `suppressFallbackSend` 控制，供輪播更新使用低風險模式。
+- 補充配置文件：Telegram API timeout/retry、圖片大小限制、圖片暫存 TTL。
+
+### 影響檔案
+
+- `src/core/message-pipeline.ts`
+- `src/connectors/telegram.ts`
+- `src/types/index.ts`
+- `docs/configuration-reference.md`
+- `docs/migration-log.md`
+
+### 驗證結果
+
+- `npm run build`：通過。
+- `npm run lint`：通過。
+- 觀測重點：最終回覆送出後，不再被等待輪播字串覆蓋。
+
+### 回滾計畫
+
+- 若需快速回退，可移除 placeholder in-flight 鎖與 `editMessage` 擴充參數，恢復舊版輪播更新流程。

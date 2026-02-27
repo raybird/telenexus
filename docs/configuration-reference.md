@@ -108,6 +108,19 @@ MEMORIA_HOOK_QUEUE_POLL_MS=5000
 - `auto`：偵測 Markdown/HTML 後優先用 `HTML parse_mode`，失敗自動降級純文字
 - 超過 Telegram 單訊息長度而分段時，會自動改用純文字送出（避免分段破壞標記）
 
+## Telegram API 穩定性
+
+- `TELEGRAM_API_TIMEOUT_MS`（預設 `15000`）
+- `TELEGRAM_API_RETRY_COUNT`（預設 `1`）
+- `TELEGRAM_API_RETRY_DELAY_MS`（預設 `800`）
+- 輪播 placeholder 的 `editMessage` 會使用單一 in-flight 更新，避免舊請求晚到覆蓋最終回覆
+
+## Telegram 圖片接收
+
+- `TELEGRAM_IMAGE_MAX_BYTES`（預設 `20971520`，20MB）
+- `IMAGE_ATTACHMENT_PENDING_TTL_MS`（預設 `600000`，10 分鐘）
+- 使用者若先只上傳圖片，系統會暫存附件並提示下一則文字；後續文字會自動合併該附件送入 prompt
+
 ## 回覆後補充摘要
 
 - `SUMMARY_FOLLOWUP_ENABLED=true|false`（預設 `true`）

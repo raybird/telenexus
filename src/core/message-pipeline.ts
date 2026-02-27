@@ -277,22 +277,50 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
     let placeholderMsgId = '';
     let thinkingInterval: NodeJS.Timeout | null = null;
     let messageIndex = 0;
+    let thinkingActive = false;
+    let thinkingUpdateInFlight: Promise<void> | null = null;
+
+    const flushThinkingUpdate = async () => {
+      if (!thinkingUpdateInFlight) {
+        return;
+      }
+      try {
+        await thinkingUpdateInFlight;
+      } catch {
+        // thinking update failure should not block final response
+      }
+    };
+
+    const queueThinkingUpdate = (nextText: string) => {
+      if (!thinkingActive || !placeholderMsgId || thinkingUpdateInFlight) {
+        return;
+      }
+
+      thinkingUpdateInFlight = (async () => {
+        if (!thinkingActive) {
+          return;
+        }
+        await connector.editMessage(targetChatId, placeholderMsgId, nextText, {
+          retries: 0,
+          suppressFallbackSend: true
+        });
+      })()
+        .catch((error) => {
+          console.warn('Failed to update thinking message', error);
+        })
+        .finally(() => {
+          thinkingUpdateInFlight = null;
+        });
+    };
 
     try {
       placeholderMsgId = await connector.sendPlaceholder(targetChatId, thinkingMessages[0]!);
 
       if (placeholderMsgId) {
+        thinkingActive = true;
         thinkingInterval = setInterval(async () => {
           messageIndex = (messageIndex + 1) % thinkingMessages.length;
-          try {
-            await connector.editMessage(
-              targetChatId,
-              placeholderMsgId,
-              thinkingMessages[messageIndex]!
-            );
-          } catch (error) {
-            console.warn('Failed to update thinking message', error);
-          }
+          queueThinkingUpdate(thinkingMessages[messageIndex]!);
         }, 3000);
       }
     } catch (error) {
@@ -350,6 +378,8 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       if (thinkingInterval) {
         clearInterval(thinkingInterval);
       }
+      thinkingActive = false;
+      await flushThinkingUpdate();
 
       if (placeholderMsgId) {
         await connector.editMessage(targetChatId, placeholderMsgId, response);
@@ -444,6 +474,8 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       if (thinkingInterval) {
         clearInterval(thinkingInterval);
       }
+      thinkingActive = false;
+      await flushThinkingUpdate();
 
       if (placeholderMsgId) {
         await connector.editMessage(targetChatId, placeholderMsgId, errorMsg);

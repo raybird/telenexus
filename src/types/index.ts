@@ -45,7 +45,15 @@ export interface Connector {
   /**
    * 編輯已發送的訊息
    */
-  editMessage(chatId: string, messageId: string, newText: string): Promise<void>;
+  editMessage(
+    chatId: string,
+    messageId: string,
+    newText: string,
+    options?: {
+      retries?: number;
+      suppressFallbackSend?: boolean;
+    }
+  ): Promise<void>;
 
   onMessage(handler: (msg: UnifiedMessage) => void): void;
 }
