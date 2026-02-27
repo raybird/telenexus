@@ -316,10 +316,12 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
     const deliverFinalResponse = async (finalText: string) => {
       if (placeholderMsgId) {
         try {
-          await connector.editMessage(targetChatId, placeholderMsgId, finalText);
-          return;
+          await connector.editMessage(targetChatId, placeholderMsgId, '✅ 已完成，回覆如下：', {
+            retries: 0,
+            suppressFallbackSend: true
+          });
         } catch (error) {
-          console.warn('[System] Final placeholder edit failed, fallback to sendMessage.', error);
+          console.warn('[System] Failed to finalize placeholder text.', error);
         }
       }
 
