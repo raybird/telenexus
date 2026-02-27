@@ -313,6 +313,22 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         });
     };
 
+    const deliverFinalResponse = async (finalText: string) => {
+      if (placeholderMsgId) {
+        try {
+          await connector.editMessage(targetChatId, placeholderMsgId, finalText);
+          return;
+        } catch (error) {
+          console.warn('[System] Final placeholder edit failed, fallback to sendMessage.', error);
+        }
+      }
+
+      await connector.sendMessage(targetChatId, finalText, {
+        retries: 3,
+        throwOnError: true
+      });
+    };
+
     try {
       placeholderMsgId = await connector.sendPlaceholder(targetChatId, thinkingMessages[0]!);
 
@@ -381,11 +397,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       thinkingActive = false;
       await flushThinkingUpdate();
 
-      if (placeholderMsgId) {
-        await connector.editMessage(targetChatId, placeholderMsgId, response);
-      } else {
-        await connector.sendMessage(targetChatId, response);
-      }
+      await deliverFinalResponse(response);
 
       if (directives.length > 0) {
         for (const directive of directives) {
@@ -477,11 +489,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       thinkingActive = false;
       await flushThinkingUpdate();
 
-      if (placeholderMsgId) {
-        await connector.editMessage(targetChatId, placeholderMsgId, errorMsg);
-      } else {
-        await connector.sendMessage(targetChatId, errorMsg);
-      }
+      await deliverFinalResponse(errorMsg);
     }
   };
 }

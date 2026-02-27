@@ -29,7 +29,14 @@ export interface Connector {
   /**
    * 發送一般訊息
    */
-  sendMessage(chatId: string, text: string): Promise<void>;
+  sendMessage(
+    chatId: string,
+    text: string,
+    options?: {
+      retries?: number;
+      throwOnError?: boolean;
+    }
+  ): Promise<void>;
 
   /**
    * 發送檔案（例如文件、報告）

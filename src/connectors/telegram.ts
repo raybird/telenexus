@@ -425,13 +425,15 @@ export class TelegramConnector implements Connector {
     chunk: string,
     chunkIndex: number,
     totalChunks: number,
-    allowFormatting: boolean
+    allowFormatting: boolean,
+    retries?: number
   ) {
     const label = `sendMessage chat=${chatId} chunk=${chunkIndex + 1}/${totalChunks}`;
     const formatted = allowFormatting ? this.formatChunkForTelegram(chunk) : { text: chunk };
+    const callOptions = retries !== undefined ? { retries } : undefined;
 
     const sendPlain = async () =>
-      this.callTelegram(label, () => this.bot.telegram.sendMessage(chatId, chunk));
+      this.callTelegram(label, () => this.bot.telegram.sendMessage(chatId, chunk), callOptions);
 
     if (!formatted.parseMode) {
       await sendPlain();
@@ -441,10 +443,13 @@ export class TelegramConnector implements Connector {
     const parseMode: TelegramParseMode = formatted.parseMode;
 
     try {
-      await this.callTelegram(label, () =>
-        this.bot.telegram.sendMessage(chatId, formatted.text, {
-          parse_mode: parseMode
-        })
+      await this.callTelegram(
+        label,
+        () =>
+          this.bot.telegram.sendMessage(chatId, formatted.text, {
+            parse_mode: parseMode
+          }),
+        callOptions
       );
     } catch (error) {
       if (!this.isParseModeError(error)) {
@@ -620,16 +625,30 @@ export class TelegramConnector implements Connector {
     this.messageHandler = handler;
   }
 
-  async sendMessage(chatId: string, text: string): Promise<void> {
+  async sendMessage(
+    chatId: string,
+    text: string,
+    options?: { retries?: number; throwOnError?: boolean }
+  ): Promise<void> {
     try {
       const chunks = this.splitMessage(text);
       console.log(`[Telegram] Sending message chat=${chatId} chunks=${chunks.length}`);
       const allowFormatting = chunks.length === 1;
       for (let i = 0; i < chunks.length; i += 1) {
-        await this.sendChunk(chatId, chunks[i]!, i, chunks.length, allowFormatting);
+        await this.sendChunk(
+          chatId,
+          chunks[i]!,
+          i,
+          chunks.length,
+          allowFormatting,
+          options?.retries
+        );
       }
     } catch (error) {
       console.error(`[Telegram] Failed to send message to ${chatId}:`, error);
+      if (options?.throwOnError) {
+        throw error;
+      }
     }
   }
 
@@ -737,7 +756,10 @@ export class TelegramConnector implements Connector {
       console.error(`[Telegram] Failed to edit message ${messageId}:`, error);
       // Fallback: try sending as new message(s) if edit fails
       if (!options?.suppressFallbackSend) {
-        await this.sendMessage(chatId, newText);
+        await this.sendMessage(chatId, newText, {
+          throwOnError: true,
+          retries: Math.max(this.apiRetryCount, 3)
+        });
       }
     }
   }
