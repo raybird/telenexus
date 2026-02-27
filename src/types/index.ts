@@ -35,6 +35,7 @@ export interface Connector {
     options?: {
       retries?: number;
       throwOnError?: boolean;
+      retryOnTimeout?: boolean;
     }
   ): Promise<void>;
 

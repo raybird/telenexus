@@ -383,9 +383,10 @@ export class TelegramConnector implements Connector {
   private async callTelegram<T>(
     label: string,
     operation: () => Promise<T>,
-    options?: { retries?: number }
+    options?: { retries?: number; retryOnTimeout?: boolean }
   ): Promise<T> {
     const retries = options?.retries ?? this.apiRetryCount;
+    const retryOnTimeout = options?.retryOnTimeout ?? true;
     let attempt = 0;
 
     while (true) {
@@ -403,6 +404,10 @@ export class TelegramConnector implements Connector {
         return result;
       } catch (error) {
         const elapsed = Date.now() - startedAt;
+        if (error instanceof TelegramApiTimeoutError && !retryOnTimeout) {
+          console.warn(`[Telegram] ${label} timeout without retry (${elapsed}ms):`, error);
+          throw error;
+        }
         const retryable = this.isRetryableError(error);
         const hasRetryLeft = attempt <= retries;
 
@@ -426,11 +431,18 @@ export class TelegramConnector implements Connector {
     chunkIndex: number,
     totalChunks: number,
     allowFormatting: boolean,
-    retries?: number
+    retries?: number,
+    retryOnTimeout?: boolean
   ) {
     const label = `sendMessage chat=${chatId} chunk=${chunkIndex + 1}/${totalChunks}`;
     const formatted = allowFormatting ? this.formatChunkForTelegram(chunk) : { text: chunk };
-    const callOptions = retries !== undefined ? { retries } : undefined;
+    const callOptions =
+      retries !== undefined || retryOnTimeout !== undefined
+        ? {
+            ...(retries !== undefined ? { retries } : {}),
+            ...(retryOnTimeout !== undefined ? { retryOnTimeout } : {})
+          }
+        : undefined;
 
     const sendPlain = async () =>
       this.callTelegram(label, () => this.bot.telegram.sendMessage(chatId, chunk), callOptions);
@@ -628,7 +640,7 @@ export class TelegramConnector implements Connector {
   async sendMessage(
     chatId: string,
     text: string,
-    options?: { retries?: number; throwOnError?: boolean }
+    options?: { retries?: number; throwOnError?: boolean; retryOnTimeout?: boolean }
   ): Promise<void> {
     try {
       const chunks = this.splitMessage(text);
@@ -641,7 +653,8 @@ export class TelegramConnector implements Connector {
           i,
           chunks.length,
           allowFormatting,
-          options?.retries
+          options?.retries,
+          options?.retryOnTimeout
         );
       }
     } catch (error) {

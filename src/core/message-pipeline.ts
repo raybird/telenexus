@@ -325,10 +325,15 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         }
       }
 
-      await connector.sendMessage(targetChatId, finalText, {
-        retries: 3,
-        throwOnError: true
-      });
+      try {
+        await connector.sendMessage(targetChatId, finalText, {
+          retries: 2,
+          throwOnError: true,
+          retryOnTimeout: false
+        });
+      } catch (error) {
+        console.error('[System] Failed to deliver final Telegram response:', error);
+      }
     };
 
     try {
