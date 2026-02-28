@@ -114,6 +114,14 @@ MEMORIA_HOOK_QUEUE_POLL_MS=5000
 - `TELEGRAM_API_RETRY_COUNT`（預設 `1`）
 - `TELEGRAM_API_RETRY_DELAY_MS`（預設 `800`）
 - 輪播 placeholder 的 `editMessage` 會使用單一 in-flight 更新，避免舊請求晚到覆蓋最終回覆
+- 最終 AI 回覆預設採用 `sendMessage`；為降低重複回覆風險，timeout 可設定為不重試
+
+## 對話排隊與 Prompt 注入
+
+- `CHAT_FULL_PROMPT_EVERY`（預設 `6`）：每 N 則對話注入一次完整 system prompt，其餘使用 compact prompt
+- 聊天請求與 scheduler 任務共用同一條 user execution queue
+- queue priority：`chat > chat-summary > scheduler`
+- 聊天遇到排隊時會先回覆等待提示，避免和背景任務重疊衝突
 
 ## Telegram 圖片接收
 

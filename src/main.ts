@@ -145,31 +145,42 @@ function loadChatPromptConfig(): ChatPromptConfig {
 function buildChatPrompt(
   config: ChatPromptConfig,
   userMessage: string,
-  memoryContext = ''
+  memoryContext = '',
+  mode: 'full' | 'compact' = 'full'
 ): string {
   const sections: string[] = [];
 
   sections.push('System: ' + config.roleSystem);
 
-  if (config.yoloNoticeEnabled) {
+  const isCompact = mode === 'compact';
+
+  if (isCompact) {
+    sections.push(
+      '延續目前對話 Session 的既有規則（語言、工具使用、工作目錄與檔案回傳協議）。若有衝突，以最近一次系統規則為準。'
+    );
+  }
+
+  if (!isCompact && config.yoloNoticeEnabled) {
     sections.push('現在已經開啟了 YOLO 模式，你的所有工具調用都會被自動允許。');
   }
 
   sections.push(`請用${config.language}回應。`);
 
-  if (config.memoryPolicyEnabled) {
+  if (!isCompact && config.memoryPolicyEnabled) {
     const lines = config.memoryPolicyLines.map((line) => `- ${line}`).join('\n');
     sections.push(`【知識管理 - 重要】\n你有 MCP Memory 工具可以儲存長期知識與關係：\n${lines}`);
   }
 
-  if (config.workspacePolicyEnabled) {
+  if (!isCompact && config.workspacePolicyEnabled) {
     const lines = config.workspacePolicyLines.map((line) => `- ${line}`).join('\n');
     sections.push(`【工作目錄限制 - 重要】\n${lines}`);
   }
 
-  sections.push(
-    '【檔案回傳協議】\n若使用者要求你把檔案直接傳到 Telegram，請先將檔案輸出到 workspace/temp/，再在回覆中加入標記：[[SEND_FILE: workspace/temp/檔名 | 可選說明]]。\n可同時放多個標記，系統會依序送出檔案。'
-  );
+  if (!isCompact) {
+    sections.push(
+      '【檔案回傳協議】\n若使用者要求你把檔案直接傳到 Telegram，請先將檔案輸出到 workspace/temp/，再在回覆中加入標記：[[SEND_FILE: workspace/temp/檔名 | 可選說明]]。\n可同時放多個標記，系統會依序送出檔案。'
+    );
+  }
 
   if (memoryContext.trim().length > 0) {
     sections.push(memoryContext.trim());
@@ -628,10 +639,10 @@ async function bootstrap() {
     chatRunnerPercent,
     chatRunnerOnlyUsers,
     shouldSummarize,
-    buildPrompt: (userMessage: string, userId: string) => {
+    buildPrompt: (userMessage: string, userId: string, mode: 'full' | 'compact' = 'full') => {
       const promptConfig = loadChatPromptConfig();
       const memoryContext = buildMemoryContext(memory, userId, userMessage);
-      return buildChatPrompt(promptConfig, userMessage, memoryContext);
+      return buildChatPrompt(promptConfig, userMessage, memoryContext, mode);
     },
     enqueueMemoriaSync: (turn) => {
       memoriaSync.enqueueTurn(turn);
@@ -667,10 +678,10 @@ async function bootstrap() {
     chatRunnerPercent,
     chatRunnerOnlyUsers,
     shouldSummarize,
-    buildPrompt: (userMessage: string, userId: string) => {
+    buildPrompt: (userMessage: string, userId: string, mode: 'full' | 'compact' = 'full') => {
       const promptConfig = loadChatPromptConfig();
       const memoryContext = buildMemoryContext(memory, userId, userMessage);
-      return buildChatPrompt(promptConfig, userMessage, memoryContext);
+      return buildChatPrompt(promptConfig, userMessage, memoryContext, mode);
     },
     enqueueMemoriaSync: (turn) => {
       memoriaSync.enqueueTurn(turn);

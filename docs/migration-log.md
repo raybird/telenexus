@@ -959,3 +959,42 @@
 ### 回滾計畫
 
 - 若需快速回退，可移除 placeholder in-flight 鎖與 `editMessage` 擴充參數，恢復舊版輪播更新流程。
+
+---
+
+## 2026-02-28 - 對話排隊、Prompt 精簡注入與重複回覆抑制（v2.5.26）
+
+### 階段
+
+- 降低 `-r/-c` session 下每回合重複注入長前綴的成本。
+- 避免聊天與背景排程同時呼叫 CLI 導致 session 衝突。
+- 降低 Telegram timeout 後重送造成的重複回覆風險。
+
+### 已完成
+
+- 新增 `ExecutionQueue`，以 user 為粒度串行化聊天與 scheduler 的 AI 呼叫。
+- 聊天在有排隊時會先發出等待提示（含當前來源與前方件數）。
+- `buildPrompt` 新增 `full|compact` 模式，預設每 6 則注入一次 full prompt，其餘走 compact。
+- scheduler 的 `executeTask/triggerReflection/dailySummary` 改走同一 queue，優先權低於聊天。
+- 最終回覆 `sendMessage` 加入 timeout retry 控制，避免 timeout 後重試重送同內容。
+
+### 影響檔案
+
+- `src/core/execution-queue.ts`
+- `src/core/message-pipeline.ts`
+- `src/core/scheduler.ts`
+- `src/main.ts`
+- `src/connectors/telegram.ts`
+- `src/types/index.ts`
+- `docs/configuration-reference.md`
+- `docs/migration-log.md`
+
+### 驗證結果
+
+- `npm run build`：通過。
+- `npm run lint`：通過。
+
+### 回滾計畫
+
+- 若要回退 queue 行為，可將 scheduler/chat 的 AI 呼叫改回直接 `agent.chat/summarize`。
+- 若要回退 prompt 精簡，可固定使用 full prompt。

@@ -3,6 +3,7 @@ import { MemoryManager, type Schedule } from './memory.js';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import type { AIAgent } from './agent.js';
+import { executionQueue } from './execution-queue.js';
 import type { Connector } from '../types/index.js';
 
 export class Scheduler {
@@ -384,11 +385,18 @@ AI Response:
 `.trim();
 
       // 3. 呼叫 Gemini CLI
-      let response = await this.gemini.chat(fullPrompt);
+      let response = await executionQueue.enqueue(schedule.user_id, 'scheduler-task', 'low', () =>
+        this.gemini.chat(fullPrompt)
+      );
       if (this.shouldRetryAiResponse(response)) {
         console.warn(`[Scheduler] Task #${schedule.id} first attempt failed, retrying once...`);
         await new Promise((resolve) => setTimeout(resolve, 2500));
-        response = await this.gemini.chat(fullPrompt);
+        response = await executionQueue.enqueue(
+          schedule.user_id,
+          'scheduler-task-retry',
+          'low',
+          () => this.gemini.chat(fullPrompt)
+        );
         if (this.shouldRetryAiResponse(response)) {
           throw new Error('AI returned incomplete execution response after retry');
         }
@@ -640,7 +648,9 @@ ${modelHistoryText || '(none)'}
 你的回應會自動儲存到記憶系統中，供未來參考。
 `.trim();
 
-      const response = await this.gemini.chat(reflectionPrompt);
+      const response = await executionQueue.enqueue(userId, 'scheduler-reflection', 'low', () =>
+        this.gemini.chat(reflectionPrompt)
+      );
       const hasNoAction = !response || response.includes('無待處理事項');
       const currentFingerprint = this.fingerprintReflection(response || '');
       const previousFingerprint = this.lastReflectionFingerprint.get(userId);
@@ -752,7 +762,9 @@ Next actions:
 如果三個分類都為「無」且無行動，請回覆「✨ 目前沒有待處理事項！」
 `.trim();
 
-      const response = await this.gemini.chat(summaryPrompt);
+      const response = await executionQueue.enqueue(userId, 'scheduler-daily-summary', 'low', () =>
+        this.gemini.chat(summaryPrompt)
+      );
       const outgoing = '📅 [每日摘要]\n\n' + response;
       this.memory.addMessage(userId, 'model', outgoing);
       await this.connector.sendMessage(userId, outgoing);

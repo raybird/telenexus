@@ -1,6 +1,7 @@
 import type { Connector, UnifiedAttachment, UnifiedMessage } from '../types/index.js';
 import type { AIAgent } from './agent.js';
 import type { CommandRouter } from './command-router.js';
+import { executionQueue } from './execution-queue.js';
 import type { MemoriaSyncTurn } from './memoria-sync.js';
 import type { MemoryManager } from './memory.js';
 import type { Scheduler } from './scheduler.js';
@@ -19,7 +20,7 @@ type MessagePipelineOptions = {
   chatRunnerPercent: number;
   chatRunnerOnlyUsers: Set<string>;
   shouldSummarize: (content: string) => boolean;
-  buildPrompt: (userMessage: string, userId: string) => string;
+  buildPrompt: (userMessage: string, userId: string, mode?: 'full' | 'compact') => string;
   enqueueMemoriaSync?: (turn: MemoriaSyncTurn) => void;
   recordRuntimeIssue: (scope: string, error: unknown) => void;
   writeContextSnapshots: () => void;
@@ -187,10 +188,12 @@ function hashToBucket(input: string): number {
 
 export function createMessagePipeline(options: MessagePipelineOptions) {
   const pendingNewSessionUsers = new Set<string>();
+  const fullPromptCounterByUser = new Map<string, number>();
   const pendingImageByUser = new Map<string, PendingImageBundle>();
   const pendingImageTtlMs = parsePendingImageTtlMs(process.env.IMAGE_ATTACHMENT_PENDING_TTL_MS);
   const maxSendFileBytes = 45 * 1024 * 1024;
   const summaryFollowupEnabled = parseBool(process.env.SUMMARY_FOLLOWUP_ENABLED, true);
+  const fullPromptEvery = parsePositiveInt(process.env.CHAT_FULL_PROMPT_EVERY, 6);
   const summaryFollowupMinLength = parsePositiveInt(process.env.SUMMARY_FOLLOWUP_MIN_LENGTH, 500);
   const summaryFollowupMaxLength = parsePositiveInt(process.env.SUMMARY_FOLLOWUP_MAX_LENGTH, 320);
   const thinkingMessages = [
@@ -262,6 +265,19 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
     if (forceNewSession) {
       pendingNewSessionUsers.delete(userId);
       console.log('[System] Applying one-time new session mode for this message.');
+    }
+
+    const queueStatus = executionQueue.getStatus(userId);
+    if (queueStatus.running || queueStatus.pending > 0) {
+      const ahead = queueStatus.pending + (queueStatus.running ? 1 : 0);
+      await connector.sendMessage(
+        targetChatId,
+        `⏳ 目前有任務執行中（來源：${queueStatus.currentSource || 'unknown'}），已幫你排隊，前方約 ${ahead} 件。`,
+        {
+          retries: 1,
+          retryOnTimeout: false
+        }
+      );
     }
 
     const isWhitelisted =
@@ -355,14 +371,23 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
 
       if (!isPassthroughCommand && options.shouldSummarize(msg.content)) {
         console.log('📝 [Memory] User input meets summary criteria, generating summary...');
-        userSummary = await activeAgent.summarize(msg.content);
+        userSummary = await executionQueue.enqueue(userId, 'chat-summary', 'normal', () =>
+          activeAgent.summarize(msg.content)
+        );
       }
 
       options.memory.addMessage(userId, 'user', msg.content, userSummary);
 
       let promptForAgent = msg.content.trim();
       if (!isPassthroughCommand) {
-        promptForAgent = options.buildPrompt(msg.content, userId);
+        const currentCounter = fullPromptCounterByUser.get(userId) || 0;
+        const shouldUseFullPrompt = forceNewSession || currentCounter % fullPromptEvery === 0;
+        promptForAgent = options.buildPrompt(
+          msg.content,
+          userId,
+          shouldUseFullPrompt ? 'full' : 'compact'
+        );
+        fullPromptCounterByUser.set(userId, currentCounter + 1);
         const attachmentPrompt = buildAttachmentPrompt(msg.attachments);
         if (attachmentPrompt) {
           promptForAgent = `${promptForAgent}\n\n${attachmentPrompt}`;
@@ -375,10 +400,12 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         console.log(`📤 [System] Sending prompt to AI (length: ${promptForAgent.length} chars)`);
       }
 
-      const rawResponse = await activeAgent.chat(promptForAgent, {
-        isPassthroughCommand,
-        forceNewSession
-      });
+      const rawResponse = await executionQueue.enqueue(userId, 'chat', 'high', () =>
+        activeAgent.chat(promptForAgent, {
+          isPassthroughCommand,
+          forceNewSession
+        })
+      );
 
       const { cleanedText, directives } = extractFileDirectives(rawResponse);
       const response = cleanedText || rawResponse;
@@ -468,7 +495,12 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         void (async () => {
           try {
             console.log('📝 [Followup] Generating post-reply summary...');
-            const summary = await activeAgent.summarize(response);
+            const summary = await executionQueue.enqueue(
+              userId,
+              'chat-followup-summary',
+              'low',
+              () => activeAgent.summarize(response)
+            );
             const normalized = summary.trim();
             if (!normalized) {
               return;
