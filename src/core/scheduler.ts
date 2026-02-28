@@ -292,7 +292,11 @@ export class Scheduler {
   }
 
   private shouldRetryAiResponse(response: string): boolean {
-    const normalized = response.trim();
+    const normalized = response
+      .trim()
+      .replace(/^\[(Gemini|Opencode)\]\s*/i, '')
+      .trim();
+    const lower = normalized.toLowerCase();
     const looksLikeExecutionStub =
       (normalized.startsWith('我將') ||
         normalized.startsWith('我會') ||
@@ -300,9 +304,11 @@ export class Scheduler {
         normalized.startsWith('接下來')) &&
       /(執行|調用|呼叫|run|execute)/i.test(normalized);
     return (
-      normalized.startsWith('Error calling Gemini: Process terminated with signal SIGKILL') ||
-      normalized.startsWith('Error calling Gemini: Process exited with code 1') ||
-      normalized.startsWith('✨ 5分鐘內未完成') ||
+      /^Error calling (Gemini|Opencode):/i.test(normalized) ||
+      normalized.startsWith('Error calling runner:') ||
+      /^✨\s*\d+\s*分鐘內未完成/.test(normalized) ||
+      /process terminated with signal sigkill/.test(lower) ||
+      /process exited with code 1/.test(lower) ||
       looksLikeExecutionStub
     );
   }

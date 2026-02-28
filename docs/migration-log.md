@@ -998,3 +998,9 @@
 
 - 若要回退 queue 行為，可將 scheduler/chat 的 AI 呼叫改回直接 `agent.chat/summarize`。
 - 若要回退 prompt 精簡，可固定使用 full prompt。
+
+### 後續一致性修補（v2.5.28）
+
+- 統一 Gemini/Opencode timeout 文案為 `✨ 10分鐘內未完成`。
+- Opencode `chat()` 在非 timeout 錯誤改為 throw，與 Gemini 一致。
+- scheduler 的重試判斷改為 provider-agnostic，支援 Gemini/Opencode/runner 錯誤格式。

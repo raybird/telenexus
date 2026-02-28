@@ -215,7 +215,12 @@ ${text}
         return '✨ 10分鐘內未完成';
       }
 
-      return `Error calling Opencode: ${error.message}`;
+      const wrapped: any = new Error(`Error calling Opencode: ${error.message}`);
+      wrapped.code = error.code;
+      wrapped.signal = error.signal;
+      wrapped.stderr = typeof error?.stderr === 'string' ? error.stderr : '';
+      wrapped.stdout = typeof error?.stdout === 'string' ? error.stdout : '';
+      throw wrapped;
     }
   }
 }

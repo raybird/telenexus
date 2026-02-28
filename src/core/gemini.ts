@@ -274,7 +274,7 @@ ${text}
       }
 
       if (error.code === 'ETIMEDOUT' || error.signal === 'SIGTERM') {
-        return '✨ 5分鐘內未完成';
+        return '✨ 10分鐘內未完成';
       }
 
       const wrapped: any = new Error(`Error calling Gemini: ${error.message}`);
