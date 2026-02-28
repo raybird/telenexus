@@ -291,26 +291,67 @@ export class Scheduler {
     return normalized.slice(0, maxLength - 1) + '…';
   }
 
-  private shouldRetryAiResponse(response: string): boolean {
-    const normalized = response
+  private normalizeProviderPrefix(response: string): string {
+    return response
       .trim()
       .replace(/^\[(Gemini|Opencode)\]\s*/i, '')
       .trim();
+  }
+
+  private looksLikeConcreteResult(normalized: string): boolean {
+    if (!normalized) {
+      return false;
+    }
+
+    const lines = normalized
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    const bulletCount = lines.filter((line) => /^[-*•]|^\d+\./.test(line)).length;
+    const hasDataPattern =
+      /\d+([.,]\d+)?%|\$\d+|\d{2,}|支撐|阻力|趨勢|風險|建議|結論|觀察|重點|摘要|分析/.test(
+        normalized
+      );
+
+    return normalized.length >= 90 || bulletCount >= 2 || hasDataPattern;
+  }
+
+  private assessAiResponse(response: string): {
+    shouldRetry: boolean;
+    reason: string;
+    normalized: string;
+  } {
+    const normalized = this.normalizeProviderPrefix(response);
     const lower = normalized.toLowerCase();
+
+    if (!normalized) {
+      return { shouldRetry: true, reason: 'empty_response', normalized };
+    }
+
+    if (/^Error calling (Gemini|Opencode):/i.test(normalized)) {
+      return { shouldRetry: true, reason: 'provider_error', normalized };
+    }
+    if (normalized.startsWith('Error calling runner:')) {
+      return { shouldRetry: true, reason: 'runner_error', normalized };
+    }
+    if (/^✨\s*\d+\s*分鐘內未完成/.test(normalized)) {
+      return { shouldRetry: true, reason: 'timeout', normalized };
+    }
+    if (/process terminated with signal sigkill/.test(lower)) {
+      return { shouldRetry: true, reason: 'sigkill', normalized };
+    }
+    if (/process exited with code 1/.test(lower)) {
+      return { shouldRetry: true, reason: 'exit_code_1', normalized };
+    }
+
     const looksLikeExecutionStub =
-      (normalized.startsWith('我將') ||
-        normalized.startsWith('我會') ||
-        normalized.startsWith('我先') ||
-        normalized.startsWith('接下來')) &&
-      /(執行|調用|呼叫|run|execute)/i.test(normalized);
-    return (
-      /^Error calling (Gemini|Opencode):/i.test(normalized) ||
-      normalized.startsWith('Error calling runner:') ||
-      /^✨\s*\d+\s*分鐘內未完成/.test(normalized) ||
-      /process terminated with signal sigkill/.test(lower) ||
-      /process exited with code 1/.test(lower) ||
-      looksLikeExecutionStub
-    );
+      /^(我將|我會|我先|接下來|將會)/.test(normalized) &&
+      /(執行|調用|呼叫|run|execute|處理|分析)/i.test(normalized);
+    if (looksLikeExecutionStub && !this.looksLikeConcreteResult(normalized)) {
+      return { shouldRetry: true, reason: 'stub_without_result', normalized };
+    }
+
+    return { shouldRetry: false, reason: 'ok', normalized };
   }
 
   /**
@@ -383,19 +424,28 @@ System: 你是 TeleNexus，一個具備強大工具執行能力的本地 AI 助�
 這是一個排程任務觸發的自動執行。
 請用繁體中文回應。
 
+重要：請直接回覆「最終結果」，不要只回答「我將執行...」。
+格式可彈性，但至少包含：
+- 核心結論（1 段）
+- 2~5 點具體觀察或數據
+- 可執行的下一步建議（若無可略）
+
 ${longTermMemory ? longTermMemory + '\n\n' : ''}
 Scheduled Task: ${schedule.name}
 User Request: ${schedule.prompt}
 
-AI Response:
+Final Result:
 `.trim();
 
       // 3. 呼叫 Gemini CLI
       let response = await executionQueue.enqueue(schedule.user_id, 'scheduler-task', 'low', () =>
         this.gemini.chat(fullPrompt)
       );
-      if (this.shouldRetryAiResponse(response)) {
-        console.warn(`[Scheduler] Task #${schedule.id} first attempt failed, retrying once...`);
+      const firstAssessment = this.assessAiResponse(response);
+      if (firstAssessment.shouldRetry) {
+        console.warn(
+          `[Scheduler] Task #${schedule.id} first attempt flagged (${firstAssessment.reason}), retrying once...`
+        );
         await new Promise((resolve) => setTimeout(resolve, 2500));
         response = await executionQueue.enqueue(
           schedule.user_id,
@@ -403,8 +453,11 @@ AI Response:
           'low',
           () => this.gemini.chat(fullPrompt)
         );
-        if (this.shouldRetryAiResponse(response)) {
-          throw new Error('AI returned incomplete execution response after retry');
+        const secondAssessment = this.assessAiResponse(response);
+        if (secondAssessment.shouldRetry) {
+          throw new Error(
+            `AI returned incomplete execution response after retry (${secondAssessment.reason})`
+          );
         }
       }
       console.log(
