@@ -14,6 +14,8 @@ type TelegramParseMode = 'HTML' | 'MarkdownV2';
 
 type TelegramFormatMode = 'auto' | 'plain' | 'html';
 
+type TelegramTableRenderMode = 'auto' | 'card' | 'code';
+
 type FormattedChunk = {
   text: string;
   parseMode?: TelegramParseMode;
@@ -44,6 +46,7 @@ export class TelegramConnector implements Connector {
   private apiRetryCount: number;
   private apiRetryDelayMs: number;
   private formatMode: TelegramFormatMode;
+  private tableRenderMode: TelegramTableRenderMode;
   private maxImageBytes: number;
 
   constructor(token: string, allowedUserIds: string[]) {
@@ -62,6 +65,7 @@ export class TelegramConnector implements Connector {
       DEFAULT_TELEGRAM_API_RETRY_DELAY_MS
     );
     this.formatMode = this.parseFormatMode(process.env.TELEGRAM_FORMAT_MODE);
+    this.tableRenderMode = this.parseTableRenderMode(process.env.TELEGRAM_TABLE_RENDER_MODE);
     this.maxImageBytes = parsePositiveInteger(
       process.env.TELEGRAM_IMAGE_MAX_BYTES,
       DEFAULT_TELEGRAM_IMAGE_MAX_BYTES
@@ -161,6 +165,174 @@ export class TelegramConnector implements Connector {
     return 'auto';
   }
 
+  private parseTableRenderMode(raw: string | undefined): TelegramTableRenderMode {
+    const normalized = (raw || 'auto').trim().toLowerCase();
+    if (normalized === 'auto' || normalized === 'card' || normalized === 'code') {
+      return normalized;
+    }
+    return 'auto';
+  }
+
+  private isTableDividerLine(line: string): boolean {
+    const normalized = line.trim();
+    if (!normalized.includes('|')) {
+      return false;
+    }
+    const compact = normalized.replace(/\|/g, '').replace(/:/g, '').replace(/-/g, '').trim();
+    if (compact.length > 0) {
+      return false;
+    }
+    return /-{3,}/.test(normalized);
+  }
+
+  private splitTableCells(line: string): string[] {
+    const raw = line.trim();
+    const withoutEdges = raw.replace(/^\|/, '').replace(/\|$/, '');
+    return withoutEdges.split('|').map((cell) => cell.trim());
+  }
+
+  private parseMarkdownTableBlock(
+    blockLines: string[]
+  ): { headers: string[]; rows: string[][] } | null {
+    if (blockLines.length < 2) {
+      return null;
+    }
+    if (!this.isTableDividerLine(blockLines[1] || '')) {
+      return null;
+    }
+    const headers = this.splitTableCells(blockLines[0] || '');
+    if (headers.length === 0) {
+      return null;
+    }
+    const rows = blockLines
+      .slice(2)
+      .map((line) => this.splitTableCells(line))
+      .filter((row) => row.length > 0 && row.some((cell) => cell.length > 0));
+    return { headers, rows };
+  }
+
+  private padCell(text: string, width: number): string {
+    if (text.length >= width) {
+      return text;
+    }
+    return text + ' '.repeat(width - text.length);
+  }
+
+  private tableToCodeBlock(headers: string[], rows: string[][]): string {
+    const maxCols = Math.max(headers.length, ...rows.map((row) => row.length));
+    const normalizedHeaders = Array.from({ length: maxCols }).map(
+      (_, index) => headers[index] || `欄位${index + 1}`
+    );
+    const normalizedRows = rows.map((row) =>
+      Array.from({ length: maxCols }).map((_, index) =>
+        (row[index] || '').replace(/\s+/g, ' ').trim()
+      )
+    );
+
+    const allRows = [normalizedHeaders, ...normalizedRows];
+    const widths = Array.from({ length: maxCols }).map((_, col) => {
+      const longest = Math.max(...allRows.map((row) => (row[col] || '').length));
+      return Math.min(Math.max(longest, 4), 28);
+    });
+
+    const renderRow = (row: string[]) =>
+      `| ${row
+        .map((cell, index) => {
+          const width = widths[index] || 28;
+          const normalized = cell.length > width ? `${cell.slice(0, width - 1)}…` : cell;
+          return this.padCell(normalized, width);
+        })
+        .join(' | ')} |`;
+
+    const divider = `| ${widths.map((width) => '-'.repeat(width)).join(' | ')} |`;
+    const lines = [
+      renderRow(normalizedHeaders),
+      divider,
+      ...normalizedRows.map((row) => renderRow(row))
+    ];
+    return ['```', ...lines, '```'].join('\n');
+  }
+
+  private tableToCardBlock(headers: string[], rows: string[][]): string {
+    if (rows.length === 0) {
+      return ['【比較重點】', '- (無資料列)'].join('\n');
+    }
+
+    const titleHeader = headers[0] || '項目';
+    const detailHeaders = headers.slice(1);
+    const cards = rows.map((row, rowIndex) => {
+      const title = row[0] || `${titleHeader} ${rowIndex + 1}`;
+      const details = detailHeaders
+        .map((header, detailIndex) => {
+          const value = row[detailIndex + 1] || '—';
+          return `- ${header}：${value}`;
+        })
+        .join('\n');
+      return details ? [`• ${title}`, details].join('\n') : `• ${title}`;
+    });
+
+    return ['【比較重點】', ...cards].join('\n\n');
+  }
+
+  private resolveTableRenderMode(headers: string[], rows: string[][]): 'card' | 'code' {
+    if (this.tableRenderMode === 'card' || this.tableRenderMode === 'code') {
+      return this.tableRenderMode;
+    }
+
+    const allCells = [headers, ...rows].flat();
+    const longest = allCells.reduce((max, item) => Math.max(max, item.length), 0);
+    const columnCount = Math.max(headers.length, ...rows.map((row) => row.length), 0);
+    if (columnCount > 3 || longest > 24) {
+      return 'card';
+    }
+    return 'code';
+  }
+
+  private normalizeMarkdownTables(text: string): string {
+    const lines = text.split('\n');
+    const output: string[] = [];
+    let i = 0;
+
+    while (i < lines.length) {
+      const current = lines[i] || '';
+      const next = lines[i + 1] || '';
+      const looksLikeTableStart = current.includes('|') && this.isTableDividerLine(next);
+      if (!looksLikeTableStart) {
+        output.push(current);
+        i += 1;
+        continue;
+      }
+
+      const blockLines = [current, next];
+      let cursor = i + 2;
+      while (cursor < lines.length) {
+        const candidate = lines[cursor] || '';
+        if (!candidate.includes('|') || candidate.trim().length === 0) {
+          break;
+        }
+        blockLines.push(candidate);
+        cursor += 1;
+      }
+
+      const parsed = this.parseMarkdownTableBlock(blockLines);
+      if (!parsed) {
+        output.push(current);
+        i += 1;
+        continue;
+      }
+
+      const mode = this.resolveTableRenderMode(parsed.headers, parsed.rows);
+      const transformed =
+        mode === 'card'
+          ? this.tableToCardBlock(parsed.headers, parsed.rows)
+          : this.tableToCodeBlock(parsed.headers, parsed.rows);
+      output.push(transformed);
+      i = cursor;
+    }
+
+    return output.join('\n');
+  }
+
   private escapeHtml(text: string): string {
     return text
       .replace(/&/g, '&amp;')
@@ -230,23 +402,27 @@ export class TelegramConnector implements Connector {
   }
 
   private formatChunkForTelegram(chunk: string): FormattedChunk {
+    const preparedChunk = this.normalizeMarkdownTables(chunk);
+
     if (this.formatMode === 'plain') {
-      return { text: chunk };
+      return { text: preparedChunk };
     }
 
     if (this.formatMode === 'html') {
-      const text = this.looksLikeMarkdown(chunk) ? this.markdownToHtml(chunk) : chunk;
+      const text = this.looksLikeMarkdown(preparedChunk)
+        ? this.markdownToHtml(preparedChunk)
+        : preparedChunk;
       return { text, parseMode: 'HTML' };
     }
 
     // auto mode
-    if (this.looksLikeHtml(chunk)) {
-      return { text: chunk, parseMode: 'HTML' };
+    if (this.looksLikeHtml(preparedChunk)) {
+      return { text: preparedChunk, parseMode: 'HTML' };
     }
-    if (this.looksLikeMarkdown(chunk)) {
-      return { text: this.markdownToHtml(chunk), parseMode: 'HTML' };
+    if (this.looksLikeMarkdown(preparedChunk)) {
+      return { text: this.markdownToHtml(preparedChunk), parseMode: 'HTML' };
     }
-    return { text: chunk };
+    return { text: preparedChunk };
   }
 
   private isParseModeError(error: unknown): boolean {

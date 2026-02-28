@@ -107,6 +107,10 @@ MEMORIA_HOOK_QUEUE_POLL_MS=5000
 - `TELEGRAM_FORMAT_MODE=auto|plain|html`（預設 `auto`）
 - `auto`：偵測 Markdown/HTML 後優先用 `HTML parse_mode`，失敗自動降級純文字
 - 超過 Telegram 單訊息長度而分段時，會自動改用純文字送出（避免分段破壞標記）
+- `TELEGRAM_TABLE_RENDER_MODE=auto|card|code`（預設 `auto`）
+  - `auto`：小表格轉 monospace code table；寬表/長欄位轉比較卡片
+  - `card`：所有 Markdown table 一律轉卡片式條列
+  - `code`：所有 Markdown table 一律轉 monospace code block
 
 ## Telegram API 穩定性
 
