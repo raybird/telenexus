@@ -43,12 +43,30 @@ docker compose exec telenexus node dist/tools/scheduler-cli.js add "每小時報
 docker compose exec telenexus node dist/tools/scheduler-cli.js remove 3
 ```
 
+### 3.4 更新排程（維運用）
+
+```bash
+docker compose exec telenexus node dist/tools/scheduler-cli.js update 3 "每小時市場報告" "0 * * * *" "請提供最新市場分析重點"
+```
+
+建議操作順序：
+
+1. 先 `list` 確認 ID。
+2. 執行 `update`（一次更新 name/cron/prompt）。
+3. 觀察 `health` 與 log 確認 reload 生效。
+
 ## 4) 新增後的驗證步驟（必做）
 
 1. 查詢 DB/清單：確認排程存在且啟用。
 2. 看主服務 log：確認有 reload 與 job 掛載訊息。
 3. 用 `scheduler-cli health` 確認 `Last Reload` 已更新。
 4. 到下一個觸發點：確認收到排程推送。
+
+若是「更新」操作，請額外確認：
+
+- 舊 cron 時間點不再觸發。
+- 新 cron 時間點正常觸發。
+- 更新瞬間若剛好命中舊觸發窗，可能會多跑一次舊任務（短暫 race，非長期疊加）。
 
 建議關鍵 log 關鍵字：
 
@@ -90,6 +108,25 @@ docker compose exec telenexus node dist/tools/scheduler-cli.js remove 3
 處理方式：
 
 - 依序檢查 timezone、provider 狀態、log 中 timeout/429、Telegram error。
+
+### 症狀 D：聊天正常，但排程常被判定失敗（或反過來）
+
+處理方式：先產生執行對照報表，再看細節 logs。
+
+```bash
+# 最近 24 小時（預設也會寫入 workspace/context/execution-compare.md）
+npm run report:compare:24h
+
+# 自訂時間窗
+npm run report:compare -- --since "2026-02-28T20:00:00+08:00" --until "2026-02-28T21:00:00+08:00"
+```
+
+報表會整理：
+
+- chat/scheduler 觸發量與 runner 成功/失敗統計
+- provider/model 分佈（含 scheduler/chat 近似拆分）
+- runner-audit 的 task/provider/model 組合與 errorType
+- 可疑 provider/model 配對（例如 `opencode + gemini-*`）
 
 ## 6) 風險控制
 

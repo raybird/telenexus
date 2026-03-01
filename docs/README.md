@@ -20,6 +20,7 @@
 ## 排程
 
 - 排程操作手冊：`docs/scheduler-operation-runbook.md`
+- chat vs scheduler 執行對照報表：`npm run report:compare:24h`
 
 ## 架構與歷史
 

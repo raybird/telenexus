@@ -265,6 +265,76 @@ program
   });
 
 program
+  .command('update')
+  .description('Update an existing schedule by ID')
+  .argument('<id>', 'Schedule ID to update')
+  .argument('<name>', 'New schedule name')
+  .argument('<cron>', 'New cron expression (e.g., "0 9 * * *")')
+  .argument('<prompt>', 'New prompt to execute')
+  .option('-u, --user <userId>', 'User ID', process.env.ALLOWED_USER_ID || '')
+  .action(
+    async (id: string, name: string, cron: string, prompt: string, options: { user: string }) => {
+      if (!options.user) {
+        console.error('❌ Error: User ID is required. Set ALLOWED_USER_ID or use --user flag.');
+        process.exit(1);
+      }
+
+      try {
+        const scheduleId = Number.parseInt(id, 10);
+        if (!Number.isFinite(scheduleId) || scheduleId <= 0) {
+          console.error('❌ Error: Invalid schedule ID. Must be a positive number.');
+          process.exit(1);
+        }
+
+        const nextName = name.trim();
+        const nextCron = cron.trim();
+        const nextPrompt = prompt.trim();
+        if (!nextName || !nextCron || !nextPrompt) {
+          console.error('❌ Error: name, cron, prompt are required and cannot be empty.');
+          process.exit(1);
+        }
+
+        const memory = new MemoryManager();
+        const existing = memory.getScheduleById(scheduleId);
+        if (!existing) {
+          console.error(`❌ Error: Schedule #${scheduleId} not found.`);
+          process.exit(1);
+        }
+
+        if (existing.user_id !== options.user) {
+          console.error(
+            `❌ Error: Schedule #${scheduleId} belongs to user ${existing.user_id}, not ${options.user}.`
+          );
+          process.exit(1);
+        }
+
+        const beforeHealth = readSchedulerHealth();
+        memory.updateSchedule(scheduleId, nextName, nextCron, nextPrompt);
+
+        console.log('✅ Schedule updated successfully!');
+        console.log(`   ID: ${scheduleId}`);
+        console.log(`   Name: ${existing.name} -> ${nextName}`);
+        console.log(`   Cron: ${existing.cron} -> ${nextCron}`);
+        console.log(`   Prompt: ${existing.prompt} -> ${nextPrompt}`);
+
+        const notified = await notifyMainProcess();
+        if (!notified.ok) {
+          console.log(
+            'ℹ️  Schedule is updated in DB. Existing running jobs may use old cron until next restart/reload.'
+          );
+        } else if (notified.method === 'signal') {
+          await verifyReloadDelivery(beforeHealth?.lastReloadAt);
+        } else {
+          console.log('🩺 Reload accepted by HTTP endpoint.');
+        }
+      } catch (error) {
+        console.error('❌ Error updating schedule:', error);
+        process.exit(1);
+      }
+    }
+  );
+
+program
   .command('remove')
   .description('Remove a schedule by ID')
   .argument('<id>', 'Schedule ID to remove')

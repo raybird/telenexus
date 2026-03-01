@@ -56,18 +56,35 @@ node /app/dist/tools/scheduler-cli.js remove <ID>
 node /app/dist/tools/scheduler-cli.js remove 1
 ```
 
+#### 4. 更新排程（名稱 / 時間 / Prompt）
+
+```bash
+node /app/dist/tools/scheduler-cli.js update <ID> <名稱> <Cron表達式> <提示詞>
+```
+
+**範例**：
+
+```bash
+node /app/dist/tools/scheduler-cli.js update 3 "BTC 六小時報告" "0 */6 * * *" "請提供 BTC 六小時市場分析，含重點與建議"
+```
+
+> 建議流程：先 `list` 找到 ID，再執行 `update`。
+
 ### 工作流程
 
 1. 當使用者要求設定定時任務時，使用 `add` 指令建立排程
-2. 工具會自動將排程寫入資料庫
-3. 工具會自動發送 `SIGUSR1` 信號給主程序
-4. 主程序收到信號後會即時重載排程，無需重啟
+2. 當使用者要求修改既有排程時，使用 `update` 指令（避免 remove + add 造成 ID 變動）
+3. 工具會自動將變更寫入資料庫
+4. 工具會自動通知主程序 reload（優先 HTTP、失敗時 signal）
+5. 主程序收到通知後會即時重載排程，無需重啟
 
 ### 注意事項
 
 - 所有排程都會在主程序重啟後自動載入
 - 如果主程序未執行，排程會在下次啟動時生效
 - 使用者 ID 會自動從環境變數 `ALLOWED_USER_ID` 讀取
+- 更新 cron 時，系統會重建該 ID 的 job，正常情況不會長期重複疊加
+- 若更新瞬間剛好命中觸發點，舊規則可能多執行一次（短暫 race），後續會以新 cron 為準
 
 ### 使用範例
 
