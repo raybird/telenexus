@@ -1,6 +1,6 @@
 {
   "name": "telenexus",
-  "version": "2.5.31",
+  "version": "2.5.32",
   "description": "",
   "type": "module",
   "main": "index.js",
@@ -17,6 +17,8 @@
     "docker:up:meta": "APP_GIT_SHA=$(git rev-parse --short HEAD) APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) docker compose up -d --build --force-recreate",
     "docker:up:nocache": "APP_GIT_SHA=$(git rev-parse --short HEAD) APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) docker compose build --no-cache && APP_GIT_SHA=$(git rev-parse --short HEAD) APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) docker compose up -d --force-recreate",
     "docker:up:telenexus": "npm run docker:up:meta",
+    "report:compare": "node scripts/report-execution-compare.mjs",
+    "report:compare:24h": "node scripts/report-execution-compare.mjs --hours 24",
     "lint": "eslint \"src/**/*.ts\"",
     "format": "prettier --write \"src/**/*.ts\" \"*.md\""
   },
