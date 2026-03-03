@@ -31,7 +31,6 @@
     "croner": "^9.1.0",
     "dotenv": "^17.2.3",
     "js-yaml": "^4.1.1",
-    "rxjs": "^7.8.2",
     "telegraf": "^4.16.3"
   },
   "devDependencies": {

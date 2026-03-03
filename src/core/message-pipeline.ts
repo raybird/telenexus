@@ -7,6 +7,8 @@ import type { MemoryManager } from './memory.js';
 import type { Scheduler } from './scheduler.js';
 import fs from 'fs';
 import path from 'path';
+import { parseBool, parsePositiveInt } from '../utils/env.js';
+import { resolveProjectDir } from '../utils/paths.js';
 
 type MessagePipelineOptions = {
   connector: Connector;
@@ -30,22 +32,6 @@ type PendingImageBundle = {
   attachments: UnifiedAttachment[];
   updatedAt: number;
 };
-
-function parseBool(raw: string | undefined, fallback: boolean): boolean {
-  if (!raw) return fallback;
-  const normalized = raw.trim().toLowerCase();
-  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
-  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
-  return fallback;
-}
-
-function parsePositiveInt(raw: string | undefined, fallback: number): number {
-  const parsed = Number.parseInt(raw?.trim() || '', 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return fallback;
-  }
-  return parsed;
-}
 
 type FileDirective = {
   path: string;
@@ -78,7 +64,7 @@ function extractFileDirectives(response: string): {
 }
 
 function resolveProjectFilePath(rawPath: string): string | null {
-  const projectDir = process.env.GEMINI_PROJECT_DIR?.trim() || process.cwd();
+  const projectDir = resolveProjectDir();
   const normalizedProjectDir = path.resolve(projectDir);
   const resolved = path.isAbsolute(rawPath)
     ? path.resolve(rawPath)
@@ -97,7 +83,7 @@ function resolveTempFilePath(rawPath: string): string | null {
     return null;
   }
 
-  const projectDir = process.env.GEMINI_PROJECT_DIR?.trim() || process.cwd();
+  const projectDir = resolveProjectDir();
   const tempDir = path.resolve(projectDir, 'workspace', 'temp');
   if (resolved === tempDir || resolved.startsWith(tempDir + path.sep)) {
     return resolved;
@@ -115,7 +101,7 @@ function toWorkspaceAttachmentRef(rawPath: string): string | null {
     return null;
   }
 
-  const projectDir = process.env.GEMINI_PROJECT_DIR?.trim() || process.cwd();
+  const projectDir = resolveProjectDir();
   const workspaceDir = path.resolve(projectDir, 'workspace');
   const resolved = path.resolve(rawPath);
   if (!(resolved === workspaceDir || resolved.startsWith(workspaceDir + path.sep))) {

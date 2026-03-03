@@ -1,75 +1,5 @@
-import { spawn } from 'child_process';
 import type { AIAgent, AIAgentOptions } from './agent.js';
-
-type RunOptions = {
-  cwd?: string;
-  env?: NodeJS.ProcessEnv;
-  timeoutMs?: number;
-  stdin?: string;
-};
-
-function runProcess(
-  command: string,
-  args: string[],
-  options: RunOptions = {}
-): Promise<{ stdout: string; stderr: string }> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd: options.cwd,
-      env: options.env,
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
-
-    let stdout = '';
-    let stderr = '';
-    const timer = options.timeoutMs
-      ? setTimeout(() => {
-          child.kill('SIGTERM');
-          const err: any = new Error('Process timed out');
-          err.code = 'ETIMEDOUT';
-          reject(err);
-        }, options.timeoutMs)
-      : null;
-
-    child.stdout?.on('data', (chunk) => {
-      stdout += chunk.toString();
-    });
-    child.stderr?.on('data', (chunk) => {
-      stderr += chunk.toString();
-    });
-
-    child.on('error', (err) => {
-      if (timer) clearTimeout(timer);
-      reject(err);
-    });
-
-    child.on('close', (code, signal) => {
-      if (timer) clearTimeout(timer);
-      if (signal) {
-        const err: any = new Error(`Process terminated with signal ${signal}`);
-        err.signal = signal;
-        err.stdout = stdout;
-        err.stderr = stderr;
-        reject(err);
-        return;
-      }
-      if (code && code !== 0) {
-        const err: any = new Error(`Process exited with code ${code}`);
-        err.code = code;
-        err.stdout = stdout;
-        err.stderr = stderr;
-        reject(err);
-        return;
-      }
-      resolve({ stdout, stderr });
-    });
-
-    if (options.stdin && child.stdin) {
-      child.stdin.write(options.stdin);
-    }
-    child.stdin?.end();
-  });
-}
+import { ProcessError, runProcess } from './process-runner.js';
 
 export class GeminiAgent implements AIAgent {
   private isCompressCommand(prompt: string): boolean {
@@ -101,8 +31,8 @@ export class GeminiAgent implements AIAgent {
     return cleaned.trim();
   }
 
-  private recoverOutputFromError(error: any): string | null {
-    const raw = typeof error?.stdout === 'string' ? error.stdout : '';
+  private recoverOutputFromError(error: unknown): string | null {
+    const raw = error instanceof ProcessError ? (error.stdout || '') : '';
     const cleaned = this.cleanOutput(raw);
     if (!cleaned) {
       return null;
@@ -150,7 +80,7 @@ ${text}
       }
 
       return cleaned || '(摘要失敗)';
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[Gemini] Summarization failed:', error);
       const recovered = this.recoverOutputFromError(error);
       if (recovered) {
@@ -248,7 +178,7 @@ ${text}
       const cleaned = this.cleanOutput(stdout);
 
       return cleaned || 'Gemini 執行完成，但沒有返回任何文字內容。';
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[Gemini] Execution failed:', error);
       const recovered = this.recoverOutputFromError(error);
       if (recovered) {
@@ -258,7 +188,7 @@ ${text}
 
       const isPassthrough = options?.isPassthroughCommand === true;
       const forceNewSession = options?.forceNewSession === true;
-      const stderr = typeof error?.stderr === 'string' ? error.stderr : '';
+      const stderr = error instanceof ProcessError ? (error.stderr || '') : '';
 
       if (
         isPassthrough &&
@@ -273,16 +203,19 @@ ${text}
         });
       }
 
-      if (error.code === 'ETIMEDOUT' || error.signal === 'SIGTERM') {
+      if (error instanceof ProcessError && (error.code === 'ETIMEDOUT' || error.signal === 'SIGTERM')) {
         return '✨ 10分鐘內未完成';
       }
 
-      const wrapped: any = new Error(`Error calling Gemini: ${error.message}`);
-      wrapped.code = error.code;
-      wrapped.signal = error.signal;
-      wrapped.stderr = stderr;
-      wrapped.stdout = typeof error?.stdout === 'string' ? error.stdout : '';
-      throw wrapped;
+      const message = error instanceof Error ? error.message : String(error);
+      const pe = error instanceof ProcessError ? error : undefined;
+      const fields: { code?: string | number; signal?: string; stderr?: string; stdout?: string } = {
+        stderr,
+        stdout: pe?.stdout || ''
+      };
+      if (pe?.code !== undefined) fields.code = pe.code;
+      if (pe?.signal !== undefined) fields.signal = pe.signal;
+      throw new ProcessError(`Error calling Gemini: ${message}`, fields);
     }
   }
 }

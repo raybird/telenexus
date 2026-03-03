@@ -52,8 +52,9 @@ program
                 console.log('---');
             });
 
-        } catch (error: any) {
-            console.error('❌ Search failed:', error.message);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.error('❌ Search failed:', message);
             process.exit(1);
         }
     });
@@ -74,8 +75,9 @@ program
             console.log(`   Total Messages: ${stats.totalMessages}`);
             console.log(`   Last Active: ${stats.lastActive ? new Date(stats.lastActive).toLocaleString('zh-TW') : 'Never'}`);
 
-        } catch (error: any) {
-            console.error('❌ Failed to get stats:', error.message);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.error('❌ Failed to get stats:', message);
             process.exit(1);
         }
     });
@@ -101,8 +103,9 @@ program
 
             console.log(`🗑️  Forgot ${deleted} recent message(s).`);
 
-        } catch (error: any) {
-            console.error('❌ Failed to forget messages:', error.message);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.error('❌ Failed to forget messages:', message);
             process.exit(1);
         }
     });
@@ -128,8 +131,9 @@ program
 
             console.log(`💥 All memory cleared for user: ${userId}`);
 
-        } catch (error: any) {
-            console.error('❌ Failed to clear memory:', error.message);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.error('❌ Failed to clear memory:', message);
             process.exit(1);
         }
     });

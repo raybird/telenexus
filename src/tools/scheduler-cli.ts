@@ -4,7 +4,7 @@ import { MemoryManager } from '../core/memory.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs';
-import path from 'path';
+import { resolveSchedulerHealthPath } from '../utils/paths.js';
 
 const execAsync = promisify(exec);
 
@@ -16,23 +16,9 @@ type SchedulerHealth = {
   pid?: number;
 };
 
-function resolveHealthPath(): string {
-  const explicitPath = process.env.DB_PATH?.trim();
-  if (explicitPath) {
-    return path.resolve(path.dirname(explicitPath), 'scheduler-health.json');
-  }
-
-  const dbDir = process.env.DB_DIR?.trim();
-  if (dbDir) {
-    return path.resolve(dbDir, 'scheduler-health.json');
-  }
-
-  return path.resolve(process.cwd(), 'scheduler-health.json');
-}
-
 function readSchedulerHealth(): SchedulerHealth | null {
   try {
-    const healthPath = resolveHealthPath();
+    const healthPath = resolveSchedulerHealthPath();
     if (!fs.existsSync(healthPath)) {
       return null;
     }
@@ -86,8 +72,8 @@ async function tryHttpReload(): Promise<boolean> {
 
       console.log(`✅ Reload requested via HTTP: ${endpoint}`);
       return true;
-    } catch (error: any) {
-      const message = error?.message || String(error);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       console.log(`⚠️  HTTP reload unavailable at ${endpoint}: ${message}`);
     }
   }
@@ -113,7 +99,7 @@ async function verifyReloadDelivery(previousReloadAt?: number): Promise<boolean>
   }
 
   console.log('⚠️  Reload signal was sent but no fresh health marker was detected.');
-  console.log(`💡 Tip: Check main service logs and health file: ${resolveHealthPath()}`);
+  console.log(`💡 Tip: Check main service logs and health file: ${resolveSchedulerHealthPath()}`);
   return false;
 }
 
@@ -185,13 +171,14 @@ async function notifyMainProcess(): Promise<{ ok: boolean; method: 'http' | 'sig
         process.kill(proc.pid, 'SIGUSR1');
         sentCount += 1;
         console.log(`✅ Sent reload signal to process ${proc.pid}`);
-      } catch (signalError: any) {
-        const code = signalError?.code ? ` (${signalError.code})` : '';
-        if (signalError?.code === 'EPERM') {
+      } catch (signalError: unknown) {
+        const errObj = signalError as NodeJS.ErrnoException | undefined;
+        const code = errObj?.code ? ` (${errObj.code})` : '';
+        if (errObj?.code === 'EPERM') {
           permissionDeniedCount += 1;
         }
         console.log(
-          `⚠️  Warning: Failed to signal process ${proc.pid}${code}: ${signalError?.message || signalError}`
+          `⚠️  Warning: Failed to signal process ${proc.pid}${code}: ${errObj?.message || String(signalError)}`
         );
       }
     }
@@ -209,8 +196,8 @@ async function notifyMainProcess(): Promise<{ ok: boolean; method: 'http' | 'sig
     }
 
     return { ok: true, method: 'signal' };
-  } catch (error) {
-    const err = error as any;
+  } catch (error: unknown) {
+    const err = error as NodeJS.ErrnoException | undefined;
     const code = err?.code ? ` (${err.code})` : '';
     console.log(
       `⚠️  Warning: Could not notify main process${code}. Schedules will be loaded on next restart.`
@@ -424,7 +411,7 @@ program
   .command('health')
   .description('Show scheduler health marker written by main process')
   .action(() => {
-    const healthPath = resolveHealthPath();
+    const healthPath = resolveSchedulerHealthPath();
     const health = readSchedulerHealth();
     if (!health) {
       console.log(`⚠️  No scheduler health marker found: ${healthPath}`);

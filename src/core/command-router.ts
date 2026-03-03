@@ -4,6 +4,8 @@ import type { Scheduler } from './scheduler.js';
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
+import { parseBool } from '../utils/env.js';
+import { resolveProjectDir } from '../utils/paths.js';
 
 type CommandContext = {
   msg: UnifiedMessage;
@@ -21,18 +23,10 @@ type CommandDefinition = {
   execute: (context: CommandContext) => Promise<void>;
 };
 
-function parseBoolEnv(raw: string | undefined, fallback: boolean): boolean {
-  if (!raw) return fallback;
-  const normalized = raw.trim().toLowerCase();
-  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
-  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
-  return fallback;
-}
-
 export class CommandRouter {
   private commands: CommandDefinition[] = [];
   private readonly maxSendFileBytes = 45 * 1024 * 1024;
-  private readonly sendFileStrictTempOnly = parseBoolEnv(
+  private readonly sendFileStrictTempOnly = parseBool(
     process.env.SEND_FILE_STRICT_TEMP_ONLY,
     false
   );
@@ -215,7 +209,7 @@ export class CommandRouter {
           return;
         }
 
-        const projectDir = process.env.GEMINI_PROJECT_DIR?.trim() || process.cwd();
+        const projectDir = resolveProjectDir();
         const resolvedPath = path.isAbsolute(pathPart)
           ? path.resolve(pathPart)
           : path.resolve(projectDir, pathPart);

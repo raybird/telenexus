@@ -1,75 +1,5 @@
-import { spawn } from 'child_process';
 import type { AIAgent, AIAgentOptions } from './agent.js';
-
-type RunOptions = {
-  cwd?: string;
-  env?: NodeJS.ProcessEnv;
-  timeoutMs?: number;
-  stdin?: string;
-};
-
-function runProcess(
-  command: string,
-  args: string[],
-  options: RunOptions = {}
-): Promise<{ stdout: string; stderr: string }> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd: options.cwd,
-      env: options.env,
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
-
-    let stdout = '';
-    let stderr = '';
-    const timer = options.timeoutMs
-      ? setTimeout(() => {
-          child.kill('SIGTERM');
-          const err: any = new Error('Process timed out');
-          err.code = 'ETIMEDOUT';
-          reject(err);
-        }, options.timeoutMs)
-      : null;
-
-    child.stdout?.on('data', (chunk) => {
-      stdout += chunk.toString();
-    });
-    child.stderr?.on('data', (chunk) => {
-      stderr += chunk.toString();
-    });
-
-    child.on('error', (err) => {
-      if (timer) clearTimeout(timer);
-      reject(err);
-    });
-
-    child.on('close', (code, signal) => {
-      if (timer) clearTimeout(timer);
-      if (signal) {
-        const err: any = new Error(`Process terminated with signal ${signal}`);
-        err.signal = signal;
-        err.stdout = stdout;
-        err.stderr = stderr;
-        reject(err);
-        return;
-      }
-      if (code && code !== 0) {
-        const err: any = new Error(`Process exited with code ${code}`);
-        err.code = code;
-        err.stdout = stdout;
-        err.stderr = stderr;
-        reject(err);
-        return;
-      }
-      resolve({ stdout, stderr });
-    });
-
-    if (options.stdin && child.stdin) {
-      child.stdin.write(options.stdin);
-    }
-    child.stdin?.end();
-  });
-}
+import { ProcessError, runProcess } from './process-runner.js';
 
 export class OpencodeAgent implements AIAgent {
   /**
@@ -128,8 +58,9 @@ ${text}
       }
 
       return cleaned || '(摘要失敗)';
-    } catch (error: any) {
-      console.error('[Opencode] Summarization failed:', error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[Opencode] Summarization failed:', message);
       // Fallback: 截斷原文
       return text.substring(0, 200) + '...';
     }
@@ -197,30 +128,34 @@ ${text}
 
       console.log(`[Opencode] Reply length: ${cleaned.length}`);
       return cleaned;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const isProcessError = error instanceof ProcessError;
+      const message = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
       console.error('[Opencode] Execution failed:');
-      console.error(`  Message: ${error.message}`);
-      console.error(`  Code: ${error.code}`);
-      console.error(`  Signal: ${error.signal}`);
-      console.error(`  Stack: ${error.stack}`);
+      console.error(`  Message: ${message}`);
+      console.error(`  Code: ${isProcessError ? error.code : undefined}`);
+      console.error(`  Signal: ${isProcessError ? error.signal : undefined}`);
+      console.error(`  Stack: ${stack}`);
 
-      if (error.stdout) {
+      if (isProcessError && error.stdout) {
         console.error(`  Stdout: ${error.stdout.substring(0, 500)}`);
       }
-      if (error.stderr) {
+      if (isProcessError && error.stderr) {
         console.error(`  Stderr: ${error.stderr.substring(0, 500)}`);
       }
 
-      if (error.code === 'ETIMEDOUT' || error.signal === 'SIGTERM') {
+      if (isProcessError && (error.code === 'ETIMEDOUT' || error.signal === 'SIGTERM')) {
         return '✨ 10分鐘內未完成';
       }
 
-      const wrapped: any = new Error(`Error calling Opencode: ${error.message}`);
-      wrapped.code = error.code;
-      wrapped.signal = error.signal;
-      wrapped.stderr = typeof error?.stderr === 'string' ? error.stderr : '';
-      wrapped.stdout = typeof error?.stdout === 'string' ? error.stdout : '';
-      throw wrapped;
+      const fields: { code?: string | number; signal?: string; stderr?: string; stdout?: string } = {
+        stderr: isProcessError ? (error.stderr || '') : '',
+        stdout: isProcessError ? (error.stdout || '') : ''
+      };
+      if (isProcessError && error.code !== undefined) fields.code = error.code;
+      if (isProcessError && error.signal !== undefined) fields.signal = error.signal;
+      throw new ProcessError(`Error calling Opencode: ${message}`, fields);
     }
   }
 }

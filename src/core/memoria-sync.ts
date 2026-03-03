@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
+import { parseBool, parsePositiveInt } from '../utils/env.js';
 
 export type MemoriaSyncTurn = {
   userId: string;
@@ -46,28 +47,6 @@ function parseMode(raw: string | undefined): MemoriaSyncMode {
     return 'off';
   }
   return 'auto';
-}
-
-function parseTimeout(raw: string | undefined, fallback: number): number {
-  if (!raw) return fallback;
-  const parsed = Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed) || parsed < 1000) return fallback;
-  return parsed;
-}
-
-function parsePollMs(raw: string | undefined, fallback: number): number {
-  if (!raw) return fallback;
-  const parsed = Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed) || parsed < 1000) return fallback;
-  return parsed;
-}
-
-function parseBool(raw: string | undefined, fallback: boolean): boolean {
-  if (!raw) return fallback;
-  const normalized = raw.trim().toLowerCase();
-  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
-  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
-  return fallback;
 }
 
 function ensureDir(targetDir: string): void {
@@ -210,7 +189,7 @@ export class MemoriaSyncBridge {
 
   constructor(options: MemoriaSyncOptions = {}) {
     this.mode = options.mode || parseMode(process.env.MEMORIA_SYNC_ENABLED);
-    this.timeoutMs = options.timeoutMs || parseTimeout(process.env.MEMORIA_SYNC_TIMEOUT_MS, 20000);
+    this.timeoutMs = options.timeoutMs || parsePositiveInt(process.env.MEMORIA_SYNC_TIMEOUT_MS, 20000);
     this.projectDir = path.resolve(
       options.projectDir || process.env.GEMINI_PROJECT_DIR || process.cwd()
     );
@@ -230,7 +209,7 @@ export class MemoriaSyncBridge {
       process.env.MEMORIA_HOOK_FLUSH_SIGNAL ||
         path.join(this.projectDir, 'data', 'memoria-hook-flush.signal')
     );
-    this.hookQueuePollMs = parsePollMs(process.env.MEMORIA_HOOK_QUEUE_POLL_MS, 5000);
+    this.hookQueuePollMs = parsePositiveInt(process.env.MEMORIA_HOOK_QUEUE_POLL_MS, 5000);
     this.hookQueueEnabled = parseBool(process.env.MEMORIA_HOOK_QUEUE_ENABLED, false);
     this.queue = Promise.resolve();
     this.disabled = false;

@@ -6,6 +6,8 @@ import { randomUUID } from 'crypto';
 import yaml from 'js-yaml';
 import { GeminiAgent } from './core/gemini.js';
 import { OpencodeAgent } from './core/opencode.js';
+import { safeCompare } from './utils/crypto.js';
+import { resolveProjectDir } from './utils/paths.js';
 
 dotenv.config();
 
@@ -77,8 +79,12 @@ const RECENT_WINDOW_MS = 5 * 60 * 1000;
 
 function pruneRecentOutcomes(now: number): void {
   const cutoff = now - RECENT_WINDOW_MS;
-  while (recentOutcomes.length > 0 && recentOutcomes[0]!.timestamp < cutoff) {
-    recentOutcomes.shift();
+  let firstValid = 0;
+  while (firstValid < recentOutcomes.length && recentOutcomes[firstValid]!.timestamp < cutoff) {
+    firstValid++;
+  }
+  if (firstValid > 0) {
+    recentOutcomes.splice(0, firstValid);
   }
 }
 
@@ -87,7 +93,7 @@ function resolveAuditPath(): string {
   if (configured) {
     return path.resolve(configured);
   }
-  const projectDir = process.env.GEMINI_PROJECT_DIR?.trim() || process.cwd();
+  const projectDir = resolveProjectDir();
   return path.resolve(projectDir, 'workspace', 'context', 'runner-audit.log');
 }
 
@@ -119,7 +125,7 @@ function resolveStatusPath(): string {
   if (configured) {
     return path.resolve(configured);
   }
-  const projectDir = process.env.GEMINI_PROJECT_DIR?.trim() || process.cwd();
+  const projectDir = resolveProjectDir();
   return path.resolve(projectDir, 'workspace', 'context', 'runner-status.md');
 }
 
@@ -265,10 +271,21 @@ function loadProviderConfig(configPath = 'ai-config.yaml'): { provider: Provider
   }
 }
 
+const MAX_BODY_BYTES = 10 * 1024 * 1024;
+
 function readBody(req: http.IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    req.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+    let totalSize = 0;
+    req.on('data', (chunk) => {
+      totalSize += chunk.length;
+      if (totalSize > MAX_BODY_BYTES) {
+        req.destroy();
+        reject(new Error(`Request body too large (>${MAX_BODY_BYTES} bytes)`));
+        return;
+      }
+      chunks.push(Buffer.from(chunk));
+    });
     req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
     req.on('error', (error) => reject(error));
   });
@@ -294,7 +311,7 @@ function isRunnerAuthorized(req: http.IncomingMessage): boolean {
     return true;
   }
   const token = getRunnerToken(req);
-  return Boolean(token && token === runnerSharedSecret);
+  return Boolean(token && safeCompare(token, runnerSharedSecret));
 }
 
 async function executeTask(

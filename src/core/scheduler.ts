@@ -77,8 +77,9 @@ export class Scheduler {
     try {
       if (fs.existsSync('ai-config.yaml')) {
         const fileContent = fs.readFileSync('ai-config.yaml', 'utf8');
-        const config = yaml.load(fileContent) as any;
-        return config?.timezone || 'Asia/Taipei';
+        const config = yaml.load(fileContent) as Record<string, unknown> | undefined;
+        const tz = config?.timezone;
+        return typeof tz === 'string' ? tz : 'Asia/Taipei';
       }
     } catch {
       // ignore error

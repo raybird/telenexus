@@ -31,6 +31,7 @@ workspace/.claude/skills/*
 workspace/.claude/skills-backups/
 
 # Workspace temp files
+workspace/.pnpm-store/
 workspace/temp/
 workspace/context/
 workspace/AGENTS.md

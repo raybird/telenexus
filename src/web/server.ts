@@ -10,6 +10,8 @@ import type { MemoriaSyncTurn } from '../core/memoria-sync.js';
 import type { MemoryManager } from '../core/memory.js';
 import type { Scheduler } from '../core/scheduler.js';
 import type { Connector, UnifiedMessage } from '../types/index.js';
+import { safeCompare } from '../utils/crypto.js';
+import { resolveContextDir } from '../utils/paths.js';
 
 type WebServerOptions = {
   enabled: boolean;
@@ -97,10 +99,21 @@ function sendJson(res: http.ServerResponse, statusCode: number, payload: unknown
   res.end(body);
 }
 
+const MAX_BODY_BYTES = 10 * 1024 * 1024;
+
 function readBody(req: http.IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    req.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+    let totalSize = 0;
+    req.on('data', (chunk) => {
+      totalSize += chunk.length;
+      if (totalSize > MAX_BODY_BYTES) {
+        req.destroy();
+        reject(new Error(`Request body too large (>${MAX_BODY_BYTES} bytes)`));
+        return;
+      }
+      chunks.push(Buffer.from(chunk));
+    });
     req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
     req.on('error', (error) => reject(error));
   });
@@ -240,16 +253,12 @@ function isAuthorized(
 
   if (!authToken) return true;
   const header = req.headers.authorization || '';
-  if (header === `Bearer ${authToken}`) {
+  if (header.startsWith('Bearer ') && safeCompare(header.slice(7), authToken)) {
     return true;
   }
-  return tokenFromQuery === authToken;
+  return typeof tokenFromQuery === 'string' && safeCompare(tokenFromQuery, authToken);
 }
 
-function resolveContextDir(): string {
-  const projectDir = process.env.GEMINI_PROJECT_DIR?.trim() || process.cwd();
-  return path.resolve(projectDir, 'workspace', 'context');
-}
 
 function readContextFile(fileName: string): string {
   try {
@@ -1442,6 +1451,27 @@ export function startWebServer(options: WebServerOptions): WebServerHandle {
       return;
     }
 
+    // debug/version 需要嚴格授權（不信任內網）
+    if (req.method === 'GET' && url.pathname === '/api/debug/version') {
+      if (
+        !isAuthorized(req, options.authToken, url.searchParams.get('token'), false)
+      ) {
+        sendJson(res, 401, { ok: false, error: 'Unauthorized' });
+        return;
+      }
+      sendJson(res, 200, {
+        ok: true,
+        version: appVersion,
+        pid: process.pid,
+        startedAt: appStartedAt,
+        uptimeSec: Math.floor((Date.now() - appStartedAt) / 1000),
+        nodeEnv: process.env.NODE_ENV || 'unknown',
+        gitSha: process.env.APP_GIT_SHA || 'unknown',
+        buildTime: process.env.APP_BUILD_TIME || 'unknown'
+      });
+      return;
+    }
+
     if (url.pathname.startsWith('/api/')) {
       if (
         !isAuthorized(
@@ -1463,20 +1493,6 @@ export function startWebServer(options: WebServerOptions): WebServerHandle {
         host: options.host,
         port: options.port,
         timestamp: Date.now()
-      });
-      return;
-    }
-
-    if (req.method === 'GET' && url.pathname === '/api/debug/version') {
-      sendJson(res, 200, {
-        ok: true,
-        version: appVersion,
-        pid: process.pid,
-        startedAt: appStartedAt,
-        uptimeSec: Math.floor((Date.now() - appStartedAt) / 1000),
-        nodeEnv: process.env.NODE_ENV || 'unknown',
-        gitSha: process.env.APP_GIT_SHA || 'unknown',
-        buildTime: process.env.APP_BUILD_TIME || 'unknown'
       });
       return;
     }

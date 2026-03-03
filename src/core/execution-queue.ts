@@ -12,6 +12,7 @@ type QueueTask<T> = {
 type QueueState = {
   running: boolean;
   currentSource?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pending: QueueTask<any>[];
 };
 
@@ -47,22 +48,30 @@ export class ExecutionQueue {
     this.states.set(userId, state);
 
     return new Promise<T>((resolve, reject) => {
-      state.pending.push({
+      const task: QueueTask<T> = {
         id: ++this.seq,
         source,
         priority,
         run,
         resolve,
         reject
-      });
-      state.pending.sort((a, b) => {
-        const pa = priorityWeight[a.priority];
-        const pb = priorityWeight[b.priority];
-        if (pa !== pb) {
-          return pa - pb;
+      };
+
+      // 二分搜尋找到插入位置，維持排序狀態
+      const tw = priorityWeight[priority];
+      let lo = 0;
+      let hi = state.pending.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >>> 1;
+        const mp = priorityWeight[state.pending[mid]!.priority];
+        if (mp < tw || (mp === tw && state.pending[mid]!.id <= task.id)) {
+          lo = mid + 1;
+        } else {
+          hi = mid;
         }
-        return a.id - b.id;
-      });
+      }
+      state.pending.splice(lo, 0, task);
+
       this.drain(userId).catch(() => {
         // individual task rejections are handled per task
       });

@@ -4,6 +4,8 @@ import { createConnection } from 'net';
 import fs from 'fs';
 import path from 'path';
 import type { Connector, UnifiedMessage } from '../types/index.js';
+import { parsePositiveInt } from '../utils/env.js';
+import { resolveProjectDir } from '../utils/paths.js';
 
 const DEFAULT_TELEGRAM_API_TIMEOUT_MS = 15000;
 const DEFAULT_TELEGRAM_API_RETRY_COUNT = 1;
@@ -28,14 +30,6 @@ class TelegramApiTimeoutError extends Error {
   }
 }
 
-function parsePositiveInteger(value: string | undefined, fallback: number): number {
-  const parsed = Number.parseInt(value?.trim() || '', 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return fallback;
-  }
-  return parsed;
-}
-
 export class TelegramConnector implements Connector {
   public name = 'Telegram';
   private bot!: Telegraf;
@@ -52,21 +46,21 @@ export class TelegramConnector implements Connector {
   constructor(token: string, allowedUserIds: string[]) {
     this.token = token;
     this.allowedUserIds = allowedUserIds;
-    this.apiTimeoutMs = parsePositiveInteger(
+    this.apiTimeoutMs = parsePositiveInt(
       process.env.TELEGRAM_API_TIMEOUT_MS,
       DEFAULT_TELEGRAM_API_TIMEOUT_MS
     );
-    this.apiRetryCount = parsePositiveInteger(
+    this.apiRetryCount = parsePositiveInt(
       process.env.TELEGRAM_API_RETRY_COUNT,
       DEFAULT_TELEGRAM_API_RETRY_COUNT
     );
-    this.apiRetryDelayMs = parsePositiveInteger(
+    this.apiRetryDelayMs = parsePositiveInt(
       process.env.TELEGRAM_API_RETRY_DELAY_MS,
       DEFAULT_TELEGRAM_API_RETRY_DELAY_MS
     );
     this.formatMode = this.parseFormatMode(process.env.TELEGRAM_FORMAT_MODE);
     this.tableRenderMode = this.parseTableRenderMode(process.env.TELEGRAM_TABLE_RENDER_MODE);
-    this.maxImageBytes = parsePositiveInteger(
+    this.maxImageBytes = parsePositiveInt(
       process.env.TELEGRAM_IMAGE_MAX_BYTES,
       DEFAULT_TELEGRAM_IMAGE_MAX_BYTES
     );
@@ -76,12 +70,8 @@ export class TelegramConnector implements Connector {
     return this.allowedUserIds.includes(userId);
   }
 
-  private resolveProjectDir(): string {
-    return process.env.GEMINI_PROJECT_DIR?.trim() || process.cwd();
-  }
-
   private resolveInboxDir(): string {
-    return path.resolve(this.resolveProjectDir(), 'workspace', 'temp', 'inbox');
+    return path.resolve(resolveProjectDir(), 'workspace', 'temp', 'inbox');
   }
 
   private ensureInboxDir(): void {

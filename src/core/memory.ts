@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import path from 'path';
+import { resolveDbPath } from '../utils/paths.js';
 
 export interface ChatMessage {
   role: 'user' | 'model';
@@ -29,27 +29,13 @@ export class MemoryManager {
 
   constructor() {
     // 初始化資料庫，允許由環境變數指定路徑
-    const dbPath = this.resolveDbPath();
+    const dbPath = resolveDbPath();
     this.db = new Database(dbPath); // verbose: console.log 可選
 
     // 啟用 WAL 模式 (Write-Ahead Logging) 提升效能與並發性
     this.db.pragma('journal_mode = WAL');
 
     this.initTable();
-  }
-
-  private resolveDbPath(): string {
-    const explicitPath = process.env.DB_PATH?.trim();
-    if (explicitPath) {
-      return path.resolve(explicitPath);
-    }
-
-    const dbDir = process.env.DB_DIR?.trim();
-    if (dbDir) {
-      return path.resolve(dbDir, 'moltbot.db');
-    }
-
-    return path.resolve(process.cwd(), 'moltbot.db');
   }
 
   private initTable() {
@@ -98,6 +84,12 @@ export class MemoryManager {
       )
     `);
     scheduleStmt.run();
+
+    // 排程查詢索引
+    this.db
+      .prepare(`CREATE INDEX IF NOT EXISTS idx_schedules_active ON schedules(is_active)`)
+      .run();
+    this.db.prepare(`CREATE INDEX IF NOT EXISTS idx_schedules_user ON schedules(user_id)`).run();
   }
 
   /**
@@ -120,9 +112,18 @@ export class MemoryManager {
   }
 
   /**
+   * 跳脫 FTS5 查詢，防止語法注入（OR、NOT、* 等）
+   */
+  private escapeFts5Query(raw: string): string {
+    const sanitized = raw.replace(/"/g, '');
+    return `"${sanitized}"`;
+  }
+
+  /**
    * 使用 FTS5 全文檢索搜尋對話
    */
   search(userId: string, query: string, limit: number = 10): ChatMessage[] {
+    const escapedQuery = this.escapeFts5Query(query);
     const stmt = this.db.prepare(`
       SELECT m.role, m.content, m.timestamp
       FROM messages_fts f
@@ -132,7 +133,7 @@ export class MemoryManager {
       LIMIT ?
     `);
 
-    const rows = stmt.all(userId, query, limit) as Array<{
+    const rows = stmt.all(userId, escapedQuery, limit) as Array<{
       role: string;
       content: string;
       timestamp: number;
@@ -365,7 +366,8 @@ export class MemoryManager {
    * @param hours 往前查詢的小時數
    */
   getExtendedHistory(userId: string, hours: number = 24): ChatMessage[] {
-    const cutoffTime = Date.now() - hours * 60 * 60 * 1000;
+    const safeHours = Math.max(1, Math.min(168, hours));
+    const cutoffTime = Date.now() - safeHours * 60 * 60 * 1000;
     const stmt = this.db.prepare(`
       SELECT role, content, timestamp
       FROM messages
