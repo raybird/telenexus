@@ -67,18 +67,116 @@ export function mountChatView(container, ctx) {
 
   tokenInput.value = ctx.state.getToken();
 
-  function clearMessages() {
-    messages.innerHTML = '';
-    scrollToBottom(stream);
+  const chatState = {
+    offset: 0,
+    items: [],
+    hasMore: true,
+    loading: false,
+    isStreaming: false
+  };
+
+  function getDateLabel(timestamp) {
+    const stamp = new Date(timestamp);
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const yesterdayStart = todayStart - 86400000;
+
+    if (timestamp >= todayStart) return '今天';
+    if (timestamp >= yesterdayStart) return '昨天';
+    return stamp.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' });
   }
 
-  function addMessageBubble(role, content, metaText) {
+  function renderAllMessages() {
+    const oldScrollHeight = stream.scrollHeight;
+    const oldScrollTop = stream.scrollTop;
+
+    const isAtBottom = stream.scrollHeight - stream.scrollTop - stream.clientHeight < 10;
+    const isFirstLoad = chatState.offset === 40 && oldScrollHeight === 0;
+
+    messages.innerHTML = '';
+    let lastDateLabel = null;
+
+    if (chatState.loading && chatState.offset > 0) {
+      messages.insertAdjacentHTML('beforeend', `<div class="thread-loading" style="margin-bottom:16px;margin-top:0;">載入歷史紀錄中</div>`);
+    }
+
+    for (const item of chatState.items) {
+      const dateLabel = getDateLabel(item.timestamp);
+      if (dateLabel !== lastDateLabel) {
+        messages.insertAdjacentHTML('beforeend', `<div class="chat-date-divider"><span>${dateLabel}</span></div>`);
+        lastDateLabel = dateLabel;
+      }
+
+      const role = item.role === 'user' ? 'user' : 'model';
+      const isUser = role === 'user';
+      const timeStr = new Date(item.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+
+      messages.insertAdjacentHTML('beforeend', `
+        <div class="memory-chat-row ${isUser ? 'user' : 'model'}">
+          <div class="memory-chat-bubble ${isUser ? 'user' : 'model'}">
+            <div class="memory-chat-meta">${isUser ? 'You' : 'TeleNexus'} <span style="opacity:0.6;font-size:11px;margin-left:6px">${timeStr}</span></div>
+            <div class="memory-chat-content">${renderMarkdownToHtml(item.content || '')}</div>
+          </div>
+        </div>
+      `);
+    }
+
+    if (isFirstLoad || (isAtBottom && oldScrollHeight > 0)) {
+      scrollToBottom(stream);
+    } else if (oldScrollTop === 0 && oldScrollHeight > 0) {
+      stream.scrollTop = stream.scrollHeight - oldScrollHeight;
+    }
+  }
+
+  async function loadOlderMessages(isInitial = false) {
+    if (chatState.loading || !chatState.hasMore || chatState.isStreaming) return;
+
+    chatState.loading = true;
+    if (!isInitial) renderAllMessages();
+
+    try {
+      if (isInitial) status.textContent = 'Loading history...';
+      const limit = 40;
+      const data = await ctx.services.memory.getHistory(chatState.offset, limit);
+      const rawItems = Array.isArray(data.items) ? data.items : [];
+
+      if (rawItems.length < limit) {
+        chatState.hasMore = false;
+      }
+      chatState.offset += limit;
+
+      const orderedNew = toConversationOrder(rawItems);
+      chatState.items = orderedNew.concat(chatState.items);
+    } catch (e) {
+      status.textContent = 'Error loading history';
+      console.error(e);
+    } finally {
+      chatState.loading = false;
+      renderAllMessages();
+      if (isInitial) {
+        status.textContent = 'Ready';
+        scrollToBottom(stream);
+      }
+    }
+  }
+
+  function addMessageBubble(role, content, timestamp) {
+    const dateLabel = getDateLabel(timestamp);
+    const dividers = messages.querySelectorAll('.chat-date-divider span');
+    const lastDivider = dividers.length > 0 ? dividers[dividers.length - 1].textContent : null;
+
+    if (dateLabel !== lastDivider) {
+      messages.insertAdjacentHTML('beforeend', `<div class="chat-date-divider"><span>${dateLabel}</span></div>`);
+    }
+
     const isUser = role === 'user';
     const row = document.createElement('div');
     row.className = `memory-chat-row ${isUser ? 'user' : 'model'}`;
+    const timeStr = new Date(timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+
     row.innerHTML = `
       <div class="memory-chat-bubble ${isUser ? 'user' : 'model'}">
-        <div class="memory-chat-meta">${isUser ? 'You' : 'TeleNexus'} <span style="opacity:0.6;font-size:11px;margin-left:6px">${escapeHtml(metaText.split('|')[1]?.trim() || '')}</span></div>
+        <div class="memory-chat-meta">${isUser ? 'You' : 'TeleNexus'} <span style="opacity:0.6;font-size:11px;margin-left:6px">${timeStr}</span></div>
         <div class="memory-chat-content">${renderMarkdownToHtml(content)}</div>
       </div>
     `;
@@ -88,38 +186,25 @@ export function mountChatView(container, ctx) {
     return contentNode instanceof HTMLElement ? contentNode : null;
   }
 
-  async function loadRecentMessages() {
-    status.textContent = 'Loading recent...';
-    const data = await ctx.services.memory.getRecent(36);
-    const orderedItems = toConversationOrder(Array.isArray(data.items) ? data.items : []);
-    clearMessages();
-
-    if (orderedItems.length === 0) {
-      status.textContent = 'Ready';
-      return;
-    }
-
-    for (const item of orderedItems) {
-      const role = item.role === 'user' ? 'user' : 'model';
-      addMessageBubble(role, item.content || '', `${role} | ${formatTimestamp(item.timestamp)}`);
-    }
-
-    status.textContent = 'Ready';
-  }
-
   async function sendMessage() {
     const text = (input.value || '').trim();
     if (!text) return;
 
     input.value = '';
-    addMessageBubble('user', text, `user | ${formatTimestamp(Date.now())}`);
+    const userTs = Date.now();
+    addMessageBubble('user', text, userTs);
+    chatState.items.push({ role: 'user', content: text, timestamp: userTs });
+
     status.textContent = 'Thinking...';
+    chatState.isStreaming = true;
 
     let modelContentNode = null;
     let modelBuffer = '';
+    const modelTs = Date.now();
+
     const ensureModelNode = () => {
       if (modelContentNode) return modelContentNode;
-      modelContentNode = addMessageBubble('model', '', 'model | streaming');
+      modelContentNode = addMessageBubble('model', '', modelTs);
       return modelContentNode;
     };
 
@@ -147,6 +232,7 @@ export function mountChatView(container, ctx) {
               contentNode.innerHTML = renderMarkdownToHtml(reply);
             }
           }
+          chatState.items.push({ role: 'model', content: modelBuffer, timestamp: modelTs });
           status.textContent = 'Done';
           scrollToBottom(stream);
         },
@@ -155,12 +241,11 @@ export function mountChatView(container, ctx) {
         }
       });
     } catch (error) {
-      addMessageBubble(
-        'model',
-        `錯誤：${toErrorMessage(error)}`,
-        `model | ${formatTimestamp(Date.now())}`
-      );
+      addMessageBubble('model', `錯誤：${toErrorMessage(error)}`, modelTs);
+      chatState.items.push({ role: 'model', content: `錯誤：${toErrorMessage(error)}`, timestamp: modelTs });
       status.textContent = 'Error';
+    } finally {
+      chatState.isStreaming = false;
     }
   }
 
@@ -182,7 +267,10 @@ export function mountChatView(container, ctx) {
   scope.on(reloadRecentBtn, 'click', () =>
     scope.run(async () => {
       try {
-        await loadRecentMessages();
+        chatState.offset = 0;
+        chatState.items = [];
+        chatState.hasMore = true;
+        await loadOlderMessages(true);
       } catch (error) {
         status.textContent = `Error: ${toErrorMessage(error)}`;
       }
@@ -201,17 +289,30 @@ export function mountChatView(container, ctx) {
     input.focus();
     status.textContent = '已載入側欄對話摘要，可直接送出或修改';
   });
+
+  scope.on(stream, 'scroll', () => {
+    if (stream.scrollTop <= 50) {
+      void loadOlderMessages(false);
+    }
+  });
+
   scope.on(container, 'view:show', () => {
     scope.run(async () => {
       try {
-        await loadRecentMessages();
+        if (chatState.items.length === 0) {
+          await loadOlderMessages(true);
+        } else {
+          scrollToBottom(stream);
+        }
       } catch (error) {
         status.textContent = `Error: ${toErrorMessage(error)}`;
       }
     });
   });
 
-  void scope.run(loadRecentMessages);
+  void scope.run(async () => {
+    await loadOlderMessages(true);
+  });
 
   return () => scope.destroy();
 }

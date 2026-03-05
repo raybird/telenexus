@@ -32,7 +32,7 @@ const services = {
 
 const viewCache = new Map();
 let activeRoute = null;
-let healthTimer = null;
+let healthTimer = 0;
 let selectedThreadId = '';
 
 const routes = {
