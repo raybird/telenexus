@@ -14,6 +14,7 @@ const DEFAULT_TELEGRAM_API_RETRY_DELAY_MS = 800;
 const DEFAULT_TELEGRAM_IMAGE_MAX_BYTES = 20 * 1024 * 1024;
 const DEFAULT_TELEGRAM_LAUNCH_RETRY_BASE_MS = 2000;
 const DEFAULT_TELEGRAM_LAUNCH_RETRY_MAX_MS = 60000;
+const TELEGRAM_LAUNCH_READY_TIMEOUT_MS = 5000;
 
 type TelegramParseMode = 'HTML' | 'MarkdownV2';
 
@@ -512,6 +513,47 @@ export class TelegramConnector implements Connector {
     return Math.min(this.launchRetryMaxMs, exponential);
   }
 
+  private async launchBotWithReadySignal(): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const settleResolve = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(readyTimeout);
+        resolve();
+      };
+      const settleReject = (error: unknown) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(readyTimeout);
+        reject(error);
+      };
+
+      const readyTimeout = setTimeout(() => {
+        console.warn(
+          `[Telegram] Launch ready signal timeout after ${TELEGRAM_LAUNCH_READY_TIMEOUT_MS}ms, continue startup.`
+        );
+        settleResolve();
+      }, TELEGRAM_LAUNCH_READY_TIMEOUT_MS);
+
+      try {
+        const launchPromise = this.bot.launch(() => {
+          settleResolve();
+        });
+
+        void launchPromise
+          .then(() => {
+            settleResolve();
+          })
+          .catch((error) => {
+            settleReject(error);
+          });
+      } catch (error) {
+        settleReject(error);
+      }
+    });
+  }
+
   private withTimeout<T>(
     task: Promise<T>,
     label: string,
@@ -824,7 +866,7 @@ export class TelegramConnector implements Connector {
           retries: 0
         });
 
-        await this.bot.launch();
+        await this.launchBotWithReadySignal();
 
         const elapsed = Date.now() - launchStartedAt;
         if (launchAttempt > 1) {
