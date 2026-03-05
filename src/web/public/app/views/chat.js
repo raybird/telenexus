@@ -35,17 +35,23 @@ export function mountChatView(container, ctx) {
         <div id="chatMessages" class="memory-chat-list chat-messages"></div>
       </div>
 
-      <footer class="chat-composer">
-        <div class="chat-input-row">
-          <input id="chatInput" placeholder="輸入訊息，按 Enter 送出" autocomplete="off" />
-          <button id="chatSendBtn">送出</button>
+      <div class="chat-composer-wrap">
+        <div class="chat-composer">
+          <div class="chat-input-row">
+            <textarea id="chatInput" rows="1" placeholder="輸入訊息，按 Enter 送出 (Shift+Enter 換行)" autocomplete="off"></textarea>
+            <button id="chatSendBtn" aria-label="Send">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+          </div>
         </div>
-        <div class="row">
-          <input id="tokenInput" style="flex:1;" placeholder="API token（可留白）" autocomplete="off" />
-          <button id="saveTokenBtn">儲存 Token</button>
-          <span class="muted" id="chatStatus">Ready</span>
+        <div class="chat-tools">
+          <div class="row">
+            <input id="tokenInput" placeholder="API token (可留白)" autocomplete="off" />
+            <button id="saveTokenBtn" style="padding:4px 10px;font-size:12px;border-radius:6px">儲存 Token</button>
+          </div>
+          <div id="chatStatus">Ready</div>
         </div>
-      </footer>
+      </div>
     </section>
   `;
 
@@ -72,7 +78,7 @@ export function mountChatView(container, ctx) {
     row.className = `memory-chat-row ${isUser ? 'user' : 'model'}`;
     row.innerHTML = `
       <div class="memory-chat-bubble ${isUser ? 'user' : 'model'}">
-        <div class="memory-chat-meta">${escapeHtml(metaText)}</div>
+        <div class="memory-chat-meta">${isUser ? 'You' : 'TeleNexus'} <span style="opacity:0.6;font-size:11px;margin-left:6px">${escapeHtml(metaText.split('|')[1]?.trim() || '')}</span></div>
         <div class="memory-chat-content">${renderMarkdownToHtml(content)}</div>
       </div>
     `;
@@ -158,12 +164,20 @@ export function mountChatView(container, ctx) {
     }
   }
 
-  scope.on(sendBtn, 'click', () => scope.run(sendMessage));
+  scope.on(sendBtn, 'click', () => {
+    input.style.height = 'auto';
+    scope.run(sendMessage);
+  });
   scope.on(input, 'keydown', (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
+      input.style.height = 'auto';
       scope.run(sendMessage);
     }
+  });
+  scope.on(input, 'input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 200) + 'px';
   });
   scope.on(reloadRecentBtn, 'click', () =>
     scope.run(async () => {
