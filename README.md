@@ -107,7 +107,7 @@ Memoria 同步可用環境變數調整：
 - `MEMORIA_HOOK_QUEUE_FILE`（僅在啟用 hook queue 時使用）
 - `MEMORIA_HOOK_FLUSH_SIGNAL`（僅在啟用 hook queue 時使用）
 - `MEMORIA_HOOK_QUEUE_POLL_MS`（僅在啟用 hook queue 時使用）
-- `TELEGRAM_LAUNCH_TIMEOUT_MS` / `TELEGRAM_LAUNCH_RETRY_BASE_MS` / `TELEGRAM_LAUNCH_RETRY_MAX_MS`（Telegram 啟動重試參數）
+- `TELEGRAM_LAUNCH_RETRY_BASE_MS` / `TELEGRAM_LAUNCH_RETRY_MAX_MS`（Telegram 啟動重試參數）
 - `OPENCODE_VERBOSE_STDERR=true`（需要完整 stderr 除錯時再開）
 
 ---

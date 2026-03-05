@@ -12,7 +12,6 @@ const DEFAULT_TELEGRAM_API_TIMEOUT_MS = 15000;
 const DEFAULT_TELEGRAM_API_RETRY_COUNT = 1;
 const DEFAULT_TELEGRAM_API_RETRY_DELAY_MS = 800;
 const DEFAULT_TELEGRAM_IMAGE_MAX_BYTES = 20 * 1024 * 1024;
-const DEFAULT_TELEGRAM_LAUNCH_TIMEOUT_MS = 20000;
 const DEFAULT_TELEGRAM_LAUNCH_RETRY_BASE_MS = 2000;
 const DEFAULT_TELEGRAM_LAUNCH_RETRY_MAX_MS = 60000;
 
@@ -46,7 +45,6 @@ export class TelegramConnector implements Connector {
   private formatMode: TelegramFormatMode;
   private tableRenderMode: TelegramTableRenderMode;
   private maxImageBytes: number;
-  private launchTimeoutMs: number;
   private launchRetryBaseMs: number;
   private launchRetryMaxMs: number;
 
@@ -70,10 +68,6 @@ export class TelegramConnector implements Connector {
     this.maxImageBytes = parsePositiveInt(
       process.env.TELEGRAM_IMAGE_MAX_BYTES,
       DEFAULT_TELEGRAM_IMAGE_MAX_BYTES
-    );
-    this.launchTimeoutMs = parsePositiveInt(
-      process.env.TELEGRAM_LAUNCH_TIMEOUT_MS,
-      DEFAULT_TELEGRAM_LAUNCH_TIMEOUT_MS
     );
     this.launchRetryBaseMs = parsePositiveInt(
       process.env.TELEGRAM_LAUNCH_RETRY_BASE_MS,
@@ -826,7 +820,12 @@ export class TelegramConnector implements Connector {
     while (true) {
       launchAttempt += 1;
       try {
-        await this.withTimeout(this.bot.launch(), 'launch', this.launchTimeoutMs);
+        await this.callTelegram('startup getMe preflight', () => this.bot.telegram.getMe(), {
+          retries: 0
+        });
+
+        await this.bot.launch();
+
         const elapsed = Date.now() - launchStartedAt;
         if (launchAttempt > 1) {
           console.log(
