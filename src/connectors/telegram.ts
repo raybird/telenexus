@@ -5,12 +5,16 @@ import fs from 'fs';
 import path from 'path';
 import type { Connector, UnifiedMessage } from '../types/index.js';
 import { parsePositiveInt } from '../utils/env.js';
+import { recordRuntimeIssue } from '../utils/errors.js';
 import { resolveProjectDir } from '../utils/paths.js';
 
 const DEFAULT_TELEGRAM_API_TIMEOUT_MS = 15000;
 const DEFAULT_TELEGRAM_API_RETRY_COUNT = 1;
 const DEFAULT_TELEGRAM_API_RETRY_DELAY_MS = 800;
 const DEFAULT_TELEGRAM_IMAGE_MAX_BYTES = 20 * 1024 * 1024;
+const DEFAULT_TELEGRAM_LAUNCH_TIMEOUT_MS = 20000;
+const DEFAULT_TELEGRAM_LAUNCH_RETRY_BASE_MS = 2000;
+const DEFAULT_TELEGRAM_LAUNCH_RETRY_MAX_MS = 60000;
 
 type TelegramParseMode = 'HTML' | 'MarkdownV2';
 
@@ -42,6 +46,9 @@ export class TelegramConnector implements Connector {
   private formatMode: TelegramFormatMode;
   private tableRenderMode: TelegramTableRenderMode;
   private maxImageBytes: number;
+  private launchTimeoutMs: number;
+  private launchRetryBaseMs: number;
+  private launchRetryMaxMs: number;
 
   constructor(token: string, allowedUserIds: string[]) {
     this.token = token;
@@ -63,6 +70,18 @@ export class TelegramConnector implements Connector {
     this.maxImageBytes = parsePositiveInt(
       process.env.TELEGRAM_IMAGE_MAX_BYTES,
       DEFAULT_TELEGRAM_IMAGE_MAX_BYTES
+    );
+    this.launchTimeoutMs = parsePositiveInt(
+      process.env.TELEGRAM_LAUNCH_TIMEOUT_MS,
+      DEFAULT_TELEGRAM_LAUNCH_TIMEOUT_MS
+    );
+    this.launchRetryBaseMs = parsePositiveInt(
+      process.env.TELEGRAM_LAUNCH_RETRY_BASE_MS,
+      DEFAULT_TELEGRAM_LAUNCH_RETRY_BASE_MS
+    );
+    this.launchRetryMaxMs = parsePositiveInt(
+      process.env.TELEGRAM_LAUNCH_RETRY_MAX_MS,
+      DEFAULT_TELEGRAM_LAUNCH_RETRY_MAX_MS
     );
   }
 
@@ -494,11 +513,20 @@ export class TelegramConnector implements Connector {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  private withTimeout<T>(task: Promise<T>, label: string): Promise<T> {
+  private computeLaunchRetryDelayMs(attempt: number): number {
+    const exponential = this.launchRetryBaseMs * Math.pow(2, Math.max(0, attempt - 1));
+    return Math.min(this.launchRetryMaxMs, exponential);
+  }
+
+  private withTimeout<T>(
+    task: Promise<T>,
+    label: string,
+    timeoutMs = this.apiTimeoutMs
+  ): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
-        reject(new TelegramApiTimeoutError(label, this.apiTimeoutMs));
-      }, this.apiTimeoutMs);
+        reject(new TelegramApiTimeoutError(label, timeoutMs));
+      }, timeoutMs);
 
       task
         .then((value) => {
@@ -634,6 +662,7 @@ export class TelegramConnector implements Connector {
         throw error;
       }
       console.warn(`[Telegram] ${label} parse_mode failed, fallback to plain text.`);
+      recordRuntimeIssue(`${label}:parse-mode-fallback`, error);
       await sendPlain();
     }
   }
@@ -791,9 +820,39 @@ export class TelegramConnector implements Connector {
       }
     });
 
-    this.bot.launch(() => {
-      console.log('[Telegram] Bot launched successfully!');
-    });
+    const launchStartedAt = Date.now();
+    let launchAttempt = 0;
+
+    while (true) {
+      launchAttempt += 1;
+      try {
+        await this.withTimeout(this.bot.launch(), 'launch', this.launchTimeoutMs);
+        const elapsed = Date.now() - launchStartedAt;
+        if (launchAttempt > 1) {
+          console.log(
+            `[Telegram] Bot launched successfully after retries (attempt=${launchAttempt}, elapsed=${elapsed}ms).`
+          );
+        } else {
+          console.log('[Telegram] Bot launched successfully!');
+        }
+        break;
+      } catch (error) {
+        const retryable = this.isRetryableError(error);
+        recordRuntimeIssue('telegram:launch', error);
+
+        if (!retryable) {
+          console.error('[Telegram] Bot launch failed with non-retryable error:', error);
+          throw error;
+        }
+
+        const delayMs = this.computeLaunchRetryDelayMs(launchAttempt);
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(
+          `[Telegram] Bot launch retry scheduled (attempt=${launchAttempt}, nextRetryMs=${delayMs}): ${message}`
+        );
+        await this.sleep(delayMs);
+      }
+    }
 
     process.once('SIGINT', () => this.bot.stop('SIGINT'));
     process.once('SIGTERM', () => this.bot.stop('SIGTERM'));
@@ -825,6 +884,7 @@ export class TelegramConnector implements Connector {
       }
     } catch (error) {
       console.error(`[Telegram] Failed to send message to ${chatId}:`, error);
+      recordRuntimeIssue(`telegram:sendMessage:${chatId}`, error);
       if (options?.throwOnError) {
         throw error;
       }

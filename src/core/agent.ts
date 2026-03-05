@@ -4,6 +4,7 @@ import https from 'https';
 import yaml from 'js-yaml';
 import { GeminiAgent } from './gemini.js';
 import { OpencodeAgent } from './opencode.js';
+import { recordRuntimeIssue } from '../utils/errors.js';
 
 export interface AIAgentOptions {
   model?: string;
@@ -96,8 +97,13 @@ export class DynamicAIAgent implements AIAgent {
 
   private markRunnerFailure(errorMessage: string): void {
     this.consecutiveRunnerFailures += 1;
+    recordRuntimeIssue('runner:request', errorMessage);
     if (this.consecutiveRunnerFailures >= this.runnerFailureThreshold) {
       this.runnerOpenUntil = Date.now() + this.runnerCooldownMs;
+      recordRuntimeIssue(
+        'runner:circuit-open',
+        `opened for ${this.runnerCooldownMs}ms after ${this.runnerFailureThreshold} failures`
+      );
       console.warn(
         `[DynamicAgent] Runner circuit opened for ${this.runnerCooldownMs}ms after ${this.consecutiveRunnerFailures} failures. Last error: ${errorMessage}`
       );
@@ -252,6 +258,7 @@ export class DynamicAIAgent implements AIAgent {
       if (this.isRunnerCircuitOpen()) {
         const remainingMs = this.runnerOpenUntil - Date.now();
         console.warn(`[DynamicAgent] Runner circuit open, skip runner for ${remainingMs}ms.`);
+        recordRuntimeIssue('runner:circuit-open', `skip runner for ${remainingMs}ms`);
         if (!this.fallbackToLocal) {
           return `Error calling runner: circuit open (${remainingMs}ms remaining)`;
         }

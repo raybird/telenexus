@@ -117,8 +117,19 @@ MEMORIA_HOOK_QUEUE_POLL_MS=5000
 - `TELEGRAM_API_TIMEOUT_MS`（預設 `15000`）
 - `TELEGRAM_API_RETRY_COUNT`（預設 `1`）
 - `TELEGRAM_API_RETRY_DELAY_MS`（預設 `800`）
+- `TELEGRAM_LAUNCH_TIMEOUT_MS`（預設 `20000`）
+- `TELEGRAM_LAUNCH_RETRY_BASE_MS`（預設 `2000`）
+- `TELEGRAM_LAUNCH_RETRY_MAX_MS`（預設 `60000`）
 - 輪播 placeholder 的 `editMessage` 會使用單一 in-flight 更新，避免舊請求晚到覆蓋最終回覆
 - 最終 AI 回覆預設採用 `sendMessage`；為降低重複回覆風險，timeout 可設定為不重試
+- Telegram 啟動遇到網路暫時異常（如 `ETIMEDOUT` / `EAI_AGAIN`）會自動退避重試，不會直接結束程序
+
+## Log 降噪與除錯
+
+- `OPENCODE_VERBOSE_STDERR=true|false`（預設 `false`）
+- 預設只輸出 opencode stderr 摘要（首行 + 長度）
+- 若 stderr 含錯誤關鍵字（error/fatal/failed...）會自動升級輸出
+- 需要完整 stderr 時可臨時設 `OPENCODE_VERBOSE_STDERR=true`
 
 ## 對話排隊與 Prompt 注入
 

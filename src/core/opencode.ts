@@ -2,6 +2,43 @@ import type { AIAgent, AIAgentOptions } from './agent.js';
 import { ProcessError, runProcess } from './process-runner.js';
 
 export class OpencodeAgent implements AIAgent {
+  private isVerboseStderrEnabled(): boolean {
+    const raw = (process.env.OPENCODE_VERBOSE_STDERR || '').trim().toLowerCase();
+    return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+  }
+
+  private summarizeStderr(stderr: string): string {
+    const firstLine = stderr
+      .replace(/\r/g, '')
+      .split('\n')
+      .map((line) => line.trim())
+      .find((line) => line.length > 0);
+    return firstLine || '(empty line)';
+  }
+
+  private hasErrorLikeStderr(stderr: string): boolean {
+    return /(error|fatal|exception|traceback|failed|denied)/i.test(stderr);
+  }
+
+  private logStderr(scope: string, stderr: string): void {
+    if (!stderr || stderr.trim().length === 0) {
+      return;
+    }
+
+    const verbose = this.isVerboseStderrEnabled();
+    const errorLike = this.hasErrorLikeStderr(stderr);
+    if (verbose || errorLike) {
+      console.log(
+        `[Opencode ${scope}] stderr (len=${stderr.length}):\n${stderr.substring(0, 2000)}`
+      );
+      return;
+    }
+
+    console.log(
+      `[Opencode ${scope}] stderr summary: ${this.summarizeStderr(stderr)} (len=${stderr.length})`
+    );
+  }
+
   /**
    * 清除輸出中的 <thinking> 區塊和其他雜訊
    */
@@ -46,9 +83,7 @@ ${text}
       console.log(`[Opencode Summarize] Starting...`);
       const { stdout, stderr } = await runProcess('opencode', args, { stdin: prompt });
 
-      if (stderr && stderr.trim().length > 0) {
-        console.log(`[Opencode Summarize] stderr: ${stderr.substring(0, 200)}`);
-      }
+      this.logStderr('Summarize', stderr);
 
       const cleaned = this.cleanOutput(stdout);
 
@@ -113,10 +148,7 @@ ${text}
 
       console.log(`[Opencode] Execution completed. Output length: ${stdout.length}`);
 
-      // 顯示完整 stderr 以便 debug
-      if (stderr && stderr.trim().length > 0) {
-        console.log(`[Opencode] stderr:\n${stderr}`);
-      }
+      this.logStderr('Chat', stderr);
 
       const cleaned = this.cleanOutput(stdout);
 
@@ -149,10 +181,11 @@ ${text}
         return '✨ 10分鐘內未完成';
       }
 
-      const fields: { code?: string | number; signal?: string; stderr?: string; stdout?: string } = {
-        stderr: isProcessError ? (error.stderr || '') : '',
-        stdout: isProcessError ? (error.stdout || '') : ''
-      };
+      const fields: { code?: string | number; signal?: string; stderr?: string; stdout?: string } =
+        {
+          stderr: isProcessError ? error.stderr || '' : '',
+          stdout: isProcessError ? error.stdout || '' : ''
+        };
       if (isProcessError && error.code !== undefined) fields.code = error.code;
       if (isProcessError && error.signal !== undefined) fields.signal = error.signal;
       throw new ProcessError(`Error calling Opencode: ${message}`, fields);

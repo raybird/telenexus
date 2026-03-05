@@ -80,16 +80,35 @@ export function writeContextSnapshots(memory: MemoryManager): void {
     ].join('\n');
 
     const recentIssues = getRecentIssues();
+    const totalIssueCount = recentIssues.reduce((sum, issue) => sum + (issue.count || 1), 0);
+    const recentWindowMs = 15 * 60 * 1000;
+    const recentIssueCount = recentIssues
+      .filter((issue) => now.getTime() - issue.timestamp <= recentWindowMs)
+      .reduce((sum, issue) => sum + (issue.count || 1), 0);
+    const scopeCount = new Map<string, number>();
+    for (const issue of recentIssues) {
+      scopeCount.set(issue.scope, (scopeCount.get(issue.scope) || 0) + (issue.count || 1));
+    }
+    const topScopeLines = Array.from(scopeCount.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([scope, count]) => `- ${scope}: ${count}`);
+
     const recentIssueLines = recentIssues
       .slice(-10)
       .map(
         (issue) =>
-          `- [${new Date(issue.timestamp).toLocaleString('zh-TW')}] (${issue.scope}) ${issue.message}`
+          `- [${new Date(issue.timestamp).toLocaleString('zh-TW')}] (${issue.scope}) ${issue.message}${issue.count > 1 ? ` (x${issue.count})` : ''}`
       );
     const errorSummary = [
       '# Error Summary',
       '',
       `- Updated: ${now.toLocaleString('zh-TW')}`,
+      `- Total Runtime Issues (buffered): ${totalIssueCount}`,
+      `- Recent 15m Issues: ${recentIssueCount}`,
+      '',
+      '## Top Scopes',
+      ...(topScopeLines.length > 0 ? topScopeLines : ['- (none)']),
       '',
       '## Recent Runtime Issues',
       ...(recentIssueLines.length > 0 ? recentIssueLines : ['- (none)'])
