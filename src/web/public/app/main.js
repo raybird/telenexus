@@ -16,6 +16,8 @@ const appRoot = byId(document, '#app');
 const menu = byId(document, '#menu');
 const globalStatus = byId(document, '#globalStatus');
 const globalAlert = byId(document, '#globalAlert');
+const recentThreads = byId(document, '#recentThreads');
+const refreshThreadsBtn = byId(document, '#refreshThreadsBtn');
 
 const config = window.__APP_CONFIG__ || {};
 const state = createState(config);
@@ -30,6 +32,7 @@ const services = {
 const viewCache = new Map();
 let activeRoute = null;
 let healthTimer = null;
+let selectedThreadId = '';
 
 const routes = {
   chat: mountChatView,
@@ -59,6 +62,67 @@ function hideAlert() {
 function showAlert(level, text) {
   globalAlert.className = `alert show ${level}`;
   globalAlert.textContent = text;
+}
+
+function trimPreview(text) {
+  const normalized = String(text || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalized) return '(empty)';
+  return normalized.length > 46 ? `${normalized.slice(0, 46)}...` : normalized;
+}
+
+function buildRecentThreads(items) {
+  const userMessages = (Array.isArray(items) ? items : []).filter(
+    (item) =>
+      String(item.role || '').toLowerCase() === 'user' &&
+      String(item.content || '').trim().length > 0
+  );
+
+  return userMessages.slice(0, 12).map((item, index) => ({
+    id: `${Number(item.timestamp || 0)}-${index}`,
+    timestamp: Number(item.timestamp || 0),
+    preview: trimPreview(item.content || '')
+  }));
+}
+
+function renderRecentThreads(items) {
+  recentThreads.innerHTML = '';
+  if (!Array.isArray(items) || items.length === 0) {
+    recentThreads.innerHTML = '<div class="thread-empty">暫無可顯示的近期對話</div>';
+    return;
+  }
+
+  for (const item of items) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `thread-item${selectedThreadId === item.id ? ' active' : ''}`;
+    const stamp = new Date(item.timestamp).toLocaleString('zh-TW');
+    button.innerHTML = `
+      <div class="thread-title">${item.preview}</div>
+      <div class="thread-meta">${stamp}</div>
+    `;
+    button.addEventListener('click', () => {
+      selectedThreadId = item.id;
+      renderRecentThreads(items);
+      window.location.hash = '#/chat';
+      window.dispatchEvent(
+        new CustomEvent('thread:selected', {
+          detail: { id: item.id, preview: item.preview, timestamp: item.timestamp }
+        })
+      );
+    });
+    recentThreads.appendChild(button);
+  }
+}
+
+async function refreshRecentThreads() {
+  try {
+    const data = await services.memory.getRecent(120);
+    renderRecentThreads(buildRecentThreads(data.items || []));
+  } catch {
+    recentThreads.innerHTML = '<div class="thread-empty">讀取近期對話失敗</div>';
+  }
 }
 
 async function refreshGlobalHealth() {
@@ -161,10 +225,16 @@ function bootstrap() {
   window.addEventListener('beforeunload', disposeApp);
   void refreshGlobalHealth();
   void refreshGlobalAlert();
+  void refreshRecentThreads();
   healthTimer = window.setInterval(() => {
     void refreshGlobalHealth();
     void refreshGlobalAlert();
+    void refreshRecentThreads();
   }, 15000);
+
+  refreshThreadsBtn.addEventListener('click', () => {
+    void refreshRecentThreads();
+  });
 }
 
 bootstrap();
