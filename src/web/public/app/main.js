@@ -168,6 +168,7 @@ function renderRoute() {
   const route = normalizeRouteFromHash(window.location.hash);
   state.setRoute(route);
   updateMenuActive(route);
+  appRoot.classList.toggle('chat-active', route === 'chat');
 
   if (!viewCache.has(route)) {
     const viewContainer = document.createElement('section');

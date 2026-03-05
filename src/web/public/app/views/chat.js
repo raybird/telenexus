@@ -32,7 +32,7 @@ export function mountChatView(container, ctx) {
       </header>
 
       <div class="chat-stream">
-        <div id="chatMessages" class="list memory-chat-list" style="min-height:100%;"></div>
+        <div id="chatMessages" class="memory-chat-list chat-messages"></div>
       </div>
 
       <footer class="chat-composer">
@@ -50,6 +50,7 @@ export function mountChatView(container, ctx) {
   `;
 
   const scope = createViewScope();
+  const stream = byId(container, '.chat-stream');
   const messages = byId(container, '#chatMessages');
   const input = byId(container, '#chatInput');
   const sendBtn = byId(container, '#chatSendBtn');
@@ -62,6 +63,7 @@ export function mountChatView(container, ctx) {
 
   function clearMessages() {
     messages.innerHTML = '';
+    scrollToBottom(stream);
   }
 
   function addMessageBubble(role, content, metaText) {
@@ -75,7 +77,7 @@ export function mountChatView(container, ctx) {
       </div>
     `;
     messages.appendChild(row);
-    scrollToBottom(messages);
+    scrollToBottom(stream);
     const contentNode = row.querySelector('.memory-chat-content');
     return contentNode instanceof HTMLElement ? contentNode : null;
   }
@@ -128,7 +130,7 @@ export function mountChatView(container, ctx) {
             contentNode.innerHTML = renderMarkdownToHtml(modelBuffer);
           }
           status.textContent = 'Streaming...';
-          scrollToBottom(messages);
+          scrollToBottom(stream);
         },
         done(payload) {
           if (!modelContentNode) {
@@ -140,7 +142,7 @@ export function mountChatView(container, ctx) {
             }
           }
           status.textContent = 'Done';
-          scrollToBottom(messages);
+          scrollToBottom(stream);
         },
         error(payload) {
           status.textContent = payload.error || 'Stream error';

@@ -267,6 +267,19 @@
         overflow: auto;
       }
 
+      .content > section {
+        min-height: 100%;
+      }
+
+      .content.chat-active {
+        overflow: hidden;
+      }
+
+      .content.chat-active > section {
+        height: 100%;
+        min-height: 0;
+      }
+
       .content.route-switching {
         opacity: 0.72;
         transform: translateY(2px);
@@ -475,6 +488,7 @@
 
       .chat-view {
         grid-template-rows: auto 1fr auto;
+        overflow: hidden;
       }
 
       .chat-toolbar,
@@ -488,6 +502,14 @@
         min-height: 0;
         overflow: auto;
         padding: 4px 8px;
+      }
+
+      .chat-messages {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #ffffff;
+        min-height: 100%;
+        overflow: visible;
       }
 
       .chat-composer {
