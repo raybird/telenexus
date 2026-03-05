@@ -18,6 +18,7 @@ const globalStatus = byId(document, '#globalStatus');
 const globalAlert = byId(document, '#globalAlert');
 const recentThreads = byId(document, '#recentThreads');
 const refreshThreadsBtn = byId(document, '#refreshThreadsBtn');
+const themeToggle = byId(document, '#themeToggle');
 
 const config = window.__APP_CONFIG__ || {};
 const state = createState(config);
@@ -220,6 +221,9 @@ function disposeApp() {
 }
 
 function bootstrap() {
+  // Initialize theme from saved preference or system setting
+  state.setTheme(state.getTheme());
+
   ensureHashRoute();
   renderRoute();
   window.addEventListener('hashchange', renderRoute);
@@ -236,6 +240,21 @@ function bootstrap() {
   refreshThreadsBtn.addEventListener('click', () => {
     void refreshRecentThreads();
   });
+
+  themeToggle.addEventListener('click', () => {
+    state.toggleTheme();
+  });
+
+  // Listen for system color scheme changes
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      // Only auto-switch if user hasn't manually set a preference
+      const saved = window.localStorage.getItem('telenexus_theme');
+      if (!saved) {
+        state.setTheme(e.matches ? 'dark' : 'light');
+      }
+    });
+  }
 }
 
 bootstrap();

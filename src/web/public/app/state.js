@@ -1,9 +1,20 @@
 const STORAGE_TOKEN_KEY = 'telenexus_web_token';
+const STORAGE_THEME_KEY = 'telenexus_theme';
+
+function getInitialTheme() {
+  const saved = window.localStorage.getItem(STORAGE_THEME_KEY);
+  if (saved === 'dark' || saved === 'light') return saved;
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    return 'dark';
+  }
+  return 'light';
+}
 
 export function createState(config = {}) {
   const state = {
     route: 'chat',
     token: window.localStorage.getItem(STORAGE_TOKEN_KEY) || '',
+    theme: getInitialTheme(),
     health: { online: false, updatedAt: 0 },
     config: {
       errorThreshold: Number.isFinite(config.alertErrorThreshold)
@@ -32,6 +43,19 @@ export function createState(config = {}) {
     },
     getToken() {
       return state.token;
+    },
+    setTheme(theme) {
+      state.theme = theme === 'dark' ? 'dark' : 'light';
+      window.localStorage.setItem(STORAGE_THEME_KEY, state.theme);
+      document.documentElement.setAttribute('data-theme', state.theme);
+    },
+    getTheme() {
+      return state.theme;
+    },
+    toggleTheme() {
+      const next = state.theme === 'dark' ? 'light' : 'dark';
+      this.setTheme(next);
+      return next;
     },
     setHealth(online) {
       state.health.online = online;

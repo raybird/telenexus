@@ -14,7 +14,7 @@ function renderScheduleList(container, items) {
         <div class="muted">#${item.id} | ${active}</div>
         <div>${escapeHtml(item.name)}</div>
         <div class="muted">${escapeHtml(item.cron)}</div>
-        <div class="row" style="margin-top:8px;">
+        <div class="row mt-sm">
           <button data-action="edit" data-id="${item.id}">編輯</button>
           <button data-action="toggle" data-id="${item.id}" data-active="${item.is_active ? '1' : '0'}">${toggleLabel}</button>
           <button data-action="remove" data-id="${item.id}">刪除</button>
@@ -28,11 +28,11 @@ function renderScheduleList(container, items) {
 export function mountSchedulesView(container, ctx) {
   const scope = createViewScope();
   container.innerHTML = `
-    <h2 class="title">Schedules</h2>
+    <h2 class="title pad-view">Schedules</h2>
     <section class="col">
       <div class="row">
-        <input id="nameInput" placeholder="排程名稱" style="flex:1;" />
-        <input id="cronInput" placeholder="Cron (5 欄位)" style="flex:1;" />
+        <input id="nameInput" placeholder="排程名稱" class="flex-1" />
+        <input id="cronInput" placeholder="Cron (5 欄位)" class="flex-1" />
       </div>
       <textarea id="promptInput" placeholder="排程提示詞" rows="4"></textarea>
       <div class="row">
@@ -43,7 +43,7 @@ export function mountSchedulesView(container, ctx) {
       </div>
     </section>
 
-    <section class="col" style="margin-top: 12px;">
+    <section class="col mt-md">
       <div class="row">
         <strong>Schedule List</strong>
         <button id="refreshBtn">刷新</button>

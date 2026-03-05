@@ -65,7 +65,7 @@ export function mountMemoryView(container, ctx) {
         <div class="panel col">
           <div class="panel-title">搜尋記憶內容</div>
           <div class="row">
-            <input id="searchInput" style="flex:1;" placeholder="關鍵字" />
+            <input id="searchInput" class="flex-1" placeholder="關鍵字" />
             <button id="searchBtn">搜尋</button>
           </div>
           <div class="muted">可搜尋近期對話與系統回覆內容</div>
@@ -80,7 +80,7 @@ export function mountMemoryView(container, ctx) {
           <div class="row">
             <button id="exportJsonBtn">匯出 JSON</button>
             <button id="exportCsvBtn">匯出 CSV</button>
-            <span id="pageInfo" class="muted" style="margin-left:auto;"></span>
+            <span id="pageInfo" class="muted ml-auto"></span>
           </div>
         </div>
       </section>
@@ -88,12 +88,12 @@ export function mountMemoryView(container, ctx) {
       <section class="memory-content">
         <div class="col">
           <div>
-            <div class="muted" style="margin:0 0 6px 4px;">搜尋結果</div>
-            <div id="searchList" class="list memory-chat-list" style="max-height:220px;"></div>
+            <div class="muted label-gap">搜尋結果</div>
+            <div id="searchList" class="list memory-chat-list search-list-wrap"></div>
           </div>
           <div>
-            <div class="muted" style="margin:0 0 6px 4px;">歷史對話</div>
-            <div id="historyList" class="list memory-chat-list" style="min-height:360px;"></div>
+            <div class="muted label-gap">歷史對話</div>
+            <div id="historyList" class="list memory-chat-list history-list-wrap"></div>
           </div>
         </div>
       </section>

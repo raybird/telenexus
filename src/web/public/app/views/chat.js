@@ -26,7 +26,7 @@ export function mountChatView(container, ctx) {
         <div class="row">
           <h2 class="title">Chat</h2>
           <span class="muted">即時串流對話</span>
-          <span style="flex:1;"></span>
+          <span class="flex-1"></span>
           <button id="reloadRecentBtn">重載近期訊息</button>
         </div>
       </header>
@@ -39,7 +39,7 @@ export function mountChatView(container, ctx) {
         <div class="chat-composer">
           <div class="chat-input-row">
             <textarea id="chatInput" rows="1" placeholder="輸入訊息，按 Enter 送出 (Shift+Enter 換行)" autocomplete="off"></textarea>
-            <button id="chatSendBtn" aria-label="Send">
+            <button id="chatSendBtn" class="chat-send-btn" aria-label="Send">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             </button>
           </div>
@@ -47,7 +47,7 @@ export function mountChatView(container, ctx) {
         <div class="chat-tools">
           <div class="row">
             <input id="tokenInput" placeholder="API token (可留白)" autocomplete="off" />
-            <button id="saveTokenBtn" style="padding:4px 10px;font-size:12px;border-radius:6px">儲存 Token</button>
+            <button id="saveTokenBtn" class="btn-sm">儲存 Token</button>
           </div>
           <div id="chatStatus">Ready</div>
         </div>

@@ -5,15 +5,15 @@ import { createViewScope } from '../utils/view.js';
 export function mountStatusView(container, ctx) {
   const scope = createViewScope();
   container.innerHTML = `
-    <h2 class="title">Status</h2>
-    <div class="row" style="margin-bottom: 10px;">
+    <h2 class="title pad-view">Status</h2>
+    <div class="row mb-md">
       <button id="refreshBtn">刷新</button>
       <span class="muted" id="statusMsg"></span>
     </div>
 
     <div class="grid-4" id="metrics"></div>
 
-    <div class="grid-2" style="margin-top: 10px;">
+    <div class="grid-2 mt-md">
       <section class="col">
         <strong>runtime-status.md</strong>
         <pre id="runtime" class="snapshot"></pre>
