@@ -16,6 +16,7 @@
 
 - 環境變數與 runner/session 設定：`docs/configuration-reference.md`
 - Runtime 邊界與安全模型：`docs/runtime-boundary-and-security.md`
+- 發版 SOP 指令流：`npm run release:patch -- -m "<commit message>"`
 
 ## 排程
 

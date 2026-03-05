@@ -19,6 +19,10 @@
     "docker:up:telenexus": "npm run docker:up:meta",
     "report:compare": "node scripts/report-execution-compare.mjs",
     "report:compare:24h": "node scripts/report-execution-compare.mjs --hours 24",
+    "release:workflow": "node scripts/release-workflow.mjs",
+    "release:patch": "node scripts/release-workflow.mjs patch",
+    "release:minor": "node scripts/release-workflow.mjs minor",
+    "release:major": "node scripts/release-workflow.mjs major",
     "lint": "eslint \"src/**/*.ts\"",
     "format": "prettier --write \"src/**/*.ts\" \"*.md\""
   },
