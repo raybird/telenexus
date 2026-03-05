@@ -33,7 +33,14 @@ const services = {
 const viewCache = new Map();
 let activeRoute = null;
 let healthTimer = 0;
-let selectedThreadId = '';
+let selectedDateLabel = '';
+
+let recentDatesState = {
+  offset: 0,
+  dateLabels: [],
+  hasMore: true,
+  loading: false
+};
 
 const routes = {
   chat: mountChatView,
@@ -73,56 +80,98 @@ function trimPreview(text) {
   return normalized.length > 46 ? `${normalized.slice(0, 46)}...` : normalized;
 }
 
-function buildRecentThreads(items) {
-  const userMessages = (Array.isArray(items) ? items : []).filter(
-    (item) =>
-      String(item.role || '').toLowerCase() === 'user' &&
-      String(item.content || '').trim().length > 0
-  );
+function getDateLabel(timestamp) {
+  const stamp = new Date(timestamp);
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const yesterdayStart = todayStart - 86400000;
 
-  return userMessages.slice(0, 12).map((item, index) => ({
-    id: `${Number(item.timestamp || 0)}-${index}`,
-    timestamp: Number(item.timestamp || 0),
-    preview: trimPreview(item.content || '')
-  }));
+  if (timestamp >= todayStart) return '今天';
+  if (timestamp >= yesterdayStart) return '昨天';
+  return stamp.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' });
 }
 
-function renderRecentThreads(items) {
+function extractUniqueDates(items) {
+  return items
+    .filter(item => String(item.role || '').toLowerCase() === 'user')
+    .map(item => getDateLabel(Number(item.timestamp || 0)))
+    .filter((value, index, self) => self.indexOf(value) === index);
+}
+
+function renderRecentDates() {
   recentThreads.innerHTML = '';
-  if (!Array.isArray(items) || items.length === 0) {
-    recentThreads.innerHTML = '<div class="thread-empty">暫無可顯示的近期對話</div>';
+  if (recentDatesState.dateLabels.length === 0 && !recentDatesState.loading) {
+    recentThreads.innerHTML = '<div class="thread-empty">暫無歷史日期</div>';
     return;
   }
 
-  for (const item of items) {
+  for (const label of recentDatesState.dateLabels) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = `thread-item${selectedThreadId === item.id ? ' active' : ''}`;
-    const stamp = new Date(item.timestamp).toLocaleString('zh-TW');
-    button.innerHTML = `
-      <div class="thread-title">${item.preview}</div>
-      <div class="thread-meta">${stamp}</div>
-    `;
+    button.className = `thread-item${selectedDateLabel === label ? ' active' : ''}`;
+    button.textContent = label;
+
     button.addEventListener('click', () => {
-      selectedThreadId = item.id;
-      renderRecentThreads(items);
+      selectedDateLabel = label;
+      renderRecentDates();
       window.location.hash = '#/chat';
       window.dispatchEvent(
-        new CustomEvent('thread:selected', {
-          detail: { id: item.id, preview: item.preview, timestamp: item.timestamp }
+        new CustomEvent('date:selected', {
+          detail: { dateLabel: label }
         })
       );
     });
     recentThreads.appendChild(button);
   }
+
+  if (recentDatesState.loading) {
+    const loader = document.createElement('div');
+    loader.className = 'thread-loading';
+    loader.textContent = '載入中';
+    recentThreads.appendChild(loader);
+  }
 }
 
-async function refreshRecentThreads() {
+async function loadMoreDates(reset = false) {
+  if (reset) {
+    recentDatesState = { offset: 0, dateLabels: [], hasMore: true, loading: false };
+  }
+  if (recentDatesState.loading || !recentDatesState.hasMore) return;
+
+  recentDatesState.loading = true;
+  renderRecentDates();
+
   try {
-    const data = await services.memory.getRecent(120);
-    renderRecentThreads(buildRecentThreads(data.items || []));
-  } catch {
-    recentThreads.innerHTML = '<div class="thread-empty">讀取近期對話失敗</div>';
+    const limit = 40;
+    const data = await services.memory.getHistory(recentDatesState.offset, limit);
+    const rawItems = Array.isArray(data.items) ? data.items : [];
+
+    if (rawItems.length < limit) {
+      recentDatesState.hasMore = false;
+    }
+    recentDatesState.offset += limit;
+
+    const newLabels = extractUniqueDates(rawItems);
+    for (const label of newLabels) {
+      if (!recentDatesState.dateLabels.includes(label)) {
+        recentDatesState.dateLabels.push(label);
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load dates:', e);
+    if (reset) {
+      recentThreads.innerHTML = '<div class="thread-empty">讀取日期失敗</div>';
+    }
+  } finally {
+    recentDatesState.loading = false;
+    renderRecentDates();
+
+    // Ensure we fetch enough dates to spawn a scrollbar so the user can actually scroll
+    setTimeout(() => {
+      if (recentDatesState.hasMore && recentThreads.scrollHeight <= recentThreads.clientHeight) {
+        void loadMoreDates(false);
+      }
+    }, 10);
   }
 }
 
@@ -230,15 +279,27 @@ function bootstrap() {
   window.addEventListener('beforeunload', disposeApp);
   void refreshGlobalHealth();
   void refreshGlobalAlert();
-  void refreshRecentThreads();
+  void loadMoreDates(true);
+
   healthTimer = window.setInterval(() => {
     void refreshGlobalHealth();
     void refreshGlobalAlert();
-    void refreshRecentThreads();
+    if (recentThreads.scrollTop === 0) {
+      void loadMoreDates(true);
+    }
   }, 15000);
 
   refreshThreadsBtn.addEventListener('click', () => {
-    void refreshRecentThreads();
+    void loadMoreDates(true);
+  });
+
+  recentThreads.addEventListener('scroll', () => {
+    if (
+      recentThreads.scrollTop + recentThreads.clientHeight >=
+      recentThreads.scrollHeight - 40
+    ) {
+      void loadMoreDates(false);
+    }
   });
 
   themeToggle.addEventListener('click', () => {

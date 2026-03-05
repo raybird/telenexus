@@ -354,16 +354,18 @@
     .thread-item {
       display: block;
       width: 100%;
-      text-align: left;
-      border: 1px solid transparent;
-      border-radius: 10px;
-      background: transparent;
-      padding: 10px;
-      margin-bottom: 4px;
+      text-align: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-soft);
+      padding: 8px 12px;
+      margin-bottom: 6px;
       cursor: pointer;
       transition: all var(--transition);
       color: var(--text);
-      font-family: inherit;
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: 0.5px;
     }
 
     .thread-item:last-child {
@@ -380,18 +382,29 @@
       border-color: rgba(99, 102, 241, 0.2);
     }
 
-    .thread-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 4px;
-      line-height: 1.4;
+    @keyframes highlightFlash {
+      0% {
+        transform: scale(1);
+        background: var(--panel-soft);
+        color: var(--muted);
+      }
+
+      30% {
+        transform: scale(1.05);
+        background: var(--primary);
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+      }
+
+      100% {
+        transform: scale(1);
+        background: var(--panel-soft);
+        color: var(--muted);
+      }
     }
 
-    .thread-meta {
-      font-size: 11px;
-      color: var(--muted);
-      word-break: break-all;
+    .jump-highlight {
+      animation: highlightFlash 1.5s ease-out forwards !important;
     }
 
     .thread-loading {

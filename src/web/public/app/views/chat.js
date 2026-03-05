@@ -280,14 +280,48 @@ export function mountChatView(container, ctx) {
     ctx.state.setToken(tokenInput.value || '');
     status.textContent = 'Token saved';
   });
-  scope.on(window, 'thread:selected', (event) => {
+
+  scope.on(window, 'date:selected', (event) => {
     const detail = event instanceof CustomEvent ? event.detail : null;
-    if (!detail || typeof detail.preview !== 'string') {
-      return;
-    }
-    input.value = detail.preview;
-    input.focus();
-    status.textContent = '已載入側欄對話摘要，可直接送出或修改';
+    if (!detail || typeof detail.dateLabel !== 'string') return;
+
+    scope.run(async () => {
+      const targetLabel = detail.dateLabel;
+      status.textContent = `尋找日期: ${targetLabel}...`;
+
+      let attempts = 0;
+      const maxAttempts = 15;
+
+      while (attempts < maxAttempts) {
+        // Try to find the divider in the DOM
+        const dividers = Array.from(messages.querySelectorAll('.chat-date-divider span'));
+        const targetNode = dividers.find(span => span.textContent === targetLabel);
+
+        if (targetNode) {
+          const dividerDiv = targetNode.parentElement;
+          if (dividerDiv) {
+            dividerDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            dividerDiv.classList.remove('jump-highlight');
+            // Trigger reflow to restart animation
+            void dividerDiv.offsetWidth;
+            dividerDiv.classList.add('jump-highlight');
+            status.textContent = 'Ready';
+          }
+          return;
+        }
+
+        // If not found, load more history
+        if (!chatState.hasMore) {
+          status.textContent = `已到達最早紀錄，未找到 ${targetLabel}`;
+          return;
+        }
+
+        await loadOlderMessages(false);
+        attempts++;
+      }
+
+      status.textContent = '搜尋逾時';
+    });
   });
 
   scope.on(stream, 'scroll', () => {
