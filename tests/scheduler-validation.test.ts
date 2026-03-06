@@ -36,6 +36,18 @@ function createAgentStub(): AIAgent {
   };
 }
 
+function createCountingAgentStub(counter: { chatCalls: number }): AIAgent {
+  return {
+    async chat(): Promise<string> {
+      counter.chatCalls += 1;
+      return 'ok';
+    },
+    async summarize(text: string): Promise<string> {
+      return text;
+    }
+  };
+}
+
 function createConnectorStub(): Connector {
   return {
     name: 'test',
@@ -130,5 +142,22 @@ test('Scheduler keeps only one silence timer when reflection re-schedules', asyn
       (global as any).setTimeout = originalSetTimeout;
       (global as any).clearTimeout = originalClearTimeout;
     }
+  });
+});
+
+test('Scheduler skips repeated silence reflection when no user reply after follow-up', async () => {
+  await withTempDb(async () => {
+    const counter = { chatCalls: 0 };
+    const memory = new MemoryManager();
+    const scheduler = new Scheduler(memory, createCountingAgentStub(counter), createConnectorStub());
+
+    memory.addMessage('user-a', 'user', 'follow-up me');
+
+    await scheduler.triggerReflection('user-a', 'silence');
+    await scheduler.triggerReflection('user-a', 'silence');
+
+    assert.equal(counter.chatCalls, 1);
+
+    scheduler.shutdown();
   });
 });

@@ -67,6 +67,39 @@ export class Scheduler {
     return text.replace(/\s+/g, ' ').trim();
   }
 
+  private isReflectionMessage(content: string): boolean {
+    return (
+      content.startsWith('🔔 [追蹤提醒]') ||
+      content.startsWith('🔍 [手動追蹤]') ||
+      content.startsWith('✅ [追蹤檢查]') ||
+      content === '✨ 無待辦。' ||
+      content.startsWith('❌ 追蹤提醒執行失敗：')
+    );
+  }
+
+  private hasUserActivitySinceLastReflection(userId: string): boolean {
+    const extendedHistory = this.memory.getExtendedHistory(userId, 24);
+    let lastUserTimestamp: number | null = null;
+    let lastReflectionTimestamp: number | null = null;
+
+    for (const message of extendedHistory) {
+      if (message.role === 'user') {
+        lastUserTimestamp = message.timestamp;
+        continue;
+      }
+
+      if (this.isReflectionMessage(message.content)) {
+        lastReflectionTimestamp = message.timestamp;
+      }
+    }
+
+    if (lastReflectionTimestamp === null) {
+      return true;
+    }
+
+    return lastUserTimestamp !== null && lastUserTimestamp > lastReflectionTimestamp;
+  }
+
   private getTimezone(): string {
     // 優先使用環境變數 (與 Docker 容器一致)
     if (process.env.TZ) {
@@ -631,6 +664,13 @@ Final Result:
     );
 
     try {
+      if (type === 'silence' && !this.hasUserActivitySinceLastReflection(userId)) {
+        console.log(
+          `[Scheduler] Skipping reflection for user ${userId} because there is no new user activity since the last follow-up.`
+        );
+        return;
+      }
+
       // 取得過去 24 小時對話
       const extendedHistory = this.memory.getExtendedHistory(userId, 24);
       const userHistory = extendedHistory.filter((msg) => msg.role === 'user');
