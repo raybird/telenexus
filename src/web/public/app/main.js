@@ -93,42 +93,81 @@ function getDateLabel(timestamp) {
 
 function extractUniqueDates(items) {
   return items
-    .filter(item => String(item.role || '').toLowerCase() === 'user')
-    .map(item => getDateLabel(Number(item.timestamp || 0)))
+    .filter((item) => String(item.role || '').toLowerCase() === 'user')
+    .map((item) => getDateLabel(Number(item.timestamp || 0)))
     .filter((value, index, self) => self.indexOf(value) === index);
 }
 
+function handleDateClick(label) {
+  selectedDateLabel = label;
+  renderRecentDates();
+  window.location.hash = '#/chat';
+  window.dispatchEvent(
+    new CustomEvent('date:selected', {
+      detail: { dateLabel: label }
+    })
+  );
+}
+
 function renderRecentDates() {
-  recentThreads.innerHTML = '';
-  if (recentDatesState.dateLabels.length === 0 && !recentDatesState.loading) {
-    recentThreads.innerHTML = '<div class="thread-empty">暫無歷史日期</div>';
+  const labels = recentDatesState.dateLabels;
+
+  // If empty and not loading, show placeholder (only rebuild if not already showing it)
+  if (labels.length === 0 && !recentDatesState.loading) {
+    if (!recentThreads.querySelector('.thread-empty')) {
+      recentThreads.innerHTML = '<div class="thread-empty">暫無歷史日期</div>';
+    }
     return;
   }
 
-  for (const label of recentDatesState.dateLabels) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = `thread-item${selectedDateLabel === label ? ' active' : ''}`;
-    button.textContent = label;
+  // Remove non-button nodes (e.g. previous empty placeholder) without touching buttons
+  Array.from(recentThreads.children).forEach((el) => {
+    if (!el.classList.contains('thread-item') && !el.classList.contains('thread-loading')) {
+      el.remove();
+    }
+  });
 
-    button.addEventListener('click', () => {
-      selectedDateLabel = label;
-      renderRecentDates();
-      window.location.hash = '#/chat';
-      window.dispatchEvent(
-        new CustomEvent('date:selected', {
-          detail: { dateLabel: label }
-        })
-      );
-    });
-    recentThreads.appendChild(button);
+  const existingButtons = Array.from(recentThreads.querySelectorAll('button.thread-item'));
+
+  // 1. Update existing buttons or create new ones
+  labels.forEach((label, i) => {
+    const expectedClass = `thread-item${selectedDateLabel === label ? ' active' : ''}`;
+    let button = existingButtons[i];
+
+    if (button) {
+      // Reuse existing DOM node — just patch what changed
+      if (button.textContent !== label) button.textContent = label;
+      if (button.className !== expectedClass) button.className = expectedClass;
+      button.onclick = () => handleDateClick(label);
+    } else {
+      // Append new button for newly loaded dates
+      button = document.createElement('button');
+      button.type = 'button';
+      button.className = expectedClass;
+      button.textContent = label;
+      button.onclick = () => handleDateClick(label);
+      // Insert before loader if present, otherwise append
+      const loader = recentThreads.querySelector('.thread-loading');
+      recentThreads.insertBefore(button, loader || null);
+    }
+  });
+
+  // 2. Remove surplus buttons that are no longer in the list
+  for (let i = labels.length; i < existingButtons.length; i++) {
+    existingButtons[i].remove();
   }
 
+  // 3. Manage the loading indicator without rebuilding everying
+  const existingLoader = recentThreads.querySelector('.thread-loading');
   if (recentDatesState.loading) {
-    const loader = document.createElement('div');
-    loader.className = 'thread-loading';
-    loader.textContent = '載入中';
-    recentThreads.appendChild(loader);
+    if (!existingLoader) {
+      const loader = document.createElement('div');
+      loader.className = 'thread-loading';
+      loader.textContent = '載入中';
+      recentThreads.appendChild(loader);
+    }
+  } else if (existingLoader) {
+    existingLoader.remove();
   }
 }
 
@@ -172,6 +211,32 @@ async function loadMoreDates(reset = false) {
         void loadMoreDates(false);
       }
     }, 10);
+  }
+}
+
+async function refreshRecentDatesPassive() {
+  if (recentDatesState.loading) return;
+
+  try {
+    const limit = 40;
+    const data = await services.memory.getHistory(0, limit);
+    const rawItems = Array.isArray(data.items) ? data.items : [];
+    const latestLabels = extractUniqueDates(rawItems);
+
+    let changed = false;
+    for (let i = latestLabels.length - 1; i >= 0; i -= 1) {
+      const label = latestLabels[i];
+      if (!recentDatesState.dateLabels.includes(label)) {
+        recentDatesState.dateLabels.unshift(label);
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      renderRecentDates();
+    }
+  } catch (e) {
+    console.error('Failed to refresh recent dates:', e);
   }
 }
 
@@ -284,9 +349,7 @@ function bootstrap() {
   healthTimer = window.setInterval(() => {
     void refreshGlobalHealth();
     void refreshGlobalAlert();
-    if (recentThreads.scrollTop === 0) {
-      void loadMoreDates(true);
-    }
+    void refreshRecentDatesPassive();
   }, 15000);
 
   refreshThreadsBtn.addEventListener('click', () => {
@@ -294,10 +357,7 @@ function bootstrap() {
   });
 
   recentThreads.addEventListener('scroll', () => {
-    if (
-      recentThreads.scrollTop + recentThreads.clientHeight >=
-      recentThreads.scrollHeight - 40
-    ) {
+    if (recentThreads.scrollTop + recentThreads.clientHeight >= recentThreads.scrollHeight - 40) {
       void loadMoreDates(false);
     }
   });

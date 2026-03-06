@@ -1004,3 +1004,30 @@
 - 統一 Gemini/Opencode timeout 文案為 `✨ 10分鐘內未完成`。
 - Opencode `chat()` 在非 timeout 錯誤改為 throw，與 Gemini 一致。
 - scheduler 的重試判斷改為 provider-agnostic，支援 Gemini/Opencode/runner 錯誤格式。
+
+---
+
+## 2026-03-06 - Web Console UI & UX 進化總結
+
+### 階段
+
+- 完成了從傳統列表介面到現代聊天應用的全面重構。
+
+### 已完成
+
+- 視覺系統升級：深淺色主題、Inter 字體、Indigo 配色。
+- 組件精緻化：智慧選單圖示、狀態脈衝動畫、氣泡 Entry 動畫。
+- 導覽體驗最佳化：
+  - 側邊欄日期時光軸（無限滾動）。
+  - 對話視窗向上拉取載入（防跳動錨點演算法）。
+  - 時光機跳轉功能（自動背景拉取與 Highlight）。
+
+### 相關文件
+
+- [docs/web-console-ux-evolution.md](file:///home/raybird/Documents/RCodes/moltbot-lite/docs/web-console-ux-evolution.md)
+
+### 驗證結果
+
+- 主要開發項目已全數合併並驗證完畢，對話載入與尋回體感流暢。
+
+---

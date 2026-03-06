@@ -11,6 +11,7 @@
 
 - Web Console 詳細參考：`docs/web-console-reference.md`
 - Web 規劃與演進：`docs/web-local-chat-dashboard-plan.md`
+- Web UI & UX 進化總結：`docs/web-console-ux-evolution.md`
 
 ## 配置與執行模式
 
