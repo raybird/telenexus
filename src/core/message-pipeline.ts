@@ -389,7 +389,8 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       const rawResponse = await executionQueue.enqueue(userId, 'chat', 'high', () =>
         activeAgent.chat(promptForAgent, {
           isPassthroughCommand,
-          forceNewSession
+          forceNewSession,
+          autoRecoveryNotice: true
         })
       );
 

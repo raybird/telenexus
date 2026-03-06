@@ -10,6 +10,8 @@ export interface AIAgentOptions {
   model?: string;
   isPassthroughCommand?: boolean;
   forceNewSession?: boolean;
+  autoRecoveryNotice?: boolean;
+  autoCompressAttempted?: boolean;
 }
 
 type RunnerTask = 'chat' | 'summarize';
@@ -21,6 +23,7 @@ interface RunnerRequest {
   model?: string;
   isPassthroughCommand?: boolean;
   forceNewSession?: boolean;
+  autoRecoveryNotice?: boolean;
 }
 
 interface RunnerResponse {
@@ -245,6 +248,7 @@ export class DynamicAIAgent implements AIAgent {
 
     const isPassthrough = options?.isPassthroughCommand === true;
     const forceNewSession = options?.forceNewSession === true;
+    const autoRecoveryNotice = options?.autoRecoveryNotice === true;
     const normalizedInput = this.normalizePassthroughInput(input, provider, isPassthrough);
     if (isPassthrough) {
       console.log('[DynamicAgent] Passthrough command detected.');
@@ -270,7 +274,8 @@ export class DynamicAIAgent implements AIAgent {
         input: normalizedInput,
         provider,
         ...(isPassthrough ? { isPassthroughCommand: true } : {}),
-        ...(forceNewSession ? { forceNewSession: true } : {})
+        ...(forceNewSession ? { forceNewSession: true } : {}),
+        ...(autoRecoveryNotice ? { autoRecoveryNotice: true } : {})
       };
       if (model) {
         runnerPayload.model = model;

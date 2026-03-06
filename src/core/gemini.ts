@@ -14,6 +14,15 @@ export class GeminiAgent implements AIAgent {
     return /Request contains an invalid argument/i.test(stderr);
   }
 
+  private isCompressionSignature(stderr: string | undefined): boolean {
+    if (!stderr) {
+      return false;
+    }
+    return /ChatCompressionService\.compress|GeminiClient\.tryCompressChat|Failed to compress chat history/i.test(
+      stderr
+    );
+  }
+
   /**
    * 清除輸出中的 <thinking> 區塊和其他雜訊
    */
@@ -32,7 +41,7 @@ export class GeminiAgent implements AIAgent {
   }
 
   private recoverOutputFromError(error: unknown): string | null {
-    const raw = error instanceof ProcessError ? (error.stdout || '') : '';
+    const raw = error instanceof ProcessError ? error.stdout || '' : '';
     const cleaned = this.cleanOutput(raw);
     if (!cleaned) {
       return null;
@@ -188,7 +197,9 @@ ${text}
 
       const isPassthrough = options?.isPassthroughCommand === true;
       const forceNewSession = options?.forceNewSession === true;
-      const stderr = error instanceof ProcessError ? (error.stderr || '') : '';
+      const autoCompressAttempted = options?.autoCompressAttempted === true;
+      const autoRecoveryNotice = options?.autoRecoveryNotice === true;
+      const stderr = error instanceof ProcessError ? error.stderr || '' : '';
 
       if (
         isPassthrough &&
@@ -203,16 +214,60 @@ ${text}
         });
       }
 
-      if (error instanceof ProcessError && (error.code === 'ETIMEDOUT' || error.signal === 'SIGTERM')) {
+      if (
+        !isPassthrough &&
+        !forceNewSession &&
+        !autoCompressAttempted &&
+        this.isInvalidArgument(stderr) &&
+        this.isCompressionSignature(stderr)
+      ) {
+        console.warn(
+          '[Gemini] Compression-related invalid argument detected. Auto-running /compress.'
+        );
+        try {
+          const compressOptions: AIAgentOptions = {
+            isPassthroughCommand: true,
+            autoCompressAttempted: true,
+            autoRecoveryNotice: false
+          };
+          if (options?.model) {
+            compressOptions.model = options.model;
+          }
+
+          await this.chat('/compress', {
+            ...compressOptions
+          });
+
+          const recovered = await this.chat(prompt, {
+            ...options,
+            isPassthroughCommand: false,
+            forceNewSession: false,
+            autoCompressAttempted: true
+          });
+
+          if (autoRecoveryNotice) {
+            return `⚠️ 偵測到 Gemini Session 壓縮異常，已自動執行 /compress 並恢復對話。\n\n${recovered}`;
+          }
+          return recovered;
+        } catch (recoveryError) {
+          console.error('[Gemini] Auto /compress recovery failed:', recoveryError);
+        }
+      }
+
+      if (
+        error instanceof ProcessError &&
+        (error.code === 'ETIMEDOUT' || error.signal === 'SIGTERM')
+      ) {
         return '✨ 10分鐘內未完成';
       }
 
       const message = error instanceof Error ? error.message : String(error);
       const pe = error instanceof ProcessError ? error : undefined;
-      const fields: { code?: string | number; signal?: string; stderr?: string; stdout?: string } = {
-        stderr,
-        stdout: pe?.stdout || ''
-      };
+      const fields: { code?: string | number; signal?: string; stderr?: string; stdout?: string } =
+        {
+          stderr,
+          stdout: pe?.stdout || ''
+        };
       if (pe?.code !== undefined) fields.code = pe.code;
       if (pe?.signal !== undefined) fields.signal = pe.signal;
       throw new ProcessError(`Error calling Gemini: ${message}`, fields);

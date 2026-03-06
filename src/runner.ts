@@ -21,6 +21,7 @@ type RunnerRequest = {
   model?: string;
   isPassthroughCommand?: boolean;
   forceNewSession?: boolean;
+  autoRecoveryNotice?: boolean;
 };
 
 type AIConfig = {
@@ -324,13 +325,22 @@ async function executeTask(
     ? {
         model,
         ...(request.isPassthroughCommand ? { isPassthroughCommand: true } : {}),
-        ...(request.forceNewSession ? { forceNewSession: true } : {})
+        ...(request.forceNewSession ? { forceNewSession: true } : {}),
+        ...(request.autoRecoveryNotice ? { autoRecoveryNotice: true } : {})
       }
     : request.isPassthroughCommand
-      ? { isPassthroughCommand: true }
+      ? {
+          isPassthroughCommand: true,
+          ...(request.autoRecoveryNotice ? { autoRecoveryNotice: true } : {})
+        }
       : request.forceNewSession
-        ? { forceNewSession: true }
-        : undefined;
+        ? {
+            forceNewSession: true,
+            ...(request.autoRecoveryNotice ? { autoRecoveryNotice: true } : {})
+          }
+        : request.autoRecoveryNotice
+          ? { autoRecoveryNotice: true }
+          : undefined;
 
   if (!request.input || !request.task) {
     throw new Error('Invalid request: task and input are required.');
