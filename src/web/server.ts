@@ -259,7 +259,6 @@ function isAuthorized(
   return typeof tokenFromQuery === 'string' && safeCompare(tokenFromQuery, authToken);
 }
 
-
 function readContextFile(fileName: string): string {
   try {
     const filePath = path.join(resolveContextDir(), fileName);
@@ -1453,9 +1452,7 @@ export function startWebServer(options: WebServerOptions): WebServerHandle {
 
     // debug/version 需要嚴格授權（不信任內網）
     if (req.method === 'GET' && url.pathname === '/api/debug/version') {
-      if (
-        !isAuthorized(req, options.authToken, url.searchParams.get('token'), false)
-      ) {
+      if (!isAuthorized(req, options.authToken, url.searchParams.get('token'), false)) {
         sendJson(res, 401, { ok: false, error: 'Unauthorized' });
         return;
       }
@@ -1616,6 +1613,27 @@ export function startWebServer(options: WebServerOptions): WebServerHandle {
     if (req.method === 'GET' && url.pathname === '/api/memory/history') {
       const offset = parseOffset(url.searchParams.get('offset'), 0);
       const limit = parseLimit(url.searchParams.get('limit'), 20, 200);
+      const beforeTimestampRaw = url.searchParams.get('beforeTimestamp');
+      const beforeTimestamp = beforeTimestampRaw ? Number.parseInt(beforeTimestampRaw, 10) : NaN;
+
+      if (Number.isFinite(beforeTimestamp) && beforeTimestamp > 0) {
+        const page = options.memory.getMessagesBefore(
+          options.defaultUserId,
+          beforeTimestamp,
+          limit
+        );
+        sendJson(res, 200, {
+          ok: true,
+          items: page.items,
+          total: page.total,
+          offset: 0,
+          limit: page.limit,
+          hasMore: page.hasMore,
+          nextBeforeTimestamp: page.nextBeforeTimestamp
+        });
+        return;
+      }
+
       const page = options.memory.getMessagesPage(options.defaultUserId, offset, limit);
       sendJson(res, 200, {
         ok: true,

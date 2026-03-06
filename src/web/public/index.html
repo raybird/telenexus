@@ -428,6 +428,21 @@
       animation: spin 0.8s linear infinite;
     }
 
+    .chat-top-loading {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--panel) 94%, transparent);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+      pointer-events: none;
+    }
+
     @keyframes spin {
       to {
         transform: rotate(360deg);
@@ -929,6 +944,7 @@
       min-height: 0;
       overflow: auto;
       padding: 24px 8px;
+      position: relative;
       display: flex;
       flex-direction: column;
     }

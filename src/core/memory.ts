@@ -14,6 +14,14 @@ export interface PagedChatMessages {
   limit: number;
 }
 
+export interface CursorChatMessages {
+  items: ChatMessage[];
+  total: number;
+  limit: number;
+  hasMore: boolean;
+  nextBeforeTimestamp: number | null;
+}
+
 export interface Schedule {
   id: number;
   user_id: string;
@@ -211,6 +219,59 @@ export class MemoryManager {
       total,
       offset: safeOffset,
       limit: safeLimit
+    };
+  }
+
+  /**
+   * 以時間游標載入更舊訊息（timestamp < beforeTimestamp）。
+   */
+  getMessagesBefore(
+    userId: string,
+    beforeTimestamp: number,
+    limit: number = 20
+  ): CursorChatMessages {
+    const safeBefore = Math.max(1, Math.floor(beforeTimestamp));
+    const safeLimit = Math.max(1, Math.min(200, limit));
+
+    const countStmt = this.db.prepare(`
+      SELECT COUNT(*) as count
+      FROM messages
+      WHERE user_id = ?
+    `);
+    const countRow = countStmt.get(userId) as { count: number } | undefined;
+    const total = countRow?.count || 0;
+
+    const pageStmt = this.db.prepare(`
+      SELECT role, content, timestamp
+      FROM messages
+      WHERE user_id = ? AND timestamp < ?
+      ORDER BY timestamp DESC
+      LIMIT ?
+    `);
+
+    const rows = pageStmt.all(userId, safeBefore, safeLimit + 1) as Array<{
+      role: string;
+      content: string;
+      timestamp: number;
+    }>;
+
+    const hasMore = rows.length > safeLimit;
+    const sliced = hasMore ? rows.slice(0, safeLimit) : rows;
+    const items = sliced.map((row) => ({
+      role: row.role as 'user' | 'model',
+      content: row.content,
+      timestamp: row.timestamp
+    }));
+
+    const nextBeforeTimestamp =
+      items.length > 0 ? Math.min(...items.map((item) => Number(item.timestamp || 0))) : null;
+
+    return {
+      items,
+      total,
+      limit: safeLimit,
+      hasMore,
+      nextBeforeTimestamp
     };
   }
 

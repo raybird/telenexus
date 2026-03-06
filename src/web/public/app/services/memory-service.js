@@ -17,6 +17,15 @@ export function createMemoryService(api, state) {
         `/api/memory/history?offset=${encodeURIComponent(String(offset))}&limit=${encodeURIComponent(String(limit))}`
       );
     },
+    async getHistoryBefore(beforeTimestamp, limit = 12) {
+      const base = `/api/memory/history?limit=${encodeURIComponent(String(limit))}`;
+      if (!Number.isFinite(beforeTimestamp) || beforeTimestamp <= 0) {
+        return api.request(base);
+      }
+      return api.request(
+        `${base}&beforeTimestamp=${encodeURIComponent(String(Math.floor(beforeTimestamp)))}`
+      );
+    },
     streamUpdates(handlers) {
       return api.openSse('/api/memory/stream', handlers);
     },

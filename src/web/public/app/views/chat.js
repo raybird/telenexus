@@ -7,6 +7,9 @@ function scrollToBottom(container) {
   container.scrollTop = container.scrollHeight;
 }
 
+const TOP_LOAD_THRESHOLD_PX = 80;
+const HISTORY_PAGE_SIZE = 40;
+
 function toConversationOrder(items) {
   if (!Array.isArray(items)) return [];
   if (items.length <= 1) return items;
@@ -68,12 +71,16 @@ export function mountChatView(container, ctx) {
   tokenInput.value = ctx.state.getToken();
 
   const chatState = {
-    offset: 0,
     items: [],
     hasMore: true,
     loading: false,
-    isStreaming: false
+    isStreaming: false,
+    oldestLoadedTimestamp: null
   };
+
+  let topLoadingIndicator = null;
+  let scrollTicking = false;
+  let fillViewportPromise = null;
 
   function getDateLabel(timestamp) {
     const stamp = new Date(timestamp);
@@ -86,45 +93,161 @@ export function mountChatView(container, ctx) {
     return stamp.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' });
   }
 
+  function createDateDividerElement(dateLabel) {
+    const divider = document.createElement('div');
+    divider.className = 'chat-date-divider';
+    const span = document.createElement('span');
+    span.textContent = dateLabel;
+    divider.appendChild(span);
+    return divider;
+  }
+
+  function createMessageRowElement(item) {
+    const role = item.role === 'user' ? 'user' : 'model';
+    const isUser = role === 'user';
+    const ts = Number(item.timestamp || Date.now());
+    const row = document.createElement('div');
+    row.className = `memory-chat-row ${isUser ? 'user' : 'model'}`;
+    row.dataset.timestamp = String(ts);
+    row.dataset.role = role;
+
+    const timeStr = new Date(ts).toLocaleTimeString('zh-TW', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    row.innerHTML = `
+      <div class="memory-chat-bubble ${isUser ? 'user' : 'model'}">
+        <div class="memory-chat-meta">${isUser ? 'You' : 'TeleNexus'} <span style="opacity:0.6;font-size:11px;margin-left:6px">${timeStr}</span></div>
+        <div class="memory-chat-content">${renderMarkdownToHtml(item.content || '')}</div>
+      </div>
+    `;
+
+    return row;
+  }
+
+  function setTopLoadingIndicator(visible) {
+    if (visible) {
+      if (!topLoadingIndicator) {
+        const loader = document.createElement('div');
+        loader.className = 'thread-loading chat-top-loading';
+        loader.textContent = '載入歷史紀錄中';
+        topLoadingIndicator = loader;
+      }
+      if (!topLoadingIndicator.isConnected) {
+        stream.prepend(topLoadingIndicator);
+      }
+    } else {
+      topLoadingIndicator?.remove();
+    }
+  }
+
+  function getViewportAnchor() {
+    const streamTop = stream.getBoundingClientRect().top;
+    const candidates = messages.querySelectorAll('.chat-date-divider, .memory-chat-row');
+    for (const node of candidates) {
+      const rect = node.getBoundingClientRect();
+      if (rect.bottom >= streamTop + 4) {
+        return node;
+      }
+    }
+    return messages.querySelector('.chat-date-divider, .memory-chat-row');
+  }
+
+  function ensureTopLoaderSpacing() {
+    if (!topLoadingIndicator?.isConnected) return;
+    const loaderHeight = topLoadingIndicator.getBoundingClientRect().height;
+    messages.style.scrollMarginTop = `${Math.ceil(loaderHeight + 12)}px`;
+  }
+
+  function clearTopLoaderSpacing() {
+    messages.style.scrollMarginTop = '';
+  }
+
+  async function fillViewportIfNeeded() {
+    if (fillViewportPromise) {
+      await fillViewportPromise;
+      return;
+    }
+
+    fillViewportPromise = (async () => {
+      while (
+        !chatState.loading &&
+        !chatState.isStreaming &&
+        chatState.hasMore &&
+        stream.scrollHeight <= stream.clientHeight + TOP_LOAD_THRESHOLD_PX
+      ) {
+        await loadOlderMessages(false);
+      }
+    })();
+
+    try {
+      await fillViewportPromise;
+    } finally {
+      fillViewportPromise = null;
+    }
+  }
+
+  function prependOlderMessages(items) {
+    if (!Array.isArray(items) || items.length === 0) {
+      return;
+    }
+
+    const firstExistingRow = messages.querySelector('.memory-chat-row');
+    let firstExistingDateLabel = null;
+    if (firstExistingRow instanceof HTMLElement) {
+      const ts = Number(firstExistingRow.dataset.timestamp || 0);
+      if (Number.isFinite(ts) && ts > 0) {
+        firstExistingDateLabel = getDateLabel(ts);
+      }
+    }
+
+    const fragment = document.createDocumentFragment();
+    let previousDateLabel = null;
+    for (const item of items) {
+      const ts = Number(item.timestamp || 0);
+      const dateLabel = getDateLabel(ts);
+      if (dateLabel !== previousDateLabel) {
+        fragment.appendChild(createDateDividerElement(dateLabel));
+        previousDateLabel = dateLabel;
+      }
+      fragment.appendChild(createMessageRowElement(item));
+    }
+
+    if (firstExistingDateLabel && previousDateLabel === firstExistingDateLabel) {
+      const firstDivider = messages.querySelector('.chat-date-divider');
+      if (firstDivider && firstDivider.nextElementSibling === firstExistingRow) {
+        firstDivider.remove();
+      }
+    }
+
+    messages.prepend(fragment);
+  }
+
   function renderAllMessages() {
     const oldScrollHeight = stream.scrollHeight;
     const oldScrollTop = stream.scrollTop;
 
     const isAtBottom = stream.scrollHeight - stream.scrollTop - stream.clientHeight < 10;
-    const isFirstLoad = chatState.offset === 40 && oldScrollHeight === 0;
+    const isFirstLoad = chatState.items.length > 0 && oldScrollHeight === 0;
 
     messages.innerHTML = '';
     let lastDateLabel = null;
 
-    if (chatState.loading && chatState.offset > 0) {
-      messages.insertAdjacentHTML('beforeend', `<div class="thread-loading" style="margin-bottom:16px;margin-top:0;">載入歷史紀錄中</div>`);
-    }
-
     for (const item of chatState.items) {
       const dateLabel = getDateLabel(item.timestamp);
       if (dateLabel !== lastDateLabel) {
-        messages.insertAdjacentHTML('beforeend', `<div class="chat-date-divider"><span>${dateLabel}</span></div>`);
+        messages.appendChild(createDateDividerElement(dateLabel));
         lastDateLabel = dateLabel;
       }
-
-      const role = item.role === 'user' ? 'user' : 'model';
-      const isUser = role === 'user';
-      const timeStr = new Date(item.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
-
-      messages.insertAdjacentHTML('beforeend', `
-        <div class="memory-chat-row ${isUser ? 'user' : 'model'}">
-          <div class="memory-chat-bubble ${isUser ? 'user' : 'model'}">
-            <div class="memory-chat-meta">${isUser ? 'You' : 'TeleNexus'} <span style="opacity:0.6;font-size:11px;margin-left:6px">${timeStr}</span></div>
-            <div class="memory-chat-content">${renderMarkdownToHtml(item.content || '')}</div>
-          </div>
-        </div>
-      `);
+      messages.appendChild(createMessageRowElement(item));
     }
 
     if (isFirstLoad || (isAtBottom && oldScrollHeight > 0)) {
       scrollToBottom(stream);
-    } else if (oldScrollTop === 0 && oldScrollHeight > 0) {
-      stream.scrollTop = stream.scrollHeight - oldScrollHeight;
+    } else if (oldScrollTop <= 80 && oldScrollHeight > 0) {
+      const heightDelta = stream.scrollHeight - oldScrollHeight;
+      stream.scrollTop = Math.max(0, oldScrollTop + heightDelta);
     }
   }
 
@@ -132,30 +255,82 @@ export function mountChatView(container, ctx) {
     if (chatState.loading || !chatState.hasMore || chatState.isStreaming) return;
 
     chatState.loading = true;
-    if (!isInitial) renderAllMessages();
+
+    let anchorElement = null;
+    let anchorTopBefore = 0;
+    let oldScrollHeight = 0;
+    let oldScrollTop = 0;
+    if (!isInitial) {
+      oldScrollHeight = stream.scrollHeight;
+      oldScrollTop = stream.scrollTop;
+      anchorElement = getViewportAnchor();
+      anchorTopBefore = anchorElement ? anchorElement.getBoundingClientRect().top : 0;
+      setTopLoadingIndicator(true);
+      ensureTopLoaderSpacing();
+    }
 
     try {
       if (isInitial) status.textContent = 'Loading history...';
-      const limit = 40;
-      const data = await ctx.services.memory.getHistory(chatState.offset, limit);
+      const data =
+        typeof chatState.oldestLoadedTimestamp === 'number' && chatState.oldestLoadedTimestamp > 0
+          ? await ctx.services.memory.getHistoryBefore(
+              chatState.oldestLoadedTimestamp,
+              HISTORY_PAGE_SIZE
+            )
+          : await ctx.services.memory.getHistoryBefore(null, HISTORY_PAGE_SIZE);
       const rawItems = Array.isArray(data.items) ? data.items : [];
 
-      if (rawItems.length < limit) {
-        chatState.hasMore = false;
-      }
-      chatState.offset += limit;
-
       const orderedNew = toConversationOrder(rawItems);
-      chatState.items = orderedNew.concat(chatState.items);
+      if (isInitial) {
+        chatState.items = orderedNew;
+      } else {
+        chatState.items = orderedNew.concat(chatState.items);
+      }
+
+      if (typeof data.hasMore === 'boolean') {
+        chatState.hasMore = data.hasMore;
+      } else {
+        chatState.hasMore = rawItems.length >= HISTORY_PAGE_SIZE;
+      }
+
+      const nextBefore = Number(data.nextBeforeTimestamp || 0);
+      if (Number.isFinite(nextBefore) && nextBefore > 0) {
+        chatState.oldestLoadedTimestamp = nextBefore;
+      } else if (chatState.items.length > 0) {
+        chatState.oldestLoadedTimestamp = Math.min(
+          ...chatState.items
+            .map((item) => Number(item.timestamp || 0))
+            .filter((ts) => Number.isFinite(ts))
+        );
+      }
+
+      if (!isInitial) {
+        prependOlderMessages(orderedNew);
+
+        if (anchorElement && anchorElement.isConnected) {
+          const anchorTopAfter = anchorElement.getBoundingClientRect().top;
+          stream.scrollTop += anchorTopAfter - anchorTopBefore;
+        } else {
+          const heightDelta = stream.scrollHeight - oldScrollHeight;
+          stream.scrollTop = Math.max(0, oldScrollTop + heightDelta);
+        }
+      }
     } catch (e) {
       status.textContent = 'Error loading history';
       console.error(e);
     } finally {
       chatState.loading = false;
-      renderAllMessages();
+      if (!isInitial) {
+        setTopLoadingIndicator(false);
+        clearTopLoaderSpacing();
+      }
+      if (isInitial) {
+        renderAllMessages();
+      }
       if (isInitial) {
         status.textContent = 'Ready';
         scrollToBottom(stream);
+        void fillViewportIfNeeded();
       }
     }
   }
@@ -166,20 +341,13 @@ export function mountChatView(container, ctx) {
     const lastDivider = dividers.length > 0 ? dividers[dividers.length - 1].textContent : null;
 
     if (dateLabel !== lastDivider) {
-      messages.insertAdjacentHTML('beforeend', `<div class="chat-date-divider"><span>${dateLabel}</span></div>`);
+      messages.insertAdjacentHTML(
+        'beforeend',
+        `<div class="chat-date-divider"><span>${dateLabel}</span></div>`
+      );
     }
 
-    const isUser = role === 'user';
-    const row = document.createElement('div');
-    row.className = `memory-chat-row ${isUser ? 'user' : 'model'}`;
-    const timeStr = new Date(timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
-
-    row.innerHTML = `
-      <div class="memory-chat-bubble ${isUser ? 'user' : 'model'}">
-        <div class="memory-chat-meta">${isUser ? 'You' : 'TeleNexus'} <span style="opacity:0.6;font-size:11px;margin-left:6px">${timeStr}</span></div>
-        <div class="memory-chat-content">${renderMarkdownToHtml(content)}</div>
-      </div>
-    `;
+    const row = createMessageRowElement({ role, content, timestamp });
     messages.appendChild(row);
     scrollToBottom(stream);
     const contentNode = row.querySelector('.memory-chat-content');
@@ -242,7 +410,11 @@ export function mountChatView(container, ctx) {
       });
     } catch (error) {
       addMessageBubble('model', `錯誤：${toErrorMessage(error)}`, modelTs);
-      chatState.items.push({ role: 'model', content: `錯誤：${toErrorMessage(error)}`, timestamp: modelTs });
+      chatState.items.push({
+        role: 'model',
+        content: `錯誤：${toErrorMessage(error)}`,
+        timestamp: modelTs
+      });
       status.textContent = 'Error';
     } finally {
       chatState.isStreaming = false;
@@ -267,9 +439,9 @@ export function mountChatView(container, ctx) {
   scope.on(reloadRecentBtn, 'click', () =>
     scope.run(async () => {
       try {
-        chatState.offset = 0;
         chatState.items = [];
         chatState.hasMore = true;
+        chatState.oldestLoadedTimestamp = null;
         await loadOlderMessages(true);
       } catch (error) {
         status.textContent = `Error: ${toErrorMessage(error)}`;
@@ -295,7 +467,7 @@ export function mountChatView(container, ctx) {
       while (attempts < maxAttempts) {
         // Try to find the divider in the DOM
         const dividers = Array.from(messages.querySelectorAll('.chat-date-divider span'));
-        const targetNode = dividers.find(span => span.textContent === targetLabel);
+        const targetNode = dividers.find((span) => span.textContent === targetLabel);
 
         if (targetNode) {
           const dividerDiv = targetNode.parentElement;
@@ -325,9 +497,14 @@ export function mountChatView(container, ctx) {
   });
 
   scope.on(stream, 'scroll', () => {
-    if (stream.scrollTop <= 50) {
-      void loadOlderMessages(false);
-    }
+    if (scrollTicking) return;
+    scrollTicking = true;
+    requestAnimationFrame(() => {
+      scrollTicking = false;
+      if (stream.scrollTop <= TOP_LOAD_THRESHOLD_PX) {
+        void loadOlderMessages(false).then(() => fillViewportIfNeeded());
+      }
+    });
   });
 
   scope.on(container, 'view:show', () => {
