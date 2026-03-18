@@ -195,11 +195,21 @@ SAR 要解決 TeleNexus 在長對話下的三個核心問題：
 
 - 使用 `memory-cli summaries` 檢視近期已摘要記憶與其 `impact_level/tags`
 - 使用 `memory-cli tag <id> --impact <1|2|3> --tags <tag1,tag2>` 人工提升真正的營運憲法級記憶
+- 使用 `npm run memory:seed-sar-anchors` 寫入已確認的 canonical anchors（具 idempotent 行為）
 - 適合手動升級的對象：
   - 發版與部署 SOP
   - Gemini / runner 故障處置準則
   - Web / chat 歷史載入等技術地板
   - 使用者明確指定要長期保留的決策
+
+#### Canonical Anchor Seed
+
+- 文件位置：`docs/canonical-sar-anchors.md`
+- 目的：把近期最關鍵、最常被問到、且不應被舊摘要稀釋的規則，固化為高品質 seed anchors
+- 初版收錄：
+  - Gemini recovery rule
+  - Web chat history rule
+  - Release workflow rule
 
 #### 建議 tags 初始集合
 

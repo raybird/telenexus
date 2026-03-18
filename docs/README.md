@@ -20,6 +20,7 @@
 - 發版 SOP 指令流：`npm run release:patch -- -m "<commit message>"`
 - 記憶 metadata 回填：`npm run memory:backfill-summary-metadata`
 - 記憶人工標記 CLI：`npm run memory:cli -- summaries`
+- canonical SAR anchors seed：`npm run memory:seed-sar-anchors`
 
 ## 排程
 
@@ -32,6 +33,7 @@
 - Phase 3 歷史：`docs/phase3-migration-history.md`
 - 遷移紀錄（完整時序）：`docs/migration-log.md`
 - SAR 規劃文件：`docs/summary-aware-retrieval-plan.md`
+- canonical anchors 清單：`docs/canonical-sar-anchors.md`
 
 ## 其他提案/研究文件
 
