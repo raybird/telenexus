@@ -61,7 +61,17 @@ export class OpencodeAgent implements AIAgent {
    */
   async summarize(text: string, options?: AIAgentOptions): Promise<string> {
     try {
-      const prompt = `請將以下內容整理成結構化摘要，使用以下格式（省略空白欄位）：
+      const prompt = `請將以下內容整理成「可供長期檢索」的結構化摘要。
+
+規則：
+- 優先保留目標、決策、待辦、關鍵事實。
+- 若有明確技術限制、營運規則、SOP、fallback、故障處置，務必寫進 Decision 或 Facts。
+- 不要寫抒情、評論、客套話。
+- 每個欄位盡量精煉，使用短句或條列。
+- 若欄位沒有內容就省略。
+- 只輸出下列格式，不要加前言或結語。
+
+格式：
 
 Goal: [目標或意圖，若無則省略]
 Decision: [做出的決定，若無則省略]

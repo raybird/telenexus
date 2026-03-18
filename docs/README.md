@@ -18,6 +18,8 @@
 - 環境變數與 runner/session 設定：`docs/configuration-reference.md`
 - Runtime 邊界與安全模型：`docs/runtime-boundary-and-security.md`
 - 發版 SOP 指令流：`npm run release:patch -- -m "<commit message>"`
+- 記憶 metadata 回填：`npm run memory:backfill-summary-metadata`
+- 記憶人工標記 CLI：`npm run memory:cli -- summaries`
 
 ## 排程
 
@@ -29,6 +31,7 @@
 - Docker 重構路線：`docs/docker-refactor-roadmap.md`
 - Phase 3 歷史：`docs/phase3-migration-history.md`
 - 遷移紀錄（完整時序）：`docs/migration-log.md`
+- SAR 規劃文件：`docs/summary-aware-retrieval-plan.md`
 
 ## 其他提案/研究文件
 

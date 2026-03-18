@@ -22,6 +22,22 @@ export interface CursorChatMessages {
   nextBeforeTimestamp: number | null;
 }
 
+export interface SummaryMessage {
+  id: number;
+  role: 'user' | 'model';
+  content: string;
+  summary: string;
+  timestamp: number;
+  impactLevel: number;
+  tags: string[];
+}
+
+export interface MessageMetadata {
+  summary?: string;
+  impactLevel?: number;
+  tags?: string[];
+}
+
 export interface Schedule {
   id: number;
   user_id: string;
@@ -55,14 +71,23 @@ export class MemoryManager {
         role TEXT NOT NULL CHECK(role IN ('user', 'model')),
         content TEXT NOT NULL,
         summary TEXT,
+        impact_level INTEGER NOT NULL DEFAULT 1,
+        tags TEXT,
         timestamp INTEGER NOT NULL
       )
     `);
     stmt.run();
 
+    this.ensureMessageSchema();
+
     // 建立索引加速查詢
     this.db
       .prepare(`CREATE INDEX IF NOT EXISTS idx_user_timestamp ON messages(user_id, timestamp)`)
+      .run();
+    this.db
+      .prepare(
+        `CREATE INDEX IF NOT EXISTS idx_messages_user_impact_timestamp ON messages(user_id, impact_level, timestamp)`
+      )
       .run();
 
     // 建立 FTS5 虛擬表格 (全文檢索)
@@ -100,16 +125,91 @@ export class MemoryManager {
     this.db.prepare(`CREATE INDEX IF NOT EXISTS idx_schedules_user ON schedules(user_id)`).run();
   }
 
+  private ensureMessageSchema(): void {
+    const columns = this.db.prepare(`PRAGMA table_info(messages)`).all() as Array<{ name: string }>;
+    const hasImpactLevel = columns.some((column) => column.name === 'impact_level');
+    const hasTags = columns.some((column) => column.name === 'tags');
+
+    if (!hasImpactLevel) {
+      this.db
+        .prepare(`ALTER TABLE messages ADD COLUMN impact_level INTEGER NOT NULL DEFAULT 1`)
+        .run();
+    }
+
+    if (!hasTags) {
+      this.db.prepare(`ALTER TABLE messages ADD COLUMN tags TEXT`).run();
+    }
+  }
+
+  private normalizeImpactLevel(value?: number): number {
+    if (!Number.isFinite(value)) {
+      return 1;
+    }
+    return Math.max(1, Math.min(3, Math.floor(value as number)));
+  }
+
+  private normalizeTags(tags?: string[]): string[] {
+    if (!Array.isArray(tags) || tags.length === 0) {
+      return [];
+    }
+
+    const normalized: string[] = [];
+    for (const tag of tags) {
+      const cleaned = String(tag || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]+/g, '-');
+      if (!cleaned || normalized.includes(cleaned)) {
+        continue;
+      }
+      normalized.push(cleaned);
+    }
+    return normalized;
+  }
+
+  private parseTags(raw: string | null | undefined): string[] {
+    if (!raw) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return this.normalizeTags(parsed as string[]);
+      }
+    } catch {
+      // ignore malformed legacy tag payloads
+    }
+    return [];
+  }
+
   /**
    * 新增訊息到資料庫
    */
-  addMessage(userId: string, role: 'user' | 'model', content: string, summary?: string): void {
+  addMessage(
+    userId: string,
+    role: 'user' | 'model',
+    content: string,
+    metadata?: string | MessageMetadata
+  ): number {
     const timestamp = Date.now();
+    const summary = typeof metadata === 'string' ? metadata : metadata?.summary;
+    const impactLevel = this.normalizeImpactLevel(
+      typeof metadata === 'string' ? undefined : metadata?.impactLevel
+    );
+    const tags = this.normalizeTags(typeof metadata === 'string' ? undefined : metadata?.tags);
     const stmt = this.db.prepare(`
-      INSERT INTO messages (user_id, role, content, summary, timestamp)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO messages (user_id, role, content, summary, impact_level, tags, timestamp)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
-    const result = stmt.run(userId, role, content, summary || null, timestamp);
+    const result = stmt.run(
+      userId,
+      role,
+      content,
+      summary || null,
+      impactLevel,
+      tags.length > 0 ? JSON.stringify(tags) : null,
+      timestamp
+    );
 
     // 同步到 FTS5 表格
     const ftsStmt = this.db.prepare(`
@@ -117,6 +217,43 @@ export class MemoryManager {
       VALUES (?, ?, ?, ?, ?)
     `);
     ftsStmt.run(result.lastInsertRowid, userId, role, content, timestamp);
+    return timestamp;
+  }
+
+  updateMessageMetadata(
+    userId: string,
+    role: 'user' | 'model',
+    timestamp: number,
+    metadata: MessageMetadata
+  ): void {
+    const summary = metadata.summary?.trim();
+    const impactLevel = this.normalizeImpactLevel(metadata.impactLevel);
+    const tags = this.normalizeTags(metadata.tags);
+    const stmt = this.db.prepare(`
+      UPDATE messages
+      SET summary = COALESCE(?, summary), impact_level = ?, tags = ?
+      WHERE user_id = ? AND role = ? AND timestamp = ?
+    `);
+    stmt.run(
+      summary || null,
+      impactLevel,
+      tags.length > 0 ? JSON.stringify(tags) : null,
+      userId,
+      role,
+      timestamp
+    );
+  }
+
+  updateMessageMetadataById(id: number, metadata: MessageMetadata): void {
+    const summary = metadata.summary?.trim();
+    const impactLevel = this.normalizeImpactLevel(metadata.impactLevel);
+    const tags = this.normalizeTags(metadata.tags);
+    const stmt = this.db.prepare(`
+      UPDATE messages
+      SET summary = COALESCE(?, summary), impact_level = ?, tags = ?
+      WHERE id = ?
+    `);
+    stmt.run(summary || null, impactLevel, tags.length > 0 ? JSON.stringify(tags) : null, id);
   }
 
   /**
@@ -176,6 +313,157 @@ export class MemoryManager {
     return rows.map((row) => ({
       role: row.role as 'user' | 'model',
       content: row.content,
+      timestamp: row.timestamp
+    }));
+  }
+
+  getRecentConversation(userId: string, limit: number = 10): ChatMessage[] {
+    const safeLimit = Math.max(1, Math.min(50, limit));
+    const stmt = this.db.prepare(`
+      SELECT role, content, timestamp
+      FROM messages
+      WHERE user_id = ?
+      ORDER BY timestamp DESC
+      LIMIT ?
+    `);
+
+    const rows = stmt.all(userId, safeLimit) as Array<{
+      role: string;
+      content: string;
+      timestamp: number;
+    }>;
+
+    return rows
+      .map((row) => ({
+        role: row.role as 'user' | 'model',
+        content: row.content,
+        timestamp: row.timestamp
+      }))
+      .reverse();
+  }
+
+  getRecentSummaries(
+    userId: string,
+    limit: number = 10,
+    minImpactLevel: number = 1
+  ): SummaryMessage[] {
+    const safeLimit = Math.max(1, Math.min(50, limit));
+    const safeImpactLevel = this.normalizeImpactLevel(minImpactLevel);
+    const stmt = this.db.prepare(`
+      SELECT id, role, content, summary, impact_level, tags, timestamp
+      FROM messages
+      WHERE user_id = ?
+        AND summary IS NOT NULL
+        AND TRIM(summary) != ''
+        AND impact_level >= ?
+      ORDER BY timestamp DESC
+      LIMIT ?
+    `);
+
+    const rows = stmt.all(userId, safeImpactLevel, safeLimit) as Array<{
+      id: number;
+      role: string;
+      content: string;
+      summary: string;
+      impact_level: number;
+      tags: string | null;
+      timestamp: number;
+    }>;
+
+    return rows.map((row) => ({
+      id: row.id,
+      role: row.role as 'user' | 'model',
+      content: row.content,
+      summary: row.summary,
+      impactLevel: this.normalizeImpactLevel(row.impact_level),
+      tags: this.parseTags(row.tags),
+      timestamp: row.timestamp
+    }));
+  }
+
+  searchSummaries(
+    userId: string,
+    query: string,
+    limit: number = 5,
+    minImpactLevel: number = 1
+  ): SummaryMessage[] {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      return [];
+    }
+
+    const safeLimit = Math.max(1, Math.min(20, limit));
+    const safeImpactLevel = this.normalizeImpactLevel(minImpactLevel);
+    const escapedQuery = this.escapeFts5Query(trimmed);
+    const stmt = this.db.prepare(`
+      SELECT m.id, m.role, m.content, m.summary, m.impact_level, m.tags, m.timestamp
+      FROM messages_fts f
+      INNER JOIN messages m ON f.rowid = m.id
+      WHERE f.user_id = ?
+        AND f.content MATCH ?
+        AND m.summary IS NOT NULL
+        AND TRIM(m.summary) != ''
+        AND m.impact_level >= ?
+      ORDER BY m.timestamp DESC
+      LIMIT ?
+    `);
+
+    const rows = stmt.all(userId, escapedQuery, safeImpactLevel, safeLimit) as Array<{
+      id: number;
+      role: string;
+      content: string;
+      summary: string;
+      impact_level: number;
+      tags: string | null;
+      timestamp: number;
+    }>;
+
+    return rows.map((row) => ({
+      id: row.id,
+      role: row.role as 'user' | 'model',
+      content: row.content,
+      summary: row.summary,
+      impactLevel: this.normalizeImpactLevel(row.impact_level),
+      tags: this.parseTags(row.tags),
+      timestamp: row.timestamp
+    }));
+  }
+
+  listSummaryMessages(
+    userId: string,
+    limit: number = 20,
+    minImpactLevel: number = 1
+  ): SummaryMessage[] {
+    const safeLimit = Math.max(1, Math.min(100, limit));
+    const safeImpactLevel = this.normalizeImpactLevel(minImpactLevel);
+    const stmt = this.db.prepare(`
+      SELECT id, role, content, summary, impact_level, tags, timestamp
+      FROM messages
+      WHERE user_id = ?
+        AND summary IS NOT NULL
+        AND TRIM(summary) != ''
+        AND impact_level >= ?
+      ORDER BY timestamp DESC
+      LIMIT ?
+    `);
+
+    const rows = stmt.all(userId, safeImpactLevel, safeLimit) as Array<{
+      id: number;
+      role: string;
+      content: string;
+      summary: string;
+      impact_level: number;
+      tags: string | null;
+      timestamp: number;
+    }>;
+
+    return rows.map((row) => ({
+      id: row.id,
+      role: row.role as 'user' | 'model',
+      content: row.content,
+      summary: row.summary,
+      impactLevel: this.normalizeImpactLevel(row.impact_level),
+      tags: this.parseTags(row.tags),
       timestamp: row.timestamp
     }));
   }

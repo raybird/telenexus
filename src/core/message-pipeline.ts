@@ -3,7 +3,7 @@ import type { AIAgent } from './agent.js';
 import type { CommandRouter } from './command-router.js';
 import { executionQueue } from './execution-queue.js';
 import type { MemoriaSyncTurn } from './memoria-sync.js';
-import type { MemoryManager } from './memory.js';
+import type { MemoryManager, MessageMetadata } from './memory.js';
 import type { Scheduler } from './scheduler.js';
 import fs from 'fs';
 import path from 'path';
@@ -110,6 +110,46 @@ function toWorkspaceAttachmentRef(rawPath: string): string | null {
 
   const relativeToWorkspace = path.relative(workspaceDir, resolved).split(path.sep).join('/');
   return relativeToWorkspace ? `@./${relativeToWorkspace}` : null;
+}
+
+function inferSummaryMetadata(content: string, summary?: string): MessageMetadata {
+  const text = `${summary || ''}\n${content}`.toLowerCase();
+  const tags = new Set<string>();
+  let impactLevel = 1;
+
+  const addTagIfMatch = (tag: string, patterns: RegExp[]): void => {
+    if (patterns.some((pattern) => pattern.test(text))) {
+      tags.add(tag);
+    }
+  };
+
+  addTagIfMatch('release', [/release/, /npm version/, /git push/, /tag/, /發版/, /發布/, /sop/]);
+  addTagIfMatch('web', [/web/, /chat history/, /sidebar/, /nav/, /ux/, /frontend/, /前端/]);
+  addTagIfMatch('scheduler', [/scheduler/, /cron/, /排程/]);
+  addTagIfMatch('gemini', [/gemini/, /compress/, /invalid_argument/, /resource_exhausted/]);
+  addTagIfMatch('runner', [/runner/, /agent-runner/]);
+  addTagIfMatch('memory', [/memory/, /summary-aware retrieval/, /sar/, /記憶/, /摘要/]);
+  addTagIfMatch('infra', [/docker/, /bootstrap/, /git identity/, /部署/, /infra/]);
+
+  if (
+    /sop|營運憲法|技術地板|bootstrap|fallback|compress|resource_exhausted|invalid_argument/.test(
+      text
+    )
+  ) {
+    impactLevel = 3;
+  } else if (
+    /decision|決策|fix|修復|release|deploy|workflow|scheduler|runner|gemini|chat history|cursor/.test(
+      text
+    )
+  ) {
+    impactLevel = 2;
+  }
+
+  return {
+    ...(summary ? { summary } : {}),
+    impactLevel,
+    tags: Array.from(tags)
+  };
 }
 
 function buildAttachmentPrompt(attachments: UnifiedAttachment[] | undefined): string {
@@ -354,6 +394,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
 
     try {
       let userSummary: string | undefined;
+      let modelMessageTimestamp: number | undefined;
 
       if (!isPassthroughCommand && options.shouldSummarize(msg.content)) {
         console.log('📝 [Memory] User input meets summary criteria, generating summary...');
@@ -362,7 +403,12 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         );
       }
 
-      options.memory.addMessage(userId, 'user', msg.content, userSummary);
+      options.memory.addMessage(
+        userId,
+        'user',
+        msg.content,
+        inferSummaryMetadata(msg.content, userSummary)
+      );
 
       let promptForAgent = msg.content.trim();
       if (!isPassthroughCommand) {
@@ -400,7 +446,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       console.log(`📥 [AI] Reply length: ${response.length}`);
 
       if (response && !response.startsWith('Error')) {
-        options.memory.addMessage(userId, 'model', response);
+        modelMessageTimestamp = options.memory.addMessage(userId, 'model', response);
 
         options.enqueueMemoriaSync?.({
           userId,
@@ -496,6 +542,14 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
               normalized.length > summaryFollowupMaxLength
                 ? normalized.slice(0, summaryFollowupMaxLength - 3) + '...'
                 : normalized;
+            if (typeof modelMessageTimestamp === 'number') {
+              options.memory.updateMessageMetadata(
+                userId,
+                'model',
+                modelMessageTimestamp,
+                inferSummaryMetadata(response, normalized)
+              );
+            }
             const followup = `📝 補充摘要\n${brief}`;
             await connector.sendMessage(targetChatId, followup);
           } catch (error) {
