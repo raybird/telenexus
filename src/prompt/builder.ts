@@ -10,6 +10,8 @@ const SAR_SEMANTIC_LIMIT = 3;
 const SAR_TOTAL_CHAR_BUDGET = 1500;
 const SAR_RECENT_ITEM_CHAR_BUDGET = 180;
 const SAR_SUMMARY_ITEM_CHAR_BUDGET = 220;
+const SAR_CANONICAL_LIMIT = 1;
+const SAR_CANONICAL_WINDOW_DAYS = 30;
 const SAR_ANCHOR_HINTS = [
   'decision',
   '決策',
@@ -43,6 +45,28 @@ const SAR_TOPIC_TAG_MAP: Array<{ tag: string; patterns: RegExp[] }> = [
   { tag: 'runner', patterns: [/runner/i, /agent-runner/i] },
   { tag: 'memory', patterns: [/memory/i, /sar/i, /summary-aware retrieval/i, /記憶/, /摘要/] },
   { tag: 'infra', patterns: [/docker/i, /bootstrap/i, /git/i, /部署/, /infra/i] }
+];
+const SAR_QUERY_ALIASES: Array<{ patterns: RegExp[]; keywords: string[]; tags?: string[] }> = [
+  {
+    patterns: [/發版/, /發布/, /release workflow/i, /release sop/i, /發版流程/],
+    keywords: ['release', 'workflow', 'npm version', 'tag', 'push'],
+    tags: ['release']
+  },
+  {
+    patterns: [/壓縮/, /compress/i, /invalid_argument/i, /resource_exhausted/i, /容量不足/],
+    keywords: ['compress', 'invalid_argument', 'resource_exhausted', 'model_capacity_exhausted'],
+    tags: ['gemini', 'runner']
+  },
+  {
+    patterns: [/上滑載入/, /聊天往上滾/, /chat history/i, /cursor/i, /prepend/i, /閃爍/],
+    keywords: ['chat history', 'cursor', 'incremental prepend', 'offset pagination'],
+    tags: ['web']
+  },
+  {
+    patterns: [/scheduler cli/i, /排程 cli/, /reload/i, /update schedule/i],
+    keywords: ['scheduler-cli', 'reload', 'update', 'cli tool'],
+    tags: ['scheduler']
+  }
 ];
 
 export function shouldSummarize(content: string): boolean {
@@ -99,6 +123,21 @@ function extractQueryKeywords(text: string): string[] {
   return unique;
 }
 
+function applyKeywordAliases(text: string, baseKeywords: string[]): string[] {
+  const expanded = [...baseKeywords];
+  for (const alias of SAR_QUERY_ALIASES) {
+    if (!alias.patterns.some((pattern) => pattern.test(text))) {
+      continue;
+    }
+    for (const keyword of alias.keywords) {
+      if (!expanded.includes(keyword)) {
+        expanded.push(keyword);
+      }
+    }
+  }
+  return expanded.slice(0, 16);
+}
+
 function truncateInline(text: string, maxLength: number): string {
   const normalized = text.replace(/\s+/g, ' ').trim();
   if (normalized.length <= maxLength) {
@@ -122,7 +161,27 @@ function extractTopicTags(userMessage: string): string[] {
       matches.push(entry.tag);
     }
   }
+  for (const alias of SAR_QUERY_ALIASES) {
+    if (!alias.tags || !alias.patterns.some((pattern) => pattern.test(text))) {
+      continue;
+    }
+    for (const tag of alias.tags) {
+      if (!matches.includes(tag)) {
+        matches.push(tag);
+      }
+    }
+  }
   return matches;
+}
+
+function getRecencyBoost(timestamp: number): number {
+  const ageMs = Math.max(0, Date.now() - timestamp);
+  const ageDays = ageMs / (1000 * 60 * 60 * 24);
+  if (ageDays <= 7) return 8;
+  if (ageDays <= 14) return 5;
+  if (ageDays <= 30) return 3;
+  if (ageDays <= 90) return 1;
+  return 0;
 }
 
 function scoreSummary(
@@ -135,6 +194,7 @@ function scoreSummary(
   let score = 0;
   score += Math.min(3, Math.floor(text.length / 140));
   score += Math.max(0, (summary.impactLevel || 1) - 1) * 3;
+  score += getRecencyBoost(summary.timestamp);
   if (/[Dd]ecision|決策|SOP|流程|規則|限制|fallback|bootstrap|runner|Gemini/.test(text)) {
     score += 2;
   }
@@ -176,6 +236,26 @@ function buildDedupKey(role: string, text: string, timestamp: number): string {
   return `${role}|${timestamp}|${text.replace(/\s+/g, ' ').trim().toLowerCase()}`;
 }
 
+function isCanonicalAnchor(
+  summary: SummaryMessage,
+  queryTags: string[],
+  keywords: string[]
+): boolean {
+  if ((summary.impactLevel || 1) < 3) {
+    return false;
+  }
+  const ageMs = Math.max(0, Date.now() - summary.timestamp);
+  const windowMs = SAR_CANONICAL_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  if (ageMs > windowMs) {
+    return false;
+  }
+
+  const text = `${summary.summary || ''} ${summary.content || ''}`.toLowerCase();
+  const tagMatched = queryTags.some((tag) => summary.tags.includes(tag));
+  const keywordMatched = keywords.some((keyword) => text.includes(keyword.toLowerCase()));
+  return tagMatched || keywordMatched;
+}
+
 function selectCausalAnchors(
   summaries: SummaryMessage[],
   queryTags: string[] = [],
@@ -184,13 +264,35 @@ function selectCausalAnchors(
   const filtered = summaries.filter(isAnchorCandidate);
   const tagMatched = filtered.filter((item) => queryTags.some((tag) => item.tags.includes(tag)));
   const source = tagMatched.length > 0 ? tagMatched : filtered.length > 0 ? filtered : summaries;
-  return [...source]
-    .sort((a, b) => {
-      const scoreDiff = scoreSummary(b, queryTags, keywords) - scoreSummary(a, queryTags, keywords);
-      if (scoreDiff !== 0) return scoreDiff;
-      return b.timestamp - a.timestamp;
-    })
-    .slice(0, SAR_ANCHOR_LIMIT);
+  const ranked = [...source].sort((a, b) => {
+    const scoreDiff = scoreSummary(b, queryTags, keywords) - scoreSummary(a, queryTags, keywords);
+    if (scoreDiff !== 0) return scoreDiff;
+    return b.timestamp - a.timestamp;
+  });
+
+  const canonical = ranked.filter((item) => isCanonicalAnchor(item, queryTags, keywords));
+  const selected: SummaryMessage[] = [];
+  const seen = new Set<string>();
+
+  for (const item of canonical.slice(0, SAR_CANONICAL_LIMIT)) {
+    const key = buildDedupKey(item.role, item.summary || item.content, item.timestamp);
+    seen.add(key);
+    selected.push(item);
+  }
+
+  for (const item of ranked) {
+    const key = buildDedupKey(item.role, item.summary || item.content, item.timestamp);
+    if (seen.has(key)) {
+      continue;
+    }
+    selected.push(item);
+    seen.add(key);
+    if (selected.length >= SAR_ANCHOR_LIMIT) {
+      break;
+    }
+  }
+
+  return selected;
 }
 
 function selectSemanticSummaries(
@@ -199,7 +301,7 @@ function selectSemanticSummaries(
   userMessage: string,
   recentSummaries: SummaryMessage[]
 ): SummaryMessage[] {
-  const keywords = extractQueryKeywords(userMessage);
+  const keywords = applyKeywordAliases(userMessage, extractQueryKeywords(userMessage));
   const queryTags = extractTopicTags(userMessage);
   const selected: SummaryMessage[] = [];
   const seen = new Set<string>();
@@ -312,7 +414,7 @@ function applyContextBudget(
 }
 
 function buildSarContext(memory: MemoryManager, userId: string, userMessage: string): string {
-  const keywords = extractQueryKeywords(userMessage);
+  const keywords = applyKeywordAliases(userMessage, extractQueryKeywords(userMessage));
   const queryTags = extractTopicTags(userMessage);
   const recent = memory.getRecentConversation(userId, SAR_RECENT_LIMIT);
   const anchorCandidates = memory.getRecentSummaries(userId, 12, 2);

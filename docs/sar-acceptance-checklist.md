@@ -89,6 +89,14 @@ npm run memory:cli -- summaries --impact 3 --limit 10
 - 沒有大量重複摘要
 - 沒有 semantic / anchor 重複注入同一事件
 
+### B3. Canonical-First / Recency Bias
+
+驗收標準：
+
+- 當 query 命中 canonical topic 時，`【核心決策回顧】` 至少有 1 筆近期 canonical anchor
+- 最近 7~30 天的治理決策，應優先於較舊且更泛化的大摘要
+- 不應被舊的高 impact 泛化摘要長期壓過近期精準規則
+
 ## C. Query Regression Cases
 
 以下案例是目前的核心 regression set。
@@ -170,16 +178,31 @@ scheduler CLI 現在的管理方式是什麼？
 
 期望命中：
 
-- `scheduler-cli` 兩階段治理或近期 CLI 管理規則
+- `Scheduler CLI Management Rule` 或 `scheduler-cli` 近期管理規則
 - 關鍵詞：
   - `scheduler-cli`
   - `update`
   - `reload`
   - `CLI tool`
+  - `health`
 
 可接受回答特徵：
 
 - 能提到 CLI 管理與 reload 機制
+
+### C5. Query Alias Normalization
+
+問題示例：
+
+```text
+發版流程現在怎麼走？
+Gemini 壓縮壞掉時怎麼救？
+聊天往上滾動載入最後怎麼穩住？
+```
+
+期望命中：
+
+- 即便未直接使用 `release SOP`、`/compress`、`chat history` 原詞，也應召回相同 canonical 規則
 
 ## D. 記憶治理驗收
 

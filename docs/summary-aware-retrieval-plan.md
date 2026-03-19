@@ -210,6 +210,7 @@ SAR 要解決 TeleNexus 在長對話下的三個核心問題：
   - Gemini recovery rule
   - Web chat history rule
   - Release workflow rule
+  - Scheduler CLI management rule
 
 #### 建議 tags 初始集合
 
@@ -232,6 +233,9 @@ SAR 要解決 TeleNexus 在長對話下的三個核心問題：
 - anchors / semantic 交叉去重
 - 時間衰減
 - 專案權重與 topic boost
+- canonical-first 保底命中（若 query 命中 canonical topic，至少保留 1 筆 canonical anchor）
+- recency bias（近期 7 / 14 / 30 天的治理決策優先）
+- query alias normalization（如「發版」對應 release workflow、「上滑載入」對應 chat history / cursor）
 
 ---
 
