@@ -306,6 +306,8 @@ Phase 2：
 - prompt 長度有穩定控制，沒有明顯膨脹
 - 沒有同一摘要重複注入兩次以上
 
+補充固定化 regression 測試案例請見：`docs/sar-acceptance-checklist.md`
+
 ---
 
 ## 10. 風險與對策
