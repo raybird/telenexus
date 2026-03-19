@@ -312,6 +312,8 @@ Phase 2：
 
 補充固定化 regression 測試案例請見：`docs/sar-acceptance-checklist.md`
 
+目前 `v2.6.18` 的實際驗證結果請見：`docs/sar-validation-report-v2.6.18.md`
+
 ---
 
 ## 10. 風險與對策

@@ -35,6 +35,7 @@
 - SAR 規劃文件：`docs/summary-aware-retrieval-plan.md`
 - canonical anchors 清單：`docs/canonical-sar-anchors.md`
 - SAR 驗收清單：`docs/sar-acceptance-checklist.md`
+- SAR 驗證報告（v2.6.18）：`docs/sar-validation-report-v2.6.18.md`
 
 ## 其他提案/研究文件
 
