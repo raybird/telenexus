@@ -34,6 +34,7 @@
 - 遷移紀錄（完整時序）：`docs/migration-log.md`
 - SAR 規劃文件：`docs/summary-aware-retrieval-plan.md`
 - canonical anchors 清單：`docs/canonical-sar-anchors.md`
+- SAR 驗收清單：`docs/sar-acceptance-checklist.md`
 
 ## 其他提案/研究文件
 
