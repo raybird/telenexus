@@ -31,6 +31,16 @@
   - 流程固定：`commit > npm version > tag > push`
   - 發版時保留本地 `ai-config.yaml` 與 `workspace/` 測試檔不入版
 
+### 4. Scheduler CLI Management Rule
+
+- 主題：`scheduler`, `memory`
+- 目的：固化 TeleNexus scheduler 管理與 reload 驗證方式
+- 核心規則：
+  - 以 `scheduler-cli` 作為主要治理入口
+  - 支援：`list / add / update / remove / reload / health`
+  - schedule 更新後優先走 HTTP reload，失敗才 fallback signal
+  - 在 Docker Compose 環境應優先用 `docker compose exec telenexus ...` 執行
+
 ## Seed 指令
 
 如需將 canonical anchors 重新寫入資料庫，可使用：

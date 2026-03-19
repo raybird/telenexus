@@ -45,6 +45,13 @@ const CANONICAL_ANCHORS = [
     timestamp: Date.parse('2026-03-18T09:32:00Z'),
     summary:
       'Goal: 固化 TeleNexus 的 release SOP.\nDecision: 使用 command workflow: npm run release:patch -- -m <commit message>, 流程固定為 commit > npm version > tag > push.\nTodo: 發版時保留本地 ai-config.yaml 與 workspace 測試檔不入版.\nFacts: release-workflow 腳本已自動檢查 staged changes, 建立 commit, 執行 npm version, 推送 branch 與 tags.'
+  },
+  {
+    key: 'scheduler-cli-management',
+    tags: ['scheduler', 'memory'],
+    timestamp: Date.parse('2026-03-18T09:33:00Z'),
+    summary:
+      'Goal: 固化 TeleNexus 的 scheduler 管理方式.\nDecision: 以 scheduler-cli 作為主要治理入口, 支援 list / add / update / remove / reload / health; 更新後優先透過 HTTP reload, 失敗才 fallback signal.\nTodo: 持續維持 scheduler skill/docs 與 CLI 指令一致, 並觀察 reload health marker 是否正確更新.\nFacts: scheduler update workflow 已提供 scheduler-cli update; reload 需驗證 health marker; 在 Docker Compose 中應優先用 docker compose exec telenexus 執行 scheduler 指令.'
   }
 ];
 
