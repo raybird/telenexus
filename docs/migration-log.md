@@ -1194,3 +1194,39 @@
 ### 回滾計畫
 
 - 若要回退成較精簡的操作型 README，可移除定位、能力地圖、架構圖與比較區塊，只保留 TL;DR 與操作章節。
+
+---
+
+## 2026-03-28 - README 首頁視覺與導覽美化
+
+### 階段
+
+- 進一步把 `README.md` 往 GitHub 專案首頁風格推進，補強視覺層次、快速導覽與架構可讀性。
+
+### 已完成
+
+- `README.md` 首屏美化：
+  - 新增英文副標與 badges
+  - 補上 version / stack / SAR / release flow 等快速辨識資訊
+- 導覽強化：
+  - 新增 `快速導覽`
+  - 新增 `你可以期待的體感`
+  - 讓使用者可更快理解這個專案在實際互動上的收益
+- 架構表達強化：
+  - 將 `Architecture At A Glance` 改為 mermaid 圖
+  - 更清楚呈現 TeleNexus Core、Memory Manager、Scheduler、Provider Router、Agent Runner 的關係
+- 首頁收斂：
+  - 新增 `Highlights`
+  - 用 `Local-first / Memory-aware / Ops-ready / Debuggable` 濃縮專案特質
+
+### 影響檔案
+
+- `README.md`
+
+### 驗證結果
+
+- 文件層調整，未改動 runtime 行為
+
+### 回滾計畫
+
+- 若需回退，可保留 README 定位與能力內容，只移除 badges、快速導覽、體感區塊、mermaid 圖與 highlights，回到較純文字的首頁風格。

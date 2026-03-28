@@ -2,6 +2,17 @@
   <img src="docs/logo.png" alt="TeleNexus Logo" width="200" />
 </p>
 
+<p align="center">
+  <strong>Local AI Control Plane for Telegram, CLI, Memory, and Scheduling</strong>
+</p>
+
+<p align="center">
+  <img alt="version" src="https://img.shields.io/badge/version-v2.6.23-1f6feb">
+  <img alt="stack" src="https://img.shields.io/badge/stack-Telegram%20%2B%20Runner%20%2B%20SAR-0f766e">
+  <img alt="memory" src="https://img.shields.io/badge/memory-Summary--Aware%20Retrieval-c2410c">
+  <img alt="release" src="https://img.shields.io/badge/release-commit%20%E2%86%92%20tag%20%E2%86%92%20push-6b21a8">
+</p>
+
 # TeleNexus
 
 > 您的私人本地 AI 助理閘道器（Telegram -> Local CLI Agent）
@@ -12,9 +23,26 @@ TeleNexus 讓您用 Telegram 控制本機 AI CLI（Gemini / Opencode），並提
 
 ---
 
+## 快速導覽
+
+- `快速上手`：看 `TL;DR（5 分鐘上手）`
+- `核心能力`：看 `核心優點`、`能力地圖`、`Feature Comparison`
+- `執行模式`：看 `Session 與 Context（重點）`
+- `深入文件`：看 `docs/README.md`
+
+---
+
 ## 一句話定位
 
 TeleNexus 適合想要把 AI 當成「長期可治理的本地代理人」而不是一次性聊天視窗的人。
+
+> 如果你要的是：
+>
+> - 用 Telegram / Web 直接調度本機 CLI Agent
+> - 讓 AI 記得你的發版規則、故障處置與操作慣例
+> - 把排程、記憶、觀測、發版 SOP 放進同一套系統
+>
+> 那 TeleNexus 就是在做這件事。
 
 ---
 
@@ -65,6 +93,15 @@ TeleNexus 適合想要把 AI 當成「長期可治理的本地代理人」而不
 
 ---
 
+## 你可以期待的體感
+
+- 問 `現在 release SOP 是什麼？`，AI 比較容易直接回到你已固定的 command workflow
+- 問 `Gemini 壞掉怎麼救？`，AI 比較容易抓到已整理好的故障分流規則
+- 對話很長之後，仍能保住關鍵治理記憶，而不是只剩最近幾句聊天
+- 當 scheduler、runner、provider 出問題時，比較容易從快照與 health check 找到偏差點
+
+---
+
 ## 能力地圖
 
 ### 互動層
@@ -96,26 +133,21 @@ TeleNexus 適合想要把 AI 當成「長期可治理的本地代理人」而不
 
 ## Architecture At A Glance
 
-```text
-Telegram / Web Console
-          |
-          v
-     TeleNexus Core
-          |
-          +--> Memory Manager
-          |      - recent conversation
-          |      - SAR anchors
-          |      - semantic summaries
-          |
-          +--> Scheduler
-          |      - add / update / reload / health
-          |
-          +--> Provider Router
-          |      - Gemini / Opencode
-          |
-          +--> Agent Runner
-                 - CLI session continuity
-                 - tool execution context
+```mermaid
+flowchart TD
+    A[Telegram / Web Console] --> B[TeleNexus Core]
+    B --> C[Memory Manager]
+    B --> D[Scheduler]
+    B --> E[Provider Router]
+    B --> F[Agent Runner]
+    C --> C1[Recent Conversation]
+    C --> C2[SAR Anchors]
+    C --> C3[Semantic Summaries]
+    D --> D1[Add / Update / Reload / Health]
+    E --> E1[Gemini]
+    E --> E2[Opencode]
+    F --> F1[CLI Session Continuity]
+    F --> F2[Tool Execution Context]
 ```
 
 - `TeleNexus Core` 負責收訊、組 prompt、注入記憶、分派執行與寫入觀測。
@@ -135,6 +167,15 @@ Telegram / Web Console
 | 排程整合       | 常需外掛另一套系統   | 內建 scheduler CLI / reload / health        |
 | 可觀測性       | 常只剩 container log | 有 runtime/provider/scheduler/runner 快照   |
 | 調參與回歸護欄 | 不一定有             | 已有 regression tests 與集中 scoring config |
+
+---
+
+## Highlights
+
+- `Local-first`：模型與 CLI 工作流仍在你的機器上，不是把能力外包給另一個黑盒服務
+- `Memory-aware`：不是只看最近訊息，會把高價值規則與歷史摘要一起帶回來
+- `Ops-ready`：scheduler、health、release SOP、migration log 都已內建
+- `Debuggable`：runner、provider、runtime、error 都有可追的觀測面
 
 ---
 
