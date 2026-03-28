@@ -10,8 +10,12 @@ const SAR_SEMANTIC_LIMIT = 3;
 const SAR_TOTAL_CHAR_BUDGET = 1500;
 const SAR_RECENT_ITEM_CHAR_BUDGET = 180;
 const SAR_SUMMARY_ITEM_CHAR_BUDGET = 220;
+const SAR_RECENT_MIN_LINES = 4;
+const SAR_ANCHOR_MIN_LINES = 1;
+const SAR_MEMORY_CONTEXT_TITLE = '【記憶參考（TeleNexus SAR）】';
 const SAR_CANONICAL_LIMIT = 1;
-const SAR_CANONICAL_WINDOW_DAYS = 30;
+const SAR_ANCHOR_CANDIDATE_LIMIT = 40;
+const SAR_CANONICAL_CANDIDATE_LIMIT = 100;
 const SAR_ANCHOR_HINTS = [
   'decision',
   '決策',
@@ -244,16 +248,36 @@ function isCanonicalAnchor(
   if ((summary.impactLevel || 1) < 3) {
     return false;
   }
-  const ageMs = Math.max(0, Date.now() - summary.timestamp);
-  const windowMs = SAR_CANONICAL_WINDOW_DAYS * 24 * 60 * 60 * 1000;
-  if (ageMs > windowMs) {
-    return false;
-  }
 
   const text = `${summary.summary || ''} ${summary.content || ''}`.toLowerCase();
   const tagMatched = queryTags.some((tag) => summary.tags.includes(tag));
   const keywordMatched = keywords.some((keyword) => text.includes(keyword.toLowerCase()));
   return tagMatched || keywordMatched;
+}
+
+function mergeUniqueSummaries(...groups: SummaryMessage[][]): SummaryMessage[] {
+  const merged: SummaryMessage[] = [];
+  const seen = new Set<string>();
+
+  for (const group of groups) {
+    for (const item of group) {
+      const key = buildDedupKey(item.role, item.summary || item.content, item.timestamp);
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      merged.push(item);
+    }
+  }
+
+  return merged;
+}
+
+function getAnchorCandidates(memory: MemoryManager, userId: string): SummaryMessage[] {
+  const recentAnchors = memory.getRecentSummaries(userId, SAR_ANCHOR_CANDIDATE_LIMIT, 2);
+  const canonicalAnchors = memory.listSummaryMessages(userId, SAR_CANONICAL_CANDIDATE_LIMIT, 3);
+  const fallbackAnchors = recentAnchors.length > 0 ? [] : memory.getRecentSummaries(userId, 20, 1);
+  return mergeUniqueSummaries(canonicalAnchors, recentAnchors, fallbackAnchors);
 }
 
 function selectCausalAnchors(
@@ -396,37 +420,86 @@ function applyContextBudget(
     lines: [...section.lines]
   }));
 
-  const trimOrder = ['【相關歷史摘要】', '【近期對話】', '【核心決策回顧】'];
-  for (const sectionTitle of trimOrder) {
+  const getMinLines = (title: string): number => {
+    if (title === '【核心決策回顧】') {
+      return SAR_ANCHOR_MIN_LINES;
+    }
+    if (title === '【近期對話】') {
+      return SAR_RECENT_MIN_LINES;
+    }
+    return 0;
+  };
+
+  const trimSectionToMinimum = (sectionTitle: string): boolean => {
     const section = mutableSections.find((item) => item.title === sectionTitle);
-    while (section && section.lines.length > 0) {
+    const minLines = getMinLines(sectionTitle);
+    if (!section || section.lines.length <= minLines) {
+      return false;
+    }
+    section.lines.pop();
+    return true;
+  };
+
+  const compactLine = (line: string, maxLength: number): string => {
+    if (line.length <= maxLength) {
+      return line;
+    }
+
+    const match = line.match(/^(-\s+\[[^\]]+\](?:\s+\([^\)]+\))?\s+)(.+)$/);
+    if (!match) {
+      return truncateInline(line, maxLength);
+    }
+
+    const prefix = match[1] || '';
+    const text = match[2] || line;
+    const available = Math.max(12, maxLength - prefix.length);
+    return prefix + truncateInline(text, available);
+  };
+
+  const compactSections = (lineBudget: number): void => {
+    for (const section of mutableSections) {
+      section.lines = section.lines.map((line) => compactLine(line, lineBudget));
+    }
+  };
+
+  const trimOrder = ['【相關歷史摘要】', '【核心決策回顧】', '【近期對話】'];
+  for (const sectionTitle of trimOrder) {
+    while (trimSectionToMinimum(sectionTitle)) {
       result = renderSections(mutableSections);
       if (result.length <= budget) {
         return result;
       }
-      section.lines.pop();
     }
   }
 
   result = renderSections(mutableSections);
 
-  return result.length <= budget ? result : truncateInline(result, budget);
+  if (result.length <= budget) {
+    return result;
+  }
+
+  compactSections(140);
+  result = renderSections(mutableSections);
+  if (result.length <= budget) {
+    return result;
+  }
+
+  compactSections(110);
+  result = renderSections(mutableSections);
+  if (result.length <= budget) {
+    return result;
+  }
+
+  return truncateInline(result, budget);
 }
 
 function buildSarContext(memory: MemoryManager, userId: string, userMessage: string): string {
   const keywords = applyKeywordAliases(userMessage, extractQueryKeywords(userMessage));
   const queryTags = extractTopicTags(userMessage);
   const recent = memory.getRecentConversation(userId, SAR_RECENT_LIMIT);
-  const anchorCandidates = memory.getRecentSummaries(userId, 12, 2);
-  const fallbackAnchorCandidates =
-    anchorCandidates.length > 0 ? anchorCandidates : memory.getRecentSummaries(userId, 12, 1);
-  const anchors = selectCausalAnchors(fallbackAnchorCandidates, queryTags, keywords);
-  const semanticCandidates = selectSemanticSummaries(
-    memory,
-    userId,
-    userMessage,
-    fallbackAnchorCandidates
-  );
+  const anchorCandidates = getAnchorCandidates(memory, userId);
+  const anchors = selectCausalAnchors(anchorCandidates, queryTags, keywords);
+  const semanticCandidates = selectSemanticSummaries(memory, userId, userMessage, anchorCandidates);
 
   const anchorKeys = new Set(
     anchors.map((item) => buildDedupKey(item.role, item.summary || item.content, item.timestamp))
@@ -445,7 +518,7 @@ function buildSarContext(memory: MemoryManager, userId: string, userMessage: str
       },
       { title: '【近期對話】', lines: formatRecentMessages(recent) }
     ],
-    SAR_TOTAL_CHAR_BUDGET
+    Math.max(200, SAR_TOTAL_CHAR_BUDGET - `${SAR_MEMORY_CONTEXT_TITLE}\n`.length)
   );
 }
 
@@ -458,7 +531,7 @@ export function buildMemoryContext(
   if (!context.trim()) {
     return '';
   }
-  return ['【記憶參考（TeleNexus SAR）】', context].join('\n');
+  return [SAR_MEMORY_CONTEXT_TITLE, context].join('\n');
 }
 
 export function buildChatPrompt(

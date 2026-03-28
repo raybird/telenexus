@@ -2,6 +2,8 @@
 
 這份文件記錄 TeleNexus 在 `v2.6.18` 時點對 `Summary-Aware Retrieval (SAR)` 進行的實際驗收結果。
 
+補充說明：這份報告代表當時版本的人工驗證結果與結論；目前 SAR regression 尚未完全 script 化，自動化守門仍待補強。
+
 ## 結論
 
 - SAR 主線驗收通過
@@ -195,6 +197,7 @@ Gemini 壓縮壞掉時怎麼救？
 
 - 目前已有 checklist，但尚未變成 script 化自動驗證
 - 未來建議補一個 SAR regression runner
+- 因此本報告適合當作人工驗收基準，不宜視為長期自動守門已完成
 
 ## 目前判定
 

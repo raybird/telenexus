@@ -1,5 +1,31 @@
 # Summary-Aware Retrieval (SAR) Implementation Plan
 
+> 狀態：已部分落地，本文同時保留原始規劃脈絡與目前實作校準。
+>
+> 若要看本輪保守改進路線，請搭配 `docs/sar-improvement-plan-minimal.md`。
+
+## 0. 目前實作校準
+
+截至目前版本，以下能力已存在，不再屬於純規劃：
+
+- `messages` 已包含 `summary`、`impact_level`、`tags`
+- `src/core/memory.ts` 已提供 recent conversation / summaries / summary search API
+- `src/prompt/builder.ts` 已實作三層 SAR context 組裝
+- `src/core/message-pipeline.ts` 已有 summary metadata inference
+- canonical anchor seed、acceptance checklist、validation report 已建立
+
+目前仍待補強的主要項目：
+
+- 文件仍有部分段落停留在「尚未實作」時期
+- anchor 候選池與 canonical 命中穩定性仍可提升
+- SAR regression 尚未完整自動化
+
+已知實作與原規劃差異：
+
+- budget trimming 的實際順序與本文早期版本不同
+- anchor 候選主要仍偏向近期 summaries，而非真正全域長期層
+- canonical-first 已部分落地，但保底效果仍可再強化
+
 ## 1. 目標
 
 SAR 要解決 TeleNexus 在長對話下的三個核心問題：
@@ -28,10 +54,10 @@ SAR 要解決 TeleNexus 在長對話下的三個核心問題：
 
 ### 2.2 現有限制
 
-- `buildMemoryContext(...)` 目前仍偏向「最近訊息 + 關鍵字匹配」的單層邏輯。
-- `summary` 雖存在，但尚未區分重要程度。
-- DB 尚未有 `impact_level` 與 `tags`，無法做穩定的決策層治理。
-- FTS 目前只能當一般關鍵字搜尋，還不能作為正式 prompt 檢索層。
+- `buildMemoryContext(...)` 已改為三層 SAR 組裝，但 ranking 與 budget 行為仍有再調校空間。
+- `summary` 已有 `impact_level` 與 `tags`，但 metadata 推論與治理仍以 heuristics 為主。
+- anchors 目前仍偏向從近期 summaries 中挑選，長期穩定層仍可再硬化。
+- FTS 已用於 SAR semantic retrieval，但目前命中仍偏向 content，尚未完全成為 `summary + tags` 優先的檢索層。
 
 ---
 
@@ -156,6 +182,8 @@ SAR 要解決 TeleNexus 在長對話下的三個核心問題：
 - 不做 tags governance
 - 不改動 summary 生產提示詞以外的大流程
 
+註：以上為原始 Phase 1 規劃。實際上目前已完成 schema hardening 與基礎 impact/tag 寫入。
+
 ### Phase 2：Schema Hardening
 
 目標：讓高價值記憶能被穩定標記與檢索。
@@ -178,6 +206,8 @@ SAR 要解決 TeleNexus 在長對話下的三個核心問題：
   - summary 產生後可補上預設 impact/tag
 - `src/prompt/builder.ts`
   - anchors 改以 `impact_level >= 2` 為主來源
+
+狀態更新：此階段核心能力已完成，但 retrieval 與 ranking 仍未完全達到最終治理目標。
 
 ### Phase 3：標註與治理
 
@@ -236,6 +266,8 @@ SAR 要解決 TeleNexus 在長對話下的三個核心問題：
 - canonical-first 保底命中（若 query 命中 canonical topic，至少保留 1 筆 canonical anchor）
 - recency bias（近期 7 / 14 / 30 天的治理決策優先）
 - query alias normalization（如「發版」對應 release workflow、「上滑載入」對應 chat history / cursor）
+
+狀態更新：canonical-first、recency bias、query alias normalization 已部分落地；後續重點轉為穩定化與 regression 自動驗證。
 
 ---
 

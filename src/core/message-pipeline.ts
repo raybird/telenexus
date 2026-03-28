@@ -3,8 +3,9 @@ import type { AIAgent } from './agent.js';
 import type { CommandRouter } from './command-router.js';
 import { executionQueue } from './execution-queue.js';
 import type { MemoriaSyncTurn } from './memoria-sync.js';
-import type { MemoryManager, MessageMetadata } from './memory.js';
+import type { MemoryManager } from './memory.js';
 import type { Scheduler } from './scheduler.js';
+import { inferSummaryMetadata } from './summary-metadata.js';
 import fs from 'fs';
 import path from 'path';
 import { parseBool, parsePositiveInt } from '../utils/env.js';
@@ -110,46 +111,6 @@ function toWorkspaceAttachmentRef(rawPath: string): string | null {
 
   const relativeToWorkspace = path.relative(workspaceDir, resolved).split(path.sep).join('/');
   return relativeToWorkspace ? `@./${relativeToWorkspace}` : null;
-}
-
-function inferSummaryMetadata(content: string, summary?: string): MessageMetadata {
-  const text = `${summary || ''}\n${content}`.toLowerCase();
-  const tags = new Set<string>();
-  let impactLevel = 1;
-
-  const addTagIfMatch = (tag: string, patterns: RegExp[]): void => {
-    if (patterns.some((pattern) => pattern.test(text))) {
-      tags.add(tag);
-    }
-  };
-
-  addTagIfMatch('release', [/release/, /npm version/, /git push/, /tag/, /發版/, /發布/, /sop/]);
-  addTagIfMatch('web', [/web/, /chat history/, /sidebar/, /nav/, /ux/, /frontend/, /前端/]);
-  addTagIfMatch('scheduler', [/scheduler/, /cron/, /排程/]);
-  addTagIfMatch('gemini', [/gemini/, /compress/, /invalid_argument/, /resource_exhausted/]);
-  addTagIfMatch('runner', [/runner/, /agent-runner/]);
-  addTagIfMatch('memory', [/memory/, /summary-aware retrieval/, /sar/, /記憶/, /摘要/]);
-  addTagIfMatch('infra', [/docker/, /bootstrap/, /git identity/, /部署/, /infra/]);
-
-  if (
-    /sop|營運憲法|技術地板|bootstrap|fallback|compress|resource_exhausted|invalid_argument/.test(
-      text
-    )
-  ) {
-    impactLevel = 3;
-  } else if (
-    /decision|決策|fix|修復|release|deploy|workflow|scheduler|runner|gemini|chat history|cursor/.test(
-      text
-    )
-  ) {
-    impactLevel = 2;
-  }
-
-  return {
-    ...(summary ? { summary } : {}),
-    impactLevel,
-    tags: Array.from(tags)
-  };
 }
 
 function buildAttachmentPrompt(attachments: UnifiedAttachment[] | undefined): string {

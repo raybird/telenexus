@@ -33,6 +33,7 @@
 - Phase 3 歷史：`docs/phase3-migration-history.md`
 - 遷移紀錄（完整時序）：`docs/migration-log.md`
 - SAR 規劃文件：`docs/summary-aware-retrieval-plan.md`
+- SAR 最小改進計畫：`docs/sar-improvement-plan-minimal.md`
 - canonical anchors 清單：`docs/canonical-sar-anchors.md`
 - SAR 驗收清單：`docs/sar-acceptance-checklist.md`
 - SAR 驗證報告（v2.6.18）：`docs/sar-validation-report-v2.6.18.md`

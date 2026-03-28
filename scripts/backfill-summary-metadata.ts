@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import dotenv from 'dotenv';
 import path from 'node:path';
+import { inferSummaryMetadata } from '../src/core/summary-metadata.js';
 
 dotenv.config();
 
@@ -18,46 +19,7 @@ function resolveDbPath() {
   return path.resolve(process.cwd(), 'moltbot.db');
 }
 
-function inferSummaryMetadata(content, summary) {
-  const text = `${summary || ''}\n${content || ''}`.toLowerCase();
-  const tags = new Set();
-  let impactLevel = 1;
-
-  const addTagIfMatch = (tag, patterns) => {
-    if (patterns.some((pattern) => pattern.test(text))) {
-      tags.add(tag);
-    }
-  };
-
-  addTagIfMatch('release', [/release/, /npm version/, /git push/, /tag/, /發版/, /發布/, /sop/]);
-  addTagIfMatch('web', [/web/, /chat history/, /sidebar/, /nav/, /ux/, /frontend/, /前端/]);
-  addTagIfMatch('scheduler', [/scheduler/, /cron/, /排程/]);
-  addTagIfMatch('gemini', [/gemini/, /compress/, /invalid_argument/, /resource_exhausted/]);
-  addTagIfMatch('runner', [/runner/, /agent-runner/]);
-  addTagIfMatch('memory', [/memory/, /summary-aware retrieval/, /sar/, /記憶/, /摘要/]);
-  addTagIfMatch('infra', [/docker/, /bootstrap/, /git identity/, /部署/, /infra/]);
-
-  if (
-    /sop|營運憲法|技術地板|bootstrap|fallback|compress|resource_exhausted|invalid_argument/.test(
-      text
-    )
-  ) {
-    impactLevel = 3;
-  } else if (
-    /decision|決策|fix|修復|release|deploy|workflow|scheduler|runner|gemini|chat history|cursor/.test(
-      text
-    )
-  ) {
-    impactLevel = 2;
-  }
-
-  return {
-    impactLevel,
-    tags: Array.from(tags)
-  };
-}
-
-function parseArgs(argv) {
+function parseArgs(argv: string[]) {
   const options = {
     dryRun: false,
     force: false,
@@ -84,7 +46,7 @@ function parseArgs(argv) {
   return options;
 }
 
-function parseTags(raw) {
+function parseTags(raw: string | null): string[] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
@@ -94,7 +56,7 @@ function parseTags(raw) {
   }
 }
 
-function sameTags(a, b) {
+function sameTags(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
   return a.every((item, index) => item === b[index]);
 }
@@ -104,7 +66,7 @@ function main() {
   const db = new Database(resolveDbPath());
 
   const clauses = ['summary IS NOT NULL', "TRIM(summary) != ''"];
-  const params = [];
+  const params: Array<string | number> = [];
   if (options.userId) {
     clauses.push('user_id = ?');
     params.push(options.userId);
@@ -124,7 +86,13 @@ function main() {
     params.push(options.limit);
   }
 
-  const rows = db.prepare(sql).all(...params);
+  const rows = db.prepare(sql).all(...params) as Array<{
+    id: number;
+    content: string;
+    summary: string;
+    impact_level: number;
+    tags: string | null;
+  }>;
   const updateStmt = db.prepare(`
     UPDATE messages
     SET impact_level = ?, tags = ?
@@ -135,14 +103,14 @@ function main() {
   let changed = 0;
   let impact2 = 0;
   let impact3 = 0;
-  const tagCounts = new Map();
+  const tagCounts = new Map<string, number>();
 
-  const tx = db.transaction((items) => {
+  const tx = db.transaction((items: typeof rows) => {
     for (const row of items) {
       scanned += 1;
       const next = inferSummaryMetadata(row.content, row.summary);
       const currentTags = parseTags(row.tags);
-      const normalizedTags = next.tags;
+      const normalizedTags = next.tags || [];
       const sameImpact = Number(row.impact_level || 1) === next.impactLevel;
       const sameTagSet = sameTags(currentTags, normalizedTags);
       if (sameImpact && sameTagSet) {
