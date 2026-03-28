@@ -1161,3 +1161,36 @@
 
 - 若需快速回退，可先保留 summary/tag ranking 邏輯，只回退 `SUMMARY_SEARCH_CONFIG` 集中化，恢復成內嵌常數版本。
 - 若後續需要更細緻治理，可再把 `SUMMARY_SEARCH_CONFIG` 拆成 env/config 驅動，而不是重新把分數寫回函式內。
+
+---
+
+## 2026-03-28 - README 首頁定位與能力說明補強
+
+### 階段
+
+- 將專案首頁從偏操作說明，提升為更像 GitHub 首頁的產品與架構入口。
+
+### 已完成
+
+- `README.md` 補強整體定位與價值敘事：
+  - 新增「一句話定位」
+  - 新增「核心優點」
+  - 新增「適合什麼場景」
+  - 補強 `Summary-Aware Retrieval (SAR)`、canonical anchors、記憶治理、觀測、SOP 等優勢說明
+- `README.md` 補強對外可讀性：
+  - 新增「能力地圖」整理互動層 / 執行層 / 記憶層 / 治理層
+  - 新增 `Architecture At A Glance`，快速說明 TeleNexus Core、Memory Manager、Scheduler、Provider Router、Agent Runner 的關係
+  - 新增 `Feature Comparison`，將 TeleNexus 與一般聊天 Bot 的差異講清楚
+- 保留原本 `TL;DR`、常用操作、session/context、文件導覽等實際上手內容，讓 README 同時兼具首頁與操作入口角色
+
+### 影響檔案
+
+- `README.md`
+
+### 驗證結果
+
+- 文件層調整，未改動 runtime 行為
+
+### 回滾計畫
+
+- 若要回退成較精簡的操作型 README，可移除定位、能力地圖、架構圖與比較區塊，只保留 TL;DR 與操作章節。
