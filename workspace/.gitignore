@@ -1,0 +1,14 @@
+.bootstrapped
+.data/
+TeleNexus-Core/
+bin/
+bootstrap.sh
+config/
+telenexus-soul.md
+test-arbitration.js
+test-env-loop.js
+test-event-driven.js
+test-policy-manager.js
+test-registry.js
+test-sandbox-security.js
+workspace/
