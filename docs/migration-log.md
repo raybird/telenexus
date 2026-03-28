@@ -1031,4 +1031,56 @@
 - 主要開發項目已全數合併並驗證完畢，對話載入與尋回體感流暢。
 
 ---
+
 ### 2026-03-21: 算力主權化與基礎設施自癒\n- **算力主權**：成功整合 Chrome Gemini Nano，實現《網格中的幽靈》離線流式生成敘事。\n- **基礎設施**：透過 GitHub API 自主建立獨立 Repo 並啟用 Pages，實現實驗室模組的主權解耦。\n- **規訓對焦**：對齊 Chrome 2026 LanguageModel 頂層物件規範，硬化執行地板。
+
+---
+
+## 2026-03-28 - SAR 檢索穩定化與回歸護欄補強
+
+### 階段
+
+- 針對 SAR 文件、anchor 穩定性、budget trimming 與 metadata 治理做保守收斂。
+
+### 已完成
+
+- 文件校準：
+  - 新增 `docs/sar-improvement-plan-minimal.md` 作為最小改動版實作路線。
+  - 更新 `docs/summary-aware-retrieval-plan.md`，補上目前實作校準與已知差異。
+  - 將 `docs/sar-retrieval-spec-v1.md` 標記為早期草案。
+  - 在 `docs/sar-validation-report-v2.6.18.md` 明確標示目前 regression 仍偏人工。
+- SAR retrieval 穩定化：
+  - `src/prompt/builder.ts` 擴大 anchor 候選池，避免 canonical 規則只受近期 summaries 限制。
+  - 移除 canonical 的 30 天硬門檻，改由 recency bias 影響排序。
+  - 收斂 budget trimming，保留至少 1 筆 anchor 與 4 筆 recent context。
+  - 將 `【記憶參考（TeleNexus SAR）】` 外層標題也納入 context 預算。
+- metadata 治理一致化：
+  - 抽出 `src/core/summary-metadata.ts`，統一 impact/tag inference 規則。
+  - `src/core/message-pipeline.ts` 與 `scripts/backfill-summary-metadata.ts` 改共用同一套規則。
+- regression 護欄：
+  - `tests/prompt-builder.test.ts` 新增 `gemini / web / release / scheduler / alias query` SAR regression fixtures。
+  - `tests/summary-metadata.test.ts` 新增 metadata inference 單元測試。
+
+### 影響檔案
+
+- `docs/sar-improvement-plan-minimal.md`
+- `docs/summary-aware-retrieval-plan.md`
+- `docs/sar-retrieval-spec-v1.md`
+- `docs/sar-validation-report-v2.6.18.md`
+- `docs/README.md`
+- `src/prompt/builder.ts`
+- `src/core/summary-metadata.ts`
+- `src/core/message-pipeline.ts`
+- `scripts/backfill-summary-metadata.ts`
+- `tests/prompt-builder.test.ts`
+- `tests/summary-metadata.test.ts`
+
+### 驗證結果
+
+- `npm test`：通過
+- `npm run build`：通過
+
+### 回滾計畫
+
+- 若需快速回退，可先回退 `src/prompt/builder.ts` 的 anchor candidate / budget trimming 調整。
+- 若需回退 metadata 共用化，可將 `src/core/summary-metadata.ts` 改回 pipeline 與 backfill 各自維護，但不建議長期維持雙份規則。
