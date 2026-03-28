@@ -1084,3 +1084,42 @@
 
 - 若需快速回退，可先回退 `src/prompt/builder.ts` 的 anchor candidate / budget trimming 調整。
 - 若需回退 metadata 共用化，可將 `src/core/summary-metadata.ts` 改回 pipeline 與 backfill 各自維護，但不建議長期維持雙份規則。
+
+---
+
+## 2026-03-28 - SAR summary/tag ranking 補強
+
+### 階段
+
+- 針對 `searchSummaries(...)` 的命中品質做小幅強化，讓摘要與 tags 比 content-only 命中更有優先權。
+
+### 已完成
+
+- `src/core/memory.ts`：
+  - `searchSummaries(...)` 改為合併兩類候選：
+    - `messages_fts` 的 content 命中
+    - `summary` / `tags` 的 SQL `LIKE` 命中
+  - 新增 query tokenization 與應用層 scoring，讓以下訊號優先：
+    - summary 精準命中
+    - tag 命中
+    - 高 impact level
+    - 適度 recency
+  - 保留原本 FTS 路徑，避免 retrieval 全面改寫。
+- `tests/memory-manager.test.ts`：
+  - 新增測試驗證 summary/tag 命中應優先於 content-only 命中。
+  - 新增測試驗證即使 content FTS 未命中，只要 summary/tag 命中仍可召回。
+
+### 影響檔案
+
+- `src/core/memory.ts`
+- `tests/memory-manager.test.ts`
+
+### 驗證結果
+
+- `npm test`：通過
+- `npm run build`：通過
+
+### 回滾計畫
+
+- 若需快速回退，可先將 `searchSummaries(...)` 恢復為原本僅依賴 `messages_fts` content match 的版本。
+- 若新 ranking 造成命中偏差，再考慮把 scoring 拆成可配置權重，而不是直接移除 summary/tag 候選合併。

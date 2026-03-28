@@ -23,13 +23,21 @@ function withTempDb<T>(fn: (dbPath: string) => T): T {
   }
 }
 
+function withMockedNow<T>(fn: () => T): T {
+  const originalNow = Date.now;
+  let ts = 1700000000000;
+  Date.now = () => (ts += 1000);
+
+  try {
+    return fn();
+  } finally {
+    Date.now = originalNow;
+  }
+}
+
 test('MemoryManager returns paged history with total/offset/limit', () => {
   withTempDb(() => {
-    const originalNow = Date.now;
-    let ts = 1700000000000;
-    Date.now = () => (ts += 1000);
-
-    try {
+    withMockedNow(() => {
       const memory = new MemoryManager();
       for (let i = 1; i <= 5; i += 1) {
         memory.addMessage('user-a', 'user', `message-${i}`);
@@ -51,8 +59,49 @@ test('MemoryManager returns paged history with total/offset/limit', () => {
         secondPage.items.map((item) => item.content),
         ['message-3', 'message-2']
       );
-    } finally {
-      Date.now = originalNow;
-    }
+    });
+  });
+});
+
+test('MemoryManager searchSummaries prefers summary and tag matches over content-only matches', () => {
+  withTempDb(() => {
+    withMockedNow(() => {
+      const memory = new MemoryManager();
+
+      memory.addMessage('user-a', 'model', 'general deployment discussion mentioning release', {
+        summary: 'General deployment retrospective',
+        impactLevel: 2,
+        tags: ['infra']
+      });
+
+      memory.addMessage('user-a', 'model', 'short content without keyword', {
+        summary: 'Release Workflow Rule with release SOP and npm run release:patch guidance',
+        impactLevel: 3,
+        tags: ['release', 'memory']
+      });
+
+      const results = memory.searchSummaries('user-a', 'release', 2, 1);
+      assert.equal(results.length, 2);
+      assert.match(results[0]?.summary || '', /Release Workflow Rule/);
+      assert.ok(results[0]?.tags.includes('release'));
+    });
+  });
+});
+
+test('MemoryManager searchSummaries can find summary/tag matches when content FTS misses', () => {
+  withTempDb(() => {
+    withMockedNow(() => {
+      const memory = new MemoryManager();
+
+      memory.addMessage('user-a', 'model', 'opaque note', {
+        summary: 'Scheduler CLI Management Rule for reload and health checks',
+        impactLevel: 3,
+        tags: ['scheduler', 'memory']
+      });
+
+      const results = memory.searchSummaries('user-a', 'scheduler', 3, 1);
+      assert.equal(results.length, 1);
+      assert.match(results[0]?.summary || '', /Scheduler CLI Management Rule/);
+    });
   });
 });

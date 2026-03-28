@@ -182,6 +182,61 @@ export class MemoryManager {
     return [];
   }
 
+  private toSummaryMessage(row: {
+    id: number;
+    role: string;
+    content: string;
+    summary: string;
+    impact_level: number;
+    tags: string | null;
+    timestamp: number;
+  }): SummaryMessage {
+    return {
+      id: row.id,
+      role: row.role as 'user' | 'model',
+      content: row.content,
+      summary: row.summary,
+      impactLevel: this.normalizeImpactLevel(row.impact_level),
+      tags: this.parseTags(row.tags),
+      timestamp: row.timestamp
+    };
+  }
+
+  private tokenizeSummarySearchQuery(query: string): string[] {
+    const parts = query
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}_-]+/gu, ' ')
+      .split(/\s+/)
+      .map((part) => part.trim())
+      .filter((part) => part.length >= 2);
+    return Array.from(new Set(parts)).slice(0, 8);
+  }
+
+  private scoreSummarySearchResult(item: SummaryMessage, query: string, tokens: string[]): number {
+    const loweredQuery = query.toLowerCase();
+    const summary = item.summary.toLowerCase();
+    const content = item.content.toLowerCase();
+    const tags = new Set(item.tags.map((tag) => tag.toLowerCase()));
+    let score = 0;
+
+    if (summary.includes(loweredQuery)) score += 10;
+    if (content.includes(loweredQuery)) score += 4;
+
+    for (const token of tokens) {
+      if (summary.includes(token)) score += 4;
+      if (content.includes(token)) score += 1;
+      if (tags.has(token)) score += 5;
+    }
+
+    score += Math.max(0, item.impactLevel - 1) * 2;
+
+    const ageDays = Math.max(0, Date.now() - item.timestamp) / (1000 * 60 * 60 * 24);
+    if (ageDays <= 7) score += 2;
+    else if (ageDays <= 30) score += 1;
+
+    return score;
+  }
+
   /**
    * 新增訊息到資料庫
    */
@@ -394,8 +449,10 @@ export class MemoryManager {
 
     const safeLimit = Math.max(1, Math.min(20, limit));
     const safeImpactLevel = this.normalizeImpactLevel(minImpactLevel);
+    const tokens = this.tokenizeSummarySearchQuery(trimmed);
     const escapedQuery = this.escapeFts5Query(trimmed);
-    const stmt = this.db.prepare(`
+    const fetchLimit = Math.max(safeLimit * 4, 12);
+    const ftsStmt = this.db.prepare(`
       SELECT m.id, m.role, m.content, m.summary, m.impact_level, m.tags, m.timestamp
       FROM messages_fts f
       INNER JOIN messages m ON f.rowid = m.id
@@ -408,7 +465,28 @@ export class MemoryManager {
       LIMIT ?
     `);
 
-    const rows = stmt.all(userId, escapedQuery, safeImpactLevel, safeLimit) as Array<{
+    const likeClauses = ['LOWER(summary) LIKE ?'];
+    const likeParams: Array<string | number> = [`%${trimmed.toLowerCase()}%`];
+    for (const token of tokens) {
+      likeClauses.push('LOWER(summary) LIKE ?');
+      likeParams.push(`%${token}%`);
+      likeClauses.push("LOWER(COALESCE(tags, '')) LIKE ?");
+      likeParams.push(`%${token}%`);
+    }
+
+    const summaryStmt = this.db.prepare(`
+      SELECT id, role, content, summary, impact_level, tags, timestamp
+      FROM messages
+      WHERE user_id = ?
+        AND summary IS NOT NULL
+        AND TRIM(summary) != ''
+        AND impact_level >= ?
+        AND (${likeClauses.join(' OR ')})
+      ORDER BY timestamp DESC
+      LIMIT ?
+    `);
+
+    const ftsRows = ftsStmt.all(userId, escapedQuery, safeImpactLevel, fetchLimit) as Array<{
       id: number;
       role: string;
       content: string;
@@ -418,15 +496,37 @@ export class MemoryManager {
       timestamp: number;
     }>;
 
-    return rows.map((row) => ({
-      id: row.id,
-      role: row.role as 'user' | 'model',
-      content: row.content,
-      summary: row.summary,
-      impactLevel: this.normalizeImpactLevel(row.impact_level),
-      tags: this.parseTags(row.tags),
-      timestamp: row.timestamp
-    }));
+    const summaryRows = summaryStmt.all(
+      userId,
+      safeImpactLevel,
+      ...likeParams,
+      fetchLimit
+    ) as Array<{
+      id: number;
+      role: string;
+      content: string;
+      summary: string;
+      impact_level: number;
+      tags: string | null;
+      timestamp: number;
+    }>;
+
+    const merged = new Map<number, SummaryMessage>();
+    for (const row of [...summaryRows, ...ftsRows]) {
+      merged.set(row.id, this.toSummaryMessage(row));
+    }
+
+    return [...merged.values()]
+      .sort((a, b) => {
+        const scoreDiff =
+          this.scoreSummarySearchResult(b, trimmed, tokens) -
+          this.scoreSummarySearchResult(a, trimmed, tokens);
+        if (scoreDiff !== 0) {
+          return scoreDiff;
+        }
+        return b.timestamp - a.timestamp;
+      })
+      .slice(0, safeLimit);
   }
 
   listSummaryMessages(
