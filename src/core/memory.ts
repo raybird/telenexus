@@ -48,6 +48,24 @@ export interface Schedule {
   is_active: boolean;
 }
 
+const SUMMARY_SEARCH_CONFIG = {
+  tokenLimit: 8,
+  candidateMultiplier: 4,
+  minCandidatePool: 12,
+  scoring: {
+    exactSummaryMatch: 10,
+    exactContentMatch: 4,
+    tokenSummaryMatch: 4,
+    tokenContentMatch: 1,
+    tokenTagMatch: 5,
+    impactLevelBonus: 2,
+    recentWindowDays: 7,
+    recentBonus: 2,
+    warmWindowDays: 30,
+    warmBonus: 1
+  }
+} as const;
+
 export class MemoryManager {
   private db: Database.Database;
 
@@ -209,30 +227,31 @@ export class MemoryManager {
       .split(/\s+/)
       .map((part) => part.trim())
       .filter((part) => part.length >= 2);
-    return Array.from(new Set(parts)).slice(0, 8);
+    return Array.from(new Set(parts)).slice(0, SUMMARY_SEARCH_CONFIG.tokenLimit);
   }
 
   private scoreSummarySearchResult(item: SummaryMessage, query: string, tokens: string[]): number {
+    const scoring = SUMMARY_SEARCH_CONFIG.scoring;
     const loweredQuery = query.toLowerCase();
     const summary = item.summary.toLowerCase();
     const content = item.content.toLowerCase();
     const tags = new Set(item.tags.map((tag) => tag.toLowerCase()));
     let score = 0;
 
-    if (summary.includes(loweredQuery)) score += 10;
-    if (content.includes(loweredQuery)) score += 4;
+    if (summary.includes(loweredQuery)) score += scoring.exactSummaryMatch;
+    if (content.includes(loweredQuery)) score += scoring.exactContentMatch;
 
     for (const token of tokens) {
-      if (summary.includes(token)) score += 4;
-      if (content.includes(token)) score += 1;
-      if (tags.has(token)) score += 5;
+      if (summary.includes(token)) score += scoring.tokenSummaryMatch;
+      if (content.includes(token)) score += scoring.tokenContentMatch;
+      if (tags.has(token)) score += scoring.tokenTagMatch;
     }
 
-    score += Math.max(0, item.impactLevel - 1) * 2;
+    score += Math.max(0, item.impactLevel - 1) * scoring.impactLevelBonus;
 
     const ageDays = Math.max(0, Date.now() - item.timestamp) / (1000 * 60 * 60 * 24);
-    if (ageDays <= 7) score += 2;
-    else if (ageDays <= 30) score += 1;
+    if (ageDays <= scoring.recentWindowDays) score += scoring.recentBonus;
+    else if (ageDays <= scoring.warmWindowDays) score += scoring.warmBonus;
 
     return score;
   }
@@ -451,7 +470,10 @@ export class MemoryManager {
     const safeImpactLevel = this.normalizeImpactLevel(minImpactLevel);
     const tokens = this.tokenizeSummarySearchQuery(trimmed);
     const escapedQuery = this.escapeFts5Query(trimmed);
-    const fetchLimit = Math.max(safeLimit * 4, 12);
+    const fetchLimit = Math.max(
+      safeLimit * SUMMARY_SEARCH_CONFIG.candidateMultiplier,
+      SUMMARY_SEARCH_CONFIG.minCandidatePool
+    );
     const ftsStmt = this.db.prepare(`
       SELECT m.id, m.role, m.content, m.summary, m.impact_level, m.tags, m.timestamp
       FROM messages_fts f

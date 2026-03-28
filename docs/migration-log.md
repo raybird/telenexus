@@ -1123,3 +1123,41 @@
 
 - 若需快速回退，可先將 `searchSummaries(...)` 恢復為原本僅依賴 `messages_fts` content match 的版本。
 - 若新 ranking 造成命中偏差，再考慮把 scoring 拆成可配置權重，而不是直接移除 summary/tag 候選合併。
+
+---
+
+## 2026-03-28 - SAR retrieval scoring 常數化
+
+### 階段
+
+- 將 `searchSummaries(...)` 的 ranking 權重與候選池參數集中管理，降低後續調參成本。
+
+### 已完成
+
+- `src/core/memory.ts`：
+  - 新增 `SUMMARY_SEARCH_CONFIG`，集中管理：
+    - token 上限
+    - candidate pool 倍數與最小值
+    - summary / content / tag 命中分數
+    - impact bonus
+    - recency window 與 bonus
+  - `scoreSummarySearchResult(...)` 改為完全使用集中設定，不再散落 magic numbers。
+  - `searchSummaries(...)` 的候選池大小也改由同一組設定控制。
+- `tests/memory-manager.test.ts`：
+  - 新增測試，固定「較舊但高訊號的 summary/tag 命中，應優先於較新的弱 content-only 命中」。
+  - 確保常數化後 ranking 行為維持穩定。
+
+### 影響檔案
+
+- `src/core/memory.ts`
+- `tests/memory-manager.test.ts`
+
+### 驗證結果
+
+- `npm test`：通過
+- `npm run build`：通過
+
+### 回滾計畫
+
+- 若需快速回退，可先保留 summary/tag ranking 邏輯，只回退 `SUMMARY_SEARCH_CONFIG` 集中化，恢復成內嵌常數版本。
+- 若後續需要更細緻治理，可再把 `SUMMARY_SEARCH_CONFIG` 拆成 env/config 驅動，而不是重新把分數寫回函式內。

@@ -105,3 +105,35 @@ test('MemoryManager searchSummaries can find summary/tag matches when content FT
     });
   });
 });
+
+test('MemoryManager searchSummaries keeps high-signal summary matches ahead of newer weak matches', () => {
+  withTempDb(() => {
+    const originalNow = Date.now;
+    let ts = Date.parse('2026-03-01T00:00:00Z');
+    Date.now = () => ts;
+
+    try {
+      const memory = new MemoryManager();
+
+      memory.addMessage('user-a', 'model', 'opaque note', {
+        summary: 'Release Workflow Rule with npm run release:patch and tag push guidance',
+        impactLevel: 3,
+        tags: ['release', 'memory']
+      });
+
+      ts = Date.parse('2026-03-28T00:00:00Z');
+      memory.addMessage('user-a', 'model', 'recent release mention in raw content only', {
+        summary: 'General weekly note',
+        impactLevel: 1,
+        tags: ['notes']
+      });
+
+      const results = memory.searchSummaries('user-a', 'release', 2, 1);
+      assert.equal(results.length, 2);
+      assert.match(results[0]?.summary || '', /Release Workflow Rule/);
+      assert.equal(results[0]?.impactLevel, 3);
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+});
