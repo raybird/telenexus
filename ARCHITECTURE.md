@@ -25,6 +25,12 @@ Moltbot Lite 由數個可替換的模組組成，核心目標是以 Telegram 作
    - MCP Memory 處理長期知識點。
 6. 回應儲存至記憶，並回傳 Telegram。
 
+### 感知主權與合規規訓 (Sovereign Sensing & Compliance)
+為了維持系統在 2026 年監管環境下的主權獨立性，感知層（opencli-rs 等）必須遵循以下規訓：
+- **禁止偽裝 (No Spoofing)**：嚴禁偽裝 User-Agent。代理人行為必須透過 **WBA (Web Bot Auth)** 進行 SHA-256 加密身分宣告。
+- **意圖宣告 (Intent Declaration)**：每次網頁感知調用必須附帶明確的任務意圖標籤，並主動對齊目標站點之 `ai.txt` 或 `llms.txt` 指令。
+- **風險對沖**：系統將自動調用預測市場 (Polymarket) 數據作為法律與監管風險的動態探針，據此調整感知強度。
+
 ### 擴充建議
 - **新增 AI 提供者**：實作 `AIAgent` 介面並在 `DynamicAIAgent` 中加入對應邏輯。
 - **新增指令**：在 `CommandRouter` 註冊新的 command。
