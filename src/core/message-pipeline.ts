@@ -18,6 +18,11 @@ import {
   ThinkingMessenger,
   type PendingImageBundle
 } from './message-pipeline-helpers.js';
+import {
+  maybeNotifyQueueAhead,
+  runCommandPreflight,
+  selectActiveAgent
+} from './message-pipeline-preflight.js';
 import type { Scheduler } from './scheduler.js';
 import { parseBool, parsePositiveInt } from '../utils/env.js';
 
@@ -38,15 +43,6 @@ type MessagePipelineOptions = {
   recordRuntimeIssue: (scope: string, error: unknown) => void;
   writeContextSnapshots: () => void;
 };
-
-function hashToBucket(input: string): number {
-  let hash = 2166136261;
-  for (let i = 0; i < input.length; i += 1) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0) % 100;
-}
 
 export function createMessagePipeline(options: MessagePipelineOptions) {
   const pendingNewSessionUsers = new Set<string>();
@@ -93,47 +89,32 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
     }
     msg = pendingImageResult.message;
 
-    options.scheduler.resetSilenceTimer(userId);
-    options.writeContextSnapshots();
-
-    const commandHandled = await options.commandRouter.handleMessage(msg, {
+    const preflight = await runCommandPreflight({
+      msg,
       connector,
+      commandRouter: options.commandRouter,
       memory: options.memory,
       scheduler: options.scheduler,
-      requestNewSession: (targetUserId: string) => {
-        pendingNewSessionUsers.add(targetUserId);
-      }
+      pendingNewSessionUsers,
+      writeContextSnapshots: options.writeContextSnapshots
     });
-    if (commandHandled) {
+    if (preflight.handled) {
       return;
     }
 
-    const isPassthroughCommand = options.commandRouter.isPassthroughCommand(msg.content.trim());
-    const forceNewSession = pendingNewSessionUsers.has(userId);
-    if (forceNewSession) {
-      pendingNewSessionUsers.delete(userId);
-      console.log('[System] Applying one-time new session mode for this message.');
-    }
+    const { isPassthroughCommand, forceNewSession } = preflight;
 
-    const queueStatus = executionQueue.getStatus(userId);
-    if (queueStatus.running || queueStatus.pending > 0) {
-      const ahead = queueStatus.pending + (queueStatus.running ? 1 : 0);
-      await connector.sendMessage(
-        targetChatId,
-        `⏳ 目前有任務執行中（來源：${queueStatus.currentSource || 'unknown'}），已幫你排隊，前方約 ${ahead} 件。`,
-        {
-          retries: 1,
-          retryOnTimeout: false
-        }
-      );
-    }
+    await maybeNotifyQueueAhead(connector, userId, targetChatId);
 
-    const isWhitelisted =
-      options.chatRunnerOnlyUsers.size === 0 || options.chatRunnerOnlyUsers.has(msg.sender.id);
-    const bucket = hashToBucket(`${msg.sender.id}:${msg.id}`);
-    const useRunnerThisMessage =
-      options.useRunnerForChat && isWhitelisted && bucket < options.chatRunnerPercent;
-    const activeAgent = useRunnerThisMessage ? options.chatRunnerAgent : options.userAgent;
+    const { activeAgent, useRunnerThisMessage, bucket, isWhitelisted } = selectActiveAgent({
+      userId: msg.sender.id,
+      messageId: msg.id,
+      useRunnerForChat: options.useRunnerForChat,
+      chatRunnerOnlyUsers: options.chatRunnerOnlyUsers,
+      chatRunnerPercent: options.chatRunnerPercent,
+      chatRunnerAgent: options.chatRunnerAgent,
+      userAgent: options.userAgent
+    });
     console.log(
       `[System] Message execution mode: ${useRunnerThisMessage ? 'runner' : 'local'} (bucket=${bucket}, canary=${options.chatRunnerPercent}%, whitelist=${isWhitelisted})`
     );

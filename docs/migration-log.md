@@ -1402,3 +1402,43 @@
 
 - 若需快速回退，可將 `message-pipeline-chat.ts` 內容直接合回 `src/core/message-pipeline.ts`，保留 helper 模組但回到單檔 orchestration。
 - 若後續發現抽象層過細，可只保留 `persistModelResponse(...)` 與 `maybeSendSummaryFollowup(...)`，將 prompt 準備合併回主流程。
+
+---
+
+## 2026-03-28 - message-pipeline 第三階段 preflight / runner routing 模組化
+
+### 階段
+
+- 將 command preflight、queue notice 與 runner selection 從主流程中抽出，讓 `message-pipeline.ts` 更聚焦在聊天流程協調本身。
+
+### 已完成
+
+- 新增 `src/core/message-pipeline-preflight.ts`
+  - 抽出：
+    - `runCommandPreflight(...)`
+    - `maybeNotifyQueueAhead(...)`
+    - `selectActiveAgent(...)`
+- `src/core/message-pipeline.ts` 收斂：
+  - 不再直接承擔 command router preflight、one-time new session 套用、queue ahead 提示、runner/local agent bucket 判斷
+  - 主檔更聚焦在 pending image -> preflight -> thinking messenger -> prompt/chat/response orchestration -> error fallback
+- `tests/message-pipeline.test.ts` 補強：
+  - 新增 queue notice 測試
+  - 新增 runner routing 測試
+  - 確保第三階段拆分後行為不變
+
+### 影響檔案
+
+- `src/core/message-pipeline.ts`
+- `src/core/message-pipeline-preflight.ts`
+- `tests/message-pipeline.test.ts`
+
+### 驗證結果
+
+- `npm run lint`：通過
+- `npm test`：通過
+- `npm run build`：通過
+
+### 回滾計畫
+
+- 若需快速回退，可先將 `message-pipeline-preflight.ts` 內容合回 `src/core/message-pipeline.ts`，保留 chat/helper 模組但回到主檔自行處理 preflight 與 agent routing。
+- 若後續認為 queue notice 太分散，可只保留 `selectActiveAgent(...)` 抽象，將 queue preflight 邏輯收回主流程。

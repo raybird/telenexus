@@ -258,3 +258,129 @@ test('message pipeline reports agent errors and still delivers fallback response
     assert.deepEqual(runtimeIssues, ['message-processing']);
   });
 });
+
+test('message pipeline sends queue notice when another task is already running', async () => {
+  await withTempProject(async () => {
+    const { connector, sentMessages } = createConnectorRecorder();
+    const memory = new MemoryManager();
+    let gateResolved = false;
+    let resolveGatePromise!: () => void;
+    const gatePromise = new Promise<void>((resolve) => {
+      resolveGatePromise = () => {
+        if (!gateResolved) {
+          gateResolved = true;
+          resolve();
+        }
+      };
+    });
+
+    const slowAgent = createAgentStub({
+      async chat() {
+        await gatePromise;
+        return 'first response';
+      }
+    });
+
+    const fastAgent = createAgentStub({
+      async chat() {
+        return 'second response';
+      }
+    });
+
+    const pipeline = createMessagePipeline({
+      connector,
+      commandRouter: {
+        async handleMessage() {
+          return false;
+        },
+        isPassthroughCommand() {
+          return false;
+        }
+      } as never,
+      memory,
+      scheduler: {
+        resetSilenceTimer() {}
+      } as never,
+      userAgent: slowAgent,
+      chatRunnerAgent: fastAgent,
+      useRunnerForChat: false,
+      chatRunnerPercent: 100,
+      chatRunnerOnlyUsers: new Set(),
+      shouldSummarize() {
+        return false;
+      },
+      buildPrompt(userMessage) {
+        return `PROMPT:${userMessage}`;
+      },
+      recordRuntimeIssue() {},
+      writeContextSnapshots() {}
+    });
+
+    const first = pipeline(createMessage('第一則，會卡住', { id: 'first' }));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const second = pipeline(createMessage('第二則，應顯示排隊', { id: 'second' }));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    resolveGatePromise();
+    await first;
+    await second;
+
+    assert.ok(
+      sentMessages.some((item) => item.text.includes('目前有任務執行中（來源：chat），已幫你排隊'))
+    );
+  });
+});
+
+test('message pipeline can route selected users to runner agent', async () => {
+  await withTempProject(async () => {
+    const { connector, sentMessages } = createConnectorRecorder();
+    const memory = new MemoryManager();
+    const localCalls: string[] = [];
+    const runnerCalls: string[] = [];
+
+    const pipeline = createMessagePipeline({
+      connector,
+      commandRouter: {
+        async handleMessage() {
+          return false;
+        },
+        isPassthroughCommand() {
+          return false;
+        }
+      } as never,
+      memory,
+      scheduler: {
+        resetSilenceTimer() {}
+      } as never,
+      userAgent: createAgentStub({
+        async chat(prompt) {
+          localCalls.push(prompt);
+          return 'local response';
+        }
+      }),
+      chatRunnerAgent: createAgentStub({
+        async chat(prompt) {
+          runnerCalls.push(prompt);
+          return 'runner response';
+        }
+      }),
+      useRunnerForChat: true,
+      chatRunnerPercent: 100,
+      chatRunnerOnlyUsers: new Set(['user-a']),
+      shouldSummarize() {
+        return false;
+      },
+      buildPrompt(userMessage) {
+        return `PROMPT:${userMessage}`;
+      },
+      recordRuntimeIssue() {},
+      writeContextSnapshots() {}
+    });
+
+    await pipeline(createMessage('應走 runner', { id: 'runner-1' }));
+
+    assert.equal(localCalls.length, 0);
+    assert.equal(runnerCalls.length, 1);
+    assert.ok(sentMessages.some((item) => item.text === 'runner response'));
+  });
+});
