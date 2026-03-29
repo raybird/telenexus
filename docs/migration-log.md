@@ -1565,6 +1565,44 @@
 ### 影響檔案
 
 - `src/core/logger.ts`
+
+---
+
+## 2026-03-29 - archive backfill health / reporting milestone
+
+### 階段
+
+- 將 `sessions.db -> memory.db` 從設計草案推進到可觀測、可 dry-run、可背景執行的 archive backfill 里程碑。
+
+### 已完成
+
+- 新增 `memory health` 與 `memory-status.md` 快照輸出
+- 新增 `sessions.db` backfill service、CLI、checkpoint 與 recent report history
+- 新增 background worker，可按 interval 定期跑 dry-run / write mode
+- Web Status 整合 archive gap、backfill status 與 recent backfill runs
+- 補齊 implementation plan、configuration reference 與 web console 文件
+
+### 影響檔案
+
+- `src/services/memory-health.ts`
+- `src/services/memory-backfill.ts`
+- `src/services/memory-backfill-worker.ts`
+- `src/tools/memory-health-cli.ts`
+- `src/tools/memory-backfill-cli.ts`
+- `src/web/server.ts`
+- `src/web/public/app/views/status.js`
+- `docs/sessions-db-backfill-implementation-plan.md`
+
+### 驗證結果
+
+- `npm run build`：通過
+- `node dist/tools/memory-health-cli.js --json`：通過
+- `node dist/tools/memory-backfill-cli.js once --json`：通過
+
+### 回滾計畫
+
+- 若需快速回退，可先停用 `MEMORY_BACKFILL_ENABLED` 與 `MEMORY_BACKFILL_DRY_RUN=false` 的正式寫入模式。
+- 若候選品質仍不穩，可保留 `memory health` 與 report API，暫時停用 worker 與 write path，只維持 archive observability。
 - `src/core/message-pipeline.ts`
 - `src/core/message-pipeline-chat.ts`
 - `src/core/message-pipeline-preflight.ts`
