@@ -2,10 +2,18 @@ import type { Connector, UnifiedMessage } from '../types/index.js';
 import { executionQueue } from './execution-queue.js';
 import type { AIAgent } from './agent.js';
 import type { CommandRouter } from './command-router.js';
+import {
+  createMessagePipelineContext,
+  type MessagePipelineContext
+} from './message-pipeline-context.js';
 import type { MemoryManager } from './memory.js';
 import type { Scheduler } from './scheduler.js';
 
 type RunnerSelectionOptions = {
+  baseContext: Pick<
+    MessagePipelineContext,
+    'msg' | 'connector' | 'userId' | 'targetChatId' | 'isPassthroughCommand' | 'forceNewSession'
+  >;
   userId: string;
   messageId: string;
   useRunnerForChat: boolean;
@@ -36,8 +44,10 @@ function hashToBucket(input: string): number {
 
 export async function runCommandPreflight(options: PreflightOptions): Promise<{
   handled: boolean;
-  isPassthroughCommand: boolean;
-  forceNewSession: boolean;
+  context?: Pick<
+    MessagePipelineContext,
+    'msg' | 'connector' | 'userId' | 'targetChatId' | 'isPassthroughCommand' | 'forceNewSession'
+  >;
 }> {
   const userId = options.msg.sender.id;
 
@@ -54,7 +64,7 @@ export async function runCommandPreflight(options: PreflightOptions): Promise<{
   });
 
   if (commandHandled) {
-    return { handled: true, isPassthroughCommand: false, forceNewSession: false };
+    return { handled: true };
   }
 
   const isPassthroughCommand = options.commandRouter.isPassthroughCommand(
@@ -66,19 +76,27 @@ export async function runCommandPreflight(options: PreflightOptions): Promise<{
     console.log('[System] Applying one-time new session mode for this message.');
   }
 
-  return { handled: false, isPassthroughCommand, forceNewSession };
+  return {
+    handled: false,
+    context: {
+      msg: options.msg,
+      connector: options.connector,
+      userId,
+      targetChatId: options.msg.chatId || userId,
+      isPassthroughCommand,
+      forceNewSession
+    }
+  };
 }
 
 export async function maybeNotifyQueueAhead(
-  connector: Connector,
-  userId: string,
-  chatId: string
+  context: Pick<MessagePipelineContext, 'connector' | 'userId' | 'targetChatId'>
 ): Promise<void> {
-  const queueStatus = executionQueue.getStatus(userId);
+  const queueStatus = executionQueue.getStatus(context.userId);
   if (queueStatus.running || queueStatus.pending > 0) {
     const ahead = queueStatus.pending + (queueStatus.running ? 1 : 0);
-    await connector.sendMessage(
-      chatId,
+    await context.connector.sendMessage(
+      context.targetChatId,
       `⏳ 目前有任務執行中（來源：${queueStatus.currentSource || 'unknown'}），已幫你排隊，前方約 ${ahead} 件。`,
       {
         retries: 1,
@@ -89,7 +107,7 @@ export async function maybeNotifyQueueAhead(
 }
 
 export function selectActiveAgent(options: RunnerSelectionOptions): {
-  activeAgent: AIAgent;
+  context: MessagePipelineContext;
   useRunnerThisMessage: boolean;
   bucket: number;
   isWhitelisted: boolean;
@@ -101,7 +119,13 @@ export function selectActiveAgent(options: RunnerSelectionOptions): {
     options.useRunnerForChat && isWhitelisted && bucket < options.chatRunnerPercent;
 
   return {
-    activeAgent: useRunnerThisMessage ? options.chatRunnerAgent : options.userAgent,
+    context: createMessagePipelineContext(
+      options.baseContext.msg,
+      options.baseContext.connector,
+      useRunnerThisMessage ? options.chatRunnerAgent : options.userAgent,
+      options.baseContext.isPassthroughCommand,
+      options.baseContext.forceNewSession
+    ),
     useRunnerThisMessage,
     bucket,
     isWhitelisted

@@ -4,16 +4,17 @@ import type { CommandRouter } from './command-router.js';
 import { executionQueue } from './execution-queue.js';
 import {
   maybeSendSummaryFollowup,
+  normalizeAgentResponse,
   persistModelResponse,
   persistUserMessage,
   preparePromptForAgent
 } from './message-pipeline-chat.js';
+import { type MessagePipelineContext } from './message-pipeline-context.js';
 import type { MemoriaSyncTurn } from './memoria-sync.js';
 import type { MemoryManager } from './memory.js';
 import {
   consumePendingImages,
   deliverFileDirectives,
-  extractFileDirectives,
   parsePendingImageTtlMs,
   ThinkingMessenger,
   type PendingImageBundle
@@ -102,11 +103,15 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       return;
     }
 
-    const { isPassthroughCommand, forceNewSession } = preflight;
+    const baseContext = preflight.context as Pick<
+      MessagePipelineContext,
+      'msg' | 'connector' | 'userId' | 'targetChatId' | 'isPassthroughCommand' | 'forceNewSession'
+    >;
 
-    await maybeNotifyQueueAhead(connector, userId, targetChatId);
+    await maybeNotifyQueueAhead(baseContext);
 
-    const { activeAgent, useRunnerThisMessage, bucket, isWhitelisted } = selectActiveAgent({
+    const { context, useRunnerThisMessage, bucket, isWhitelisted } = selectActiveAgent({
+      baseContext,
       userId: msg.sender.id,
       messageId: msg.id,
       useRunnerForChat: options.useRunnerForChat,
@@ -119,57 +124,49 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       `[System] Message execution mode: ${useRunnerThisMessage ? 'runner' : 'local'} (bucket=${bucket}, canary=${options.chatRunnerPercent}%, whitelist=${isWhitelisted})`
     );
 
-    const thinkingMessenger = new ThinkingMessenger(connector, targetChatId, thinkingMessages);
+    const thinkingMessenger = new ThinkingMessenger(
+      context.connector,
+      context.targetChatId,
+      thinkingMessages
+    );
     await thinkingMessenger.start();
 
     try {
       await persistUserMessage({
         memory: options.memory,
-        activeAgent,
-        userId,
-        content: msg.content,
-        isPassthroughCommand,
+        context,
         shouldSummarize: options.shouldSummarize
       });
 
       const promptForAgent = preparePromptForAgent({
-        msgContent: msg.content,
-        userId,
-        isPassthroughCommand,
-        forceNewSession,
+        context,
         fullPromptEvery,
         fullPromptCounterByUser,
-        buildPrompt: options.buildPrompt,
-        ...(msg.attachments ? { attachments: msg.attachments } : {})
+        buildPrompt: options.buildPrompt
       });
 
-      if (isPassthroughCommand) {
+      if (context.isPassthroughCommand) {
         console.log(`📤 [System] Passthrough command -> CLI: ${promptForAgent}`);
       } else {
         console.log(`📤 [System] Sending prompt to AI (length: ${promptForAgent.length} chars)`);
       }
 
       const rawResponse = await executionQueue.enqueue(userId, 'chat', 'high', () =>
-        activeAgent.chat(promptForAgent, {
-          isPassthroughCommand,
-          forceNewSession,
+        context.activeAgent.chat(promptForAgent, {
+          isPassthroughCommand: context.isPassthroughCommand,
+          forceNewSession: context.forceNewSession,
           autoRecoveryNotice: true
         })
       );
 
-      const { cleanedText, directives } = extractFileDirectives(rawResponse);
-      const response = cleanedText || rawResponse;
+      const { response, directives } = normalizeAgentResponse(rawResponse);
 
       console.log(`📥 [AI] Reply length: ${response.length}`);
 
       const modelMessageTimestamp = persistModelResponse({
         memory: options.memory,
-        userId,
-        userMessage: msg.content,
+        context,
         response,
-        platform: msg.sender.platform,
-        isPassthroughCommand,
-        forceNewSession,
         ...(options.enqueueMemoriaSync ? { enqueueMemoriaSync: options.enqueueMemoriaSync } : {})
       });
 
@@ -177,20 +174,23 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       await thinkingMessenger.deliverFinalResponse(response);
 
       if (directives.length > 0) {
-        await deliverFileDirectives(connector, targetChatId, directives, maxSendFileBytes);
+        await deliverFileDirectives(
+          context.connector,
+          context.targetChatId,
+          directives,
+          maxSendFileBytes
+        );
       }
 
       maybeSendSummaryFollowup({
         enabled: summaryFollowupEnabled,
-        isPassthroughCommand,
+        context,
         response,
         minLength: summaryFollowupMinLength,
         maxLength: summaryFollowupMaxLength,
         shouldSummarize: options.shouldSummarize,
         memory: options.memory,
-        activeAgent,
-        userId,
-        connectorSendMessage: (text) => connector.sendMessage(targetChatId, text),
+        connectorSendMessage: (text) => context.connector.sendMessage(context.targetChatId, text),
         ...(typeof modelMessageTimestamp === 'number' ? { modelMessageTimestamp } : {})
       });
     } catch (error) {

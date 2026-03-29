@@ -1,17 +1,12 @@
 import { executionQueue } from './execution-queue.js';
-import type { AIAgent } from './agent.js';
 import type { MemoriaSyncTurn } from './memoria-sync.js';
 import type { MemoryManager } from './memory.js';
+import type { MessagePipelineContext } from './message-pipeline-context.js';
 import { inferSummaryMetadata } from './summary-metadata.js';
-import { buildAttachmentPrompt } from './message-pipeline-helpers.js';
-import type { UnifiedAttachment } from '../types/index.js';
+import { buildAttachmentPrompt, extractFileDirectives } from './message-pipeline-helpers.js';
 
 type PreparePromptOptions = {
-  msgContent: string;
-  userId: string;
-  attachments?: UnifiedAttachment[];
-  isPassthroughCommand: boolean;
-  forceNewSession: boolean;
+  context: MessagePipelineContext;
   fullPromptEvery: number;
   fullPromptCounterByUser: Map<string, number>;
   buildPrompt: (userMessage: string, userId: string, mode?: 'full' | 'compact') => string;
@@ -19,70 +14,76 @@ type PreparePromptOptions = {
 
 type PersistUserMessageOptions = {
   memory: MemoryManager;
-  activeAgent: AIAgent;
-  userId: string;
-  content: string;
-  isPassthroughCommand: boolean;
+  context: MessagePipelineContext;
   shouldSummarize: (content: string) => boolean;
 };
 
 type PersistModelResponseOptions = {
   memory: MemoryManager;
   enqueueMemoriaSync?: (turn: MemoriaSyncTurn) => void;
-  userId: string;
-  userMessage: string;
+  context: MessagePipelineContext;
   response: string;
-  platform: string;
-  isPassthroughCommand: boolean;
-  forceNewSession: boolean;
 };
 
 type FollowupSummaryOptions = {
   enabled: boolean;
-  isPassthroughCommand: boolean;
+  context: MessagePipelineContext;
   response: string;
   minLength: number;
   maxLength: number;
   shouldSummarize: (content: string) => boolean;
   memory: MemoryManager;
-  activeAgent: AIAgent;
-  userId: string;
   modelMessageTimestamp?: number;
   connectorSendMessage: (text: string) => Promise<void>;
 };
 
+export function normalizeAgentResponse(rawResponse: string): {
+  rawResponse: string;
+  response: string;
+  directives: ReturnType<typeof extractFileDirectives>['directives'];
+} {
+  const { cleanedText, directives } = extractFileDirectives(rawResponse);
+  return {
+    rawResponse,
+    response: cleanedText || rawResponse,
+    directives
+  };
+}
+
 export async function persistUserMessage(options: PersistUserMessageOptions): Promise<void> {
   let userSummary: string | undefined;
+  const { context } = options;
 
-  if (!options.isPassthroughCommand && options.shouldSummarize(options.content)) {
+  if (!context.isPassthroughCommand && options.shouldSummarize(context.msg.content)) {
     console.log('📝 [Memory] User input meets summary criteria, generating summary...');
-    userSummary = await executionQueue.enqueue(options.userId, 'chat-summary', 'normal', () =>
-      options.activeAgent.summarize(options.content)
+    userSummary = await executionQueue.enqueue(context.userId, 'chat-summary', 'normal', () =>
+      context.activeAgent.summarize(context.msg.content)
     );
   }
 
   options.memory.addMessage(
-    options.userId,
+    context.userId,
     'user',
-    options.content,
-    inferSummaryMetadata(options.content, userSummary)
+    context.msg.content,
+    inferSummaryMetadata(context.msg.content, userSummary)
   );
 }
 
 export function preparePromptForAgent(options: PreparePromptOptions): string {
-  let promptForAgent = options.msgContent.trim();
+  const { context } = options;
+  let promptForAgent = context.msg.content.trim();
 
-  if (!options.isPassthroughCommand) {
-    const currentCounter = options.fullPromptCounterByUser.get(options.userId) || 0;
+  if (!context.isPassthroughCommand) {
+    const currentCounter = options.fullPromptCounterByUser.get(context.userId) || 0;
     const shouldUseFullPrompt =
-      options.forceNewSession || currentCounter % options.fullPromptEvery === 0;
+      context.forceNewSession || currentCounter % options.fullPromptEvery === 0;
     promptForAgent = options.buildPrompt(
-      options.msgContent,
-      options.userId,
+      context.msg.content,
+      context.userId,
       shouldUseFullPrompt ? 'full' : 'compact'
     );
-    options.fullPromptCounterByUser.set(options.userId, currentCounter + 1);
-    const attachmentPrompt = buildAttachmentPrompt(options.attachments);
+    options.fullPromptCounterByUser.set(context.userId, currentCounter + 1);
+    const attachmentPrompt = buildAttachmentPrompt(context.msg.attachments);
     if (attachmentPrompt) {
       promptForAgent = `${promptForAgent}\n\n${attachmentPrompt}`;
     }
@@ -92,32 +93,34 @@ export function preparePromptForAgent(options: PreparePromptOptions): string {
 }
 
 export function persistModelResponse(options: PersistModelResponseOptions): number | undefined {
+  const { context } = options;
   if (!options.response || options.response.startsWith('Error')) {
     return undefined;
   }
 
   const modelMessageTimestamp = options.memory.addMessage(
-    options.userId,
+    context.userId,
     'model',
     options.response
   );
 
   options.enqueueMemoriaSync?.({
-    userId: options.userId,
-    userMessage: options.userMessage,
+    userId: context.userId,
+    userMessage: context.msg.content,
     modelMessage: options.response,
-    platform: options.platform,
-    isPassthroughCommand: options.isPassthroughCommand,
-    forceNewSession: options.forceNewSession
+    platform: context.msg.sender.platform,
+    isPassthroughCommand: context.isPassthroughCommand,
+    forceNewSession: context.forceNewSession
   });
 
   return modelMessageTimestamp;
 }
 
 export function maybeSendSummaryFollowup(options: FollowupSummaryOptions): void {
+  const { context } = options;
   const shouldSendSummaryFollowup =
     options.enabled &&
-    !options.isPassthroughCommand &&
+    !context.isPassthroughCommand &&
     options.response.length >= options.minLength &&
     options.shouldSummarize(options.response) &&
     !options.response.startsWith('Error');
@@ -130,10 +133,10 @@ export function maybeSendSummaryFollowup(options: FollowupSummaryOptions): void 
     try {
       console.log('📝 [Followup] Generating post-reply summary...');
       const summary = await executionQueue.enqueue(
-        options.userId,
+        context.userId,
         'chat-followup-summary',
         'low',
-        () => options.activeAgent.summarize(options.response)
+        () => context.activeAgent.summarize(options.response)
       );
       const normalized = summary.trim();
       if (!normalized) {
@@ -145,7 +148,7 @@ export function maybeSendSummaryFollowup(options: FollowupSummaryOptions): void 
           : normalized;
       if (typeof options.modelMessageTimestamp === 'number') {
         options.memory.updateMessageMetadata(
-          options.userId,
+          context.userId,
           'model',
           options.modelMessageTimestamp,
           inferSummaryMetadata(options.response, normalized)

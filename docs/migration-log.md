@@ -1442,3 +1442,50 @@
 
 - 若需快速回退，可先將 `message-pipeline-preflight.ts` 內容合回 `src/core/message-pipeline.ts`，保留 chat/helper 模組但回到主檔自行處理 preflight 與 agent routing。
 - 若後續認為 queue notice 太分散，可只保留 `selectActiveAgent(...)` 抽象，將 queue preflight 邏輯收回主流程。
+
+---
+
+## 2026-03-28 - message-pipeline 導入最小版 PipelineContext
+
+### 階段
+
+- 針對 `message-pipeline` 已拆出的多個模組，進一步導入共享 context，降低零散參數傳遞與後續拆分成本。
+
+### 已完成
+
+- 新增 `src/core/message-pipeline-context.ts`
+  - 定義最小版 `MessagePipelineContext`
+  - 目前集中管理：
+    - `msg`
+    - `connector`
+    - `userId`
+    - `targetChatId`
+    - `isPassthroughCommand`
+    - `forceNewSession`
+    - `activeAgent`
+- `src/core/message-pipeline-chat.ts` 改為以 `context` 為主要輸入
+  - `persistUserMessage(...)`
+  - `preparePromptForAgent(...)`
+  - `persistModelResponse(...)`
+  - `maybeSendSummaryFollowup(...)`
+  - 新增 `normalizeAgentResponse(...)` 收斂 response 清理與 directive 抽取
+- `src/core/message-pipeline-preflight.ts` 改為回傳 base context，並用來建出完整 context
+- `src/core/message-pipeline.ts` 改為沿著 shared context 串接 chat/preflight/helper 模組
+
+### 影響檔案
+
+- `src/core/message-pipeline-context.ts`
+- `src/core/message-pipeline-chat.ts`
+- `src/core/message-pipeline-preflight.ts`
+- `src/core/message-pipeline.ts`
+
+### 驗證結果
+
+- `npm run lint`：通過
+- `npm test`：通過
+- `npm run build`：通過
+
+### 回滾計畫
+
+- 若需快速回退，可保留多檔拆分結構，但將 `MessagePipelineContext` 還原成零散參數傳遞。
+- 若後續發現 context 擴張過快，可只保留核心欄位，避免把所有執行狀態都塞進同一個共享物件。
