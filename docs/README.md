@@ -2,6 +2,12 @@
 
 這份索引提供「依任務」找文件的快速入口。
 
+建議把文件分成三層來看：
+
+- `README.md`：專案首頁，先看定位、能力與快速上手
+- `docs/README.md`：文件入口，幫你找到正確的模組文件
+- 深層設計文件：只在需要維護、調整或追歷史時再深入
+
 ## 第一次看建議先讀
 
 - 想先知道這個專案是做什麼：`README.md`
@@ -37,9 +43,9 @@
 
 ### 我想理解記憶與長對話能力
 
-- 長對話記憶檢索主規劃：`docs/summary-aware-retrieval-plan.md`
-- 最小改進計畫：`docs/sar-improvement-plan-minimal.md`
-- 核心規則記憶清單：`docs/canonical-sar-anchors.md`
+- 長對話記憶檢索主規劃（維護者主文件）：`docs/summary-aware-retrieval-plan.md`
+- 最小改進計畫（偏 roadmap）：`docs/sar-improvement-plan-minimal.md`
+- 核心規則記憶清單（固定規則 seed）：`docs/canonical-sar-anchors.md`
 - SAR 驗收清單：`docs/sar-acceptance-checklist.md`
 - SAR 驗證報告（v2.6.18）：`docs/sar-validation-report-v2.6.18.md`
 
@@ -50,6 +56,8 @@
 - 遷移紀錄（完整時序）：`docs/migration-log.md`
 
 ### 其他提案 / 研究文件
+
+- 這一區是歷史提案或較早期草案，不建議當成現況入口。
 
 - `docs/cli-session-integration.md`
 - `docs/current-chat-prompt.md`

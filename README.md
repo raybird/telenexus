@@ -93,6 +93,8 @@ TeleNexus 適合想要把 AI 當成「長期可治理的本地代理人」而不
 
 ## 系統大致怎麼運作
 
+這一段只提供快速全貌；如果你想看更完整的設計、維護規則或歷史脈絡，請直接進 `docs/README.md`。
+
 ### 互動層
 
 - Telegram Bot：最直接的日常控制入口
@@ -276,6 +278,7 @@ Memoria 同步可用環境變數調整：
 - Web Console 詳細說明：`docs/web-console-reference.md`
 - 環境變數與 Runner 設定：`docs/configuration-reference.md`
 - 排程 runbook：`docs/scheduler-operation-runbook.md`
+- 長對話記憶設計：`docs/summary-aware-retrieval-plan.md`
 - 邊界與安全：`docs/runtime-boundary-and-security.md`
 - 部署 checklist：`docs/deployment-cutover-checklist.md`
 - 遷移紀錄：`docs/migration-log.md`

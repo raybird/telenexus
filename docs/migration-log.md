@@ -1582,3 +1582,48 @@
 
 - 若需快速回退，可保留 `src/core/logger.ts`，但先將 message-pipeline / scheduler / memory 改回原本的 `console.*` 寫法。
 - 若後續認為 `memory` debug log 噪音過高，可先停用 `summary-search.completed` 類型事件，再評估是否需要 env 控制 debug 輸出。
+
+---
+
+## 2026-03-29 - docs 去重與分層整理
+
+### 階段
+
+- 針對首頁、文件入口與 SAR 相關核心文件做角色收斂，降低重複敘事與定位混淆。
+
+### 已完成
+
+- `README.md`：
+  - 明確收斂為首頁與快速入口
+  - 補充說明系統概覽僅提供快速全貌
+  - 在文件導覽中加入長對話記憶主文件入口
+- `docs/README.md`：
+  - 補上三層閱讀模型（首頁 / 文件入口 / 深層設計文件）
+  - 重新標示 SAR 相關文件角色：主文件、roadmap、固定規則 seed
+  - 明確說明 `其他提案 / 研究文件` 不建議作為現況入口
+- `docs/summary-aware-retrieval-plan.md`：
+  - 強化維護者文件定位
+  - 補上與首頁、文件入口、固定規則清單的角色分工
+  - 明確提醒閱讀時優先看 `0. 目前實作校準`
+- `docs/sar-improvement-plan-minimal.md`：
+  - 明確標成 roadmap 文件
+  - 補上與主計畫文件、固定規則清單的分工說明
+- `docs/canonical-sar-anchors.md`：
+  - 補上與主規劃文件、roadmap 的角色分工
+  - 更清楚定位為固定規則清單，而非完整設計說明
+
+### 影響檔案
+
+- `README.md`
+- `docs/README.md`
+- `docs/summary-aware-retrieval-plan.md`
+- `docs/sar-improvement-plan-minimal.md`
+- `docs/canonical-sar-anchors.md`
+
+### 驗證結果
+
+- 文件層整理，未改動 runtime 行為
+
+### 回滾計畫
+
+- 若需快速回退，可保留檔案內容，只移除新增的角色分工說明與入口提示，恢復原本較鬆散的入口結構。

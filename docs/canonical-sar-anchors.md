@@ -10,6 +10,12 @@
 
 如果你只是想知道「目前 AI 應該記住哪些固定規則」，看這份就夠了。
 
+角色分工：
+
+- 這份文件負責列出固定規則本身
+- `docs/summary-aware-retrieval-plan.md` 負責解釋檢索設計與校準
+- `docs/sar-improvement-plan-minimal.md` 負責列出仍值得推進的最小改進路線
+
 ## 目前收錄
 
 ### 1. Gemini Recovery Rule

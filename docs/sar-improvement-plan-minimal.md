@@ -2,6 +2,12 @@
 
 這份文件定義 TeleNexus 現階段對 `Summary-Aware Retrieval (SAR)` 的保守改進路線。
 
+它的角色是 roadmap，不是現況主文件。
+
+- 想看目前實作與校準：請先看 `docs/summary-aware-retrieval-plan.md`
+- 想看固定保留的高價值規則：請看 `docs/canonical-sar-anchors.md`
+- 想知道這份文件的用途：它主要回答「下一步還值得做什麼」
+
 目標不是重做整個 memory / retrieval 架構，而是先以低風險方式補強三件事：
 
 - 文件與現況一致
@@ -10,7 +16,9 @@
 
 ## 目前判斷
 
-截至 `v2.6.19` 附近的實作狀態：
+這份文件建立於 `v2.6.19` 附近，後續多項項目已陸續完成；因此它適合保留作為最小改進思路，不適合單獨當成最新現況說明。
+
+建立當時的實作狀態：
 
 - `impact_level` / `tags` schema 已存在
 - `buildMemoryContext(...)` 已採三層 SAR 組裝
