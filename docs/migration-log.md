@@ -1316,3 +1316,89 @@
 
 - 若需快速回退，可先回退 `scripts/release-workflow.mjs` 的 guardrail 與 `src/config/ai-config.ts` 的預設 prompt 清理。
 - 若測試維護成本過高，可保留 `message-pipeline` 與 release workflow 的核心測試，再視情況精簡案例。
+
+---
+
+## 2026-03-28 - message-pipeline 結構拆分第一、二階段
+
+### 階段
+
+- 針對 `src/core/message-pipeline.ts` 先做低風險模組化，降低單檔複雜度並保留既有行為。
+
+### 已完成
+
+- 第一階段：抽出周邊互動與附件輔助邏輯
+  - 新增 `src/core/message-pipeline-helpers.ts`
+  - 抽出：
+    - pending image 暫存與合併
+    - 附件 prompt 組裝
+    - `[[SEND_FILE: ...]]` 指令解析與自動檔案回傳驗證
+    - `ThinkingMessenger` placeholder / thinking 輪播 / 最終回覆收尾
+- 第二階段：抽出 chat / memory / followup orchestration
+  - 新增 `src/core/message-pipeline-chat.ts`
+  - 抽出：
+    - user message summary 與 memory 寫入
+    - full/compact prompt 決策與附件拼接
+    - model response 寫入與 Memoria sync enqueue
+    - followup summary 判斷、metadata 更新與補充摘要發送
+- `src/core/message-pipeline.ts` 收斂為主流程協調層
+  - 更聚焦在 command / queue / agent selection / error fallback orchestration
+  - 降低附件、placeholder、memory followup 細節直接混在同一檔的程度
+
+### 影響檔案
+
+- `src/core/message-pipeline.ts`
+- `src/core/message-pipeline-helpers.ts`
+- `src/core/message-pipeline-chat.ts`
+
+### 驗證結果
+
+- `npm run lint`：通過
+- `npm test`：通過
+- `npm run build`：通過
+
+### 回滾計畫
+
+- 若需快速回退，可先將 `message-pipeline-chat.ts` 與 `message-pipeline-helpers.ts` 內容合回 `src/core/message-pipeline.ts`，恢復單檔實作。
+- 若後續拆分造成維護成本上升，可保留 `ThinkingMessenger` 與 file directive 輔助模組，僅回退 chat/memory orchestration 抽象層。
+
+---
+
+## 2026-03-28 - message-pipeline 第二階段 chat/memory orchestration 模組化
+
+### 階段
+
+- 延續前一輪結構拆分，將 user summary、prompt 準備、model response 寫入與 followup summary orchestration 從 `message-pipeline.ts` 內抽離。
+
+### 已完成
+
+- 新增 `src/core/message-pipeline-chat.ts`
+  - 抽出：
+    - `persistUserMessage(...)`
+    - `preparePromptForAgent(...)`
+    - `persistModelResponse(...)`
+    - `maybeSendSummaryFollowup(...)`
+- `src/core/message-pipeline.ts` 收斂：
+  - 主流程更聚焦在 command / queue / agent selection / success/error orchestration
+  - 不再直接承擔 user summary、memory 寫入、followup summary 的細節邏輯
+- 維持既有行為不變：
+  - pending image 合併
+  - attachment prompt 注入
+  - Memoria sync enqueue
+  - followup summary metadata 更新
+
+### 影響檔案
+
+- `src/core/message-pipeline.ts`
+- `src/core/message-pipeline-chat.ts`
+
+### 驗證結果
+
+- `npm run lint`：通過
+- `npm test`：通過
+- `npm run build`：通過
+
+### 回滾計畫
+
+- 若需快速回退，可將 `message-pipeline-chat.ts` 內容直接合回 `src/core/message-pipeline.ts`，保留 helper 模組但回到單檔 orchestration。
+- 若後續發現抽象層過細，可只保留 `persistModelResponse(...)` 與 `maybeSendSummaryFollowup(...)`，將 prompt 準備合併回主流程。
