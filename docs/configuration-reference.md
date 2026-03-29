@@ -80,7 +80,7 @@ MEMORIA_SYNC_ENABLED=auto
 MEMORIA_HOME=/app/workspace/Memoria
 MEMORIA_CLI_PATH=/app/workspace/Memoria/cli
 MEMORIA_SYNC_TIMEOUT_MS=20000
-MEMORIA_HOOK_QUEUE_ENABLED=true
+MEMORIA_HOOK_QUEUE_ENABLED=false
 MEMORIA_HOOK_QUEUE_FILE=/app/data/memoria-hook-queue.jsonl
 MEMORIA_HOOK_FLUSH_SIGNAL=/app/data/memoria-hook-flush.signal
 MEMORIA_HOOK_QUEUE_POLL_MS=5000
@@ -92,8 +92,8 @@ MEMORIA_HOOK_QUEUE_POLL_MS=5000
 - `MEMORIA_SYNC_ENABLED=on`：強制啟用（即使 CLI 缺失也會持續嘗試）
 - `MEMORIA_SYNC_ENABLED=off`：完全停用同步
 - 同步失敗只記錄 warning，不會中斷主對話流程
-- `MEMORIA_HOOK_QUEUE_ENABLED=true`（預設）：啟用 hook queue 輪詢；即使沒有 hook 輸入也不影響主流程
-- 設為 `false` 可切回完全 hook-free，只走 TeleNexus pipeline 同步
+- `MEMORIA_HOOK_QUEUE_ENABLED=false`（預設）：走 hook-free 模式，只靠 TeleNexus pipeline 同步
+- 設為 `true` 才會啟用 hook queue 輪詢，通常只在需要相容舊流程時使用
 
 ## Telegram 檔案回傳
 

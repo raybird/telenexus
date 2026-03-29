@@ -19,16 +19,16 @@ export type ChatPromptConfig = {
 export const DEFAULT_CHAT_PROMPT_CONFIG: ChatPromptConfig = {
   language: '繁體中文',
   roleSystem:
-    '你是 TeleNexus，一個具備強大工具執行能力的本地 AI 助理。\n當使用者要求你搜尋網路、查看檔案或執行指令時，請善用你手邊的工具（如 google_search, read_file 等）。',
+    '你是 TeleNexus，一個具備工具執行能力的本地 AI 助理。\n當使用者要求你查看專案、閱讀檔案、搜尋歷史內容或執行指令時，請優先善用目前可用的 TeleNexus 工具與 CLI 能力。',
   yoloNoticeEnabled: true,
   memoryPolicyEnabled: true,
   workspacePolicyEnabled: true,
   includeAiResponseSuffix: true,
   memoryPolicyLines: [
-    '當對話包含重要資訊（如：使用者偏好、專案細節、重要決策）時，請主動使用 create_entities 儲存',
-    '當發現實體間的關係時，使用 create_relations 建立連結',
-    '需要回想相關知識時，使用 search_entities 搜尋',
-    '在對話結束前，如果有值得記住的內容，請務必儲存到 Memory'
+    '當對話包含重要資訊（如：使用者偏好、專案細節、重要決策）時，請優先整理成可延續的摘要與規則',
+    '需要回想相關背景時，先利用 TeleNexus 已注入的記憶內容與可用檢索能力',
+    '若發現內容屬於長期有效的固定做法，請用清楚、可重用的語句表達',
+    '避免把短期雜訊當成長期記憶；真正值得保留的應是規則、決策與穩定脈絡'
   ],
   workspacePolicyLines: [
     '你的當前工作目錄是 workspace/',

@@ -1268,3 +1268,51 @@
 ### 回滾計畫
 
 - 若要回退，可保留文件結構，只回退新增的導讀、白話前言與路徑整理，恢復成較技術內部導向的版本。
+
+---
+
+## 2026-03-28 - 設定治理與 release guardrail 補強
+
+### 階段
+
+- 針對設定漂移、過時 prompt 預設與 release workflow 護欄不足做低風險收斂。
+
+### 已完成
+
+- 設定一致性修正：
+  - 對齊 `.env.example`、`.env.production.example`、`docs/configuration-reference.md` 與實作對 `MEMORIA_HOOK_QUEUE_ENABLED` 的預設值
+  - 明確改為 `false` 為預設，預設走 hook-free 模式，僅在需要相容舊流程時才開啟 hook queue
+- AI prompt config 清理：
+  - 更新 `src/config/ai-config.ts` 內的預設 prompt 文案
+  - 移除過時的工具名稱與舊記憶操作敘述（如 `google_search`、`create_entities` 等）
+  - 改成更符合目前 TeleNexus 實際能力的描述
+- release workflow guardrail：
+  - `scripts/release-workflow.mjs` 新增 branch guard，只允許在 `main`、`master` 或 `release/*` 執行
+  - 新增 README version badge 與 `package.json` 版本一致性檢查
+  - 新增 `--dry-run` 模式，可先驗證 release 前置條件
+- 測試補強：
+  - 新增 `tests/ai-config.test.ts`，避免預設 prompt 文案退回過時工具名稱
+  - 新增 `tests/message-pipeline.test.ts`，覆蓋 image merge、自動檔案回傳限制、agent error fallback
+  - 新增 `tests/release-workflow.test.ts`，覆蓋 branch guard、badge/version 對齊與 dry-run 參數解析
+
+### 影響檔案
+
+- `.env.example`
+- `.env.production.example`
+- `README.md`
+- `docs/configuration-reference.md`
+- `src/config/ai-config.ts`
+- `scripts/release-workflow.mjs`
+- `tests/ai-config.test.ts`
+- `tests/message-pipeline.test.ts`
+- `tests/release-workflow.test.ts`
+
+### 驗證結果
+
+- `npm run lint`：通過
+- `npm test`：通過
+
+### 回滾計畫
+
+- 若需快速回退，可先回退 `scripts/release-workflow.mjs` 的 guardrail 與 `src/config/ai-config.ts` 的預設 prompt 清理。
+- 若測試維護成本過高，可保留 `message-pipeline` 與 release workflow 的核心測試，再視情況精簡案例。

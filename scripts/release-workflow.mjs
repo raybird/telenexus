@@ -1,10 +1,15 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const allowedBumps = new Set(['patch', 'minor', 'major']);
+const allowedReleaseBranches = new Set(['main', 'master']);
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
   let bump = 'patch';
   let message = '';
+  let dryRun = false;
 
   for (let i = 0; i < argv.length; i += 1) {
     const value = argv[i];
@@ -19,9 +24,13 @@ function parseArgs(argv) {
       i += 1;
       continue;
     }
+
+    if (value === '--dry-run') {
+      dryRun = true;
+    }
   }
 
-  return { bump, message: message.trim() };
+  return { bump, message: message.trim(), dryRun };
 }
 
 function run(command, args, options = {}) {
@@ -44,10 +53,48 @@ function capture(command, args) {
   return (result.stdout || '').trim();
 }
 
+export function isAllowedReleaseBranch(branchName) {
+  return allowedReleaseBranches.has(branchName) || branchName.startsWith('release/');
+}
+
+export function extractReadmeVersionBadge(readmeContent) {
+  const match = readmeContent.match(/version-v(\d+\.\d+\.\d+)-/);
+  return match ? match[1] : null;
+}
+
+export function validateReadmeVersionBadge(readmeContent, packageVersion) {
+  const badgeVersion = extractReadmeVersionBadge(readmeContent);
+  if (!badgeVersion) {
+    return {
+      ok: false,
+      reason: 'README version badge not found.'
+    };
+  }
+
+  if (badgeVersion !== packageVersion) {
+    return {
+      ok: false,
+      reason: `README version badge (${badgeVersion}) does not match package.json version (${packageVersion}).`
+    };
+  }
+
+  return { ok: true };
+}
+
 function ensureGitRepo() {
   const inside = capture('git', ['rev-parse', '--is-inside-work-tree']);
   if (inside !== 'true') {
     process.stderr.write('Not inside a git repository.\n');
+    process.exit(1);
+  }
+}
+
+function ensureReleaseBranch() {
+  const branch = capture('git', ['branch', '--show-current']);
+  if (!isAllowedReleaseBranch(branch)) {
+    process.stderr.write(
+      `Release workflow only runs on main/master or release/* branches. Current branch: ${branch || '(detached)'}\n`
+    );
     process.exit(1);
   }
 }
@@ -79,17 +126,40 @@ function ensureCommitMessage(message) {
   }
 }
 
+function ensureReadmeVersionBadgeUpToDate() {
+  const packageJsonPath = path.resolve(process.cwd(), 'package.json');
+  const readmePath = path.resolve(process.cwd(), 'README.md');
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+  const readme = fs.readFileSync(readmePath, 'utf8');
+  const result = validateReadmeVersionBadge(readme, String(packageJson.version || '').trim());
+  if (!result.ok) {
+    process.stderr.write(`${result.reason}\n`);
+    process.exit(1);
+  }
+}
+
 function printStep(label) {
   process.stdout.write(`\n=== ${label} ===\n`);
 }
 
 function main() {
-  const { bump, message } = parseArgs(process.argv.slice(2));
+  const { bump, message, dryRun } = parseArgs(process.argv.slice(2));
 
   ensureGitRepo();
+  ensureReleaseBranch();
   ensureCommitMessage(message);
   ensureNoUnstagedChanges();
   ensureStagedChanges();
+  ensureReadmeVersionBadgeUpToDate();
+
+  if (dryRun) {
+    process.stdout.write('Release checks passed (dry-run).\n');
+    process.stdout.write(`Would run: git commit -m "${message}"\n`);
+    process.stdout.write(`Would run: npm version ${bump}\n`);
+    process.stdout.write('Would run: git push\n');
+    process.stdout.write('Would run: git push --tags\n');
+    return;
+  }
 
   printStep('git commit');
   run('git', ['commit', '-m', message]);
@@ -106,4 +176,7 @@ function main() {
   process.stdout.write('\nRelease workflow completed.\n');
 }
 
-main();
+const currentFile = fileURLToPath(import.meta.url);
+if (process.argv[1] && path.resolve(process.argv[1]) === currentFile) {
+  main();
+}
