@@ -25,10 +25,9 @@ TeleNexus 讓您用 Telegram 控制本機 AI CLI（Gemini / Opencode），並提
 
 ## 快速導覽
 
-- `快速上手`：看 `TL;DR（5 分鐘上手）`
-- `核心能力`：看 `核心優點`、`能力地圖`、`Feature Comparison`
-- `執行模式`：看 `Session 與 Context（重點）`
-- `深入文件`：看 `docs/README.md`
+- `想快速跑起來`：看 `TL;DR（5 分鐘上手）`
+- `想先懂這專案強在哪`：看 `核心優點` 與 `和一般 AI Bot 差在哪`
+- `想看深入文件`：看 `docs/README.md`
 
 ---
 
@@ -43,6 +42,14 @@ TeleNexus 適合想要把 AI 當成「長期可治理的本地代理人」而不
 > - 把排程、記憶、觀測、發版 SOP 放進同一套系統
 >
 > 那 TeleNexus 就是在做這件事。
+
+---
+
+## 這工具幫你解決什麼
+
+- 不想每次都手動進機器操作 CLI，就用 Telegram 或 Web 直接驅動它
+- 不想每隔幾天重新教 AI 一次你的規則，就把重要做法留在長期記憶裡
+- 不想把排程、除錯、觀測、發版拆成很多零散工具，就交給同一套控制平面
 
 ---
 
@@ -61,7 +68,7 @@ TeleNexus 適合想要把 AI 當成「長期可治理的本地代理人」而不
 
 ### 3) 記憶治理不是黑盒
 
-- 支援 `impact_level`、`tags`、canonical anchors、metadata backfill。
+- 支援記憶標記、核心規則保留與 metadata backfill。
 - 可用 `memory-cli` 人工檢視與補標高價值記憶，不必完全依賴模型自動摘要。
 - SAR retrieval 已有最小 regression 護欄，後續調整較不容易默默退化。
 
@@ -76,33 +83,15 @@ TeleNexus 適合想要把 AI 當成「長期可治理的本地代理人」而不
 - `workspace/context/` 會持續寫出 runtime/provider/scheduler/error/runner 快照。
 - 發生問題時，比較容易知道是 provider、runner、session、scheduler 還是 prompt 層出了偏差。
 
-### 6) 有 SOP、可發版、可回溯
-
-- 已固定 release workflow：`commit > npm version > tag > push`。
-- `docs/migration-log.md` 持續記錄每輪變更、驗證結果與回滾策略。
-- 比起只靠口頭記憶，這個 repo 比較適合長期演進與持續治理。
-
----
-
 ## 適合什麼場景
 
 - 想用 Telegram 或 Web Console 遠端驅動自己機器上的 AI CLI
 - 想把常做的研究、維運、發版、排程工作交給同一套 AI 工作流
-- 想保留本地執行與工具權限，但又不想失去 session、記憶、觀測與 SOP 管理
-- 想讓 AI 記住你已經定下來的規則，而不是每隔幾天重新教一次
+- 想保留本地執行與工具權限，但又不想失去 session、記憶與觀測能力
 
 ---
 
-## 你可以期待的體感
-
-- 問 `現在 release SOP 是什麼？`，AI 比較容易直接回到你已固定的 command workflow
-- 問 `Gemini 壞掉怎麼救？`，AI 比較容易抓到已整理好的故障分流規則
-- 對話很長之後，仍能保住關鍵治理記憶，而不是只剩最近幾句聊天
-- 當 scheduler、runner、provider 出問題時，比較容易從快照與 health check 找到偏差點
-
----
-
-## 能力地圖
+## 系統大致怎麼運作
 
 ### 互動層
 
@@ -119,9 +108,9 @@ TeleNexus 適合想要把 AI 當成「長期可治理的本地代理人」而不
 ### 記憶層
 
 - recent conversation：保留當前對話連續性
-- SAR anchors：優先保留核心規則與高價值決策
-- semantic summaries：補回與當前問題相關的歷史摘要
-- metadata governance：用 `summary / impact_level / tags` 管理長期記憶
+- 核心規則記憶：優先保留高價值決策與固定做法
+- 相關歷史摘要：補回和當前問題有關的舊脈絡
+- 記憶標記與整理：用 `summary / impact_level / tags` 管理長期記憶
 
 ### 治理層
 
@@ -151,40 +140,29 @@ flowchart TD
 ```
 
 - `TeleNexus Core` 負責收訊、組 prompt、注入記憶、分派執行與寫入觀測。
-- `Memory Manager` 負責 recent context、SAR retrieval、metadata 治理與 backfill 對齊。
+- `Memory Manager` 負責 recent context、長對話記憶檢索與記憶整理。
 - `Agent Runner` 把 CLI session 從 bot 容器中抽離，降低上下文斷裂與除錯混亂。
 - `Scheduler` 讓定時工作和一般聊天走同一套治理與可觀測模型。
 
 ---
 
-## Feature Comparison
+## 和一般 AI Bot 差在哪
 
-| 能力           | 一般聊天 Bot         | TeleNexus                                   |
-| -------------- | -------------------- | ------------------------------------------- |
-| 本地 CLI 執行  | 通常沒有             | 內建，且可接 runner session                 |
-| 長期記憶       | 多半只有近期訊息     | 有 SAR、anchors、summary/tag 治理           |
-| 可回溯治理     | 多靠人工整理         | 有 migration log、release SOP、tag          |
-| 排程整合       | 常需外掛另一套系統   | 內建 scheduler CLI / reload / health        |
-| 可觀測性       | 常只剩 container log | 有 runtime/provider/scheduler/runner 快照   |
-| 調參與回歸護欄 | 不一定有             | 已有 regression tests 與集中 scoring config |
-
----
-
-## Highlights
-
-- `Local-first`：模型與 CLI 工作流仍在你的機器上，不是把能力外包給另一個黑盒服務
-- `Memory-aware`：不是只看最近訊息，會把高價值規則與歷史摘要一起帶回來
-- `Ops-ready`：scheduler、health、release SOP、migration log 都已內建
-- `Debuggable`：runner、provider、runtime、error 都有可追的觀測面
+| 能力          | 一般聊天 Bot         | TeleNexus                                 |
+| ------------- | -------------------- | ----------------------------------------- |
+| 本地 CLI 執行 | 通常沒有             | 內建，且可接 runner session               |
+| 長期記憶      | 多半只有近期訊息     | 有長對話記憶檢索、核心規則保留、記憶標記  |
+| 可回溯治理    | 多靠人工整理         | 有 migration log、release SOP、tag        |
+| 排程整合      | 常需外掛另一套系統   | 內建 scheduler CLI / reload / health      |
+| 可觀測性      | 常只剩 container log | 有 runtime/provider/scheduler/runner 快照 |
+| 可維護性      | 常靠人工記憶         | 有 release SOP、tag、migration log        |
 
 ---
 
-## 為什麼不是一般聊天機器人
+## 補充說明
 
-- 一般 bot 比較像訊息轉發器；TeleNexus 更像本地 AI 作業系統入口
-- 一般 bot 容易只有短記憶；TeleNexus 有 SAR、canonical anchors、metadata 治理
-- 一般 bot 出問題常只剩 log；TeleNexus 有 runner、scheduler、runtime 快照可追
-- 一般 bot 發版與歷史容易散；TeleNexus 已內建 release SOP 與 migration log
+- 一般 bot 比較像訊息轉發器；TeleNexus 更像本地 AI 控制平面
+- 如果你想看更完整的記憶、排程、runner、release 設計，請直接進 `docs/README.md`
 
 ---
 
