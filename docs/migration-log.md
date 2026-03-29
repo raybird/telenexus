@@ -1627,3 +1627,49 @@
 ### 回滾計畫
 
 - 若需快速回退，可保留檔案內容，只移除新增的角色分工說明與入口提示，恢復原本較鬆散的入口結構。
+
+---
+
+## 2026-03-29 - SAR 規則集中化（最小版）
+
+### 階段
+
+- 先不重寫 retrieval 流程，只將分散在 memory / prompt / metadata 的 SAR 規則收斂到同一層，降低後續維護漂移。
+
+### 已完成
+
+- 新增 `src/core/sar-policy.ts`
+  - 集中管理：
+    - tag 規則
+    - query alias 規則
+    - metadata impact 規則
+    - summary search ranking config
+    - prompt / anchor 相關常數
+  - 新增共用 helper：
+    - `collectSarTags(...)`
+    - `expandSarKeywords(...)`
+    - `getSarPromptRecencyBoost(...)`
+- `src/core/summary-metadata.ts`
+  - 改為共用 `sar-policy` 中的 tag / impact 規則
+- `src/core/memory.ts`
+  - `searchSummaries(...)` 改為使用集中化的 `SAR_SUMMARY_SEARCH_CONFIG`
+- `src/prompt/builder.ts`
+  - query tag、alias、anchor hints、recency、budget 與 limit 規則改為使用 `SAR_PROMPT_POLICY`
+
+### 影響檔案
+
+- `src/core/sar-policy.ts`
+- `src/core/summary-metadata.ts`
+- `src/core/memory.ts`
+- `src/prompt/builder.ts`
+
+### 驗證結果
+
+- `npm run lint`：通過
+- `npm test`：通過
+- `npm run build`：通過
+
+### 回滾計畫
+
+- 若需快速回退，可保留 `src/core/sar-policy.ts` 作為參考，但將 `summary-metadata.ts`、`memory.ts`、`builder.ts` 改回各自內嵌規則。
+- 若後續發現集中化範圍過大，可先保留 `SAR_SUMMARY_SEARCH_CONFIG` 與 metadata 規則集中化，將 prompt 層常數暫時收回 `builder.ts`。

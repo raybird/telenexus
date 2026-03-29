@@ -3,75 +3,12 @@
  */
 import type { ChatPromptConfig } from '../config/ai-config.js';
 import type { ChatMessage, MemoryManager, SummaryMessage } from '../core/memory.js';
-
-const SAR_RECENT_LIMIT = 10;
-const SAR_ANCHOR_LIMIT = 4;
-const SAR_SEMANTIC_LIMIT = 3;
-const SAR_TOTAL_CHAR_BUDGET = 1500;
-const SAR_RECENT_ITEM_CHAR_BUDGET = 180;
-const SAR_SUMMARY_ITEM_CHAR_BUDGET = 220;
-const SAR_RECENT_MIN_LINES = 4;
-const SAR_ANCHOR_MIN_LINES = 1;
-const SAR_MEMORY_CONTEXT_TITLE = '【記憶參考（TeleNexus SAR）】';
-const SAR_CANONICAL_LIMIT = 1;
-const SAR_ANCHOR_CANDIDATE_LIMIT = 40;
-const SAR_CANONICAL_CANDIDATE_LIMIT = 100;
-const SAR_ANCHOR_HINTS = [
-  'decision',
-  '決策',
-  'fix',
-  '修復',
-  'release',
-  'deploy',
-  'workflow',
-  'sop',
-  'docker',
-  'git',
-  'runner',
-  'gemini',
-  'scheduler',
-  'memory',
-  'prompt',
-  'compress',
-  'fallback',
-  'chat',
-  'web'
-];
-const SAR_ANCHOR_EXCLUDE_HINTS = ['btc', 'crypto market pulse', 'sso', '市場脈動'];
-const SAR_TOPIC_TAG_MAP: Array<{ tag: string; patterns: RegExp[] }> = [
-  { tag: 'release', patterns: [/release/i, /發版/, /發布/, /tag/i, /npm version/i, /sop/i] },
-  {
-    tag: 'web',
-    patterns: [/web/i, /chat history/i, /sidebar/i, /nav/i, /ux/i, /前端/, /上滑/, /滾動/]
-  },
-  { tag: 'scheduler', patterns: [/scheduler/i, /cron/i, /排程/] },
-  { tag: 'gemini', patterns: [/gemini/i, /compress/i, /invalid_argument/i, /resource_exhausted/i] },
-  { tag: 'runner', patterns: [/runner/i, /agent-runner/i] },
-  { tag: 'memory', patterns: [/memory/i, /sar/i, /summary-aware retrieval/i, /記憶/, /摘要/] },
-  { tag: 'infra', patterns: [/docker/i, /bootstrap/i, /git/i, /部署/, /infra/i] }
-];
-const SAR_QUERY_ALIASES: Array<{ patterns: RegExp[]; keywords: string[]; tags?: string[] }> = [
-  {
-    patterns: [/發版/, /發布/, /release workflow/i, /release sop/i, /發版流程/],
-    keywords: ['release', 'workflow', 'npm version', 'tag', 'push'],
-    tags: ['release']
-  },
-  {
-    patterns: [/壓縮/, /compress/i, /invalid_argument/i, /resource_exhausted/i, /容量不足/],
-    keywords: ['compress', 'invalid_argument', 'resource_exhausted', 'model_capacity_exhausted'],
-    tags: ['gemini', 'runner']
-  },
-  {
-    patterns: [/上滑載入/, /聊天往上滾/, /chat history/i, /cursor/i, /prepend/i, /閃爍/],
-    keywords: ['chat history', 'cursor', 'incremental prepend', 'offset pagination'],
-    tags: ['web']
-  },
-  {
-    patterns: [/scheduler cli/i, /排程 cli/, /reload/i, /update schedule/i],
-    keywords: ['scheduler-cli', 'reload', 'update', 'cli tool'],
-    tags: ['scheduler']
-  }
-];
+import {
+  collectSarTags,
+  expandSarKeywords,
+  getSarPromptRecencyBoost,
+  SAR_PROMPT_POLICY
+} from '../core/sar-policy.js';
 
 export function shouldSummarize(content: string): boolean {
   if (content.length > 200) return true;
@@ -128,18 +65,7 @@ function extractQueryKeywords(text: string): string[] {
 }
 
 function applyKeywordAliases(text: string, baseKeywords: string[]): string[] {
-  const expanded = [...baseKeywords];
-  for (const alias of SAR_QUERY_ALIASES) {
-    if (!alias.patterns.some((pattern) => pattern.test(text))) {
-      continue;
-    }
-    for (const keyword of alias.keywords) {
-      if (!expanded.includes(keyword)) {
-        expanded.push(keyword);
-      }
-    }
-  }
-  return expanded.slice(0, 16);
+  return expandSarKeywords(text, baseKeywords);
 }
 
 function truncateInline(text: string, maxLength: number): string {
@@ -159,33 +85,11 @@ function extractTopicTags(userMessage: string): string[] {
   if (!text) {
     return [];
   }
-  const matches: string[] = [];
-  for (const entry of SAR_TOPIC_TAG_MAP) {
-    if (entry.patterns.some((pattern) => pattern.test(text))) {
-      matches.push(entry.tag);
-    }
-  }
-  for (const alias of SAR_QUERY_ALIASES) {
-    if (!alias.tags || !alias.patterns.some((pattern) => pattern.test(text))) {
-      continue;
-    }
-    for (const tag of alias.tags) {
-      if (!matches.includes(tag)) {
-        matches.push(tag);
-      }
-    }
-  }
-  return matches;
+  return collectSarTags(text);
 }
 
 function getRecencyBoost(timestamp: number): number {
-  const ageMs = Math.max(0, Date.now() - timestamp);
-  const ageDays = ageMs / (1000 * 60 * 60 * 24);
-  if (ageDays <= 7) return 8;
-  if (ageDays <= 14) return 5;
-  if (ageDays <= 30) return 3;
-  if (ageDays <= 90) return 1;
-  return 0;
+  return getSarPromptRecencyBoost(timestamp);
 }
 
 function scoreSummary(
@@ -196,30 +100,29 @@ function scoreSummary(
   const text = `${summary.summary || ''} ${summary.content || ''}`.trim();
   const lowered = text.toLowerCase();
   let score = 0;
-  score += Math.min(3, Math.floor(text.length / 140));
-  score += Math.max(0, (summary.impactLevel || 1) - 1) * 3;
+  score += Math.min(
+    SAR_PROMPT_POLICY.summaryLengthMaxBonus,
+    Math.floor(text.length / SAR_PROMPT_POLICY.summaryLengthDivisor)
+  );
+  score += Math.max(0, (summary.impactLevel || 1) - 1) * SAR_PROMPT_POLICY.summaryImpactBonus;
   score += getRecencyBoost(summary.timestamp);
-  if (/[Dd]ecision|決策|SOP|流程|規則|限制|fallback|bootstrap|runner|Gemini/.test(text)) {
-    score += 2;
+  if (SAR_PROMPT_POLICY.summaryImportantTextPattern.test(text)) {
+    score += SAR_PROMPT_POLICY.summaryImportantTextBonus;
   }
-  if (
-    summary.tags.includes('release') ||
-    summary.tags.includes('gemini') ||
-    summary.tags.includes('runner')
-  ) {
-    score += 2;
+  if (SAR_PROMPT_POLICY.summaryImportantTags.some((tag) => summary.tags.includes(tag))) {
+    score += SAR_PROMPT_POLICY.summaryImportantTagBonus;
   }
   if (summary.role === 'model') {
-    score += 1;
+    score += SAR_PROMPT_POLICY.summaryModelRoleBonus;
   }
   for (const tag of queryTags) {
     if (summary.tags.includes(tag)) {
-      score += 5;
+      score += SAR_PROMPT_POLICY.summaryQueryTagBonus;
     }
   }
   for (const keyword of keywords) {
     if (lowered.includes(keyword.toLowerCase())) {
-      score += 2;
+      score += SAR_PROMPT_POLICY.summaryKeywordBonus;
     }
   }
   return score;
@@ -230,10 +133,10 @@ function isAnchorCandidate(summary: SummaryMessage): boolean {
   if (!text.trim()) {
     return false;
   }
-  if (SAR_ANCHOR_EXCLUDE_HINTS.some((hint) => text.includes(hint))) {
+  if (SAR_PROMPT_POLICY.anchorExcludeHints.some((hint) => text.includes(hint))) {
     return false;
   }
-  return SAR_ANCHOR_HINTS.some((hint) => text.includes(hint));
+  return SAR_PROMPT_POLICY.anchorHints.some((hint) => text.includes(hint));
 }
 
 function buildDedupKey(role: string, text: string, timestamp: number): string {
@@ -274,8 +177,16 @@ function mergeUniqueSummaries(...groups: SummaryMessage[][]): SummaryMessage[] {
 }
 
 function getAnchorCandidates(memory: MemoryManager, userId: string): SummaryMessage[] {
-  const recentAnchors = memory.getRecentSummaries(userId, SAR_ANCHOR_CANDIDATE_LIMIT, 2);
-  const canonicalAnchors = memory.listSummaryMessages(userId, SAR_CANONICAL_CANDIDATE_LIMIT, 3);
+  const recentAnchors = memory.getRecentSummaries(
+    userId,
+    SAR_PROMPT_POLICY.anchorCandidateLimit,
+    2
+  );
+  const canonicalAnchors = memory.listSummaryMessages(
+    userId,
+    SAR_PROMPT_POLICY.canonicalCandidateLimit,
+    3
+  );
   const fallbackAnchors = recentAnchors.length > 0 ? [] : memory.getRecentSummaries(userId, 20, 1);
   return mergeUniqueSummaries(canonicalAnchors, recentAnchors, fallbackAnchors);
 }
@@ -298,7 +209,7 @@ function selectCausalAnchors(
   const selected: SummaryMessage[] = [];
   const seen = new Set<string>();
 
-  for (const item of canonical.slice(0, SAR_CANONICAL_LIMIT)) {
+  for (const item of canonical.slice(0, SAR_PROMPT_POLICY.canonicalLimit)) {
     const key = buildDedupKey(item.role, item.summary || item.content, item.timestamp);
     seen.add(key);
     selected.push(item);
@@ -311,7 +222,7 @@ function selectCausalAnchors(
     }
     selected.push(item);
     seen.add(key);
-    if (selected.length >= SAR_ANCHOR_LIMIT) {
+    if (selected.length >= SAR_PROMPT_POLICY.anchorLimit) {
       break;
     }
   }
@@ -335,7 +246,7 @@ function selectSemanticSummaries(
     if (seen.has(key)) return false;
     seen.add(key);
     selected.push(item);
-    return selected.length >= SAR_SEMANTIC_LIMIT;
+    return selected.length >= SAR_PROMPT_POLICY.semanticLimit;
   };
 
   const localMatches = recentSummaries
@@ -366,9 +277,9 @@ function selectSemanticSummaries(
   }
 
   for (const keyword of keywords) {
-    let matches = memory.searchSummaries(userId, keyword, SAR_SEMANTIC_LIMIT, 2);
+    let matches = memory.searchSummaries(userId, keyword, SAR_PROMPT_POLICY.semanticLimit, 2);
     if (matches.length === 0) {
-      matches = memory.searchSummaries(userId, keyword, SAR_SEMANTIC_LIMIT, 1);
+      matches = memory.searchSummaries(userId, keyword, SAR_PROMPT_POLICY.semanticLimit, 1);
     }
     for (const item of matches) {
       if (pushUnique(item)) {
@@ -383,14 +294,14 @@ function selectSemanticSummaries(
 function formatRecentMessages(items: ChatMessage[]): string[] {
   return items.map((item) => {
     const role = item.role === 'user' ? 'User' : 'AI';
-    return `- [${role}] (${formatTimestampInline(item.timestamp)}) ${truncateInline(item.content, SAR_RECENT_ITEM_CHAR_BUDGET)}`;
+    return `- [${role}] (${formatTimestampInline(item.timestamp)}) ${truncateInline(item.content, SAR_PROMPT_POLICY.recentItemCharBudget)}`;
   });
 }
 
 function formatSummaryItems(items: SummaryMessage[]): string[] {
   return items.map((item) => {
     const text = item.summary || item.content;
-    return `- [${formatTimestampInline(item.timestamp)}] ${truncateInline(text, SAR_SUMMARY_ITEM_CHAR_BUDGET)}`;
+    return `- [${formatTimestampInline(item.timestamp)}] ${truncateInline(text, SAR_PROMPT_POLICY.summaryItemCharBudget)}`;
   });
 }
 
@@ -422,10 +333,10 @@ function applyContextBudget(
 
   const getMinLines = (title: string): number => {
     if (title === '【核心決策回顧】') {
-      return SAR_ANCHOR_MIN_LINES;
+      return SAR_PROMPT_POLICY.anchorMinLines;
     }
     if (title === '【近期對話】') {
-      return SAR_RECENT_MIN_LINES;
+      return SAR_PROMPT_POLICY.recentMinLines;
     }
     return 0;
   };
@@ -496,7 +407,7 @@ function applyContextBudget(
 function buildSarContext(memory: MemoryManager, userId: string, userMessage: string): string {
   const keywords = applyKeywordAliases(userMessage, extractQueryKeywords(userMessage));
   const queryTags = extractTopicTags(userMessage);
-  const recent = memory.getRecentConversation(userId, SAR_RECENT_LIMIT);
+  const recent = memory.getRecentConversation(userId, SAR_PROMPT_POLICY.recentLimit);
   const anchorCandidates = getAnchorCandidates(memory, userId);
   const anchors = selectCausalAnchors(anchorCandidates, queryTags, keywords);
   const semanticCandidates = selectSemanticSummaries(memory, userId, userMessage, anchorCandidates);
@@ -514,11 +425,14 @@ function buildSarContext(memory: MemoryManager, userId: string, userMessage: str
       { title: '【核心決策回顧】', lines: formatSummaryItems(anchors) },
       {
         title: '【相關歷史摘要】',
-        lines: formatSummaryItems(semantics.slice(0, SAR_SEMANTIC_LIMIT))
+        lines: formatSummaryItems(semantics.slice(0, SAR_PROMPT_POLICY.semanticLimit))
       },
       { title: '【近期對話】', lines: formatRecentMessages(recent) }
     ],
-    Math.max(200, SAR_TOTAL_CHAR_BUDGET - `${SAR_MEMORY_CONTEXT_TITLE}\n`.length)
+    Math.max(
+      200,
+      SAR_PROMPT_POLICY.totalCharBudget - `${SAR_PROMPT_POLICY.memoryContextTitle}\n`.length
+    )
   );
 }
 
@@ -531,7 +445,7 @@ export function buildMemoryContext(
   if (!context.trim()) {
     return '';
   }
-  return [SAR_MEMORY_CONTEXT_TITLE, context].join('\n');
+  return [SAR_PROMPT_POLICY.memoryContextTitle, context].join('\n');
 }
 
 export function buildChatPrompt(

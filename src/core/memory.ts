@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import { createLogger } from './logger.js';
+import { SAR_SUMMARY_SEARCH_CONFIG } from './sar-policy.js';
 import { resolveDbPath } from '../utils/paths.js';
 
 const log = createLogger('memory');
@@ -50,24 +51,6 @@ export interface Schedule {
   created_at: number;
   is_active: boolean;
 }
-
-const SUMMARY_SEARCH_CONFIG = {
-  tokenLimit: 8,
-  candidateMultiplier: 4,
-  minCandidatePool: 12,
-  scoring: {
-    exactSummaryMatch: 10,
-    exactContentMatch: 4,
-    tokenSummaryMatch: 4,
-    tokenContentMatch: 1,
-    tokenTagMatch: 5,
-    impactLevelBonus: 2,
-    recentWindowDays: 7,
-    recentBonus: 2,
-    warmWindowDays: 30,
-    warmBonus: 1
-  }
-} as const;
 
 export class MemoryManager {
   private db: Database.Database;
@@ -230,11 +213,11 @@ export class MemoryManager {
       .split(/\s+/)
       .map((part) => part.trim())
       .filter((part) => part.length >= 2);
-    return Array.from(new Set(parts)).slice(0, SUMMARY_SEARCH_CONFIG.tokenLimit);
+    return Array.from(new Set(parts)).slice(0, SAR_SUMMARY_SEARCH_CONFIG.tokenLimit);
   }
 
   private scoreSummarySearchResult(item: SummaryMessage, query: string, tokens: string[]): number {
-    const scoring = SUMMARY_SEARCH_CONFIG.scoring;
+    const scoring = SAR_SUMMARY_SEARCH_CONFIG.scoring;
     const loweredQuery = query.toLowerCase();
     const summary = item.summary.toLowerCase();
     const content = item.content.toLowerCase();
@@ -475,8 +458,8 @@ export class MemoryManager {
     const tokens = this.tokenizeSummarySearchQuery(trimmed);
     const escapedQuery = this.escapeFts5Query(trimmed);
     const fetchLimit = Math.max(
-      safeLimit * SUMMARY_SEARCH_CONFIG.candidateMultiplier,
-      SUMMARY_SEARCH_CONFIG.minCandidatePool
+      safeLimit * SAR_SUMMARY_SEARCH_CONFIG.candidateMultiplier,
+      SAR_SUMMARY_SEARCH_CONFIG.minCandidatePool
     );
     const ftsStmt = this.db.prepare(`
       SELECT m.id, m.role, m.content, m.summary, m.impact_level, m.tags, m.timestamp
