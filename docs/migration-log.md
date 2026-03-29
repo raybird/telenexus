@@ -1489,3 +1489,43 @@
 
 - 若需快速回退，可保留多檔拆分結構，但將 `MessagePipelineContext` 還原成零散參數傳遞。
 - 若後續發現 context 擴張過快，可只保留核心欄位，避免把所有執行狀態都塞進同一個共享物件。
+
+---
+
+## 2026-03-29 - release workflow 自動同步 README version badge
+
+### 階段
+
+- 收斂 release 流程中反覆出現的 README version badge friction，改由 workflow 自動同步版本徽章。
+
+### 已完成
+
+- `scripts/release-workflow.mjs`：
+  - 新增 `updateReadmeVersionBadge(...)`
+  - release 流程改為：
+    - 先將 README badge 對齊當前 `package.json` 版本
+    - commit 實際變更
+    - `npm version <bump> --no-git-tag-version`
+    - 再將 README badge 對齊新版本
+    - commit 版本檔
+    - 建 tag
+    - push branch / tags
+  - `--dry-run` 輸出也同步更新，能反映新的 release 步驟
+- `tests/release-workflow.test.ts`：
+  - 新增 `updateReadmeVersionBadge(...)` 測試
+  - 驗證 badge 可正確改寫，且在 badge 缺失時回傳 `null`
+
+### 影響檔案
+
+- `scripts/release-workflow.mjs`
+- `tests/release-workflow.test.ts`
+
+### 驗證結果
+
+- `npm run lint`：通過
+- `npm test`：通過
+
+### 回滾計畫
+
+- 若需快速回退，可保留 badge 存在檢查，但移除自動改寫，回到僅做 guardrail 驗證的版本。
+- 若未來改成動態 badge 來源，可移除 `updateReadmeVersionBadge(...)` 與對應測試，避免持續維護字串替換邏輯。

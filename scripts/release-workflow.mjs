@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const allowedBumps = new Set(['patch', 'minor', 'major']);
 const allowedReleaseBranches = new Set(['main', 'master']);
+const readmeVersionBadgePattern = /version-v(\d+\.\d+\.\d+)-/;
 
 export function parseArgs(argv) {
   let bump = 'patch';
@@ -58,8 +59,16 @@ export function isAllowedReleaseBranch(branchName) {
 }
 
 export function extractReadmeVersionBadge(readmeContent) {
-  const match = readmeContent.match(/version-v(\d+\.\d+\.\d+)-/);
+  const match = readmeContent.match(readmeVersionBadgePattern);
   return match ? match[1] : null;
+}
+
+export function updateReadmeVersionBadge(readmeContent, packageVersion) {
+  if (!extractReadmeVersionBadge(readmeContent)) {
+    return null;
+  }
+
+  return readmeContent.replace(readmeVersionBadgePattern, `version-v${packageVersion}-`);
 }
 
 export function validateReadmeVersionBadge(readmeContent, packageVersion) {
@@ -138,6 +147,38 @@ function ensureReadmeVersionBadgeUpToDate() {
   }
 }
 
+function ensureReadmeVersionBadgeExists() {
+  const readmePath = path.resolve(process.cwd(), 'README.md');
+  const readme = fs.readFileSync(readmePath, 'utf8');
+  if (!extractReadmeVersionBadge(readme)) {
+    process.stderr.write('README version badge not found.\n');
+    process.exit(1);
+  }
+}
+
+function readPackageVersion() {
+  const packageJsonPath = path.resolve(process.cwd(), 'package.json');
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+  return String(packageJson.version || '').trim();
+}
+
+function syncReadmeVersionBadge(packageVersion) {
+  const readmePath = path.resolve(process.cwd(), 'README.md');
+  const current = fs.readFileSync(readmePath, 'utf8');
+  const next = updateReadmeVersionBadge(current, packageVersion);
+  if (next === null) {
+    process.stderr.write('README version badge not found.\n');
+    process.exit(1);
+  }
+  if (next === current) {
+    return false;
+  }
+
+  fs.writeFileSync(readmePath, next, 'utf8');
+  run('git', ['add', '--', 'README.md']);
+  return true;
+}
+
 function printStep(label) {
   process.stdout.write(`\n=== ${label} ===\n`);
 }
@@ -150,22 +191,43 @@ function main() {
   ensureCommitMessage(message);
   ensureNoUnstagedChanges();
   ensureStagedChanges();
-  ensureReadmeVersionBadgeUpToDate();
+  ensureReadmeVersionBadgeExists();
+
+  const currentVersion = readPackageVersion();
 
   if (dryRun) {
     process.stdout.write('Release checks passed (dry-run).\n');
+    process.stdout.write(
+      `Would sync README badge to current version if needed: ${currentVersion}\n`
+    );
     process.stdout.write(`Would run: git commit -m "${message}"\n`);
-    process.stdout.write(`Would run: npm version ${bump}\n`);
+    process.stdout.write(`Would run: npm version ${bump} --no-git-tag-version\n`);
+    process.stdout.write('Would sync README badge to new package version\n');
+    process.stdout.write('Would run: git commit -m "<new-version>"\n');
+    process.stdout.write('Would run: git tag v<new-version>\n');
     process.stdout.write('Would run: git push\n');
     process.stdout.write('Would run: git push --tags\n');
     return;
   }
 
+  syncReadmeVersionBadge(currentVersion);
+  ensureReadmeVersionBadgeUpToDate();
+
   printStep('git commit');
   run('git', ['commit', '-m', message]);
 
   printStep(`npm version ${bump}`);
-  run('npm', ['version', bump]);
+  run('npm', ['version', bump, '--no-git-tag-version']);
+
+  const nextVersion = readPackageVersion();
+  syncReadmeVersionBadge(nextVersion);
+
+  printStep(`git commit ${nextVersion}`);
+  run('git', ['add', '--', 'package.json', 'package-lock.json', 'README.md']);
+  run('git', ['commit', '-m', nextVersion]);
+
+  printStep(`git tag v${nextVersion}`);
+  run('git', ['tag', `v${nextVersion}`]);
 
   printStep('git push');
   run('git', ['push']);
