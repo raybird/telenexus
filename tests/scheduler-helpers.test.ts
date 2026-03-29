@@ -51,5 +51,8 @@ test('scheduler prompt builders keep core task wording', () => {
   assert.match(taskPrompt, /Scheduled Task: daily-report/);
   assert.match(reflectionPrompt, /過去 24 小時 User 對話/);
   assert.match(dailyPrompt, /📅 每日摘要 - 2026\/03\/29/);
+  assert.match(dailyPrompt, /🔴 高優先：/);
+  assert.match(dailyPrompt, /➡️ 下一步：/);
+  assert.match(dailyPrompt, /每個分類最多 1 點，總點數最多 3 點/);
   assert.equal(truncateInline('abcdef', 4), 'abc…');
 });

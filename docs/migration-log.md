@@ -1727,3 +1727,48 @@
 
 - 若需快速回退，可將 `scheduler-helpers.ts` 內容合回 `src/core/scheduler.ts`，保留現有對外 API 不變。
 - 若後續發現 helper 切分過細，可只保留 `assessAiResponse(...)` 與 prompt builder 抽離，其餘小工具再收回主檔。
+
+---
+
+## 2026-03-29 - daily summary 高密度格式收斂
+
+### 階段
+
+- 保留 daily summary 功能，但將輸出格式收斂成更短、更像快速掃讀日報，而不是較模板化的長摘要。
+
+### 已完成
+
+- `src/core/scheduler-helpers.ts`
+  - 更新 `buildDailySummaryPrompt(...)`：
+    - 新格式改為：
+      - `🔴 高優先`
+      - `🟡 可優化`
+      - `🟢 已解決 / 低優先`
+      - `➡️ 下一步`
+    - 規則改嚴：
+      - 每個分類最多 1 點
+      - 總點數最多 3 點
+      - 每點最多 1 句
+      - 句子盡量不超過 28 個中文字
+    - 明確要求：
+      - 禁止空話
+      - 禁止前言/結語
+      - 禁止重述顯而易見背景
+- `tests/scheduler-helpers.test.ts`
+  - 補上新版 daily summary prompt 格式檢查
+
+### 影響檔案
+
+- `src/core/scheduler-helpers.ts`
+- `tests/scheduler-helpers.test.ts`
+
+### 驗證結果
+
+- `npm run lint`：通過
+- `npm test`：通過
+- `npm run build`：通過
+
+### 回滾計畫
+
+- 若需快速回退，可保留 `scheduler-helpers.ts` 模組化，只把 `buildDailySummaryPrompt(...)` 還原成舊版較寬鬆的摘要格式。
+- 若新版過度精簡，可再把每分類上限從 1 點放寬回 2 點，但維持短句與禁空話規則。
