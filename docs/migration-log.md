@@ -1673,3 +1673,57 @@
 
 - 若需快速回退，可保留 `src/core/sar-policy.ts` 作為參考，但將 `summary-metadata.ts`、`memory.ts`、`builder.ts` 改回各自內嵌規則。
 - 若後續發現集中化範圍過大，可先保留 `SAR_SUMMARY_SEARCH_CONFIG` 與 metadata 規則集中化，將 prompt 層常數暫時收回 `builder.ts`。
+
+---
+
+## 2026-03-29 - scheduler 第一階段模組化
+
+### 階段
+
+- 先將 `scheduler` 內的純邏輯、prompt builder 與 response assessment 抽出，讓主檔更聚焦在 orchestration，而不改變外部使用方式。
+
+### 已完成
+
+- 新增 `src/core/scheduler-helpers.ts`
+  - 抽出：
+    - `extractKeywords(...)`
+    - `truncateInline(...)`
+    - `assessAiResponse(...)`
+    - `fingerprintReflection(...)`
+    - `hasUserActivitySinceLastReflection(...)`
+    - `buildScheduledTaskPrompt(...)`
+    - `buildReflectionPrompt(...)`
+    - `buildDailySummaryPrompt(...)`
+    - `buildMemoryContextLines(...)`
+- `src/core/scheduler.ts`
+  - 移除純 helper 與 prompt 組裝內嵌邏輯
+  - 讓主檔更專注在：
+    - silence timer
+    - job lifecycle
+    - task execution
+    - reflection flow
+    - daily summary flow
+  - 順手將部分舊的 `console.*` 收斂為共用 logger
+- 新增 `tests/scheduler-helpers.test.ts`
+  - 補 helper 級護欄：
+    - keyword extraction
+    - AI response assessment
+    - reflection activity detection
+    - prompt builder 基本內容
+
+### 影響檔案
+
+- `src/core/scheduler.ts`
+- `src/core/scheduler-helpers.ts`
+- `tests/scheduler-helpers.test.ts`
+
+### 驗證結果
+
+- `npm run lint`：通過
+- `npm test`：通過
+- `npm run build`：通過
+
+### 回滾計畫
+
+- 若需快速回退，可將 `scheduler-helpers.ts` 內容合回 `src/core/scheduler.ts`，保留現有對外 API 不變。
+- 若後續發現 helper 切分過細，可只保留 `assessAiResponse(...)` 與 prompt builder 抽離，其餘小工具再收回主檔。

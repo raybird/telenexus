@@ -4,6 +4,17 @@ import fs from 'fs';
 import yaml from 'js-yaml';
 import type { AIAgent } from './agent.js';
 import { executionQueue } from './execution-queue.js';
+import {
+  assessAiResponse,
+  buildDailySummaryPrompt,
+  buildMemoryContextLines,
+  buildReflectionPrompt,
+  buildScheduledTaskPrompt,
+  extractKeywords,
+  fingerprintReflection,
+  hasUserActivitySinceLastReflection,
+  truncateInline
+} from './scheduler-helpers.js';
 import { createLogger } from './logger.js';
 import type { Connector } from '../types/index.js';
 
@@ -66,41 +77,8 @@ export class Scheduler {
     });
   }
 
-  private fingerprintReflection(text: string): string {
-    return text.replace(/\s+/g, ' ').trim();
-  }
-
-  private isReflectionMessage(content: string): boolean {
-    return (
-      content.startsWith('🔔 [追蹤提醒]') ||
-      content.startsWith('🔍 [手動追蹤]') ||
-      content.startsWith('✅ [追蹤檢查]') ||
-      content === '✨ 無待辦。' ||
-      content.startsWith('❌ 追蹤提醒執行失敗：')
-    );
-  }
-
   private hasUserActivitySinceLastReflection(userId: string): boolean {
-    const extendedHistory = this.memory.getExtendedHistory(userId, 24);
-    let lastUserTimestamp: number | null = null;
-    let lastReflectionTimestamp: number | null = null;
-
-    for (const message of extendedHistory) {
-      if (message.role === 'user') {
-        lastUserTimestamp = message.timestamp;
-        continue;
-      }
-
-      if (this.isReflectionMessage(message.content)) {
-        lastReflectionTimestamp = message.timestamp;
-      }
-    }
-
-    if (lastReflectionTimestamp === null) {
-      return true;
-    }
-
-    return lastUserTimestamp !== null && lastUserTimestamp > lastReflectionTimestamp;
+    return hasUserActivitySinceLastReflection(this.memory.getExtendedHistory(userId, 24));
   }
 
   private getTimezone(): string {
@@ -275,124 +253,6 @@ export class Scheduler {
     };
   }
 
-  private extractKeywords(text: string): string[] {
-    const stopwords = new Set([
-      '請',
-      '幫我',
-      '一下',
-      '這個',
-      '那個',
-      '今天',
-      '現在',
-      '可以',
-      '是否',
-      '如何',
-      '什麼',
-      '哪裡',
-      'then',
-      'that',
-      'this',
-      'with',
-      'from',
-      'what',
-      'when',
-      'where',
-      'which',
-      'would',
-      'should',
-      'could',
-      'please',
-      'help'
-    ]);
-
-    const tokens = text
-      .toLowerCase()
-      .replace(/[^\p{L}\p{N}_-]+/gu, ' ')
-      .split(/\s+/)
-      .map((item) => item.trim())
-      .filter((item) => item.length >= 2 && !stopwords.has(item));
-
-    const unique: string[] = [];
-    for (const token of tokens) {
-      if (!unique.includes(token)) {
-        unique.push(token);
-      }
-      if (unique.length >= 8) break;
-    }
-    return unique;
-  }
-
-  private truncateInline(text: string, maxLength: number): string {
-    const normalized = text.replace(/\s+/g, ' ').trim();
-    if (normalized.length <= maxLength) {
-      return normalized;
-    }
-    return normalized.slice(0, maxLength - 1) + '…';
-  }
-
-  private normalizeProviderPrefix(response: string): string {
-    return response
-      .trim()
-      .replace(/^\[(Gemini|Opencode)\]\s*/i, '')
-      .trim();
-  }
-
-  private looksLikeConcreteResult(normalized: string): boolean {
-    if (!normalized) {
-      return false;
-    }
-
-    const lines = normalized
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
-    const bulletCount = lines.filter((line) => /^[-*•]|^\d+\./.test(line)).length;
-    const hasDataPattern =
-      /\d+([.,]\d+)?%|\$\d+|\d{2,}|支撐|阻力|趨勢|風險|建議|結論|觀察|重點|摘要|分析/.test(
-        normalized
-      );
-
-    return normalized.length >= 90 || bulletCount >= 2 || hasDataPattern;
-  }
-
-  private assessAiResponse(response: string): {
-    shouldRetry: boolean;
-    reason: string;
-    normalized: string;
-  } {
-    const normalized = this.normalizeProviderPrefix(response);
-    const lower = normalized.toLowerCase();
-
-    if (!normalized) {
-      return { shouldRetry: true, reason: 'empty_response', normalized };
-    }
-
-    if (/^Error calling (Gemini|Opencode):/i.test(normalized)) {
-      return { shouldRetry: true, reason: 'provider_error', normalized };
-    }
-    if (normalized.startsWith('Error calling runner:')) {
-      return { shouldRetry: true, reason: 'runner_error', normalized };
-    }
-    if (/^✨\s*\d+\s*分鐘內未完成/.test(normalized)) {
-      return { shouldRetry: true, reason: 'timeout', normalized };
-    }
-    if (/process terminated with signal sigkill/.test(lower)) {
-      return { shouldRetry: true, reason: 'sigkill', normalized };
-    }
-    if (/process exited with code 1/.test(lower)) {
-      return { shouldRetry: true, reason: 'exit_code_1', normalized };
-    }
-
-    const looksLikeExecutionStub =
-      /^(我將|我會|我先|接下來|將會)/.test(normalized) &&
-      /(執行|調用|呼叫|run|execute|處理|分析)/i.test(normalized);
-    if (looksLikeExecutionStub && !this.looksLikeConcreteResult(normalized)) {
-      return { shouldRetry: true, reason: 'stub_without_result', normalized };
-    }
-
-    return { shouldRetry: false, reason: 'ok', normalized };
-  }
-
   /**
    * 從 TeleNexus 內建記憶檢索長期上下文（不依賴 provider hook）
    */
@@ -403,7 +263,7 @@ export class Scheduler {
         return '';
       }
 
-      const keywords = this.extractKeywords(prompt);
+      const keywords = extractKeywords(prompt);
       const loweredKeywords = keywords.map((item) => item.toLowerCase());
 
       const scored = recent
@@ -434,11 +294,7 @@ export class Scheduler {
         return '';
       }
 
-      const lines = matches.map((item) => {
-        const role = item.role === 'user' ? 'User' : 'AI';
-        const time = new Date(item.timestamp).toISOString().slice(0, 16).replace('T', ' ');
-        return `- [${role}] (${time}) ${this.truncateInline(item.content, 180)}`;
-      });
+      const lines = buildMemoryContextLines(matches);
 
       const context = ['【記憶參考（TeleNexus）】', ...lines].join('\n');
       log.info('memory-context.retrieved', {
@@ -462,29 +318,13 @@ export class Scheduler {
       const longTermMemory = await this.retrieveLongTermMemory(schedule.user_id, schedule.prompt);
 
       // 2. 組合 Prompt
-      const fullPrompt = `
-System: 你是 TeleNexus，一個具備強大工具執行能力的本地 AI 助理。
-這是一個排程任務觸發的自動執行。
-請用繁體中文回應。
-
-重要：請直接回覆「最終結果」，不要只回答「我將執行...」。
-格式可彈性，但至少包含：
-- 核心結論（1 段）
-- 2~5 點具體觀察或數據
-- 可執行的下一步建議（若無可略）
-
-${longTermMemory ? longTermMemory + '\n\n' : ''}
-Scheduled Task: ${schedule.name}
-User Request: ${schedule.prompt}
-
-Final Result:
-`.trim();
+      const fullPrompt = buildScheduledTaskPrompt(schedule.name, schedule.prompt, longTermMemory);
 
       // 3. 呼叫 Gemini CLI
       let response = await executionQueue.enqueue(schedule.user_id, 'scheduler-task', 'low', () =>
         this.gemini.chat(fullPrompt)
       );
-      const firstAssessment = this.assessAiResponse(response);
+      const firstAssessment = assessAiResponse(response);
       if (firstAssessment.shouldRetry) {
         log.warn('task.retrying', { scheduleId: schedule.id, reason: firstAssessment.reason });
         await new Promise((resolve) => setTimeout(resolve, 2500));
@@ -494,7 +334,7 @@ Final Result:
           'low',
           () => this.gemini.chat(fullPrompt)
         );
-        const secondAssessment = this.assessAiResponse(response);
+        const secondAssessment = assessAiResponse(response);
         if (secondAssessment.shouldRetry) {
           throw new Error(
             `AI returned incomplete execution response after retry (${secondAssessment.reason})`
@@ -566,7 +406,7 @@ Final Result:
       this.startJob(updated);
     }
 
-    console.log(`[Scheduler] Updated schedule #${id}`);
+    log.info('schedule.updated', { scheduleId: id, userId });
     return updated;
   }
 
@@ -581,7 +421,7 @@ Final Result:
     }
     // 從資料庫刪除
     this.memory.removeSchedule(id);
-    console.log(`[Scheduler] Removed schedule #${id}`);
+    log.info('schedule.removed', { scheduleId: id });
   }
 
   /**
@@ -595,17 +435,17 @@ Final Result:
    * 停止所有排程（於程式關閉時調用）
    */
   shutdown(): void {
-    console.log('[Scheduler] Shutting down all jobs...');
+    log.info('shutdown.started', { jobs: this.jobs.size, systemJobs: this.systemJobs.size });
     for (const [id, job] of this.jobs.entries()) {
       job.stop();
-      console.log(`[Scheduler] Stopped job #${id}`);
+      log.info('shutdown.job-stopped', { scheduleId: id });
     }
     this.jobs.clear();
 
     // 停止系統排程
     for (const [name, job] of this.systemJobs.entries()) {
       job.stop();
-      console.log(`[Scheduler] Stopped system job: ${name}`);
+      log.info('shutdown.system-job-stopped', { name });
     }
     this.systemJobs.clear();
 
@@ -622,33 +462,34 @@ Final Result:
    * 透過 SIGUSR1 信號觸發
    */
   async reload(): Promise<void> {
-    console.log('[Scheduler] Reloading schedules from database...');
+    log.info('reload.started');
 
     // 停止所有使用者排程（保留系統排程）
     for (const [id, job] of this.jobs.entries()) {
       job.stop();
-      console.log(`[Scheduler] Stopped job #${id} for reload`);
+      log.info('reload.job-stopped', { scheduleId: id });
     }
     this.jobs.clear();
 
     // 重新載入啟用的排程
     const schedules = this.memory.getActiveSchedules();
-    console.log(`[Scheduler] Reloading ${schedules.length} active schedule(s)...`);
+    log.info('reload.active-schedules-loaded', { count: schedules.length });
 
     for (const schedule of schedules) {
       this.startJob(schedule);
     }
 
-    console.log('[Scheduler] Reload completed.');
+    log.info('reload.completed');
   }
 
   /**
    * 重置使用者的沉默計時器 (每次收到訊息時呼叫)
    */
   resetSilenceTimer(userId: string): void {
-    console.log(
-      `[Scheduler] Timer reset for user ${userId}. Next trigger in ${this.SILENCE_TIMEOUT_MS / 1000 / 60} minutes.`
-    );
+    log.info('silence-timer.reset', {
+      userId,
+      nextTriggerMinutes: this.SILENCE_TIMEOUT_MS / 1000 / 60
+    });
     this.scheduleSilenceTimer(userId, this.SILENCE_TIMEOUT_MS, 'message-reset');
   }
 
@@ -664,15 +505,11 @@ Final Result:
     messageIdToEdit?: string,
     sourceTimerSeq?: number
   ): Promise<void> {
-    console.log(
-      `[Scheduler] Triggering reflection (type=${type}, user=${userId}, sourceTimerSeq=${sourceTimerSeq ?? 'n/a'})`
-    );
+    log.info('reflection.triggered', { userId, type, sourceTimerSeq: sourceTimerSeq ?? 'n/a' });
 
     try {
       if (type === 'silence' && !this.hasUserActivitySinceLastReflection(userId)) {
-        console.log(
-          `[Scheduler] Skipping reflection for user ${userId} because there is no new user activity since the last follow-up.`
-        );
+        log.info('reflection.skipped.no-new-activity', { userId });
         return;
       }
 
@@ -689,7 +526,7 @@ Final Result:
       const userHistoryText = userHistory
         .map((msg) => {
           const time = new Date(msg.timestamp).toLocaleString('zh-TW');
-          return `[${time}] User: ${msg.content.substring(0, 500)}${msg.content.length > 500 ? '...' : ''}`;
+          return `[${time}] User: ${truncateInline(msg.content, 500)}`;
         })
         .join('\n\n');
 
@@ -698,7 +535,7 @@ Final Result:
         .slice(-12)
         .map((msg) => {
           const time = new Date(msg.timestamp).toLocaleString('zh-TW');
-          return `[${time}] AI: ${msg.content.substring(0, 500)}${msg.content.length > 500 ? '...' : ''}`;
+          return `[${time}] AI: ${truncateInline(msg.content, 500)}`;
         })
         .join('\n\n');
 
@@ -706,58 +543,17 @@ Final Result:
       const longTermMemory = await this.retrieveLongTermMemory(userId, '對話回顧 追蹤 待辦');
 
       // 組合追蹤提醒 Prompt
-      const reflectionPrompt = `
-System: 你是 TeleNexus，正在執行「追蹤提醒」任務。
-請用繁體中文回應。
-
-${longTermMemory ? longTermMemory + '\n\n' : ''}【任務說明】
-請分析過去 24 小時的對話歷史，輸出可快速掃讀的分類摘要。
-聚焦真正需要跟進的事項，避免冗長描述與固定前言。
-
-【嚴格限制】
-- 「User 訊息」是主證據；「AI 訊息」只能作為補充上下文
-- 若某項目僅出現在 AI 訊息、未出現在 User 訊息，禁止列入待辦/問題
-- 不可引用 AI 先前推測、假設、或未經使用者確認的專有名詞
-- 若資訊不足，請明確寫「資訊不足，待使用者確認」
-
-【證據標註規則】
-- 每一項都要標註 evidence: user | mixed
-- confidence 僅可為 high | medium | low
-- 僅當 evidence=user 或 evidence=mixed 時，該項目才可列入輸出
-
-【過去 24 小時 User 對話（主證據）】
-${userHistoryText}
-
-【過去 24 小時 AI 對話（僅供上下文）】
-${modelHistoryText || '(none)'}
-
-【輸出格式】
-請嚴格使用以下格式（3 個分類都必須出現）：
-
-🔴 未解決的問題：
-- <項目>（evidence=<user|mixed>, confidence=<high|medium|low>）
-
-🟡 可優化事項：
-- <項目>（evidence=<user|mixed>, confidence=<high|medium|low>）
-
-🟢 待辦提醒：
-- <項目>（evidence=<user|mixed>, confidence=<high|medium|low>）
-
-規則：
-- 每個分類最多 2 點，總點數最多 5 點。
-- 每點最多 2 句，句子要短。
-- 禁止加入前言/結語（例如「我已分析」「以下為摘要」「已自動儲存」）。
-- 若某分類沒有內容，該分類請填「- 無」。
-
-若三個分類皆為「無」，請只輸出「近期對話無待處理事項」。
-你的回應會自動儲存到記憶系統中，供未來參考。
-`.trim();
+      const reflectionPrompt = buildReflectionPrompt(
+        userHistoryText,
+        modelHistoryText,
+        longTermMemory
+      );
 
       const response = await executionQueue.enqueue(userId, 'scheduler-reflection', 'low', () =>
         this.gemini.chat(reflectionPrompt)
       );
       const hasNoAction = !response || response.includes('無待處理事項');
-      const currentFingerprint = this.fingerprintReflection(response || '');
+      const currentFingerprint = fingerprintReflection(response || '');
       const previousFingerprint = this.lastReflectionFingerprint.get(userId);
       const isRepeatedReflection =
         !hasNoAction && Boolean(previousFingerprint) && previousFingerprint === currentFingerprint;
@@ -783,7 +579,7 @@ ${modelHistoryText || '(none)'}
 
         this.lastReflectionFingerprint.set(userId, currentFingerprint);
       } else {
-        console.log('[Scheduler] Follow-up completed, no action needed.');
+        log.info('reflection.completed.no-action', { userId, type });
         const noTodoMsg = '✨ 無待辦。';
         this.memory.addMessage(userId, 'model', noTodoMsg);
         // 沉默模式也發送精簡通知
@@ -794,7 +590,7 @@ ${modelHistoryText || '(none)'}
         }
       }
     } catch (error) {
-      console.error('[Scheduler] Error during reflection:', error);
+      log.error('reflection.failed', { userId, type, error });
       const errorMessage = `❌ 追蹤提醒執行失敗：${error}`;
       this.memory.addMessage(userId, 'model', errorMessage);
       if (type === 'manual' && messageIdToEdit) {
@@ -809,14 +605,19 @@ ${modelHistoryText || '(none)'}
       if (typeof sourceTimerSeq === 'number') {
         const activeSeq = this.silenceTimerSeq.get(userId);
         if (activeSeq !== sourceTimerSeq) {
-          console.log(
-            `[Scheduler] Skip re-schedule due to stale reflection source (user=${userId}, source=${sourceTimerSeq}, active=${activeSeq})`
-          );
+          log.info('reflection.reschedule.skipped-stale', {
+            userId,
+            sourceTimerSeq,
+            activeSeq
+          });
           return;
         }
       }
 
-      console.log(`[Scheduler] Re-scheduling follow-up for user ${userId} in 30 minutes...`);
+      log.info('reflection.reschedule', {
+        userId,
+        delayMinutes: this.SILENCE_TIMEOUT_MS / 1000 / 60
+      });
       this.scheduleSilenceTimer(userId, this.SILENCE_TIMEOUT_MS, 'reflection-recur');
     }
   }
@@ -828,44 +629,14 @@ ${modelHistoryText || '(none)'}
     // 取得所有有對話記錄的使用者 (這裡簡化為使用 ALLOWED_USER_ID)
     const userId = process.env.ALLOWED_USER_ID;
     if (!userId) {
-      console.log('[Scheduler] No ALLOWED_USER_ID set, skipping daily summary.');
+      log.info('daily-summary.skipped', { reason: 'missing_allowed_user' });
       return;
     }
 
-    console.log(`[Scheduler] Generating daily summary for user ${userId}`);
+    log.info('daily-summary.generating', { userId });
 
     try {
-      const summaryPrompt = `
-System: 你是 TeleNexus，正在執行「每日對話摘要」任務。
-請用繁體中文回應。
-
-【任務說明】
-請回顧最近的對話記錄，輸出可快速掃讀的每日分類摘要。
-以決策價值為優先，避免固定模板與重複句。
-
-【輸出格式】
-📅 每日摘要 - ${new Date().toLocaleDateString('zh-TW')}
-
-🔴 高優先待處理：
-- ...
-
-🟡 可優化事項：
-- ...
-
-🟢 已解決/低優先：
-- ...
-
-規則：
-- 三個分類都必須出現。
-- 每個分類最多 2 點，總點數最多 5 點。
-- 若某分類沒有內容，該分類請填「- 無」。
-- 禁止加入前言/結語（例如「我已分析」「以下為摘要」）。
-
-Next actions:
-- <最重要的 1-2 個行動>
-
-如果三個分類都為「無」且無行動，請回覆「✨ 目前沒有待處理事項！」
-`.trim();
+      const summaryPrompt = buildDailySummaryPrompt(new Date().toLocaleDateString('zh-TW'));
 
       const response = await executionQueue.enqueue(userId, 'scheduler-daily-summary', 'low', () =>
         this.gemini.chat(summaryPrompt)
@@ -874,7 +645,7 @@ Next actions:
       this.memory.addMessage(userId, 'model', outgoing);
       await this.connector.sendMessage(userId, outgoing);
     } catch (error) {
-      console.error('[Scheduler] Error generating daily summary:', error);
+      log.error('daily-summary.failed', { userId, error });
       const errorMessage = `❌ 每日摘要執行失敗：${error}`;
       this.memory.addMessage(userId, 'model', errorMessage);
       await this.connector.sendMessage(userId, errorMessage);
