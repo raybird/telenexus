@@ -1,6 +1,14 @@
 # Canonical SAR Anchors
 
-這份文件記錄 TeleNexus 目前已固化的高價值 canonical anchors，作為 SAR 記憶治理的 seed 基準。
+這份文件列出 TeleNexus 目前固定保留的核心規則記憶。
+
+你可以把它理解成：
+
+- 不論對話多久、session 怎麼切，系統都應該盡量記得的關鍵做法
+- 已經反覆驗證、值得長期保留的操作規則
+- 可用來 seed 回資料庫的高價值記憶清單
+
+如果你只是想知道「目前 AI 應該記住哪些固定規則」，看這份就夠了。
 
 ## 目前收錄
 
@@ -43,7 +51,7 @@
 
 ## Seed 指令
 
-如需將 canonical anchors 重新寫入資料庫，可使用：
+如需將這批核心規則記憶重新寫入資料庫，可使用：
 
 ```bash
 npm run memory:seed-sar-anchors
@@ -57,6 +65,6 @@ npm run memory:seed-sar-anchors -- --dry-run
 
 ## 維護原則
 
-- 只有真正跨版本、跨 session、跨上下文仍需保留的決策才應成為 canonical anchor
-- 以「技術地板 / 營運憲法 / 故障處置準則 / 發版規則」優先
-- 一次保持少量高品質，避免 anchor 池再次膨脹成歷史 dump
+- 只有真正跨版本、跨 session、跨上下文仍需保留的規則，才應放進這份清單
+- 優先收錄：故障處置準則、發版規則、固定操作流程、重要技術邊界
+- 保持少量高品質，避免這份清單再次膨脹成歷史筆記 dump

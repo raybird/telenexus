@@ -4,6 +4,23 @@
 >
 > 若要看本輪保守改進路線，請搭配 `docs/sar-improvement-plan-minimal.md`。
 
+## 維護者先看這裡
+
+這份文件是給維護者看的設計與校準文件，不是首頁型介紹。
+
+如果你只想快速理解現況，先看這三點：
+
+- 已完成：三層長對話記憶檢索、impact/tag schema、核心規則記憶 seed、基本 regression 護欄
+- 正在收斂：anchor 穩定性、budget trimming、一致化的記憶治理規則
+- 還可再做：更完整的自動 regression、更加 `summary + tags` 優先的 retrieval、進一步 ranking 治理
+
+建議閱讀順序：
+
+1. `0. 目前實作校準`
+2. `2. 目前系統現況`
+3. `4. 檢索架構`
+4. `9. 驗收標準`
+
 ## 0. 目前實作校準
 
 截至目前版本，以下能力已存在，不再屬於純規劃：
