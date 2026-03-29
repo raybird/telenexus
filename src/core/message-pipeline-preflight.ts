@@ -2,6 +2,7 @@ import type { Connector, UnifiedMessage } from '../types/index.js';
 import { executionQueue } from './execution-queue.js';
 import type { AIAgent } from './agent.js';
 import type { CommandRouter } from './command-router.js';
+import { createLogger } from './logger.js';
 import {
   createMessagePipelineContext,
   type MessagePipelineContext
@@ -32,6 +33,8 @@ type PreflightOptions = {
   pendingNewSessionUsers: Set<string>;
   writeContextSnapshots: () => void;
 };
+
+const log = createLogger('message-pipeline.preflight');
 
 function hashToBucket(input: string): number {
   let hash = 2166136261;
@@ -73,7 +76,7 @@ export async function runCommandPreflight(options: PreflightOptions): Promise<{
   const forceNewSession = options.pendingNewSessionUsers.has(userId);
   if (forceNewSession) {
     options.pendingNewSessionUsers.delete(userId);
-    console.log('[System] Applying one-time new session mode for this message.');
+    log.info('new-session.applied', { userId });
   }
 
   return {
@@ -95,6 +98,12 @@ export async function maybeNotifyQueueAhead(
   const queueStatus = executionQueue.getStatus(context.userId);
   if (queueStatus.running || queueStatus.pending > 0) {
     const ahead = queueStatus.pending + (queueStatus.running ? 1 : 0);
+    log.info('queue.notice', {
+      userId: context.userId,
+      chatId: context.targetChatId,
+      ahead,
+      currentSource: queueStatus.currentSource || 'unknown'
+    });
     await context.connector.sendMessage(
       context.targetChatId,
       `⏳ 目前有任務執行中（來源：${queueStatus.currentSource || 'unknown'}），已幫你排隊，前方約 ${ahead} 件。`,

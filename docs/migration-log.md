@@ -1529,3 +1529,56 @@
 
 - 若需快速回退，可保留 badge 存在檢查，但移除自動改寫，回到僅做 guardrail 驗證的版本。
 - 若未來改成動態 badge 來源，可移除 `updateReadmeVersionBadge(...)` 與對應測試，避免持續維護字串替換邏輯。
+
+---
+
+## 2026-03-29 - logging / telemetry 輕量收斂
+
+### 階段
+
+- 先用輕量共用 logger 收斂核心模組的 log 格式，提升除錯效率與可 grep 性，而不引入大型 logging framework。
+
+### 已完成
+
+- 新增 `src/core/logger.ts`
+  - 提供 `info / warn / error / debug` 四種輸出層級
+  - 統一輸出格式為：`[scope] LEVEL event key=value ...`
+- `message-pipeline` 相關模組導入共用 logger：
+  - `src/core/message-pipeline.ts`
+  - `src/core/message-pipeline-chat.ts`
+  - `src/core/message-pipeline-preflight.ts`
+  - `src/core/message-pipeline-helpers.ts`
+  - 收斂的事件包含：
+    - `message.received`
+    - `agent.selected`
+    - `prompt.sent`
+    - `response.received`
+    - `message.failed`
+    - `queue.notice`
+    - `user-summary.requested`
+    - `followup-summary.requested`
+- `src/core/scheduler.ts` 導入共用 logger：
+  - 收斂 silence timer、startup activity、system job、task execution、memory context retrieval 等高價值事件
+- `src/core/memory.ts` 導入 summary search debug telemetry：
+  - `searchSummaries(...)` 現在會記錄 query、tokenCount、candidate 數量與 result 數量
+
+### 影響檔案
+
+- `src/core/logger.ts`
+- `src/core/message-pipeline.ts`
+- `src/core/message-pipeline-chat.ts`
+- `src/core/message-pipeline-preflight.ts`
+- `src/core/message-pipeline-helpers.ts`
+- `src/core/scheduler.ts`
+- `src/core/memory.ts`
+
+### 驗證結果
+
+- `npm run lint`：通過
+- `npm test`：通過
+- `npm run build`：通過
+
+### 回滾計畫
+
+- 若需快速回退，可保留 `src/core/logger.ts`，但先將 message-pipeline / scheduler / memory 改回原本的 `console.*` 寫法。
+- 若後續認為 `memory` debug log 噪音過高，可先停用 `summary-search.completed` 類型事件，再評估是否需要 env 控制 debug 輸出。

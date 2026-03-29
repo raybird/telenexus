@@ -4,7 +4,10 @@ import fs from 'fs';
 import yaml from 'js-yaml';
 import type { AIAgent } from './agent.js';
 import { executionQueue } from './execution-queue.js';
+import { createLogger } from './logger.js';
 import type { Connector } from '../types/index.js';
+
+const log = createLogger('scheduler');
 
 export class Scheduler {
   private jobs: Map<number, Cron> = new Map();
@@ -28,7 +31,7 @@ export class Scheduler {
     if (timer) {
       clearTimeout(timer);
       this.silenceTimers.delete(userId);
-      console.log(`[Scheduler] Cleared silence timer for user ${userId}`);
+      log.info('silence-timer.cleared', { userId });
     }
   }
 
@@ -45,22 +48,22 @@ export class Scheduler {
     const timer = setTimeout(async () => {
       const activeSeq = this.silenceTimerSeq.get(userId);
       if (activeSeq !== nextSeq) {
-        console.log(
-          `[Scheduler] Skipping stale silence timer for user ${userId} (seq=${nextSeq}, active=${activeSeq})`
-        );
+        log.info('silence-timer.stale-skipped', { userId, seq: nextSeq, activeSeq });
         return;
       }
 
-      console.log(
-        `[Scheduler] Silence timer fired for user ${userId} (seq=${nextSeq}, source=${source})`
-      );
+      log.info('silence-timer.fired', { userId, seq: nextSeq, source });
       await this.triggerReflection(userId, 'silence', undefined, nextSeq);
     }, delayMs);
 
     this.silenceTimers.set(userId, timer);
-    console.log(
-      `[Scheduler] Scheduled silence timer for user ${userId} (seq=${nextSeq}, source=${source}, delayMs=${delayMs}, activeTimers=${this.silenceTimers.size})`
-    );
+    log.info('silence-timer.scheduled', {
+      userId,
+      seq: nextSeq,
+      source,
+      delayMs,
+      activeTimers: this.silenceTimers.size
+    });
   }
 
   private fingerprintReflection(text: string): string {
@@ -126,7 +129,7 @@ export class Scheduler {
    */
   async init(): Promise<void> {
     const schedules = this.memory.getActiveSchedules();
-    console.log(`[Scheduler] Loading ${schedules.length} active schedule(s)...`);
+    log.info('init.active-schedules-loaded', { count: schedules.length });
 
     for (const schedule of schedules) {
       this.startJob(schedule);
@@ -145,7 +148,7 @@ export class Scheduler {
   private async checkStartupActivity(): Promise<void> {
     const userId = process.env.ALLOWED_USER_ID;
     if (!userId) {
-      console.log('[Scheduler] No ALLOWED_USER_ID set, skipping startup activity check.');
+      log.info('startup-activity.skipped', { reason: 'missing_allowed_user' });
       return;
     }
 
@@ -154,7 +157,7 @@ export class Scheduler {
 
     if (lastMessageTime === null) {
       // 資料庫沒有任何訊息紀錄，發送問候訊息
-      console.log('[Scheduler] No message history found, sending greeting...');
+      log.info('startup-activity.greeting-sent', { userId });
       await this.connector.sendMessage(
         userId,
         '👋 嗨！我是 TeleNexus，您的 AI 助理。有什麼需要幫忙的嗎？'
@@ -163,18 +166,19 @@ export class Scheduler {
     } else {
       const silenceMs = now - lastMessageTime;
       const silenceMinutes = Math.floor(silenceMs / 1000 / 60);
-      console.log(`[Scheduler] Last message was ${silenceMinutes} minutes ago.`);
+      log.info('startup-activity.last-message-age', { userId, silenceMinutes });
 
       if (silenceMs >= this.SILENCE_TIMEOUT_MS) {
         // 超過沉默時間，立即觸發追蹤
-        console.log('[Scheduler] Silence exceeded threshold, triggering follow-up...');
+        log.info('startup-activity.followup-triggered', { userId, reason: 'silence_exceeded' });
         await this.triggerReflection(userId, 'silence');
       } else {
         // 尚未超過，設定剩餘時間的計時器
         const remainingMs = this.SILENCE_TIMEOUT_MS - silenceMs;
-        console.log(
-          `[Scheduler] Setting follow-up timer for ${Math.floor(remainingMs / 1000 / 60)} minutes...`
-        );
+        log.info('startup-activity.followup-scheduled', {
+          userId,
+          remainingMinutes: Math.floor(remainingMs / 1000 / 60)
+        });
         this.scheduleSilenceTimer(userId, remainingMs, 'startup-remaining');
       }
     }
@@ -187,13 +191,11 @@ export class Scheduler {
     // 每日 09:00 發送「每日對話摘要」
     const timezone = this.getTimezone();
     const dailySummaryJob = new Cron('0 9 * * *', { timezone }, async () => {
-      console.log('[Scheduler] Triggering daily summary...');
+      log.info('system-job.daily-summary.triggered');
       await this.executeDailySummary();
     });
     this.systemJobs.set('daily_summary', dailySummaryJob);
-    console.log(
-      `[Scheduler] Registered system job: daily_summary (09:00 daily) in timezone ${timezone}`
-    );
+    log.info('system-job.daily-summary.registered', { timezone });
   }
 
   /**
@@ -203,7 +205,7 @@ export class Scheduler {
   private startJob(schedule: Schedule): void {
     // 如果已存在相同 ID 的 Job，先停止它（避免重複掛載）
     if (this.jobs.has(schedule.id)) {
-      console.log(`[Scheduler] Stopping duplicate job #${schedule.id}`);
+      log.info('job.duplicate-stopped', { scheduleId: schedule.id });
       this.jobs.get(schedule.id)?.stop();
       this.jobs.delete(schedule.id);
     }
@@ -211,16 +213,19 @@ export class Scheduler {
     try {
       const timezone = this.getTimezone();
       const job = new Cron(schedule.cron, { timezone }, async () => {
-        console.log(`[Scheduler] Triggered: "${schedule.name}" (ID: ${schedule.id})`);
+        log.info('job.triggered', { scheduleId: schedule.id, name: schedule.name });
         await this.executeTask(schedule);
       });
 
       this.jobs.set(schedule.id, job);
-      console.log(
-        `[Scheduler] Started job #${schedule.id}: "${schedule.name}" with cron "${schedule.cron}" in timezone ${timezone}`
-      );
+      log.info('job.started', {
+        scheduleId: schedule.id,
+        name: schedule.name,
+        cron: schedule.cron,
+        timezone
+      });
     } catch (error) {
-      console.error(`[Scheduler] Failed to start job #${schedule.id}:`, error);
+      log.error('job.start-failed', { scheduleId: schedule.id, name: schedule.name, error });
     }
   }
 
@@ -436,10 +441,14 @@ export class Scheduler {
       });
 
       const context = ['【記憶參考（TeleNexus）】', ...lines].join('\n');
-      console.log(`[Scheduler] Retrieved memory context lines: ${lines.length}`);
+      log.info('memory-context.retrieved', {
+        userId,
+        lines: lines.length,
+        keywords: loweredKeywords.length
+      });
       return context;
     } catch (error) {
-      console.error('[Scheduler] Failed to retrieve long-term memory:', error);
+      log.error('memory-context.retrieve-failed', { userId, error });
       return '';
     }
   }
@@ -477,9 +486,7 @@ Final Result:
       );
       const firstAssessment = this.assessAiResponse(response);
       if (firstAssessment.shouldRetry) {
-        console.warn(
-          `[Scheduler] Task #${schedule.id} first attempt flagged (${firstAssessment.reason}), retrying once...`
-        );
+        log.warn('task.retrying', { scheduleId: schedule.id, reason: firstAssessment.reason });
         await new Promise((resolve) => setTimeout(resolve, 2500));
         response = await executionQueue.enqueue(
           schedule.user_id,
@@ -494,9 +501,7 @@ Final Result:
           );
         }
       }
-      console.log(
-        `[Scheduler] Task #${schedule.id} completed. Response length: ${response.length}`
-      );
+      log.info('task.completed', { scheduleId: schedule.id, responseLength: response.length });
 
       // 4. 儲存 AI 回應到記憶
       if (response && !response.startsWith('Error')) {
@@ -507,7 +512,7 @@ Final Result:
       const messageHeader = `🕐 [排程: ${schedule.name}]\n\n`;
       await this.connector.sendMessage(schedule.user_id, messageHeader + response);
     } catch (error) {
-      console.error(`[Scheduler] Error executing task #${schedule.id}:`, error);
+      log.error('task.failed', { scheduleId: schedule.id, name: schedule.name, error });
       const errorMessage = `❌ 排程任務 "${schedule.name}" 執行失敗：${error}`;
       this.memory.addMessage(schedule.user_id, 'model', errorMessage);
       await this.connector.sendMessage(schedule.user_id, errorMessage);

@@ -1,5 +1,8 @@
 import Database from 'better-sqlite3';
+import { createLogger } from './logger.js';
 import { resolveDbPath } from '../utils/paths.js';
+
+const log = createLogger('memory');
 
 export interface ChatMessage {
   role: 'user' | 'model';
@@ -463,6 +466,7 @@ export class MemoryManager {
   ): SummaryMessage[] {
     const trimmed = query.trim();
     if (!trimmed) {
+      log.debug('summary-search.skipped', { reason: 'empty_query', userId });
       return [];
     }
 
@@ -538,7 +542,7 @@ export class MemoryManager {
       merged.set(row.id, this.toSummaryMessage(row));
     }
 
-    return [...merged.values()]
+    const results = [...merged.values()]
       .sort((a, b) => {
         const scoreDiff =
           this.scoreSummarySearchResult(b, trimmed, tokens) -
@@ -549,6 +553,19 @@ export class MemoryManager {
         return b.timestamp - a.timestamp;
       })
       .slice(0, safeLimit);
+
+    log.debug('summary-search.completed', {
+      userId,
+      query: trimmed,
+      limit: safeLimit,
+      minImpactLevel: safeImpactLevel,
+      tokenCount: tokens.length,
+      ftsCandidates: ftsRows.length,
+      summaryCandidates: summaryRows.length,
+      results: results.length
+    });
+
+    return results;
   }
 
   listSummaryMessages(

@@ -1,4 +1,5 @@
 import { executionQueue } from './execution-queue.js';
+import { createLogger } from './logger.js';
 import type { MemoriaSyncTurn } from './memoria-sync.js';
 import type { MemoryManager } from './memory.js';
 import type { MessagePipelineContext } from './message-pipeline-context.js';
@@ -37,6 +38,8 @@ type FollowupSummaryOptions = {
   connectorSendMessage: (text: string) => Promise<void>;
 };
 
+const log = createLogger('message-pipeline.chat');
+
 export function normalizeAgentResponse(rawResponse: string): {
   rawResponse: string;
   response: string;
@@ -55,7 +58,10 @@ export async function persistUserMessage(options: PersistUserMessageOptions): Pr
   const { context } = options;
 
   if (!context.isPassthroughCommand && options.shouldSummarize(context.msg.content)) {
-    console.log('📝 [Memory] User input meets summary criteria, generating summary...');
+    log.info('user-summary.requested', {
+      userId: context.userId,
+      length: context.msg.content.length
+    });
     userSummary = await executionQueue.enqueue(context.userId, 'chat-summary', 'normal', () =>
       context.activeAgent.summarize(context.msg.content)
     );
@@ -131,7 +137,10 @@ export function maybeSendSummaryFollowup(options: FollowupSummaryOptions): void 
 
   void (async () => {
     try {
-      console.log('📝 [Followup] Generating post-reply summary...');
+      log.info('followup-summary.requested', {
+        userId: context.userId,
+        responseLength: options.response.length
+      });
       const summary = await executionQueue.enqueue(
         context.userId,
         'chat-followup-summary',
@@ -156,7 +165,7 @@ export function maybeSendSummaryFollowup(options: FollowupSummaryOptions): void 
       }
       await options.connectorSendMessage(`📝 補充摘要\n${brief}`);
     } catch (error) {
-      console.warn('📝 [Followup] Summary generation failed:', error);
+      log.warn('followup-summary.failed', { userId: context.userId, error });
     }
   })();
 }

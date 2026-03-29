@@ -1,7 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { createLogger } from './logger.js';
 import type { Connector, UnifiedAttachment, UnifiedMessage } from '../types/index.js';
 import { resolveProjectDir } from '../utils/paths.js';
+
+const log = createLogger('message-pipeline.helpers');
 
 export type PendingImageBundle = {
   attachments: UnifiedAttachment[];
@@ -255,7 +258,7 @@ export class ThinkingMessenger {
       });
     })()
       .catch((error) => {
-        console.warn('Failed to update thinking message', error);
+        log.warn('thinking.update-failed', { chatId: this.chatId, error });
       })
       .finally(() => {
         this.thinkingUpdateInFlight = null;
@@ -277,7 +280,7 @@ export class ThinkingMessenger {
         }, 3000);
       }
     } catch (error) {
-      console.warn('Failed to send placeholder', error);
+      log.warn('placeholder.send-failed', { chatId: this.chatId, error });
     }
   }
 
@@ -302,7 +305,7 @@ export class ThinkingMessenger {
           }
         );
       } catch (error) {
-        console.warn('[System] Failed to finalize placeholder text.', error);
+        log.warn('placeholder.finalize-failed', { chatId: this.chatId, error });
       }
     }
 
@@ -313,7 +316,7 @@ export class ThinkingMessenger {
         retryOnTimeout: false
       });
     } catch (error) {
-      console.error('[System] Failed to deliver final Telegram response:', error);
+      log.error('response.deliver-failed', { chatId: this.chatId, error });
     }
   }
 }

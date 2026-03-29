@@ -24,6 +24,7 @@ import {
   runCommandPreflight,
   selectActiveAgent
 } from './message-pipeline-preflight.js';
+import { createLogger } from './logger.js';
 import type { Scheduler } from './scheduler.js';
 import { parseBool, parsePositiveInt } from '../utils/env.js';
 
@@ -46,6 +47,7 @@ type MessagePipelineOptions = {
 };
 
 export function createMessagePipeline(options: MessagePipelineOptions) {
+  const log = createLogger('message-pipeline');
   const pendingNewSessionUsers = new Set<string>();
   const fullPromptCounterByUser = new Map<string, number>();
   const pendingImageByUser = new Map<string, PendingImageBundle>();
@@ -69,9 +71,13 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
     let msg = incomingMsg;
     const connector = options.resolveConnector?.(msg) || options.connector;
     const attachmentCount = msg.attachments?.length || 0;
-    console.log(
-      `📩 [${msg.sender.platform}] ${msg.sender.name}: ${msg.content}${attachmentCount > 0 ? ` (attachments=${attachmentCount})` : ''}`
-    );
+    log.info('message.received', {
+      platform: msg.sender.platform,
+      sender: msg.sender.name,
+      userId: msg.sender.id,
+      attachments: attachmentCount,
+      content: msg.content
+    });
     const userId = msg.sender.id;
     const targetChatId = msg.chatId || userId;
 
@@ -120,9 +126,13 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       chatRunnerAgent: options.chatRunnerAgent,
       userAgent: options.userAgent
     });
-    console.log(
-      `[System] Message execution mode: ${useRunnerThisMessage ? 'runner' : 'local'} (bucket=${bucket}, canary=${options.chatRunnerPercent}%, whitelist=${isWhitelisted})`
-    );
+    log.info('agent.selected', {
+      mode: useRunnerThisMessage ? 'runner' : 'local',
+      bucket,
+      canaryPercent: options.chatRunnerPercent,
+      whitelistMatched: isWhitelisted,
+      userId: context.userId
+    });
 
     const thinkingMessenger = new ThinkingMessenger(
       context.connector,
@@ -146,9 +156,9 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       });
 
       if (context.isPassthroughCommand) {
-        console.log(`📤 [System] Passthrough command -> CLI: ${promptForAgent}`);
+        log.info('prompt.passthrough', { userId: context.userId, prompt: promptForAgent });
       } else {
-        console.log(`📤 [System] Sending prompt to AI (length: ${promptForAgent.length} chars)`);
+        log.info('prompt.sent', { userId: context.userId, length: promptForAgent.length });
       }
 
       const rawResponse = await executionQueue.enqueue(userId, 'chat', 'high', () =>
@@ -161,7 +171,11 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
 
       const { response, directives } = normalizeAgentResponse(rawResponse);
 
-      console.log(`📥 [AI] Reply length: ${response.length}`);
+      log.info('response.received', {
+        userId: context.userId,
+        length: response.length,
+        directives: directives.length
+      });
 
       const modelMessageTimestamp = persistModelResponse({
         memory: options.memory,
@@ -194,7 +208,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         ...(typeof modelMessageTimestamp === 'number' ? { modelMessageTimestamp } : {})
       });
     } catch (error) {
-      console.error('❌ Error processing message:', error);
+      log.error('message.failed', { userId: msg.sender.id, error });
       options.recordRuntimeIssue('message-processing', error);
       options.writeContextSnapshots();
       const errorMsg = 'Sorry, I encountered an error while exercising my powers.';
