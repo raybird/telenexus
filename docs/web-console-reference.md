@@ -41,6 +41,8 @@ WEB_USER_ID=
 - `POST /api/chat`
 - `POST /api/chat/stream`（SSE: `start` / `status` / `chunk` / `done` / `error`）
 - `GET /api/memory/stats`
+- `GET /api/memory-health`
+- `GET /api/memory-backfill/report`
 - `GET /api/memory/recent`
 - `GET /api/memory/stream`（SSE: `snapshot` / `update` / `ping`）
 - `GET /api/memory/search`
@@ -59,6 +61,8 @@ WEB_USER_ID=
 
 - cron 採 5 欄位（`minute hour day month weekday`）
 - 若啟用 `WEB_AUTH_TOKEN`，前端匯出 URL 會附帶 token 參數
+- Status 頁會額外顯示 `memory-status.md`，可用來觀察 archive gap 與 backfill 指標
+- Status 頁也會顯示最近幾輪 backfill run 摘要，方便直接抽查候選品質
 
 ## 前端實作摘要（Plain Vanilla）
 

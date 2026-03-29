@@ -95,6 +95,42 @@ MEMORIA_HOOK_QUEUE_POLL_MS=5000
 - `MEMORIA_HOOK_QUEUE_ENABLED=false`（預設）：走 hook-free 模式，只靠 TeleNexus pipeline 同步
 - 設為 `true` 才會啟用 hook queue 輪詢，通常只在需要相容舊流程時使用
 
+## Sessions archive / memory backfill
+
+新增的 health / dry-run backfill 設定：
+
+```env
+MEMORY_BACKFILL_ENABLED=false
+MEMORY_BACKFILL_DRY_RUN=true
+MEMORY_BACKFILL_INTERVAL_MS=300000
+MEMORY_BACKFILL_STARTUP_DELAY_MS=15000
+MEMORY_BACKFILL_BATCH_SIZE=50
+MEMORY_BACKFILL_MAX_CANDIDATES_PER_RUN=20
+MEMORY_BACKFILL_CHECKPOINT_FILE=/app/data/memory-backfill-checkpoint.json
+```
+
+說明：
+
+- `MEMORY_BACKFILL_ENABLED=false`（預設）：先不上正式寫入 worker
+- `MEMORY_BACKFILL_DRY_RUN=true`（預設）：只掃描 `sessions.db` 並輸出候選，不寫入 `memory.db`
+- `MEMORY_BACKFILL_INTERVAL_MS`：背景 worker 週期，預設 5 分鐘
+- `MEMORY_BACKFILL_STARTUP_DELAY_MS`：服務啟動後延遲多久跑第一輪 backfill
+- `MEMORY_BACKFILL_BATCH_SIZE`：每次 dry-run 掃描的 archive session 上限
+- `MEMORY_BACKFILL_MAX_CANDIDATES_PER_RUN`：每次最多輸出的候選知識數
+- `MEMORY_BACKFILL_CHECKPOINT_FILE`：dry-run / worker 共用的 checkpoint 檔位置
+
+常用指令：
+
+- `npm run memory:health`
+- `npm run memory:backfill:dry-run`
+- `npm run memory:backfill:write`
+
+注意：
+
+- `memory:backfill:write` 會將高信心候選寫入 `data/memory.db`
+- 建議先跑 `memory:backfill:dry-run -- --json` 抽查候選品質，再進行 write
+- 若要常態化跑 worker，可設 `MEMORY_BACKFILL_ENABLED=true`；worker 會自動 `save checkpoint`
+
 ## Telegram 檔案回傳
 
 - 一般對話若要觸發檔案回傳，AI 需輸出：`[[SEND_FILE: workspace/temp/檔名 | 可選說明]]`

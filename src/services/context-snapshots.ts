@@ -7,6 +7,7 @@ import { resolveContextDir, resolveSchedulerHealthPath } from '../utils/paths.js
 import { loadProviderStatus } from '../config/ai-config.js';
 import { getRecentIssues } from '../utils/errors.js';
 import type { MemoryManager } from '../core/memory.js';
+import { collectMemoryHealthReport, formatMemoryHealthMarkdown } from './memory-health.js';
 
 export function writeContextSnapshots(memory: MemoryManager): void {
   try {
@@ -114,12 +115,15 @@ export function writeContextSnapshots(memory: MemoryManager): void {
       ...(recentIssueLines.length > 0 ? recentIssueLines : ['- (none)'])
     ].join('\n');
 
+    const memoryStatus = formatMemoryHealthMarkdown(collectMemoryHealthReport());
+
     fs.writeFileSync(path.join(contextDir, 'runtime-status.md'), runtimeStatus, 'utf8');
     fs.writeFileSync(path.join(contextDir, 'provider-status.md'), providerStatus, 'utf8');
     fs.writeFileSync(path.join(contextDir, 'scheduler-status.md'), schedulerStatus, 'utf8');
     fs.writeFileSync(path.join(contextDir, 'system-architecture.md'), systemArchitecture, 'utf8');
     fs.writeFileSync(path.join(contextDir, 'operations-policy.md'), operationsPolicy, 'utf8');
     fs.writeFileSync(path.join(contextDir, 'error-summary.md'), errorSummary, 'utf8');
+    fs.writeFileSync(path.join(contextDir, 'memory-status.md'), memoryStatus, 'utf8');
   } catch (error) {
     console.warn('[System] Failed to write context snapshots:', error);
   }

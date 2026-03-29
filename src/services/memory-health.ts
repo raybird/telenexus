@@ -1,0 +1,302 @@
+import fs from 'fs';
+import Database from 'better-sqlite3';
+import { getRecentIssues } from '../utils/errors.js';
+import {
+  resolveDbPath,
+  resolveMemoryBackfillCheckpointPath,
+  resolveMemoryDbPath,
+  resolveMemoriaSessionsDbPath
+} from '../utils/paths.js';
+
+export type BackfillCheckpoint = {
+  lastProcessedSessionId?: string;
+  lastProcessedTimestamp?: string;
+  lastRunAt?: string;
+  lastSuccessAt?: string;
+  lastRunStatus?: string;
+  lastError?: string;
+  lastScannedSessions?: number;
+  lastCandidates?: number;
+  lastWritten?: number;
+  lastDuplicates?: number;
+};
+
+export type MemoryHealthReport = {
+  ok: boolean;
+  timestamp: number;
+  generatedAt: string;
+  paths: {
+    operationalDb: string;
+    retrievalDb: string;
+    archiveDb: string;
+    checkpointFile: string;
+  };
+  operational: {
+    exists: boolean;
+    totalMessages: number;
+    totalSchedules: number;
+    lastMessageAt: string | null;
+    modelResponses24h: number;
+  };
+  retrieval: {
+    exists: boolean;
+    entities: number;
+    observations: number;
+    relations: number;
+  };
+  archive: {
+    enabled: boolean;
+    exists: boolean;
+    totalSessions: number;
+    totalEvents: number;
+    sessions24h: number;
+    lastSessionAt: string | null;
+    syncFailures24h: number;
+    estimatedGapRecent24h: number;
+  };
+  backfill: {
+    enabled: boolean;
+    dryRun: boolean;
+    checkpointExists: boolean;
+    checkpoint: BackfillCheckpoint | null;
+    lastRunStatus: string | null;
+    lastRunAt: string | null;
+    lastSuccessAt: string | null;
+    lastScannedSessions: number;
+    lastCandidates: number;
+    lastWritten: number;
+    lastDuplicates: number;
+  };
+};
+
+function countRecentMemoriaIssues(): number {
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  return getRecentIssues()
+    .filter((issue) => issue.timestamp >= cutoff)
+    .filter(
+      (issue) =>
+        /memoria|memory-backfill/i.test(issue.scope) || /memoria|backfill/i.test(issue.message)
+    )
+    .reduce((sum, issue) => sum + (issue.count || 1), 0);
+}
+
+function parseIsoDate(raw: unknown): string | null {
+  if (typeof raw !== 'string') {
+    return null;
+  }
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return null;
+  }
+  return trimmed;
+}
+
+function readCheckpoint(checkpointPath: string): BackfillCheckpoint | null {
+  try {
+    if (!fs.existsSync(checkpointPath)) {
+      return null;
+    }
+    const raw = fs.readFileSync(checkpointPath, 'utf8');
+    const parsed = JSON.parse(raw) as BackfillCheckpoint;
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function getSqliteCounts(
+  dbPath: string,
+  queries: Array<{ key: string; sql: string }>
+): Record<string, number> {
+  if (!fs.existsSync(dbPath)) {
+    return Object.fromEntries(queries.map((item) => [item.key, 0]));
+  }
+
+  const db = new Database(dbPath, { readonly: true, fileMustExist: true });
+  try {
+    const counts: Record<string, number> = {};
+    for (const query of queries) {
+      const row = db.prepare(query.sql).get() as { count?: number } | undefined;
+      counts[query.key] = row?.count || 0;
+    }
+    return counts;
+  } finally {
+    db.close();
+  }
+}
+
+export function collectMemoryHealthReport(): MemoryHealthReport {
+  const operationalDb = resolveDbPath();
+  const retrievalDb = resolveMemoryDbPath();
+  const archiveDb = resolveMemoriaSessionsDbPath();
+  const checkpointFile = resolveMemoryBackfillCheckpointPath();
+  const checkpoint = readCheckpoint(checkpointFile);
+  const generatedAt = new Date().toISOString();
+
+  let totalMessages = 0;
+  let totalSchedules = 0;
+  let lastMessageAt: string | null = null;
+  let modelResponses24h = 0;
+
+  if (fs.existsSync(operationalDb)) {
+    const db = new Database(operationalDb, { readonly: true, fileMustExist: true });
+    try {
+      const messageStats = db
+        .prepare(`SELECT COUNT(*) as total, MAX(timestamp) as last_message_at FROM messages`)
+        .get() as { total?: number; last_message_at?: number };
+      totalMessages = messageStats.total || 0;
+      lastMessageAt =
+        typeof messageStats.last_message_at === 'number' && messageStats.last_message_at > 0
+          ? new Date(messageStats.last_message_at).toISOString()
+          : null;
+
+      const scheduleStats = db.prepare(`SELECT COUNT(*) as count FROM schedules`).get() as {
+        count?: number;
+      };
+      totalSchedules = scheduleStats.count || 0;
+
+      const cutoffMs = Date.now() - 24 * 60 * 60 * 1000;
+      const modelStats = db
+        .prepare(`SELECT COUNT(*) as count FROM messages WHERE role = 'model' AND timestamp >= ?`)
+        .get(cutoffMs) as { count?: number };
+      modelResponses24h = modelStats.count || 0;
+    } finally {
+      db.close();
+    }
+  }
+
+  const retrievalCounts = getSqliteCounts(retrievalDb, [
+    { key: 'entities', sql: 'SELECT COUNT(*) as count FROM entities' },
+    { key: 'observations', sql: 'SELECT COUNT(*) as count FROM observations' },
+    { key: 'relations', sql: 'SELECT COUNT(*) as count FROM relations' }
+  ]);
+
+  let totalSessions = 0;
+  let totalEvents = 0;
+  let sessions24h = 0;
+  let lastSessionAt: string | null = null;
+  if (fs.existsSync(archiveDb)) {
+    const db = new Database(archiveDb, { readonly: true, fileMustExist: true });
+    try {
+      const sessionStats = db
+        .prepare(`SELECT COUNT(*) as total, MAX(timestamp) as last_session_at FROM sessions`)
+        .get() as { total?: number; last_session_at?: string | null };
+      totalSessions = sessionStats.total || 0;
+      lastSessionAt = parseIsoDate(sessionStats.last_session_at);
+
+      const eventStats = db.prepare(`SELECT COUNT(*) as count FROM events`).get() as {
+        count?: number;
+      };
+      totalEvents = eventStats.count || 0;
+
+      const cutoffIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const recentStats = db
+        .prepare(`SELECT COUNT(*) as count FROM sessions WHERE timestamp >= ?`)
+        .get(cutoffIso) as { count?: number };
+      sessions24h = recentStats.count || 0;
+    } finally {
+      db.close();
+    }
+  }
+
+  const syncFailures24h = countRecentMemoriaIssues();
+  const estimatedGapRecent24h = Math.max(modelResponses24h - sessions24h, 0);
+  const archiveEnabled =
+    (process.env.MEMORIA_SYNC_ENABLED || 'auto').trim().toLowerCase() !== 'off';
+  const backfillEnabled =
+    (process.env.MEMORY_BACKFILL_ENABLED || 'false').trim().toLowerCase() === 'true';
+  const dryRunRaw = (process.env.MEMORY_BACKFILL_DRY_RUN || 'true').trim().toLowerCase();
+  const backfillDryRun = !(dryRunRaw === 'false' || dryRunRaw === '0' || dryRunRaw === 'off');
+
+  return {
+    ok: true,
+    timestamp: Date.now(),
+    generatedAt,
+    paths: {
+      operationalDb,
+      retrievalDb,
+      archiveDb,
+      checkpointFile
+    },
+    operational: {
+      exists: fs.existsSync(operationalDb),
+      totalMessages,
+      totalSchedules,
+      lastMessageAt,
+      modelResponses24h
+    },
+    retrieval: {
+      exists: fs.existsSync(retrievalDb),
+      entities: retrievalCounts.entities || 0,
+      observations: retrievalCounts.observations || 0,
+      relations: retrievalCounts.relations || 0
+    },
+    archive: {
+      enabled: archiveEnabled,
+      exists: fs.existsSync(archiveDb),
+      totalSessions,
+      totalEvents,
+      sessions24h,
+      lastSessionAt,
+      syncFailures24h,
+      estimatedGapRecent24h
+    },
+    backfill: {
+      enabled: backfillEnabled,
+      dryRun: backfillDryRun,
+      checkpointExists: fs.existsSync(checkpointFile),
+      checkpoint,
+      lastRunStatus: checkpoint?.lastRunStatus || null,
+      lastRunAt: checkpoint?.lastRunAt || null,
+      lastSuccessAt: checkpoint?.lastSuccessAt || null,
+      lastScannedSessions: checkpoint?.lastScannedSessions || 0,
+      lastCandidates: checkpoint?.lastCandidates || 0,
+      lastWritten: checkpoint?.lastWritten || 0,
+      lastDuplicates: checkpoint?.lastDuplicates || 0
+    }
+  };
+}
+
+export function formatMemoryHealthMarkdown(report: MemoryHealthReport): string {
+  const updated = new Date(report.timestamp).toLocaleString('zh-TW');
+  return [
+    '# Memory Status',
+    '',
+    `- Updated: ${updated}`,
+    `- Archive Enabled: ${String(report.archive.enabled)}`,
+    `- Archive DB Exists: ${String(report.archive.exists)}`,
+    `- Archive Total Sessions: ${report.archive.totalSessions}`,
+    `- Archive Total Events: ${report.archive.totalEvents}`,
+    `- Archive Last Session At: ${report.archive.lastSessionAt || '(none)'}`,
+    `- Archive Sessions 24h: ${report.archive.sessions24h}`,
+    `- Archive Sync Failures 24h: ${report.archive.syncFailures24h}`,
+    `- Archive Estimated Gap Recent 24h: ${report.archive.estimatedGapRecent24h}`,
+    `- Operational DB Exists: ${String(report.operational.exists)}`,
+    `- Operational Total Messages: ${report.operational.totalMessages}`,
+    `- Operational Total Schedules: ${report.operational.totalSchedules}`,
+    `- Operational Last Message At: ${report.operational.lastMessageAt || '(none)'}`,
+    `- Operational Model Responses 24h: ${report.operational.modelResponses24h}`,
+    `- Retrieval DB Exists: ${String(report.retrieval.exists)}`,
+    `- Retrieval Entities: ${report.retrieval.entities}`,
+    `- Retrieval Observations: ${report.retrieval.observations}`,
+    `- Retrieval Relations: ${report.retrieval.relations}`,
+    `- Backfill Enabled: ${String(report.backfill.enabled)}`,
+    `- Backfill Dry Run: ${String(report.backfill.dryRun)}`,
+    `- Backfill Checkpoint Exists: ${String(report.backfill.checkpointExists)}`,
+    `- Backfill Last Run Status: ${report.backfill.lastRunStatus || '(none)'}`,
+    `- Backfill Last Run At: ${report.backfill.lastRunAt || '(none)'}`,
+    `- Backfill Last Success At: ${report.backfill.lastSuccessAt || '(none)'}`,
+    `- Backfill Last Scanned Sessions: ${report.backfill.lastScannedSessions}`,
+    `- Backfill Last Candidates: ${report.backfill.lastCandidates}`,
+    `- Backfill Last Written: ${report.backfill.lastWritten}`,
+    `- Backfill Last Duplicates: ${report.backfill.lastDuplicates}`,
+    `- Backfill Checkpoint Timestamp: ${report.backfill.checkpoint?.lastProcessedTimestamp || '(none)'}`,
+    `- Backfill Checkpoint Session ID: ${report.backfill.checkpoint?.lastProcessedSessionId || '(none)'}`,
+    '',
+    '## Paths',
+    `- operational_db: ${report.paths.operationalDb}`,
+    `- retrieval_db: ${report.paths.retrievalDb}`,
+    `- archive_db: ${report.paths.archiveDb}`,
+    `- checkpoint_file: ${report.paths.checkpointFile}`
+  ].join('\n');
+}

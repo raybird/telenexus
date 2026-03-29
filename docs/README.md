@@ -32,6 +32,9 @@
 - 環境變數與 runner/session 設定：`docs/configuration-reference.md`
 - Runtime 邊界與安全模型：`docs/runtime-boundary-and-security.md`
 - 發版 SOP 指令流：`npm run release:patch -- -m "<commit message>"`
+- 記憶健康檢查：`npm run memory:health`
+- Sessions archive dry-run 回填：`npm run memory:backfill:dry-run`
+- Sessions archive 寫入回填：`npm run memory:backfill:write`
 - 記憶 metadata 回填：`npm run memory:backfill-summary-metadata`
 - 記憶人工標記 CLI：`npm run memory:cli -- summaries`
 - 核心規則記憶 seed：`npm run memory:seed-sar-anchors`
@@ -44,6 +47,7 @@
 ### 我想理解記憶與長對話能力
 
 - 長對話記憶檢索主規劃（維護者主文件）：`docs/summary-aware-retrieval-plan.md`
+- Sessions archive -> 長期記憶回填實作計畫：`docs/sessions-db-backfill-implementation-plan.md`
 - 最小改進計畫（偏 roadmap）：`docs/sar-improvement-plan-minimal.md`
 - 核心規則記憶清單（固定規則 seed）：`docs/canonical-sar-anchors.md`
 - SAR 驗收清單：`docs/sar-acceptance-checklist.md`

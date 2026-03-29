@@ -12,6 +12,8 @@ import type { Scheduler } from '../core/scheduler.js';
 import type { Connector, UnifiedMessage } from '../types/index.js';
 import { safeCompare } from '../utils/crypto.js';
 import { resolveContextDir } from '../utils/paths.js';
+import { collectMemoryHealthReport } from '../services/memory-health.js';
+import { getRecentMemoryBackfillReports } from '../services/memory-backfill.js';
 
 type WebServerOptions = {
   enabled: boolean;
@@ -323,6 +325,7 @@ type SnapshotSet = {
   scheduler: string;
   error: string;
   runner: string;
+  memory: string;
 };
 
 function normalizeKey(label: string): string {
@@ -406,7 +409,8 @@ function toStructuredStatus(snapshots: SnapshotSet): Record<string, unknown> {
       ...parseBulletMap(snapshots.error),
       recentIssues: parseErrorIssues(snapshots.error)
     },
-    runner: runnerMap
+    runner: runnerMap,
+    memory: parseBulletMap(snapshots.memory)
   };
 }
 
@@ -1610,6 +1614,17 @@ export function startWebServer(options: WebServerOptions): WebServerHandle {
       return;
     }
 
+    if (req.method === 'GET' && url.pathname === '/api/memory-health') {
+      sendJson(res, 200, { ok: true, report: collectMemoryHealthReport() });
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/memory-backfill/report') {
+      const limit = Number.parseInt(url.searchParams.get('limit') || '10', 10);
+      sendJson(res, 200, { ok: true, items: getRecentMemoryBackfillReports(limit) });
+      return;
+    }
+
     if (req.method === 'GET' && url.pathname === '/api/memory/history') {
       const offset = parseOffset(url.searchParams.get('offset'), 0);
       const limit = parseLimit(url.searchParams.get('limit'), 20, 200);
@@ -1914,7 +1929,8 @@ export function startWebServer(options: WebServerOptions): WebServerHandle {
         provider: readContextFile('provider-status.md'),
         scheduler: readContextFile('scheduler-status.md'),
         error: readContextFile('error-summary.md'),
-        runner: readContextFile('runner-status.md')
+        runner: readContextFile('runner-status.md'),
+        memory: readContextFile('memory-status.md')
       };
       sendJson(res, 200, {
         ok: true,

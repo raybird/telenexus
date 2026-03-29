@@ -12,6 +12,7 @@ import { loadChatPromptConfig } from './config/ai-config.js';
 import { shouldSummarize, buildMemoryContext, buildChatPrompt } from './prompt/builder.js';
 import { recordRuntimeIssue } from './utils/errors.js';
 import { writeContextSnapshots, writeSchedulerHealth } from './services/context-snapshots.js';
+import { MemoryBackfillWorker } from './services/memory-backfill-worker.js';
 import type { UnifiedMessage } from './types/index.js';
 
 // 載入環境變數
@@ -162,6 +163,9 @@ async function bootstrap() {
   const writeContextSnapshotsFn = () => {
     writeContextSnapshots(memory);
   };
+  const memoryBackfillWorker = new MemoryBackfillWorker({
+    onAfterRun: writeContextSnapshotsFn
+  });
 
   const handleIncomingMessage = createMessagePipeline({
     connector: telegram,
@@ -215,6 +219,7 @@ async function bootstrap() {
   process.on('SIGINT', () => {
     console.log('\n[System] Shutting down gracefully...');
     stopContextRefresh();
+    memoryBackfillWorker.shutdown();
     scheduler.shutdown();
     void webServer.close().finally(() => process.exit(0));
   });
@@ -222,6 +227,7 @@ async function bootstrap() {
   process.on('SIGTERM', () => {
     console.log('\n[System] Shutting down gracefully...');
     stopContextRefresh();
+    memoryBackfillWorker.shutdown();
     scheduler.shutdown();
     void webServer.close().finally(() => process.exit(0));
   });
@@ -251,6 +257,7 @@ async function bootstrap() {
   await scheduler.init();
   writeSchedulerHealth('startup:init', memory);
   writeContextSnapshots(memory);
+  memoryBackfillWorker.start();
 
   const contextRefreshMs = getContextRefreshMs();
   contextRefreshTimer = setInterval(() => {
