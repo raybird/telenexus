@@ -106,6 +106,56 @@ test('MemoryManager searchSummaries can find summary/tag matches when content FT
   });
 });
 
+test('MemoryManager searchSummaries can find tag-only matches via summary FTS index', () => {
+  withTempDb(() => {
+    withMockedNow(() => {
+      const memory = new MemoryManager();
+
+      memory.addMessage('user-a', 'model', 'opaque note', {
+        summary: 'General operational note',
+        impactLevel: 2,
+        tags: ['release']
+      });
+
+      const results = memory.searchSummaries('user-a', 'release', 2, 1);
+      assert.equal(results.length, 1);
+      assert.equal(results[0]?.summary, 'General operational note');
+      assert.ok(results[0]?.tags.includes('release'));
+    });
+  });
+});
+
+test('MemoryManager keeps summary FTS index in sync after metadata update', () => {
+  withTempDb(() => {
+    withMockedNow(() => {
+      const memory = new MemoryManager();
+
+      memory.addMessage('user-a', 'model', 'opaque note', {
+        summary: 'General operational note',
+        impactLevel: 1,
+        tags: ['notes']
+      });
+
+      const initial = memory.searchSummaries('user-a', 'runner', 5, 1);
+      assert.equal(initial.length, 0);
+
+      const inserted = memory.listSummaryMessages('user-a', 5, 1)[0];
+      assert.ok(inserted);
+
+      memory.updateMessageMetadataById(inserted.id, {
+        summary: inserted.summary,
+        impactLevel: 2,
+        tags: ['runner']
+      });
+
+      const updated = memory.searchSummaries('user-a', 'runner', 5, 1);
+      assert.equal(updated.length, 1);
+      assert.ok(updated[0]?.tags.includes('runner'));
+      assert.equal(updated[0]?.summary, 'General operational note');
+    });
+  });
+});
+
 test('MemoryManager searchSummaries keeps high-signal summary matches ahead of newer weak matches', () => {
   withTempDb(() => {
     const originalNow = Date.now;

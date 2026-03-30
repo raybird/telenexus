@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import { createLogger } from './logger.js';
-import { SAR_SUMMARY_SEARCH_CONFIG } from './sar-policy.js';
+import { SAR_SUMMARY_SEARCH_CONFIG, scoreSarSummaryBase } from './sar-policy.js';
 import { resolveDbPath } from '../utils/paths.js';
 
 const log = createLogger('memory');
@@ -108,6 +108,20 @@ export class MemoryManager {
       )
       .run();
 
+    this.db
+      .prepare(
+        `
+      CREATE VIRTUAL TABLE IF NOT EXISTS messages_summary_fts USING fts5(
+        user_id,
+        summary,
+        tags
+      )
+    `
+      )
+      .run();
+
+    this.rebuildSummaryFtsIndex();
+
     // 建立 schedules 表格
     const scheduleStmt = this.db.prepare(`
       CREATE TABLE IF NOT EXISTS schedules (
@@ -186,6 +200,61 @@ export class MemoryManager {
     return [];
   }
 
+  private encodeTagsForFts(tags: string[]): string {
+    return this.normalizeTags(tags).join(' ');
+  }
+
+  private rebuildSummaryFtsIndex(): void {
+    const rows = this.db
+      .prepare(
+        `
+      SELECT id, user_id, summary, tags
+      FROM messages
+      WHERE summary IS NOT NULL AND TRIM(summary) != ''
+    `
+      )
+      .all() as Array<{ id: number; user_id: string; summary: string; tags: string | null }>;
+
+    const transaction = this.db.transaction(() => {
+      this.db.prepare('DELETE FROM messages_summary_fts').run();
+      const insertStmt = this.db.prepare(
+        `
+        INSERT INTO messages_summary_fts (rowid, user_id, summary, tags)
+        VALUES (?, ?, ?, ?)
+      `
+      );
+      for (const row of rows) {
+        insertStmt.run(
+          row.id,
+          row.user_id,
+          row.summary.trim(),
+          this.encodeTagsForFts(this.parseTags(row.tags))
+        );
+      }
+    });
+    transaction();
+  }
+
+  private syncSummaryFtsRow(
+    rowId: number,
+    userId: string,
+    summary: string | null | undefined,
+    tags: string[]
+  ): void {
+    this.db.prepare('DELETE FROM messages_summary_fts WHERE rowid = ?').run(rowId);
+    if (!summary || !summary.trim()) {
+      return;
+    }
+    this.db
+      .prepare(
+        `
+        INSERT INTO messages_summary_fts (rowid, user_id, summary, tags)
+        VALUES (?, ?, ?, ?)
+      `
+      )
+      .run(rowId, userId, summary.trim(), this.encodeTagsForFts(tags));
+  }
+
   private toSummaryMessage(row: {
     id: number;
     role: string;
@@ -217,29 +286,10 @@ export class MemoryManager {
   }
 
   private scoreSummarySearchResult(item: SummaryMessage, query: string, tokens: string[]): number {
-    const scoring = SAR_SUMMARY_SEARCH_CONFIG.scoring;
-    const loweredQuery = query.toLowerCase();
-    const summary = item.summary.toLowerCase();
-    const content = item.content.toLowerCase();
-    const tags = new Set(item.tags.map((tag) => tag.toLowerCase()));
-    let score = 0;
-
-    if (summary.includes(loweredQuery)) score += scoring.exactSummaryMatch;
-    if (content.includes(loweredQuery)) score += scoring.exactContentMatch;
-
-    for (const token of tokens) {
-      if (summary.includes(token)) score += scoring.tokenSummaryMatch;
-      if (content.includes(token)) score += scoring.tokenContentMatch;
-      if (tags.has(token)) score += scoring.tokenTagMatch;
-    }
-
-    score += Math.max(0, item.impactLevel - 1) * scoring.impactLevelBonus;
-
-    const ageDays = Math.max(0, Date.now() - item.timestamp) / (1000 * 60 * 60 * 24);
-    if (ageDays <= scoring.recentWindowDays) score += scoring.recentBonus;
-    else if (ageDays <= scoring.warmWindowDays) score += scoring.warmBonus;
-
-    return score;
+    return scoreSarSummaryBase(item, {
+      text: query,
+      tokens
+    });
   }
 
   /**
@@ -277,6 +327,7 @@ export class MemoryManager {
       VALUES (?, ?, ?, ?, ?)
     `);
     ftsStmt.run(result.lastInsertRowid, userId, role, content, timestamp);
+    this.syncSummaryFtsRow(Number(result.lastInsertRowid), userId, summary || null, tags);
     return timestamp;
   }
 
@@ -286,6 +337,15 @@ export class MemoryManager {
     timestamp: number,
     metadata: MessageMetadata
   ): void {
+    const target = this.db
+      .prepare(
+        `SELECT id, user_id FROM messages WHERE user_id = ? AND role = ? AND timestamp = ? LIMIT 1`
+      )
+      .get(userId, role, timestamp) as { id: number; user_id: string } | undefined;
+    if (!target) {
+      return;
+    }
+
     const summary = metadata.summary?.trim();
     const impactLevel = this.normalizeImpactLevel(metadata.impactLevel);
     const tags = this.normalizeTags(metadata.tags);
@@ -302,9 +362,25 @@ export class MemoryManager {
       role,
       timestamp
     );
+    const updated = this.db
+      .prepare(`SELECT summary, tags FROM messages WHERE id = ? LIMIT 1`)
+      .get(target.id) as { summary: string | null; tags: string | null };
+    this.syncSummaryFtsRow(
+      target.id,
+      target.user_id,
+      updated.summary,
+      this.parseTags(updated.tags)
+    );
   }
 
   updateMessageMetadataById(id: number, metadata: MessageMetadata): void {
+    const target = this.db.prepare(`SELECT user_id FROM messages WHERE id = ? LIMIT 1`).get(id) as
+      | { user_id: string }
+      | undefined;
+    if (!target) {
+      return;
+    }
+
     const summary = metadata.summary?.trim();
     const impactLevel = this.normalizeImpactLevel(metadata.impactLevel);
     const tags = this.normalizeTags(metadata.tags);
@@ -314,6 +390,13 @@ export class MemoryManager {
       WHERE id = ?
     `);
     stmt.run(summary || null, impactLevel, tags.length > 0 ? JSON.stringify(tags) : null, id);
+    const updated = this.db
+      .prepare(`SELECT summary, tags FROM messages WHERE id = ? LIMIT 1`)
+      .get(id) as {
+      summary: string | null;
+      tags: string | null;
+    };
+    this.syncSummaryFtsRow(id, target.user_id, updated.summary, this.parseTags(updated.tags));
   }
 
   /**
@@ -474,6 +557,19 @@ export class MemoryManager {
       LIMIT ?
     `);
 
+    const summaryFtsStmt = this.db.prepare(`
+      SELECT m.id, m.role, m.content, m.summary, m.impact_level, m.tags, m.timestamp
+      FROM messages_summary_fts f
+      INNER JOIN messages m ON f.rowid = m.id
+      WHERE f.user_id = ?
+        AND messages_summary_fts MATCH ?
+        AND m.summary IS NOT NULL
+        AND TRIM(m.summary) != ''
+        AND m.impact_level >= ?
+      ORDER BY m.timestamp DESC
+      LIMIT ?
+    `);
+
     const likeClauses = ['LOWER(summary) LIKE ?'];
     const likeParams: Array<string | number> = [`%${trimmed.toLowerCase()}%`];
     for (const token of tokens) {
@@ -505,6 +601,21 @@ export class MemoryManager {
       timestamp: number;
     }>;
 
+    const summaryFtsRows = summaryFtsStmt.all(
+      userId,
+      escapedQuery,
+      safeImpactLevel,
+      fetchLimit
+    ) as Array<{
+      id: number;
+      role: string;
+      content: string;
+      summary: string;
+      impact_level: number;
+      tags: string | null;
+      timestamp: number;
+    }>;
+
     const summaryRows = summaryStmt.all(
       userId,
       safeImpactLevel,
@@ -521,7 +632,7 @@ export class MemoryManager {
     }>;
 
     const merged = new Map<number, SummaryMessage>();
-    for (const row of [...summaryRows, ...ftsRows]) {
+    for (const row of [...summaryRows, ...summaryFtsRows, ...ftsRows]) {
       merged.set(row.id, this.toSummaryMessage(row));
     }
 
@@ -544,6 +655,7 @@ export class MemoryManager {
       minImpactLevel: safeImpactLevel,
       tokenCount: tokens.length,
       ftsCandidates: ftsRows.length,
+      summaryFtsCandidates: summaryFtsRows.length,
       summaryCandidates: summaryRows.length,
       results: results.length
     });
@@ -695,6 +807,8 @@ export class MemoryManager {
     // 同步清除 FTS5
     const ftsStmt = this.db.prepare('DELETE FROM messages_fts WHERE user_id = ?');
     ftsStmt.run(userId);
+    const summaryFtsStmt = this.db.prepare('DELETE FROM messages_summary_fts WHERE user_id = ?');
+    summaryFtsStmt.run(userId);
   }
 
   /**
@@ -904,6 +1018,11 @@ export class MemoryManager {
       DELETE FROM messages_fts WHERE rowid IN (${placeholders})
     `);
     deleteFtsStmt.run(...ids);
+
+    const deleteSummaryFtsStmt = this.db.prepare(`
+      DELETE FROM messages_summary_fts WHERE rowid IN (${placeholders})
+    `);
+    deleteSummaryFtsStmt.run(...ids);
 
     return ids.length;
   }

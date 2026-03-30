@@ -67,7 +67,17 @@ export type MemoryHealthReport = {
     lastWritten: number;
     lastDuplicates: number;
   };
+  consistency: {
+    ok: boolean;
+    sourceSessionTaggedObservations: number;
+    orphanSourceSessionObservations: number;
+    observationsMissingSourceSession: number;
+    checkpointAheadOfArchive: boolean;
+    checkpointSessionMissing: boolean;
+  };
 };
+
+type ConsistencyReport = MemoryHealthReport['consistency'];
 
 function countRecentMemoriaIssues(): number {
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
@@ -123,6 +133,83 @@ function getSqliteCounts(
   } finally {
     db.close();
   }
+}
+
+function extractSourceSessionId(content: string | null | undefined): string | null {
+  if (typeof content !== 'string') {
+    return null;
+  }
+  const match = content.match(/\[source_session=([^\]\s]+)\]/i);
+  return match?.[1]?.trim() || null;
+}
+
+function collectConsistencyReport(
+  retrievalDb: string,
+  archiveDb: string,
+  checkpoint: BackfillCheckpoint | null,
+  archiveLastSessionAt: string | null
+): ConsistencyReport {
+  const empty: ConsistencyReport = {
+    ok: true,
+    sourceSessionTaggedObservations: 0,
+    orphanSourceSessionObservations: 0,
+    observationsMissingSourceSession: 0,
+    checkpointAheadOfArchive: false,
+    checkpointSessionMissing: false
+  };
+
+  let archiveSessionIds = new Set<string>();
+  if (fs.existsSync(archiveDb)) {
+    const db = new Database(archiveDb, { readonly: true, fileMustExist: true });
+    try {
+      const rows = db.prepare(`SELECT id FROM sessions`).all() as Array<{ id?: string }>;
+      archiveSessionIds = new Set(
+        rows.map((row) => row.id).filter((id): id is string => Boolean(id))
+      );
+    } finally {
+      db.close();
+    }
+  }
+
+  if (fs.existsSync(retrievalDb)) {
+    const db = new Database(retrievalDb, { readonly: true, fileMustExist: true });
+    try {
+      const rows = db.prepare(`SELECT content FROM observations`).all() as Array<{
+        content?: string;
+      }>;
+      for (const row of rows) {
+        const sessionId = extractSourceSessionId(row.content);
+        if (!sessionId) {
+          empty.observationsMissingSourceSession += 1;
+          continue;
+        }
+        empty.sourceSessionTaggedObservations += 1;
+        if (archiveSessionIds.size > 0 && !archiveSessionIds.has(sessionId)) {
+          empty.orphanSourceSessionObservations += 1;
+        }
+      }
+    } finally {
+      db.close();
+    }
+  }
+
+  const checkpointSessionId = checkpoint?.lastProcessedSessionId?.trim();
+  if (checkpointSessionId) {
+    empty.checkpointSessionMissing =
+      archiveSessionIds.size > 0 && !archiveSessionIds.has(checkpointSessionId);
+  }
+
+  const checkpointTimestamp = checkpoint?.lastProcessedTimestamp?.trim();
+  if (checkpointTimestamp && archiveLastSessionAt) {
+    empty.checkpointAheadOfArchive = checkpointTimestamp > archiveLastSessionAt;
+  }
+
+  empty.ok =
+    empty.orphanSourceSessionObservations === 0 &&
+    !empty.checkpointAheadOfArchive &&
+    !empty.checkpointSessionMissing;
+
+  return empty;
 }
 
 export function collectMemoryHealthReport(): MemoryHealthReport {
@@ -207,6 +294,7 @@ export function collectMemoryHealthReport(): MemoryHealthReport {
     (process.env.MEMORY_BACKFILL_ENABLED || 'false').trim().toLowerCase() === 'true';
   const dryRunRaw = (process.env.MEMORY_BACKFILL_DRY_RUN || 'true').trim().toLowerCase();
   const backfillDryRun = !(dryRunRaw === 'false' || dryRunRaw === '0' || dryRunRaw === 'off');
+  const consistency = collectConsistencyReport(retrievalDb, archiveDb, checkpoint, lastSessionAt);
 
   return {
     ok: true,
@@ -253,7 +341,8 @@ export function collectMemoryHealthReport(): MemoryHealthReport {
       lastCandidates: checkpoint?.lastCandidates || 0,
       lastWritten: checkpoint?.lastWritten || 0,
       lastDuplicates: checkpoint?.lastDuplicates || 0
-    }
+    },
+    consistency
   };
 }
 
@@ -292,6 +381,12 @@ export function formatMemoryHealthMarkdown(report: MemoryHealthReport): string {
     `- Backfill Last Duplicates: ${report.backfill.lastDuplicates}`,
     `- Backfill Checkpoint Timestamp: ${report.backfill.checkpoint?.lastProcessedTimestamp || '(none)'}`,
     `- Backfill Checkpoint Session ID: ${report.backfill.checkpoint?.lastProcessedSessionId || '(none)'}`,
+    `- Consistency OK: ${String(report.consistency.ok)}`,
+    `- Consistency Tagged Observations: ${report.consistency.sourceSessionTaggedObservations}`,
+    `- Consistency Orphan Observations: ${report.consistency.orphanSourceSessionObservations}`,
+    `- Consistency Missing Source Session Tag: ${report.consistency.observationsMissingSourceSession}`,
+    `- Consistency Checkpoint Ahead Of Archive: ${String(report.consistency.checkpointAheadOfArchive)}`,
+    `- Consistency Checkpoint Session Missing: ${String(report.consistency.checkpointSessionMissing)}`,
     '',
     '## Paths',
     `- operational_db: ${report.paths.operationalDb}`,

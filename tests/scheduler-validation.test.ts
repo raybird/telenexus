@@ -7,6 +7,7 @@ import { MemoryManager } from '../src/core/memory.js';
 import { Scheduler } from '../src/core/scheduler.js';
 import type { AIAgent } from '../src/core/agent.js';
 import type { Connector } from '../src/types/index.js';
+import type { MemoriaSyncTurn } from '../src/core/memoria-sync.js';
 
 function withTempDb<T>(fn: () => T): T {
   const prevDbPath = process.env.DB_PATH;
@@ -55,6 +56,9 @@ function createConnectorStub(): Connector {
       return;
     },
     async sendMessage(): Promise<void> {
+      return;
+    },
+    async sendFile(): Promise<void> {
       return;
     },
     async sendPlaceholder(): Promise<string> {
@@ -149,7 +153,11 @@ test('Scheduler skips repeated silence reflection when no user reply after follo
   await withTempDb(async () => {
     const counter = { chatCalls: 0 };
     const memory = new MemoryManager();
-    const scheduler = new Scheduler(memory, createCountingAgentStub(counter), createConnectorStub());
+    const scheduler = new Scheduler(
+      memory,
+      createCountingAgentStub(counter),
+      createConnectorStub()
+    );
 
     memory.addMessage('user-a', 'user', 'follow-up me');
 
@@ -157,6 +165,59 @@ test('Scheduler skips repeated silence reflection when no user reply after follo
     await scheduler.triggerReflection('user-a', 'silence');
 
     assert.equal(counter.chatCalls, 1);
+
+    scheduler.shutdown();
+  });
+});
+
+test('Scheduler reflection writes memory metadata and enqueues memoria sync', async () => {
+  await withTempDb(async () => {
+    const memory = new MemoryManager();
+    const synced: MemoriaSyncTurn[] = [];
+    const scheduler = new Scheduler(memory, createAgentStub(), createConnectorStub(), (turn) =>
+      synced.push(turn)
+    );
+
+    memory.addMessage('user-a', 'user', '幫我追一下 release workflow。');
+
+    await scheduler.triggerReflection('user-a', 'manual');
+
+    assert.equal(synced.length, 1);
+    assert.equal(synced[0]?.platform, 'scheduler');
+    assert.equal(synced[0]?.forceNewSession, true);
+    assert.match(synced[0]?.userMessage || '', /追蹤/);
+    assert.equal(synced[0]?.modelMessage, '🔍 [手動追蹤]\n\nok');
+
+    const recentMessages = memory.getRecentMessages('user-a', 5);
+    assert.ok(recentMessages.some((item) => item.content === '🔍 [手動追蹤]\n\nok'));
+
+    scheduler.shutdown();
+  });
+});
+
+test('Scheduler executeTask enqueues scheduler output into memoria sync', async () => {
+  await withTempDb(async () => {
+    const memory = new MemoryManager();
+    const synced: MemoriaSyncTurn[] = [];
+    const scheduler = new Scheduler(memory, createAgentStub(), createConnectorStub(), (turn) =>
+      synced.push(turn)
+    );
+    const scheduleId = scheduler.addSchedule(
+      'user-a',
+      'daily-report',
+      '0 9 * * 1-5',
+      '請提供市場分析'
+    );
+    const schedule = memory.getScheduleById(scheduleId);
+    assert.ok(schedule);
+
+    await (scheduler as any).executeTask(schedule);
+
+    assert.equal(synced.length, 1);
+    assert.equal(synced[0]?.platform, 'scheduler');
+    assert.equal(synced[0]?.forceNewSession, true);
+    assert.match(synced[0]?.userMessage || '', /daily-report/);
+    assert.equal(synced[0]?.modelMessage, 'ok');
 
     scheduler.shutdown();
   });

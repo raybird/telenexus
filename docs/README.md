@@ -46,6 +46,7 @@
 
 ### 我想理解記憶與長對話能力
 
+- 記憶系統實作分析報告：`docs/memory-system-analysis-2026-03-30.md`
 - 長對話記憶檢索主規劃（維護者主文件）：`docs/summary-aware-retrieval-plan.md`
 - Sessions archive -> 長期記憶回填實作計畫：`docs/sessions-db-backfill-implementation-plan.md`
 - 最小改進計畫（偏 roadmap）：`docs/sar-improvement-plan-minimal.md`

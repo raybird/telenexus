@@ -142,6 +142,41 @@ test('buildMemoryContext keeps older canonical anchor available for matching que
   });
 });
 
+test('buildMemoryContext keeps high-signal release anchor ahead of newer weak release note', () => {
+  withTempDb(() => {
+    const originalNow = Date.now;
+    let ts = Date.parse('2026-03-01T00:00:00Z');
+    Date.now = () => ts;
+
+    try {
+      const memory = new MemoryManager();
+
+      memory.addMessage('user-a', 'model', 'opaque note', {
+        summary: 'Release Workflow Rule with npm run release:patch and tag push guidance',
+        impactLevel: 3,
+        tags: ['release', 'memory']
+      });
+
+      ts = Date.parse('2026-03-28T00:00:00Z');
+      memory.addMessage('user-a', 'model', 'recent release mention in raw content only', {
+        summary: 'General weekly release note',
+        impactLevel: 1,
+        tags: ['notes']
+      });
+
+      const context = buildMemoryContext(memory, 'user-a', 'release 現在 SOP 是什麼？');
+      assert.match(context, /Release Workflow Rule/);
+
+      const coreSection = context.split('【核心決策回顧】\n')[1]?.split('\n\n')[0] || '';
+      const firstCoreLine =
+        coreSection.split('\n').find((line) => line.trim().startsWith('- [')) || '';
+      assert.match(firstCoreLine, /Release Workflow Rule/);
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+});
+
 test('buildMemoryContext does not duplicate anchor into semantic section', () => {
   withTempDb(() => {
     const originalNow = Date.now;
@@ -208,6 +243,57 @@ test('buildMemoryContext keeps anchor and minimum recent lines under heavy budge
       const recentSection = context.split('【近期對話】\n')[1] || '';
       const recentLines = recentSection.split('\n').filter((line) => line.trim().startsWith('- ['));
       assert.ok(recentLines.length >= 4);
+      assert.ok(context.length <= 1500);
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+});
+
+test('buildMemoryContext keeps at least one semantic item under heavy budget pressure', () => {
+  withTempDb(() => {
+    const originalNow = Date.now;
+    const baseTs = Date.parse('2026-04-20T00:00:00Z');
+    let ts = baseTs;
+    Date.now = () => ts;
+
+    try {
+      const memory = new MemoryManager();
+      memory.addMessage('user-a', 'model', 'Release workflow memory', {
+        summary:
+          'Release Workflow Rule: use npm run release:patch and keep commit, version, tag, push order.',
+        impactLevel: 3,
+        tags: ['release', 'memory']
+      });
+
+      for (let i = 0; i < 10; i += 1) {
+        ts = baseTs + i * 1000;
+        memory.addMessage(
+          'user-a',
+          i % 2 === 0 ? 'user' : 'model',
+          `Very long release conversation ${i} ` + 'x'.repeat(260)
+        );
+      }
+
+      for (let i = 0; i < 8; i += 1) {
+        ts = baseTs + 20000 + i * 1000;
+        memory.addMessage('user-a', 'model', `Release semantic memory ${i}`, {
+          summary: `Release rollback note ${i} ` + 'y'.repeat(240),
+          impactLevel: 1,
+          tags: ['release', 'memory']
+        });
+      }
+
+      const context = buildMemoryContext(memory, 'user-a', 'release rollback 現在怎麼處理？');
+      assert.match(context, /【相關歷史摘要】/);
+
+      const semanticSection =
+        context.split('【相關歷史摘要】\n')[1]?.split('\n\n【近期對話】')[0] || '';
+      const semanticLines = semanticSection
+        .split('\n')
+        .filter((line) => line.trim().startsWith('- ['));
+
+      assert.ok(semanticLines.length >= 1);
       assert.ok(context.length <= 1500);
     } finally {
       Date.now = originalNow;

@@ -6,7 +6,7 @@ import type { ChatMessage, MemoryManager, SummaryMessage } from '../core/memory.
 import {
   collectSarTags,
   expandSarKeywords,
-  getSarPromptRecencyBoost,
+  scoreSarSummaryBase,
   SAR_PROMPT_POLICY
 } from '../core/sar-policy.js';
 
@@ -88,44 +88,15 @@ function extractTopicTags(userMessage: string): string[] {
   return collectSarTags(text);
 }
 
-function getRecencyBoost(timestamp: number): number {
-  return getSarPromptRecencyBoost(timestamp);
-}
-
 function scoreSummary(
   summary: SummaryMessage,
   queryTags: string[] = [],
   keywords: string[] = []
 ): number {
-  const text = `${summary.summary || ''} ${summary.content || ''}`.trim();
-  const lowered = text.toLowerCase();
-  let score = 0;
-  score += Math.min(
-    SAR_PROMPT_POLICY.summaryLengthMaxBonus,
-    Math.floor(text.length / SAR_PROMPT_POLICY.summaryLengthDivisor)
-  );
-  score += Math.max(0, (summary.impactLevel || 1) - 1) * SAR_PROMPT_POLICY.summaryImpactBonus;
-  score += getRecencyBoost(summary.timestamp);
-  if (SAR_PROMPT_POLICY.summaryImportantTextPattern.test(text)) {
-    score += SAR_PROMPT_POLICY.summaryImportantTextBonus;
-  }
-  if (SAR_PROMPT_POLICY.summaryImportantTags.some((tag) => summary.tags.includes(tag))) {
-    score += SAR_PROMPT_POLICY.summaryImportantTagBonus;
-  }
-  if (summary.role === 'model') {
-    score += SAR_PROMPT_POLICY.summaryModelRoleBonus;
-  }
-  for (const tag of queryTags) {
-    if (summary.tags.includes(tag)) {
-      score += SAR_PROMPT_POLICY.summaryQueryTagBonus;
-    }
-  }
-  for (const keyword of keywords) {
-    if (lowered.includes(keyword.toLowerCase())) {
-      score += SAR_PROMPT_POLICY.summaryKeywordBonus;
-    }
-  }
-  return score;
+  return scoreSarSummaryBase(summary, {
+    tokens: keywords,
+    tags: queryTags
+  });
 }
 
 function isAnchorCandidate(summary: SummaryMessage): boolean {
@@ -251,14 +222,14 @@ function selectSemanticSummaries(
 
   const localMatches = recentSummaries
     .map((item) => {
-      const haystack = `${item.summary || ''} ${item.content || ''}`.toLowerCase();
-      let score = 0;
-      for (const keyword of keywords) {
-        if (haystack.includes(keyword.toLowerCase())) {
-          score += 2;
-        }
-      }
-      return { item, score };
+      return {
+        item,
+        score: scoreSarSummaryBase(item, {
+          text: userMessage,
+          tokens: keywords,
+          tags: queryTags
+        })
+      };
     })
     .filter((entry) => entry.score > 0)
     .sort((a, b) => {
@@ -334,6 +305,9 @@ function applyContextBudget(
   const getMinLines = (title: string): number => {
     if (title === '【核心決策回顧】') {
       return SAR_PROMPT_POLICY.anchorMinLines;
+    }
+    if (title === '【相關歷史摘要】') {
+      return SAR_PROMPT_POLICY.semanticMinLines;
     }
     if (title === '【近期對話】') {
       return SAR_PROMPT_POLICY.recentMinLines;

@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
 import { parseBool, parsePositiveInt } from '../utils/env.js';
+import { recordRuntimeIssue, toErrorMessage } from '../utils/errors.js';
 
 export type MemoriaSyncTurn = {
   userId: string;
@@ -178,6 +179,7 @@ export class MemoriaSyncBridge {
   private readonly memoriaHome: string;
   private readonly cliPath: string;
   private readonly tempDir: string;
+  private readonly failedDir: string;
   private readonly hookQueueFile: string;
   private readonly hookFlushSignalFile: string;
   private readonly hookQueuePollMs: number;
@@ -189,7 +191,8 @@ export class MemoriaSyncBridge {
 
   constructor(options: MemoriaSyncOptions = {}) {
     this.mode = options.mode || parseMode(process.env.MEMORIA_SYNC_ENABLED);
-    this.timeoutMs = options.timeoutMs || parsePositiveInt(process.env.MEMORIA_SYNC_TIMEOUT_MS, 20000);
+    this.timeoutMs =
+      options.timeoutMs || parsePositiveInt(process.env.MEMORIA_SYNC_TIMEOUT_MS, 20000);
     this.projectDir = path.resolve(
       options.projectDir || process.env.GEMINI_PROJECT_DIR || process.cwd()
     );
@@ -200,6 +203,9 @@ export class MemoriaSyncBridge {
     this.tempDir = path.resolve(
       process.env.MEMORIA_SYNC_TEMP_DIR ||
         path.join(this.projectDir, 'workspace', 'temp', 'memoria-sync')
+    );
+    this.failedDir = path.resolve(
+      process.env.MEMORIA_SYNC_FAILED_DIR || path.join(this.tempDir, 'failed')
     );
     this.hookQueueFile = path.resolve(
       process.env.MEMORIA_HOOK_QUEUE_FILE ||
@@ -235,6 +241,7 @@ export class MemoriaSyncBridge {
 
     try {
       ensureDir(this.tempDir);
+      ensureDir(this.failedDir);
       if (this.hookQueueEnabled) {
         ensureDir(path.dirname(this.hookQueueFile));
       }
@@ -281,15 +288,26 @@ export class MemoriaSyncBridge {
 
         const payloadPath = path.join(this.tempDir, `${sessionId}.json`);
         fs.writeFileSync(payloadPath, JSON.stringify(payload), 'utf8');
+        let synced = false;
 
         try {
           await runMemoriaSync(this.cliPath, this.memoriaHome, payloadPath, this.timeoutMs);
+          synced = true;
           console.log(`[MemoriaSync] Synced session ${sessionId}`);
+        } catch (error) {
+          const failedPath = this.preserveFailedPayload(payloadPath, sessionId);
+          const details = failedPath
+            ? `${toErrorMessage(error)} (payload preserved: ${failedPath})`
+            : `${toErrorMessage(error)} (payload retained at ${payloadPath})`;
+          recordRuntimeIssue('memoria-sync', details);
+          throw new Error(details);
         } finally {
-          try {
-            fs.unlinkSync(payloadPath);
-          } catch {
-            // ignore cleanup failure
+          if (synced) {
+            try {
+              fs.unlinkSync(payloadPath);
+            } catch {
+              // ignore cleanup failure
+            }
           }
         }
       })
@@ -301,6 +319,21 @@ export class MemoriaSyncBridge {
   private makeTurnHash(turn: MemoriaSyncTurn): string {
     const normalized = `${turn.userMessage.trim()}\n---\n${turn.modelMessage.trim()}`;
     return createHash('sha256').update(normalized).digest('hex');
+  }
+
+  private preserveFailedPayload(payloadPath: string, sessionId: string): string | null {
+    if (!fs.existsSync(payloadPath)) {
+      return null;
+    }
+
+    ensureDir(this.failedDir);
+    const failedPath = path.join(this.failedDir, `${sessionId}.json`);
+    try {
+      fs.renameSync(payloadPath, failedPath);
+      return failedPath;
+    } catch {
+      return null;
+    }
   }
 
   private isDuplicateTurn(turn: MemoriaSyncTurn): boolean {

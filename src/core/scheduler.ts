@@ -17,6 +17,8 @@ import {
 } from './scheduler-helpers.js';
 import { createLogger } from './logger.js';
 import type { Connector } from '../types/index.js';
+import { inferSummaryMetadata } from './summary-metadata.js';
+import type { MemoriaSyncTurn } from './memoria-sync.js';
 
 const log = createLogger('scheduler');
 
@@ -30,11 +32,35 @@ export class Scheduler {
   private memory: MemoryManager;
   private gemini: AIAgent; // 改用 AIAgent 介面
   private connector: Connector;
+  private enqueueMemoriaSync: ((turn: MemoriaSyncTurn) => void) | undefined;
 
-  constructor(memory: MemoryManager, gemini: AIAgent, connector: Connector) {
+  constructor(
+    memory: MemoryManager,
+    gemini: AIAgent,
+    connector: Connector,
+    enqueueMemoriaSync?: (turn: MemoriaSyncTurn) => void
+  ) {
     this.memory = memory;
     this.gemini = gemini;
     this.connector = connector;
+    this.enqueueMemoriaSync = enqueueMemoriaSync;
+  }
+
+  private persistSchedulerMessage(
+    userId: string,
+    syntheticUserMessage: string,
+    modelMessage: string,
+    options?: { forceNewSession?: boolean }
+  ): void {
+    this.memory.addMessage(userId, 'model', modelMessage, inferSummaryMetadata(modelMessage));
+    this.enqueueMemoriaSync?.({
+      userId,
+      userMessage: syntheticUserMessage,
+      modelMessage,
+      platform: 'scheduler',
+      isPassthroughCommand: false,
+      forceNewSession: options?.forceNewSession === true
+    });
   }
 
   private clearSilenceTimer(userId: string): void {
@@ -345,7 +371,12 @@ export class Scheduler {
 
       // 4. 儲存 AI 回應到記憶
       if (response && !response.startsWith('Error')) {
-        this.memory.addMessage(schedule.user_id, 'model', response);
+        this.persistSchedulerMessage(
+          schedule.user_id,
+          `[排程任務] ${schedule.name}: ${schedule.prompt}`,
+          response,
+          { forceNewSession: true }
+        );
       }
 
       // 5. 將結果傳送給使用者
@@ -354,7 +385,12 @@ export class Scheduler {
     } catch (error) {
       log.error('task.failed', { scheduleId: schedule.id, name: schedule.name, error });
       const errorMessage = `❌ 排程任務 "${schedule.name}" 執行失敗：${error}`;
-      this.memory.addMessage(schedule.user_id, 'model', errorMessage);
+      this.persistSchedulerMessage(
+        schedule.user_id,
+        `[排程任務失敗] ${schedule.name}: ${schedule.prompt}`,
+        errorMessage,
+        { forceNewSession: true }
+      );
       await this.connector.sendMessage(schedule.user_id, errorMessage);
     }
   }
@@ -560,7 +596,9 @@ export class Scheduler {
 
       if (isRepeatedReflection) {
         const checkedMsg = '✅ [追蹤檢查] 已完成檢查，目前沒有新的事項變化。';
-        this.memory.addMessage(userId, 'model', checkedMsg);
+        this.persistSchedulerMessage(userId, `[追蹤檢查] type=${type}`, checkedMsg, {
+          forceNewSession: true
+        });
         if (type === 'manual' && messageIdToEdit) {
           await this.connector.editMessage(userId, messageIdToEdit, checkedMsg);
         } else {
@@ -569,7 +607,9 @@ export class Scheduler {
       } else if (!hasNoAction) {
         const header = type === 'silence' ? '🔔 [追蹤提醒]\n\n' : '🔍 [手動追蹤]\n\n';
         const outgoing = header + response;
-        this.memory.addMessage(userId, 'model', outgoing);
+        this.persistSchedulerMessage(userId, `[追蹤提醒] type=${type}`, outgoing, {
+          forceNewSession: true
+        });
 
         if (messageIdToEdit) {
           await this.connector.editMessage(userId, messageIdToEdit, outgoing);
@@ -581,7 +621,9 @@ export class Scheduler {
       } else {
         log.info('reflection.completed.no-action', { userId, type });
         const noTodoMsg = '✨ 無待辦。';
-        this.memory.addMessage(userId, 'model', noTodoMsg);
+        this.persistSchedulerMessage(userId, `[追蹤檢查] type=${type}`, noTodoMsg, {
+          forceNewSession: true
+        });
         // 沉默模式也發送精簡通知
         if (type === 'silence') {
           await this.connector.sendMessage(userId, noTodoMsg);
@@ -592,7 +634,9 @@ export class Scheduler {
     } catch (error) {
       log.error('reflection.failed', { userId, type, error });
       const errorMessage = `❌ 追蹤提醒執行失敗：${error}`;
-      this.memory.addMessage(userId, 'model', errorMessage);
+      this.persistSchedulerMessage(userId, `[追蹤提醒失敗] type=${type}`, errorMessage, {
+        forceNewSession: true
+      });
       if (type === 'manual' && messageIdToEdit) {
         await this.connector.editMessage(userId, messageIdToEdit, errorMessage);
       } else {
@@ -642,12 +686,16 @@ export class Scheduler {
         this.gemini.chat(summaryPrompt)
       );
       const outgoing = '📅 [每日摘要]\n\n' + response;
-      this.memory.addMessage(userId, 'model', outgoing);
+      this.persistSchedulerMessage(userId, '[每日摘要] 生成當日摘要', outgoing, {
+        forceNewSession: true
+      });
       await this.connector.sendMessage(userId, outgoing);
     } catch (error) {
       log.error('daily-summary.failed', { userId, error });
       const errorMessage = `❌ 每日摘要執行失敗：${error}`;
-      this.memory.addMessage(userId, 'model', errorMessage);
+      this.persistSchedulerMessage(userId, '[每日摘要失敗] 生成當日摘要', errorMessage, {
+        forceNewSession: true
+      });
       await this.connector.sendMessage(userId, errorMessage);
     }
   }

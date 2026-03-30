@@ -134,7 +134,10 @@ async function bootstrap() {
   }
   const memory = new MemoryManager();
   const memoriaSync = new MemoriaSyncBridge();
-  const scheduler = new Scheduler(memory, schedulerAgent, telegram);
+  const enqueueMemoriaSyncFn = (turn: Parameters<typeof memoriaSync.enqueueTurn>[0]) => {
+    memoriaSync.enqueueTurn(turn);
+  };
+  const scheduler = new Scheduler(memory, schedulerAgent, telegram, enqueueMemoriaSyncFn);
   const commandRouter = new CommandRouter();
   let contextRefreshTimer: NodeJS.Timeout | null = null;
   const webEnabled = getWebEnabled();
@@ -154,10 +157,6 @@ async function bootstrap() {
     const promptConfig = loadChatPromptConfig();
     const memoryContext = buildMemoryContext(memory, userId, userMessage);
     return buildChatPrompt(promptConfig, userMessage, memoryContext, mode);
-  };
-
-  const enqueueMemoriaSyncFn = (turn: Parameters<typeof memoriaSync.enqueueTurn>[0]) => {
-    memoriaSync.enqueueTurn(turn);
   };
 
   const writeContextSnapshotsFn = () => {

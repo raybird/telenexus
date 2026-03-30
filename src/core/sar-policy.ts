@@ -72,6 +72,21 @@ export const SAR_SUMMARY_SEARCH_CONFIG = {
   }
 } as const;
 
+export type SarSummaryScoreInput = {
+  summary: string;
+  content: string;
+  tags: string[];
+  impactLevel: number;
+  timestamp: number;
+  role: 'user' | 'model';
+};
+
+export type SarSummaryScoreQuery = {
+  text?: string;
+  tokens?: string[];
+  tags?: string[];
+};
+
 export const SAR_PROMPT_POLICY = {
   recentLimit: 10,
   anchorLimit: 4,
@@ -81,6 +96,7 @@ export const SAR_PROMPT_POLICY = {
   summaryItemCharBudget: 220,
   recentMinLines: 4,
   anchorMinLines: 1,
+  semanticMinLines: 1,
   memoryContextTitle: '【記憶參考（TeleNexus SAR）】',
   canonicalLimit: 1,
   anchorCandidateLimit: 40,
@@ -177,4 +193,75 @@ export function getSarPromptRecencyBoost(timestamp: number): number {
   }
 
   return 0;
+}
+
+export function scoreSarSummaryBase(
+  item: SarSummaryScoreInput,
+  query: SarSummaryScoreQuery = {}
+): number {
+  const summaryText = item.summary || '';
+  const contentText = item.content || '';
+  const combinedText = `${summaryText} ${contentText}`.trim();
+  const loweredSummary = summaryText.toLowerCase();
+  const loweredContent = contentText.toLowerCase();
+  const loweredCombined = combinedText.toLowerCase();
+  const loweredQuery = query.text?.trim().toLowerCase() || '';
+  const tokens = Array.from(new Set((query.tokens || []).map((token) => token.toLowerCase())));
+  const queryTags = Array.from(new Set((query.tags || []).map((tag) => tag.toLowerCase())));
+  const normalizedTags = new Set(item.tags.map((tag) => tag.toLowerCase()));
+  const scoring = SAR_SUMMARY_SEARCH_CONFIG.scoring;
+
+  let score = 0;
+
+  score += Math.min(
+    SAR_PROMPT_POLICY.summaryLengthMaxBonus,
+    Math.floor(combinedText.length / SAR_PROMPT_POLICY.summaryLengthDivisor)
+  );
+  score += Math.max(0, (item.impactLevel || 1) - 1) * SAR_PROMPT_POLICY.summaryImpactBonus;
+  score += getSarPromptRecencyBoost(item.timestamp);
+
+  if (SAR_PROMPT_POLICY.summaryImportantTextPattern.test(combinedText)) {
+    score += SAR_PROMPT_POLICY.summaryImportantTextBonus;
+  }
+  if (SAR_PROMPT_POLICY.summaryImportantTags.some((tag) => normalizedTags.has(tag))) {
+    score += SAR_PROMPT_POLICY.summaryImportantTagBonus;
+  }
+  if (item.role === 'model') {
+    score += SAR_PROMPT_POLICY.summaryModelRoleBonus;
+  }
+
+  for (const tag of queryTags) {
+    if (normalizedTags.has(tag)) {
+      score += SAR_PROMPT_POLICY.summaryQueryTagBonus;
+    }
+  }
+
+  if (loweredQuery) {
+    if (loweredSummary.includes(loweredQuery)) {
+      score += scoring.exactSummaryMatch;
+    }
+    if (loweredContent.includes(loweredQuery)) {
+      score += scoring.exactContentMatch;
+    }
+  }
+
+  for (const token of tokens) {
+    if (!token) {
+      continue;
+    }
+    if (loweredSummary.includes(token)) {
+      score += scoring.tokenSummaryMatch;
+    }
+    if (loweredContent.includes(token)) {
+      score += scoring.tokenContentMatch;
+    }
+    if (normalizedTags.has(token)) {
+      score += scoring.tokenTagMatch;
+    }
+    if (loweredCombined.includes(token)) {
+      score += SAR_PROMPT_POLICY.summaryKeywordBonus;
+    }
+  }
+
+  return score;
 }
