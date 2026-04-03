@@ -14,6 +14,7 @@ import { safeCompare } from '../utils/crypto.js';
 import { resolveContextDir } from '../utils/paths.js';
 import { collectMemoryHealthReport } from '../services/memory-health.js';
 import { getRecentMemoryBackfillReports } from '../services/memory-backfill.js';
+import type { PromptBuildResult, PromptMode } from '../core/prompt-build.js';
 
 type WebServerOptions = {
   enabled: boolean;
@@ -33,7 +34,11 @@ type WebServerOptions = {
   chatRunnerPercent: number;
   chatRunnerOnlyUsers: Set<string>;
   shouldSummarize: (content: string) => boolean;
-  buildPrompt: (userMessage: string, userId: string) => string;
+  buildPrompt: (
+    userMessage: string,
+    userId: string,
+    mode?: PromptMode
+  ) => string | PromptBuildResult;
   enqueueMemoriaSync?: (turn: MemoriaSyncTurn) => void;
   recordRuntimeIssue: (scope: string, error: unknown) => void;
   writeContextSnapshots: () => void;
@@ -326,6 +331,7 @@ type SnapshotSet = {
   error: string;
   runner: string;
   memory: string;
+  promptSession: string;
 };
 
 function normalizeKey(label: string): string {
@@ -388,14 +394,85 @@ function parseErrorIssues(
   return items;
 }
 
-function toStructuredStatus(snapshots: SnapshotSet): Record<string, unknown> {
+export function parsePromptSessionRequests(markdown: string): Array<{
+  at?: string;
+  requestId?: string;
+  channel?: string;
+  executionMode?: string;
+  promptMode?: string;
+  reason?: string;
+  promptLength?: number;
+  memoryLength?: number;
+  sectionCount?: number;
+  durationMs?: number;
+  status?: string;
+}> {
+  const items: Array<{
+    at?: string;
+    requestId?: string;
+    channel?: string;
+    executionMode?: string;
+    promptMode?: string;
+    reason?: string;
+    promptLength?: number;
+    memoryLength?: number;
+    sectionCount?: number;
+    durationMs?: number;
+    status?: string;
+  }> = [];
+  const lines = markdown.split(/\r?\n/);
+  for (const line of lines) {
+    const match = line.match(/^\s*-\s+\[(.+?)\]\s+(.+)$/);
+    if (!match) continue;
+    const at = (match[1] || '').trim();
+    const body = (match[2] || '').trim();
+    if (!body.startsWith('req=')) continue;
+    const parts = body.split(/\s+/);
+    const item: {
+      at?: string;
+      requestId?: string;
+      channel?: string;
+      executionMode?: string;
+      promptMode?: string;
+      reason?: string;
+      promptLength?: number;
+      memoryLength?: number;
+      sectionCount?: number;
+      durationMs?: number;
+      status?: string;
+    } = { at };
+    for (const part of parts) {
+      const [rawKey, rawValue] = part.split('=');
+      const key = (rawKey || '').trim();
+      const value = (rawValue || '').trim();
+      if (!key || !value) continue;
+      if (key === 'req') item.requestId = value;
+      else if (key === 'channel') item.channel = value;
+      else if (key === 'exec') item.executionMode = value;
+      else if (key === 'mode') item.promptMode = value;
+      else if (key === 'reason') item.reason = value;
+      else if (key === 'prompt') item.promptLength = Number.parseInt(value, 10);
+      else if (key === 'memory') item.memoryLength = Number.parseInt(value, 10);
+      else if (key === 'sections') item.sectionCount = Number.parseInt(value, 10);
+      else if (key === 'duration') item.durationMs = Number.parseInt(value.replace(/ms$/i, ''), 10);
+      else if (key === 'status') item.status = value;
+    }
+    items.push(item);
+  }
+  return items;
+}
+
+export function toStructuredStatus(snapshots: SnapshotSet): Record<string, unknown> {
   const runtimeMap = parseBulletMap(snapshots.runtime);
   const providerMap = parseBulletMap(snapshots.provider);
   const schedulerMap = parseBulletMap(snapshots.scheduler);
   const runnerMap = parseBulletMap(snapshots.runner);
+  const promptSessionMap = parseBulletMap(snapshots.promptSession);
 
   const activeSchedulesRaw = schedulerMap.active_schedules || '0';
   const activeSchedules = Number.parseInt(activeSchedulesRaw, 10);
+  const sampleCountRaw = promptSessionMap.sample_count || '0';
+  const sampleCount = Number.parseInt(sampleCountRaw, 10);
 
   return {
     runtime: runtimeMap,
@@ -410,7 +487,12 @@ function toStructuredStatus(snapshots: SnapshotSet): Record<string, unknown> {
       recentIssues: parseErrorIssues(snapshots.error)
     },
     runner: runnerMap,
-    memory: parseBulletMap(snapshots.memory)
+    memory: parseBulletMap(snapshots.memory),
+    promptSession: {
+      ...promptSessionMap,
+      sampleCount: Number.isFinite(sampleCount) ? sampleCount : 0,
+      recentRequests: parsePromptSessionRequests(snapshots.promptSession)
+    }
   };
 }
 
@@ -556,6 +638,51 @@ function getWebAppHtml(options: WebServerOptions): string {
       .mini-list { border: 1px solid var(--line); border-radius: 10px; background: #ffffff; margin-bottom: 10px; }
       .mini-item { padding: 8px 10px; border-bottom: 1px dashed var(--line); font-size: 13px; }
       .mini-item:last-child { border-bottom: none; }
+      .decision-card {
+        margin-top: 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #f8fffe;
+        padding: 10px;
+      }
+      .decision-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .decision-title { font-size: 13px; color: var(--muted); }
+      .decision-mode {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 78px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-family: 'Fira Code', monospace;
+        border: 1px solid var(--line);
+        background: #ecfeff;
+        color: #0f766e;
+      }
+      .decision-mode.full { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
+      .decision-mode.compact { background: #ecfccb; color: #3f6212; border-color: #bef264; }
+      .decision-mode.minimal { background: #fef3c7; color: #b45309; border-color: #fcd34d; }
+      .decision-mode.passthrough { background: #ede9fe; color: #6d28d9; border-color: #c4b5fd; }
+      .decision-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .decision-field {
+        border: 1px dashed var(--line);
+        border-radius: 8px;
+        padding: 8px;
+        background: #ffffff;
+      }
+      .decision-field .k { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+      .decision-field .v { font-size: 13px; font-family: 'Fira Code', monospace; word-break: break-word; }
       .err { color: var(--danger); }
       .alert-banner {
         border: 1px solid var(--line);
@@ -612,6 +739,42 @@ function getWebAppHtml(options: WebServerOptions): string {
             <input id="chatInput" placeholder="輸入訊息..." autocomplete="off" />
             <button type="submit">送出</button>
           </form>
+          <div class="decision-card">
+            <div class="decision-head">
+              <div class="decision-title">Latest Prompt Decision</div>
+              <div class="decision-mode" id="latestPromptMode">-</div>
+            </div>
+            <div class="decision-grid">
+              <div class="decision-field">
+                <div class="k">Execution</div>
+                <div class="v" id="latestExecutionMode">-</div>
+              </div>
+              <div class="decision-field">
+                <div class="k">Reason</div>
+                <div class="v" id="latestPromptReason">-</div>
+              </div>
+              <div class="decision-field">
+                <div class="k">Memory</div>
+                <div class="v" id="latestMemoryUsage">-</div>
+              </div>
+              <div class="decision-field">
+                <div class="k">SAR</div>
+                <div class="v" id="latestSarUsage">-</div>
+              </div>
+              <div class="decision-field">
+                <div class="k">Prompt</div>
+                <div class="v" id="latestPromptLength">-</div>
+              </div>
+              <div class="decision-field">
+                <div class="k">Duration</div>
+                <div class="v" id="latestDuration">-</div>
+              </div>
+              <div class="decision-field">
+                <div class="k">Request ID</div>
+                <div class="v" id="latestRequestId">-</div>
+              </div>
+            </div>
+          </div>
           <div class="row" style="margin-top: 10px;">
             <input id="tokenInput" placeholder="API token（若有設定 WEB_AUTH_TOKEN）" autocomplete="off" />
             <button type="button" class="subtle" id="saveTokenBtn">儲存 Token</button>
@@ -708,10 +871,18 @@ function getWebAppHtml(options: WebServerOptions): string {
             <div class="v" id="statErrorCount">0</div>
             <div class="sub">error-summary.md</div>
           </div>
+          <div class="metric">
+            <div class="k">Prompt Mode</div>
+            <div class="v" id="statPromptMode">-</div>
+            <div class="sub" id="statPromptMeta">samples: 0</div>
+          </div>
         </div>
 
         <div class="meta">Schedule Preview</div>
         <div id="schedulePreview" class="mini-list"></div>
+
+        <div class="meta">Prompt Session Preview</div>
+        <div id="promptSessionPreview" class="mini-list"></div>
 
         <div class="grid2">
           <div>
@@ -730,6 +901,10 @@ function getWebAppHtml(options: WebServerOptions): string {
             <div class="meta">runner-status.md</div>
             <pre class="snapshot" id="runnerSnapshot"></pre>
           </div>
+          <div>
+            <div class="meta">prompt-session-status.md</div>
+            <pre class="snapshot" id="promptSessionSnapshot"></pre>
+          </div>
         </div>
       </div>
     </div>
@@ -739,6 +914,14 @@ function getWebAppHtml(options: WebServerOptions): string {
       const form = document.getElementById('chatForm');
       const input = document.getElementById('chatInput');
       const status = document.getElementById('status');
+      const latestPromptMode = document.getElementById('latestPromptMode');
+      const latestExecutionMode = document.getElementById('latestExecutionMode');
+      const latestPromptReason = document.getElementById('latestPromptReason');
+      const latestMemoryUsage = document.getElementById('latestMemoryUsage');
+      const latestSarUsage = document.getElementById('latestSarUsage');
+      const latestPromptLength = document.getElementById('latestPromptLength');
+      const latestDuration = document.getElementById('latestDuration');
+      const latestRequestId = document.getElementById('latestRequestId');
       const globalAlert = document.getElementById('globalAlert');
       const globalAlertTitle = document.getElementById('globalAlertTitle');
       const globalAlertBody = document.getElementById('globalAlertBody');
@@ -759,6 +942,7 @@ function getWebAppHtml(options: WebServerOptions): string {
       const schedulerSnapshot = document.getElementById('schedulerSnapshot');
       const providerSnapshot = document.getElementById('providerSnapshot');
       const runnerSnapshot = document.getElementById('runnerSnapshot');
+      const promptSessionSnapshot = document.getElementById('promptSessionSnapshot');
       const statProvider = document.getElementById('statProvider');
       const statModel = document.getElementById('statModel');
       const statSchedules = document.getElementById('statSchedules');
@@ -766,7 +950,10 @@ function getWebAppHtml(options: WebServerOptions): string {
       const statRunnerWindow = document.getElementById('statRunnerWindow');
       const statRuntimeUpdated = document.getElementById('statRuntimeUpdated');
       const statErrorCount = document.getElementById('statErrorCount');
+      const statPromptMode = document.getElementById('statPromptMode');
+      const statPromptMeta = document.getElementById('statPromptMeta');
       const schedulePreview = document.getElementById('schedulePreview');
+      const promptSessionPreview = document.getElementById('promptSessionPreview');
 
       const refreshRecentBtn = document.getElementById('refreshRecentBtn');
       const searchMemoryBtn = document.getElementById('searchMemoryBtn');
@@ -895,6 +1082,62 @@ function getWebAppHtml(options: WebServerOptions): string {
         }
 
         hideGlobalAlert();
+      }
+
+      function humanizePromptReason(reason) {
+        switch (reason) {
+          case 'force-new-session':
+            return '強制新 Session';
+          case 'periodic-full':
+            return '週期性完整校正';
+          case 'compact-followup':
+            return '延續對話的精簡模式';
+          case 'minimal-followup':
+            return '短追問最小模式';
+          case 'passthrough-command':
+            return '直通命令';
+          case 'message-failed-before-response':
+            return '回應前失敗';
+          case 'not-built-yet':
+            return '尚未建立 prompt';
+          default:
+            return reason || '-';
+        }
+      }
+
+      function humanizePromptMode(mode) {
+        switch (mode) {
+          case 'full':
+            return '完整模式';
+          case 'compact':
+            return '精簡模式';
+          case 'minimal':
+            return '最小模式';
+          case 'passthrough':
+            return '直通模式';
+          default:
+            return mode || '-';
+        }
+      }
+
+      function renderLatestPromptDecision(item) {
+        const mode = item && item.promptMode ? item.promptMode : '-';
+        const hasSar = !!(item && ((item.memoryLength || 0) > 0 || (item.sectionCount || 0) > 0));
+        latestPromptMode.textContent = item && item.promptMode
+          ? humanizePromptMode(item.promptMode) + ' (' + item.promptMode + ')'
+          : '-';
+        latestPromptMode.className = 'decision-mode ' + (item && item.promptMode ? item.promptMode : '');
+        latestExecutionMode.textContent = item && item.executionMode ? item.executionMode : '-';
+        latestPromptReason.textContent = item && item.reason
+          ? humanizePromptReason(item.reason) + ' (' + item.reason + ')'
+          : '-';
+        latestMemoryUsage.textContent = item
+          ? String(item.memoryLength || 0) + ' chars / ' + String(item.sectionCount || 0) + ' sections'
+          : '-';
+        latestSarUsage.textContent = item ? (hasSar ? '有帶入' : '未帶入') : '-';
+        latestPromptLength.textContent = item ? String(item.promptLength || 0) + ' chars' : '-';
+        latestDuration.textContent = item ? String(item.durationMs || 0) + ' ms' : '-';
+        latestRequestId.textContent = item && item.requestId ? item.requestId : '-';
       }
 
       async function refreshHealth() {
@@ -1210,11 +1453,13 @@ function getWebAppHtml(options: WebServerOptions): string {
           const runner = st.runner || {};
           const runtime = st.runtime || {};
           const error = st.error || {};
+          const promptSession = st.promptSession || {};
 
           runtimeSnapshot.textContent = snaps.runtime || '(empty)';
           schedulerSnapshot.textContent = snaps.scheduler || '(empty)';
           providerSnapshot.textContent = snaps.provider || '(empty)';
           runnerSnapshot.textContent = snaps.runner || '(empty)';
+          promptSessionSnapshot.textContent = snaps.promptSession || '(empty)';
 
           statProvider.textContent = provider.provider || '-';
           statModel.textContent = 'model: ' + (provider.model || '-');
@@ -1226,9 +1471,23 @@ function getWebAppHtml(options: WebServerOptions): string {
           const issues = Array.isArray(error.recentIssues) ? error.recentIssues : [];
           statErrorCount.textContent = String(issues.length);
           statErrorCount.className = issues.length > 0 ? 'v err' : 'v';
+
+          const promptRequests = Array.isArray(promptSession.recentRequests)
+            ? promptSession.recentRequests
+            : [];
+          const latestPrompt = promptRequests.length > 0 ? promptRequests[promptRequests.length - 1] : null;
+          statPromptMode.textContent = latestPrompt && latestPrompt.promptMode
+            ? humanizePromptMode(latestPrompt.promptMode)
+            : '-';
+          statPromptMeta.textContent =
+            'samples: ' +
+            String(promptSession.sampleCount || 0) +
+            ' / avg prompt: ' +
+            (promptSession.avg_prompt_length || '-');
           evaluateGlobalAlert(st, issues.length);
 
           const scheduleItems = Array.isArray(scheduler.scheduleItems) ? scheduler.scheduleItems.slice(0, 5) : [];
+          renderLatestPromptDecision(latestPrompt);
           schedulePreview.innerHTML = '';
           if (scheduleItems.length === 0) {
             schedulePreview.innerHTML = '<div class="mini-item">(none)</div>';
@@ -1240,11 +1499,33 @@ function getWebAppHtml(options: WebServerOptions): string {
               schedulePreview.appendChild(div);
             });
           }
+
+          promptSessionPreview.innerHTML = '';
+          if (promptRequests.length === 0) {
+            promptSessionPreview.innerHTML = '<div class="mini-item">(none)</div>';
+          } else {
+            promptRequests.slice(-5).reverse().forEach((item) => {
+              const div = document.createElement('div');
+              div.className = 'mini-item';
+              div.textContent =
+                humanizePromptMode(item.promptMode) +
+                ' | ' +
+                (item.channel || '-') +
+                ' | mem=' +
+                String(item.memoryLength || 0) +
+                ' | ' +
+                humanizePromptReason(item.reason) +
+                ' | ' +
+                (item.status || '-');
+              promptSessionPreview.appendChild(div);
+            });
+          }
         } catch (error) {
           runtimeSnapshot.textContent = '讀取失敗：' + error.message;
           schedulerSnapshot.textContent = '';
           providerSnapshot.textContent = '';
           runnerSnapshot.textContent = '';
+          promptSessionSnapshot.textContent = '';
           statProvider.textContent = '-';
           statModel.textContent = 'model: -';
           statSchedules.textContent = '0';
@@ -1253,7 +1534,11 @@ function getWebAppHtml(options: WebServerOptions): string {
           statRuntimeUpdated.textContent = '-';
           statErrorCount.textContent = '0';
           statErrorCount.className = 'v err';
+          statPromptMode.textContent = '-';
+          statPromptMeta.textContent = 'samples: 0';
+          renderLatestPromptDecision(null);
           schedulePreview.innerHTML = '<div class="mini-item">讀取失敗</div>';
+          promptSessionPreview.innerHTML = '<div class="mini-item">讀取失敗</div>';
           showGlobalAlert('danger', 'Dashboard Error', '狀態資料讀取失敗，請檢查服務與網路連線。');
         }
       }
@@ -1279,7 +1564,7 @@ function getWebAppHtml(options: WebServerOptions): string {
         try {
           await chatWithStream(text);
           historyOffset = 0;
-          await Promise.all([refreshRecent(), refreshHistory(), refreshSchedules()]);
+          await Promise.all([refreshRecent(), refreshHistory(), refreshSchedules(), refreshSnapshots()]);
         } catch (error) {
           addMessage('連線失敗：' + error.message, 'a');
           status.textContent = 'Error';
@@ -1930,7 +2215,8 @@ export function startWebServer(options: WebServerOptions): WebServerHandle {
         scheduler: readContextFile('scheduler-status.md'),
         error: readContextFile('error-summary.md'),
         runner: readContextFile('runner-status.md'),
-        memory: readContextFile('memory-status.md')
+        memory: readContextFile('memory-status.md'),
+        promptSession: readContextFile('prompt-session-status.md')
       };
       sendJson(res, 200, {
         ok: true,

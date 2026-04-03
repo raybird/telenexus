@@ -27,6 +27,10 @@ import {
 import { createLogger } from './logger.js';
 import type { Scheduler } from './scheduler.js';
 import { parseBool, parsePositiveInt } from '../utils/env.js';
+import { randomUUID } from 'crypto';
+import type { PromptBuildResult, PromptMode } from './prompt-build.js';
+import { recordPromptSessionTrace } from '../services/prompt-session-telemetry.js';
+import type { PromptTelemetry } from './message-pipeline-chat.js';
 
 type MessagePipelineOptions = {
   connector: Connector;
@@ -40,7 +44,11 @@ type MessagePipelineOptions = {
   chatRunnerPercent: number;
   chatRunnerOnlyUsers: Set<string>;
   shouldSummarize: (content: string) => boolean;
-  buildPrompt: (userMessage: string, userId: string, mode?: 'full' | 'compact') => string;
+  buildPrompt: (
+    userMessage: string,
+    userId: string,
+    mode?: PromptMode
+  ) => string | PromptBuildResult;
   enqueueMemoriaSync?: (turn: MemoriaSyncTurn) => void;
   recordRuntimeIssue: (scope: string, error: unknown) => void;
   writeContextSnapshots: () => void;
@@ -68,6 +76,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
 
   return async (incomingMsg: UnifiedMessage): Promise<void> => {
     const now = Date.now();
+    const requestId = randomUUID();
     let msg = incomingMsg;
     const connector = options.resolveConnector?.(msg) || options.connector;
     const attachmentCount = msg.attachments?.length || 0;
@@ -75,6 +84,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       platform: msg.sender.platform,
       sender: msg.sender.name,
       userId: msg.sender.id,
+      requestId,
       attachments: attachmentCount,
       content: msg.content
     });
@@ -140,6 +150,14 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       thinkingMessages
     );
     await thinkingMessenger.start();
+    let promptLength = 0;
+    let promptTelemetry: PromptTelemetry = {
+      promptMode: context.isPassthroughCommand ? 'passthrough' : 'compact',
+      promptSelectionReason: context.isPassthroughCommand ? 'passthrough-command' : 'not-built-yet',
+      memoryContextLength: 0,
+      usedMemoryContext: false,
+      memoryContextSectionCount: 0
+    };
 
     try {
       await persistUserMessage({
@@ -148,17 +166,27 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         shouldSummarize: options.shouldSummarize
       });
 
-      const promptForAgent = preparePromptForAgent({
+      const { promptForAgent, telemetry } = preparePromptForAgent({
         context,
         fullPromptEvery,
         fullPromptCounterByUser,
         buildPrompt: options.buildPrompt
       });
+      promptLength = promptForAgent.length;
+      promptTelemetry = telemetry;
 
       if (context.isPassthroughCommand) {
         log.info('prompt.passthrough', { userId: context.userId, prompt: promptForAgent });
       } else {
-        log.info('prompt.sent', { userId: context.userId, length: promptForAgent.length });
+        log.info('prompt.sent', {
+          userId: context.userId,
+          requestId,
+          length: promptForAgent.length,
+          mode: telemetry.promptMode,
+          reason: telemetry.promptSelectionReason,
+          memoryContextLength: telemetry.memoryContextLength,
+          memoryContextSectionCount: telemetry.memoryContextSectionCount
+        });
       }
 
       const rawResponse = await executionQueue.enqueue(userId, 'chat', 'high', () =>
@@ -173,8 +201,28 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
 
       log.info('response.received', {
         userId: context.userId,
+        requestId,
         length: response.length,
         directives: directives.length
+      });
+
+      recordPromptSessionTrace({
+        requestId,
+        timestamp: now,
+        channel: context.msg.sender.platform || 'unknown',
+        userId: context.userId,
+        executionMode: useRunnerThisMessage ? 'runner' : 'local',
+        promptMode: promptTelemetry.promptMode,
+        promptSelectionReason: promptTelemetry.promptSelectionReason,
+        promptLength,
+        memoryContextLength: promptTelemetry.memoryContextLength,
+        memoryContextSectionCount: promptTelemetry.memoryContextSectionCount,
+        usedMemoryContext: promptTelemetry.usedMemoryContext,
+        forceNewSession: context.forceNewSession,
+        isPassthroughCommand: context.isPassthroughCommand,
+        durationMs: Date.now() - now,
+        responseLength: response.length,
+        ok: true
       });
 
       const modelMessageTimestamp = persistModelResponse({
@@ -209,6 +257,23 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       });
     } catch (error) {
       log.error('message.failed', { userId: msg.sender.id, error });
+      recordPromptSessionTrace({
+        requestId,
+        timestamp: now,
+        channel: msg.sender.platform || 'unknown',
+        userId: msg.sender.id,
+        executionMode: useRunnerThisMessage ? 'runner' : 'local',
+        promptMode: promptTelemetry.promptMode,
+        promptSelectionReason: promptTelemetry.promptSelectionReason,
+        promptLength,
+        memoryContextLength: promptTelemetry.memoryContextLength,
+        memoryContextSectionCount: promptTelemetry.memoryContextSectionCount,
+        usedMemoryContext: promptTelemetry.usedMemoryContext,
+        forceNewSession: context.forceNewSession,
+        isPassthroughCommand: context.isPassthroughCommand,
+        durationMs: Date.now() - now,
+        ok: false
+      });
       options.recordRuntimeIssue('message-processing', error);
       options.writeContextSnapshots();
       const errorMsg = 'Sorry, I encountered an error while exercising my powers.';

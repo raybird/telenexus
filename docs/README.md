@@ -31,6 +31,7 @@
 
 - 環境變數與 runner/session 設定：`docs/configuration-reference.md`
 - Runtime 邊界與安全模型：`docs/runtime-boundary-and-security.md`
+- Prompt / session 注入改造計畫：`docs/prompt-session-injection-implementation-plan.md`
 - 發版 SOP 指令流：`npm run release:patch -- -m "<commit message>"`
 - 記憶健康檢查：`npm run memory:health`
 - Sessions archive dry-run 回填：`npm run memory:backfill:dry-run`
@@ -64,6 +65,7 @@
 
 - 這一區是歷史提案或較早期草案，不建議當成現況入口。
 
+- `docs/claude-code-leak-shell-takeaways-2026-04-01.md`
 - `docs/cli-session-integration.md`
 - `docs/current-chat-prompt.md`
 - `docs/chat-prompt-config-proposal.md`

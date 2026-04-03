@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { MemoryManager } from '../src/core/memory.js';
-import { buildMemoryContext, shouldSummarize } from '../src/prompt/builder.js';
+import { buildChatPrompt, buildMemoryContext, shouldSummarize } from '../src/prompt/builder.js';
 
 function withTempDb<T>(fn: () => T): T {
   const prevDbPath = process.env.DB_PATH;
@@ -103,6 +103,32 @@ test('shouldSummarize returns false for text just under thresholds', () => {
 
   const fewLines = 'line1\nline2\nline3\nline4\nline5\nline6';
   assert.equal(shouldSummarize(fewLines), false);
+});
+
+test('buildChatPrompt minimal mode keeps only short session reminder and user message', () => {
+  const config = {
+    language: '繁體中文',
+    roleSystem: '你是 TeleNexus',
+    yoloNoticeEnabled: true,
+    memoryPolicyEnabled: true,
+    workspacePolicyEnabled: true,
+    includeAiResponseSuffix: true,
+    memoryPolicyLines: ['記住重要規則'],
+    workspacePolicyLines: ['工作目錄是 workspace/']
+  };
+
+  const prompt = buildChatPrompt(
+    config,
+    '再講詳細一點？',
+    '【Memory Context】\n【核心決策回顧】\n- [2026-04-01] sample',
+    'minimal'
+  );
+
+  assert.doesNotMatch(prompt, /System:/);
+  assert.doesNotMatch(prompt, /【Memory Context】/);
+  assert.doesNotMatch(prompt, /【SAR 使用規則】/);
+  assert.match(prompt, /延續目前對話 Session/);
+  assert.match(prompt, /User Message:\n再講詳細一點？/);
 });
 
 test('buildMemoryContext keeps older canonical anchor available for matching query', () => {

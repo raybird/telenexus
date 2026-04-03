@@ -8,6 +8,7 @@ import { loadProviderStatus } from '../config/ai-config.js';
 import { getRecentIssues } from '../utils/errors.js';
 import type { MemoryManager } from '../core/memory.js';
 import { collectMemoryHealthReport, formatMemoryHealthMarkdown } from './memory-health.js';
+import { formatPromptSessionTraceMarkdown } from './prompt-session-telemetry.js';
 
 export function writeContextSnapshots(memory: MemoryManager): void {
   try {
@@ -116,6 +117,7 @@ export function writeContextSnapshots(memory: MemoryManager): void {
     ].join('\n');
 
     const memoryStatus = formatMemoryHealthMarkdown(collectMemoryHealthReport());
+    const promptSessionStatus = formatPromptSessionTraceMarkdown();
 
     fs.writeFileSync(path.join(contextDir, 'runtime-status.md'), runtimeStatus, 'utf8');
     fs.writeFileSync(path.join(contextDir, 'provider-status.md'), providerStatus, 'utf8');
@@ -124,6 +126,11 @@ export function writeContextSnapshots(memory: MemoryManager): void {
     fs.writeFileSync(path.join(contextDir, 'operations-policy.md'), operationsPolicy, 'utf8');
     fs.writeFileSync(path.join(contextDir, 'error-summary.md'), errorSummary, 'utf8');
     fs.writeFileSync(path.join(contextDir, 'memory-status.md'), memoryStatus, 'utf8');
+    fs.writeFileSync(
+      path.join(contextDir, 'prompt-session-status.md'),
+      promptSessionStatus,
+      'utf8'
+    );
   } catch (error) {
     console.warn('[System] Failed to write context snapshots:', error);
   }

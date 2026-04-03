@@ -5,6 +5,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { createMessagePipeline } from '../src/core/message-pipeline.js';
 import { MemoryManager } from '../src/core/memory.js';
+import {
+  clearPromptSessionTraces,
+  getRecentPromptSessionTraces
+} from '../src/services/prompt-session-telemetry.js';
 import type { AIAgent } from '../src/core/agent.js';
 import type { Connector, UnifiedMessage } from '../src/types/index.js';
 
@@ -29,6 +33,7 @@ function withTempProject<T>(fn: (projectDir: string) => Promise<T> | T): Promise
   process.env.SUMMARY_FOLLOWUP_ENABLED = 'false';
 
   const finalize = () => {
+    clearPromptSessionTraces();
     process.chdir(prevCwd);
     if (prevDbPath === undefined) delete process.env.DB_PATH;
     else process.env.DB_PATH = prevDbPath;
@@ -118,7 +123,7 @@ test('message pipeline merges pending images and only auto-sends files from work
     const { connector, sentMessages, sentFiles, placeholders, edits } = createConnectorRecorder();
     const memory = new MemoryManager();
     const chatCalls: string[] = [];
-    const buildPromptModes: Array<'full' | 'compact'> = [];
+    const buildPromptModes: Array<'full' | 'compact' | 'minimal'> = [];
     const enqueueTurns: Array<{ userMessage: string; modelMessage: string }> = [];
 
     const pipeline = createMessagePipeline({
@@ -154,7 +159,13 @@ test('message pipeline merges pending images and only auto-sends files from work
       },
       buildPrompt(userMessage, _userId, mode = 'full') {
         buildPromptModes.push(mode);
-        return `PROMPT:${userMessage}`;
+        return {
+          prompt: `PROMPT:${userMessage}`,
+          mode,
+          memoryContextLength: 42,
+          usedMemoryContext: true,
+          memoryContextSectionCount: 3
+        };
       },
       enqueueMemoriaSync(turn) {
         enqueueTurns.push({ userMessage: turn.userMessage, modelMessage: turn.modelMessage });
@@ -202,6 +213,12 @@ test('message pipeline merges pending images and only auto-sends files from work
     assert.deepEqual(enqueueTurns, [
       { userMessage: '幫我分析這張圖片', modelMessage: '分析完成。' }
     ]);
+    const traces = getRecentPromptSessionTraces();
+    assert.equal(traces.length, 1);
+    assert.equal(traces[0]?.promptMode, 'full');
+    assert.equal(traces[0]?.memoryContextLength, 42);
+    assert.equal(traces[0]?.memoryContextSectionCount, 3);
+    assert.equal(traces[0]?.channel, 'telegram');
   });
 });
 
@@ -382,5 +399,182 @@ test('message pipeline can route selected users to runner agent', async () => {
     assert.equal(localCalls.length, 0);
     assert.equal(runnerCalls.length, 1);
     assert.ok(sentMessages.some((item) => item.text === 'runner response'));
+  });
+});
+
+test('message pipeline uses minimal prompt mode for short follow-up messages', async () => {
+  await withTempProject(async () => {
+    const { connector, sentMessages } = createConnectorRecorder();
+    const memory = new MemoryManager();
+    const buildPromptModes: string[] = [];
+
+    const pipeline = createMessagePipeline({
+      connector,
+      commandRouter: {
+        async handleMessage() {
+          return false;
+        },
+        isPassthroughCommand() {
+          return false;
+        }
+      } as never,
+      memory,
+      scheduler: {
+        resetSilenceTimer() {}
+      } as never,
+      userAgent: createAgentStub({
+        async chat() {
+          return 'ok';
+        }
+      }),
+      chatRunnerAgent: createAgentStub(),
+      useRunnerForChat: false,
+      chatRunnerPercent: 100,
+      chatRunnerOnlyUsers: new Set(),
+      shouldSummarize() {
+        return false;
+      },
+      buildPrompt(userMessage, _userId, mode = 'full') {
+        buildPromptModes.push(mode);
+        return {
+          prompt: `MODE:${mode}\n${userMessage}`,
+          mode,
+          memoryContextLength: mode === 'minimal' ? 0 : 20,
+          usedMemoryContext: mode !== 'minimal',
+          memoryContextSectionCount: mode === 'minimal' ? 0 : 1
+        };
+      },
+      recordRuntimeIssue() {},
+      writeContextSnapshots() {}
+    });
+
+    await pipeline(createMessage('先幫我整理重點', { id: 'm1' }));
+    await pipeline(createMessage('再講詳細一點？', { id: 'm2' }));
+
+    assert.deepEqual(buildPromptModes, ['full', 'minimal']);
+    const traces = getRecentPromptSessionTraces();
+    assert.equal(traces.length, 2);
+    assert.equal(traces[1]?.promptMode, 'minimal');
+    assert.equal(traces[1]?.memoryContextLength, 0);
+    assert.ok(sentMessages.some((item) => item.text === 'ok'));
+  });
+});
+
+test('message pipeline keeps compact mode but skips memory context for simple follow-up', async () => {
+  await withTempProject(async () => {
+    const { connector } = createConnectorRecorder();
+    const memory = new MemoryManager();
+
+    const pipeline = createMessagePipeline({
+      connector,
+      commandRouter: {
+        async handleMessage() {
+          return false;
+        },
+        isPassthroughCommand() {
+          return false;
+        }
+      } as never,
+      memory,
+      scheduler: {
+        resetSilenceTimer() {}
+      } as never,
+      userAgent: createAgentStub({
+        async chat() {
+          return 'ok';
+        }
+      }),
+      chatRunnerAgent: createAgentStub(),
+      useRunnerForChat: false,
+      chatRunnerPercent: 0,
+      chatRunnerOnlyUsers: new Set(),
+      shouldSummarize() {
+        return false;
+      },
+      buildPrompt(userMessage, _userId, mode = 'full') {
+        return {
+          prompt: `MODE:${mode}\n${userMessage}`,
+          mode,
+          memoryContextLength: mode === 'compact' ? 0 : 30,
+          usedMemoryContext: mode !== 'compact',
+          memoryContextSectionCount: mode === 'compact' ? 0 : 1
+        };
+      },
+      recordRuntimeIssue() {},
+      writeContextSnapshots() {}
+    });
+
+    await pipeline(createMessage('第一輪先建立 session', { id: 'c1' }));
+    await pipeline(createMessage('請繼續', { id: 'c2' }));
+    await pipeline(createMessage('補充更多細節與背景說明，包含目前狀態與已知限制。', { id: 'c3' }));
+
+    const traces = getRecentPromptSessionTraces();
+    assert.equal(traces.length, 3);
+    assert.equal(traces[1]?.promptMode, 'compact');
+    assert.equal(traces[1]?.memoryContextLength, 0);
+    assert.equal(traces[2]?.promptMode, 'compact');
+    assert.equal(traces[2]?.memoryContextLength, 0);
+  });
+});
+
+test('message pipeline keeps memory context in compact mode for historical rule lookup', async () => {
+  await withTempProject(async () => {
+    const { connector } = createConnectorRecorder();
+    const memory = new MemoryManager();
+
+    const pipeline = createMessagePipeline({
+      connector,
+      commandRouter: {
+        async handleMessage() {
+          return false;
+        },
+        isPassthroughCommand() {
+          return false;
+        }
+      } as never,
+      memory,
+      scheduler: {
+        resetSilenceTimer() {}
+      } as never,
+      userAgent: createAgentStub({
+        async chat() {
+          return 'ok';
+        }
+      }),
+      chatRunnerAgent: createAgentStub(),
+      useRunnerForChat: false,
+      chatRunnerPercent: 0,
+      chatRunnerOnlyUsers: new Set(),
+      shouldSummarize() {
+        return false;
+      },
+      buildPrompt(userMessage, _userId, mode = 'full') {
+        return {
+          prompt: `MODE:${mode}\n${userMessage}`,
+          mode,
+          memoryContextLength:
+            mode === 'compact' && /release SOP/i.test(userMessage)
+              ? 80
+              : mode === 'minimal'
+                ? 0
+                : 30,
+          usedMemoryContext:
+            mode !== 'minimal' && !(/請繼續/.test(userMessage) && mode === 'compact'),
+          memoryContextSectionCount:
+            mode === 'compact' && /release SOP/i.test(userMessage) ? 2 : mode === 'minimal' ? 0 : 1
+        };
+      },
+      recordRuntimeIssue() {},
+      writeContextSnapshots() {}
+    });
+
+    await pipeline(createMessage('第一輪先建立 session', { id: 'r1' }));
+    await pipeline(createMessage('現在 release SOP 是什麼？', { id: 'r2' }));
+
+    const traces = getRecentPromptSessionTraces();
+    assert.equal(traces.length, 2);
+    assert.equal(traces[1]?.promptMode, 'compact');
+    assert.equal(traces[1]?.memoryContextLength, 80);
+    assert.equal(traces[1]?.memoryContextSectionCount, 2);
   });
 });

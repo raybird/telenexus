@@ -3,6 +3,8 @@ import { createLogger } from './logger.js';
 import type { MemoriaSyncTurn } from './memoria-sync.js';
 import type { MemoryManager } from './memory.js';
 import type { MessagePipelineContext } from './message-pipeline-context.js';
+import type { PromptBuildResult, PromptMode } from './prompt-build.js';
+import { normalizePromptBuildResult, shouldIncludeMemoryContext } from './prompt-build.js';
 import { inferSummaryMetadata } from './summary-metadata.js';
 import { buildAttachmentPrompt, extractFileDirectives } from './message-pipeline-helpers.js';
 
@@ -10,8 +12,50 @@ type PreparePromptOptions = {
   context: MessagePipelineContext;
   fullPromptEvery: number;
   fullPromptCounterByUser: Map<string, number>;
-  buildPrompt: (userMessage: string, userId: string, mode?: 'full' | 'compact') => string;
+  buildPrompt: (
+    userMessage: string,
+    userId: string,
+    mode?: PromptMode
+  ) => string | PromptBuildResult;
 };
+
+export type PromptTelemetry = {
+  promptMode: PromptMode | 'passthrough';
+  promptSelectionReason: string;
+  memoryContextLength: number;
+  usedMemoryContext: boolean;
+  memoryContextSectionCount: number;
+};
+
+function isLikelyMinimalFollowup(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed || trimmed.length > 60) {
+    return false;
+  }
+  const newlineCount = (trimmed.match(/\n/g) || []).length;
+  if (newlineCount > 1) {
+    return false;
+  }
+
+  const normalized = trimmed.toLowerCase();
+  if (
+    /^(繼續|然後呢|接著|再來|補充一下|順便|那|所以|另外|然後|再|ok|okay|好|好的|繼續說|詳述一下|展開說明|細講一下)/.test(
+      normalized
+    )
+  ) {
+    return true;
+  }
+
+  if (/^(how|what|why|and|then|also|so)\b/.test(normalized) && trimmed.length <= 40) {
+    return true;
+  }
+
+  if (/嗎\??$|呢\??$|吧\??$|？$|\?$/.test(trimmed) && trimmed.length <= 24) {
+    return true;
+  }
+
+  return false;
+}
 
 type PersistUserMessageOptions = {
   memory: MemoryManager;
@@ -75,19 +119,53 @@ export async function persistUserMessage(options: PersistUserMessageOptions): Pr
   );
 }
 
-export function preparePromptForAgent(options: PreparePromptOptions): string {
+export function preparePromptForAgent(options: PreparePromptOptions): {
+  promptForAgent: string;
+  telemetry: PromptTelemetry;
+} {
   const { context } = options;
   let promptForAgent = context.msg.content.trim();
+  let telemetry: PromptTelemetry = {
+    promptMode: 'passthrough',
+    promptSelectionReason: 'passthrough-command',
+    memoryContextLength: 0,
+    usedMemoryContext: false,
+    memoryContextSectionCount: 0
+  };
 
   if (!context.isPassthroughCommand) {
     const currentCounter = options.fullPromptCounterByUser.get(context.userId) || 0;
     const shouldUseFullPrompt =
       context.forceNewSession || currentCounter % options.fullPromptEvery === 0;
-    promptForAgent = options.buildPrompt(
-      context.msg.content,
-      context.userId,
-      shouldUseFullPrompt ? 'full' : 'compact'
+    const shouldUseMinimal =
+      !shouldUseFullPrompt &&
+      currentCounter > 0 &&
+      !context.msg.attachments?.length &&
+      !shouldIncludeMemoryContext('compact', context.msg.content) &&
+      isLikelyMinimalFollowup(context.msg.content);
+    const promptMode: PromptMode = shouldUseFullPrompt
+      ? 'full'
+      : shouldUseMinimal
+        ? 'minimal'
+        : 'compact';
+    const promptResult = normalizePromptBuildResult(
+      options.buildPrompt(context.msg.content, context.userId, promptMode),
+      promptMode
     );
+    promptForAgent = promptResult.prompt;
+    telemetry = {
+      promptMode: promptResult.mode,
+      promptSelectionReason: context.forceNewSession
+        ? 'force-new-session'
+        : promptMode === 'full'
+          ? 'periodic-full'
+          : promptMode === 'minimal'
+            ? 'minimal-followup'
+            : 'compact-followup',
+      memoryContextLength: promptResult.memoryContextLength,
+      usedMemoryContext: promptResult.usedMemoryContext,
+      memoryContextSectionCount: promptResult.memoryContextSectionCount
+    };
     options.fullPromptCounterByUser.set(context.userId, currentCounter + 1);
     const attachmentPrompt = buildAttachmentPrompt(context.msg.attachments);
     if (attachmentPrompt) {
@@ -95,7 +173,7 @@ export function preparePromptForAgent(options: PreparePromptOptions): string {
     }
   }
 
-  return promptForAgent;
+  return { promptForAgent, telemetry };
 }
 
 export function persistModelResponse(options: PersistModelResponseOptions): number | undefined {

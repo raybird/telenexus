@@ -13,6 +13,11 @@ import { shouldSummarize, buildMemoryContext, buildChatPrompt } from './prompt/b
 import { recordRuntimeIssue } from './utils/errors.js';
 import { writeContextSnapshots, writeSchedulerHealth } from './services/context-snapshots.js';
 import { MemoryBackfillWorker } from './services/memory-backfill-worker.js';
+import {
+  shouldIncludeMemoryContext,
+  type PromptBuildResult,
+  type PromptMode
+} from './core/prompt-build.js';
 import type { UnifiedMessage } from './types/index.js';
 
 // 載入環境變數
@@ -152,11 +157,19 @@ async function bootstrap() {
   const buildPromptFn = (
     userMessage: string,
     userId: string,
-    mode: 'full' | 'compact' = 'full'
-  ) => {
+    mode: PromptMode = 'full'
+  ): PromptBuildResult => {
     const promptConfig = loadChatPromptConfig();
-    const memoryContext = buildMemoryContext(memory, userId, userMessage);
-    return buildChatPrompt(promptConfig, userMessage, memoryContext, mode);
+    const memoryContext = shouldIncludeMemoryContext(mode, userMessage)
+      ? buildMemoryContext(memory, userId, userMessage)
+      : '';
+    return {
+      prompt: buildChatPrompt(promptConfig, userMessage, memoryContext, mode),
+      mode,
+      memoryContextLength: memoryContext.length,
+      usedMemoryContext: memoryContext.trim().length > 0,
+      memoryContextSectionCount: (memoryContext.match(/^【/gm) || []).length
+    };
   };
 
   const writeContextSnapshotsFn = () => {

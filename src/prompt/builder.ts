@@ -426,13 +426,27 @@ export function buildChatPrompt(
   config: ChatPromptConfig,
   userMessage: string,
   memoryContext = '',
-  mode: 'full' | 'compact' = 'full'
+  mode: 'full' | 'compact' | 'minimal' = 'full'
 ): string {
   const sections: string[] = [];
 
-  sections.push('System: ' + config.roleSystem);
-
+  const isMinimal = mode === 'minimal';
   const isCompact = mode === 'compact';
+
+  if (isMinimal) {
+    sections.push(
+      `延續目前對話 Session 與最近一次系統規則。請用${config.language}回應，除非使用者明確要求，否則不要重複前文。`
+    );
+    sections.push(`User Message:\n${userMessage}`);
+
+    if (config.includeAiResponseSuffix) {
+      sections.push('AI Response:');
+    }
+
+    return sections.join('\n\n').trim();
+  }
+
+  sections.push('System: ' + config.roleSystem);
 
   if (isCompact) {
     sections.push(
