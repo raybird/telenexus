@@ -262,11 +262,11 @@ async function bootstrap() {
       console.log('\n[System] Received SIGUSR1, reloading schedules...');
       await scheduler.reload();
       writeSchedulerHealth('signal:SIGUSR1', memory);
-      writeContextSnapshots(memory);
+      writeContextSnapshotsFn();
     } catch (error) {
       console.error('[System] Failed handling SIGUSR1 reload:', error);
       recordRuntimeIssue('signal:SIGUSR1', error);
-      writeContextSnapshots(memory);
+      writeContextSnapshotsFn();
     }
   });
 
@@ -281,12 +281,12 @@ async function bootstrap() {
   // 啟動排程器 (可能需要發送歡迎訊息)
   await scheduler.init();
   writeSchedulerHealth('startup:init', memory);
-  writeContextSnapshots(memory);
+  writeContextSnapshotsFn();
   memoryBackfillWorker.start();
 
   const contextRefreshMs = getContextRefreshMs();
   contextRefreshTimer = setInterval(() => {
-    writeContextSnapshots(memory);
+    writeContextSnapshotsFn();
   }, contextRefreshMs);
   contextRefreshTimer.unref();
   console.log(`[System] Context snapshots auto-refresh every ${contextRefreshMs}ms`);
