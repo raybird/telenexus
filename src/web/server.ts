@@ -348,6 +348,7 @@ function parseBulletMap(markdown: string): Record<string, string> {
   const map: Record<string, string> = {};
   const lines = markdown.split(/\r?\n/);
   for (const line of lines) {
+    if (/^\s*-\s*\[/.test(line)) continue;
     const match = line.match(/^\s*-\s+([^:]+):\s*(.+)\s*$/);
     if (!match) continue;
     const key = normalizeKey(match[1] || '');

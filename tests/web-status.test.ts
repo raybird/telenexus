@@ -89,4 +89,6 @@ test('toStructuredStatus includes prompt session structured fields', () => {
   assert.equal(structured.memoria?.mode, 'auto');
   assert.equal(structured.memoria?.available, 'yes');
   assert.equal(structured.memoria?.recent_failure_count, '1');
+  assert.equal((structured.promptSession as Record<string, unknown>)['2026_4_3_7'], undefined);
+  assert.equal((structured.memoryIntent as Record<string, unknown>)['2026_4_3_7'], undefined);
 });

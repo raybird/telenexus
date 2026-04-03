@@ -637,3 +637,56 @@ test('message pipeline observes memory intent and strips marker from delivered r
     assert.ok(!sentMessages.some((item) => /MEMORY_INTENT/.test(item.text)));
   });
 });
+
+test('message pipeline refreshes snapshots immediately after successful response', async () => {
+  await withTempProject(async () => {
+    const { connector } = createConnectorRecorder();
+    const memory = new MemoryManager();
+    let snapshotWrites = 0;
+
+    const pipeline = createMessagePipeline({
+      connector,
+      commandRouter: {
+        async handleMessage() {
+          return false;
+        },
+        isPassthroughCommand() {
+          return false;
+        }
+      } as never,
+      memory,
+      scheduler: {
+        resetSilenceTimer() {}
+      } as never,
+      userAgent: createAgentStub({
+        async chat() {
+          return 'ok';
+        }
+      }),
+      chatRunnerAgent: createAgentStub(),
+      useRunnerForChat: false,
+      chatRunnerPercent: 0,
+      chatRunnerOnlyUsers: new Set(),
+      shouldSummarize() {
+        return false;
+      },
+      buildPrompt(userMessage, _userId, mode = 'full') {
+        return {
+          prompt: `MODE:${mode}\n${userMessage}`,
+          mode,
+          memoryContextLength: 0,
+          usedMemoryContext: false,
+          memoryContextSectionCount: 0
+        };
+      },
+      recordRuntimeIssue() {},
+      writeContextSnapshots() {
+        snapshotWrites += 1;
+      }
+    });
+
+    await pipeline(createMessage('更新快照測試', { id: 'snap-1' }));
+
+    assert.ok(snapshotWrites >= 1);
+  });
+});

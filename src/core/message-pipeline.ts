@@ -269,6 +269,8 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         connectorSendMessage: (text) => context.connector.sendMessage(context.targetChatId, text),
         ...(typeof modelMessageTimestamp === 'number' ? { modelMessageTimestamp } : {})
       });
+
+      options.writeContextSnapshots();
     } catch (error) {
       log.error('message.failed', { userId: msg.sender.id, error });
       recordPromptSessionTrace({
