@@ -7,10 +7,16 @@ import { resolveContextDir, resolveSchedulerHealthPath } from '../utils/paths.js
 import { loadProviderStatus } from '../config/ai-config.js';
 import { getRecentIssues } from '../utils/errors.js';
 import type { MemoryManager } from '../core/memory.js';
+import type { MemoriaSyncStatus } from '../core/memoria-sync.js';
 import { collectMemoryHealthReport, formatMemoryHealthMarkdown } from './memory-health.js';
+import { formatMemoryIntentTraceMarkdown } from './memory-intent-telemetry.js';
+import { formatMemoriaStatusMarkdown } from './memoria-status.js';
 import { formatPromptSessionTraceMarkdown } from './prompt-session-telemetry.js';
 
-export function writeContextSnapshots(memory: MemoryManager): void {
+export function writeContextSnapshots(
+  memory: MemoryManager,
+  options: { memoriaStatus?: MemoriaSyncStatus } = {}
+): void {
   try {
     const contextDir = resolveContextDir();
     fs.mkdirSync(contextDir, { recursive: true });
@@ -117,6 +123,23 @@ export function writeContextSnapshots(memory: MemoryManager): void {
     ].join('\n');
 
     const memoryStatus = formatMemoryHealthMarkdown(collectMemoryHealthReport());
+    const memoriaStatus = options.memoriaStatus
+      ? formatMemoriaStatusMarkdown(options.memoriaStatus)
+      : formatMemoriaStatusMarkdown({
+          mode: 'off',
+          available: false,
+          disabled: true,
+          cliDetected: false,
+          memoriaHome: '(unknown)',
+          cliPath: '(unknown)',
+          hookQueueEnabled: false,
+          hookQueuePollMs: 0,
+          recentFailureCount: 0,
+          lastSyncAt: null,
+          lastFailureAt: null,
+          lastFailureMessage: null
+        });
+    const memoryIntentStatus = formatMemoryIntentTraceMarkdown();
     const promptSessionStatus = formatPromptSessionTraceMarkdown();
 
     fs.writeFileSync(path.join(contextDir, 'runtime-status.md'), runtimeStatus, 'utf8');
@@ -126,6 +149,8 @@ export function writeContextSnapshots(memory: MemoryManager): void {
     fs.writeFileSync(path.join(contextDir, 'operations-policy.md'), operationsPolicy, 'utf8');
     fs.writeFileSync(path.join(contextDir, 'error-summary.md'), errorSummary, 'utf8');
     fs.writeFileSync(path.join(contextDir, 'memory-status.md'), memoryStatus, 'utf8');
+    fs.writeFileSync(path.join(contextDir, 'memoria-status.md'), memoriaStatus, 'utf8');
+    fs.writeFileSync(path.join(contextDir, 'memory-intent-status.md'), memoryIntentStatus, 'utf8');
     fs.writeFileSync(
       path.join(contextDir, 'prompt-session-status.md'),
       promptSessionStatus,

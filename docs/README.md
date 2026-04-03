@@ -49,6 +49,7 @@
 
 - 記憶系統實作分析報告：`docs/memory-system-analysis-2026-03-30.md`
 - 長對話記憶檢索主規劃（維護者主文件）：`docs/summary-aware-retrieval-plan.md`
+- Memoria 提示與 memory intent 計畫：`docs/memoria-capability-hint-and-memory-intent-plan.md`
 - Sessions archive -> 長期記憶回填實作計畫：`docs/sessions-db-backfill-implementation-plan.md`
 - 最小改進計畫（偏 roadmap）：`docs/sar-improvement-plan-minimal.md`
 - 核心規則記憶清單（固定規則 seed）：`docs/canonical-sar-anchors.md`

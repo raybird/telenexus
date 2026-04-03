@@ -22,6 +22,21 @@ type MemoriaSyncOptions = {
   timeoutMs?: number;
 };
 
+export type MemoriaSyncStatus = {
+  mode: MemoriaSyncMode;
+  available: boolean;
+  disabled: boolean;
+  cliDetected: boolean;
+  memoriaHome: string;
+  cliPath: string;
+  hookQueueEnabled: boolean;
+  hookQueuePollMs: number;
+  recentFailureCount: number;
+  lastSyncAt: number | null;
+  lastFailureAt: number | null;
+  lastFailureMessage: string | null;
+};
+
 type HookQueuedTurn = {
   userId?: string;
   userMessage?: string;
@@ -188,6 +203,11 @@ export class MemoriaSyncBridge {
   private disabled: boolean;
   private hookPollTimer: NodeJS.Timeout | null;
   private recentTurnHashes: Map<string, number>;
+  private cliDetected: boolean;
+  private recentFailureCount: number;
+  private lastSyncAt: number | null;
+  private lastFailureAt: number | null;
+  private lastFailureMessage: string | null;
 
   constructor(options: MemoriaSyncOptions = {}) {
     this.mode = options.mode || parseMode(process.env.MEMORIA_SYNC_ENABLED);
@@ -221,6 +241,11 @@ export class MemoriaSyncBridge {
     this.disabled = false;
     this.hookPollTimer = null;
     this.recentTurnHashes = new Map();
+    this.cliDetected = fs.existsSync(this.cliPath);
+    this.recentFailureCount = 0;
+    this.lastSyncAt = null;
+    this.lastFailureAt = null;
+    this.lastFailureMessage = null;
 
     if (this.mode === 'off') {
       console.log('[MemoriaSync] Disabled by MEMORIA_SYNC_ENABLED.');
@@ -228,7 +253,7 @@ export class MemoriaSyncBridge {
       return;
     }
 
-    if (!fs.existsSync(this.cliPath)) {
+    if (!this.cliDetected) {
       const message = `[MemoriaSync] CLI not found: ${this.cliPath}`;
       if (this.mode === 'on') {
         console.warn(`${message} (mode=on, will keep retrying queue)`);
@@ -293,8 +318,15 @@ export class MemoriaSyncBridge {
         try {
           await runMemoriaSync(this.cliPath, this.memoriaHome, payloadPath, this.timeoutMs);
           synced = true;
+          this.recentFailureCount = 0;
+          this.lastFailureMessage = null;
+          this.lastFailureAt = null;
+          this.lastSyncAt = Date.now();
           console.log(`[MemoriaSync] Synced session ${sessionId}`);
         } catch (error) {
+          this.recentFailureCount += 1;
+          this.lastFailureAt = Date.now();
+          this.lastFailureMessage = toErrorMessage(error);
           const failedPath = this.preserveFailedPayload(payloadPath, sessionId);
           const details = failedPath
             ? `${toErrorMessage(error)} (payload preserved: ${failedPath})`
@@ -430,5 +462,22 @@ export class MemoriaSyncBridge {
       .catch((error) => {
         console.warn('[MemoriaSync] Hook queue drain failed:', error);
       });
+  }
+
+  getStatus(): MemoriaSyncStatus {
+    return {
+      mode: this.mode,
+      available: !this.disabled && this.cliDetected,
+      disabled: this.disabled,
+      cliDetected: this.cliDetected,
+      memoriaHome: this.memoriaHome,
+      cliPath: this.cliPath,
+      hookQueueEnabled: this.hookQueueEnabled,
+      hookQueuePollMs: this.hookQueuePollMs,
+      recentFailureCount: this.recentFailureCount,
+      lastSyncAt: this.lastSyncAt,
+      lastFailureAt: this.lastFailureAt,
+      lastFailureMessage: this.lastFailureMessage
+    };
   }
 }

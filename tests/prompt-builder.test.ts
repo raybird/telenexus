@@ -121,14 +121,40 @@ test('buildChatPrompt minimal mode keeps only short session reminder and user me
     config,
     '再講詳細一點？',
     '【Memory Context】\n【核心決策回顧】\n- [2026-04-01] sample',
-    'minimal'
+    'minimal',
+    '若需要跨 session 歷史，可使用 Memoria 補強。'
   );
 
   assert.doesNotMatch(prompt, /System:/);
   assert.doesNotMatch(prompt, /【Memory Context】/);
   assert.doesNotMatch(prompt, /【SAR 使用規則】/);
+  assert.doesNotMatch(prompt, /【可用能力提示】/);
   assert.match(prompt, /延續目前對話 Session/);
   assert.match(prompt, /User Message:\n再講詳細一點？/);
+});
+
+test('buildChatPrompt includes capability hint for non-minimal modes when provided', () => {
+  const config = {
+    language: '繁體中文',
+    roleSystem: '你是 TeleNexus',
+    yoloNoticeEnabled: true,
+    memoryPolicyEnabled: true,
+    workspacePolicyEnabled: true,
+    includeAiResponseSuffix: true,
+    memoryPolicyLines: ['記住重要規則'],
+    workspacePolicyLines: ['工作目錄是 workspace/']
+  };
+
+  const prompt = buildChatPrompt(
+    config,
+    '現在 release SOP 是什麼？',
+    '【Memory Context】\n【核心決策回顧】\n- [2026-04-01] sample',
+    'full',
+    '若本次任務需要跨 session 歷史，系統目前有額外長期記憶補強可配合。'
+  );
+
+  assert.match(prompt, /【可用能力提示】/);
+  assert.match(prompt, /額外長期記憶補強/);
 });
 
 test('buildMemoryContext keeps older canonical anchor available for matching query', () => {

@@ -426,7 +426,8 @@ export function buildChatPrompt(
   config: ChatPromptConfig,
   userMessage: string,
   memoryContext = '',
-  mode: 'full' | 'compact' | 'minimal' = 'full'
+  mode: 'full' | 'compact' | 'minimal' = 'full',
+  capabilityHint = ''
 ): string {
   const sections: string[] = [];
 
@@ -468,6 +469,10 @@ export function buildChatPrompt(
   if (!isCompact && config.workspacePolicyEnabled) {
     const lines = config.workspacePolicyLines.map((line) => `- ${line}`).join('\n');
     sections.push(`【工作目錄限制 - 重要】\n${lines}`);
+  }
+
+  if (capabilityHint.trim().length > 0) {
+    sections.push(`【可用能力提示】\n${capabilityHint.trim()}`);
   }
 
   if (!isCompact) {

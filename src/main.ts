@@ -163,8 +163,21 @@ async function bootstrap() {
     const memoryContext = shouldIncludeMemoryContext(mode, userMessage)
       ? buildMemoryContext(memory, userId, userMessage)
       : '';
+    const memoriaStatus = memoriaSync.getStatus();
+    const shouldIncludeMemoriaHint =
+      memoriaStatus.available &&
+      (mode === 'full' || (mode === 'compact' && memoryContext.trim().length > 0));
+    const memoriaCapabilityHint = shouldIncludeMemoriaHint
+      ? '若本次任務需要跨 session 歷史、長期規則或可重用決策，系統目前有額外長期記憶補強可配合；若不需要，仍以前回合 session 與 TeleNexus 已注入內容為主。若本輪出現值得長期保留的規則或決策，可在回覆最後附上 `[[MEMORY_INTENT:{"level":"rule|decision|long-term-candidate|short-term|none","confidence":"low|medium|high","reason":"...","summary":"..."}]]`；這個區塊只用於系統觀測，不要在正文中解釋它。'
+      : '';
     return {
-      prompt: buildChatPrompt(promptConfig, userMessage, memoryContext, mode),
+      prompt: buildChatPrompt(
+        promptConfig,
+        userMessage,
+        memoryContext,
+        mode,
+        memoriaCapabilityHint
+      ),
       mode,
       memoryContextLength: memoryContext.length,
       usedMemoryContext: memoryContext.trim().length > 0,
@@ -173,7 +186,7 @@ async function bootstrap() {
   };
 
   const writeContextSnapshotsFn = () => {
-    writeContextSnapshots(memory);
+    writeContextSnapshots(memory, { memoriaStatus: memoriaSync.getStatus() });
   };
   const memoryBackfillWorker = new MemoryBackfillWorker({
     onAfterRun: writeContextSnapshotsFn

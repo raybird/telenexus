@@ -331,6 +331,8 @@ type SnapshotSet = {
   error: string;
   runner: string;
   memory: string;
+  memoria: string;
+  memoryIntent: string;
   promptSession: string;
 };
 
@@ -462,12 +464,67 @@ export function parsePromptSessionRequests(markdown: string): Array<{
   return items;
 }
 
+export function parseMemoryIntentRequests(markdown: string): Array<{
+  at?: string;
+  requestId?: string;
+  channel?: string;
+  promptMode?: string;
+  level?: string;
+  confidence?: string;
+  reason?: string;
+}> {
+  const items: Array<{
+    at?: string;
+    requestId?: string;
+    channel?: string;
+    promptMode?: string;
+    level?: string;
+    confidence?: string;
+    reason?: string;
+  }> = [];
+  const lines = markdown.split(/\r?\n/);
+  for (const line of lines) {
+    const match = line.match(/^\s*-\s+\[(.+?)\]\s+(.+)$/);
+    if (!match) continue;
+    const at = (match[1] || '').trim();
+    const body = (match[2] || '').trim();
+    if (!body.startsWith('req=')) continue;
+    const partMatches = Array.from(body.matchAll(/(\w+)=([^=]+?)(?=\s+\w+=|$)/g));
+    const item: {
+      at?: string;
+      requestId?: string;
+      channel?: string;
+      promptMode?: string;
+      level?: string;
+      confidence?: string;
+      reason?: string;
+    } = { at };
+    for (const part of partMatches) {
+      const key = (part[1] || '').trim();
+      const value = (part[2] || '').trim();
+      if (!key || !value) continue;
+      if (key === 'req') item.requestId = value;
+      else if (key === 'channel') item.channel = value;
+      else if (key === 'mode') item.promptMode = value;
+      else if (key === 'level') item.level = value;
+      else if (key === 'confidence') item.confidence = value;
+      else if (key === 'reason') item.reason = value;
+    }
+    items.push(item);
+  }
+  return items;
+}
+
 export function toStructuredStatus(snapshots: SnapshotSet): Record<string, unknown> {
   const runtimeMap = parseBulletMap(snapshots.runtime);
   const providerMap = parseBulletMap(snapshots.provider);
   const schedulerMap = parseBulletMap(snapshots.scheduler);
   const runnerMap = parseBulletMap(snapshots.runner);
+  const memoriaMap = parseBulletMap(snapshots.memoria);
+  const memoryIntentMap = parseBulletMap(snapshots.memoryIntent);
   const promptSessionMap = parseBulletMap(snapshots.promptSession);
+  const memoryIntentSampleCountRaw = memoryIntentMap.sample_count || '0';
+  const memoryIntentSampleCount = Number.parseInt(memoryIntentSampleCountRaw, 10);
 
   const activeSchedulesRaw = schedulerMap.active_schedules || '0';
   const activeSchedules = Number.parseInt(activeSchedulesRaw, 10);
@@ -488,6 +545,12 @@ export function toStructuredStatus(snapshots: SnapshotSet): Record<string, unkno
     },
     runner: runnerMap,
     memory: parseBulletMap(snapshots.memory),
+    memoria: memoriaMap,
+    memoryIntent: {
+      ...memoryIntentMap,
+      sampleCount: Number.isFinite(memoryIntentSampleCount) ? memoryIntentSampleCount : 0,
+      recentRequests: parseMemoryIntentRequests(snapshots.memoryIntent)
+    },
     promptSession: {
       ...promptSessionMap,
       sampleCount: Number.isFinite(sampleCount) ? sampleCount : 0,
@@ -876,6 +939,11 @@ function getWebAppHtml(options: WebServerOptions): string {
             <div class="v" id="statPromptMode">-</div>
             <div class="sub" id="statPromptMeta">samples: 0</div>
           </div>
+          <div class="metric">
+            <div class="k">Memory Intent</div>
+            <div class="v" id="statMemoryIntent">-</div>
+            <div class="sub" id="statMemoryIntentMeta">samples: 0</div>
+          </div>
         </div>
 
         <div class="meta">Schedule Preview</div>
@@ -883,6 +951,9 @@ function getWebAppHtml(options: WebServerOptions): string {
 
         <div class="meta">Prompt Session Preview</div>
         <div id="promptSessionPreview" class="mini-list"></div>
+
+        <div class="meta">Memory Intent Preview</div>
+        <div id="memoryIntentPreview" class="mini-list"></div>
 
         <div class="grid2">
           <div>
@@ -904,6 +975,10 @@ function getWebAppHtml(options: WebServerOptions): string {
           <div>
             <div class="meta">prompt-session-status.md</div>
             <pre class="snapshot" id="promptSessionSnapshot"></pre>
+          </div>
+          <div>
+            <div class="meta">memory-intent-status.md</div>
+            <pre class="snapshot" id="memoryIntentSnapshot"></pre>
           </div>
         </div>
       </div>
@@ -943,6 +1018,7 @@ function getWebAppHtml(options: WebServerOptions): string {
       const providerSnapshot = document.getElementById('providerSnapshot');
       const runnerSnapshot = document.getElementById('runnerSnapshot');
       const promptSessionSnapshot = document.getElementById('promptSessionSnapshot');
+      const memoryIntentSnapshot = document.getElementById('memoryIntentSnapshot');
       const statProvider = document.getElementById('statProvider');
       const statModel = document.getElementById('statModel');
       const statSchedules = document.getElementById('statSchedules');
@@ -952,8 +1028,11 @@ function getWebAppHtml(options: WebServerOptions): string {
       const statErrorCount = document.getElementById('statErrorCount');
       const statPromptMode = document.getElementById('statPromptMode');
       const statPromptMeta = document.getElementById('statPromptMeta');
+      const statMemoryIntent = document.getElementById('statMemoryIntent');
+      const statMemoryIntentMeta = document.getElementById('statMemoryIntentMeta');
       const schedulePreview = document.getElementById('schedulePreview');
       const promptSessionPreview = document.getElementById('promptSessionPreview');
+      const memoryIntentPreview = document.getElementById('memoryIntentPreview');
 
       const refreshRecentBtn = document.getElementById('refreshRecentBtn');
       const searchMemoryBtn = document.getElementById('searchMemoryBtn');
@@ -1453,6 +1532,7 @@ function getWebAppHtml(options: WebServerOptions): string {
           const runner = st.runner || {};
           const runtime = st.runtime || {};
           const error = st.error || {};
+          const memoryIntent = st.memoryIntent || {};
           const promptSession = st.promptSession || {};
 
           runtimeSnapshot.textContent = snaps.runtime || '(empty)';
@@ -1460,6 +1540,7 @@ function getWebAppHtml(options: WebServerOptions): string {
           providerSnapshot.textContent = snaps.provider || '(empty)';
           runnerSnapshot.textContent = snaps.runner || '(empty)';
           promptSessionSnapshot.textContent = snaps.promptSession || '(empty)';
+          memoryIntentSnapshot.textContent = snaps.memoryIntent || '(empty)';
 
           statProvider.textContent = provider.provider || '-';
           statModel.textContent = 'model: ' + (provider.model || '-');
@@ -1484,6 +1565,19 @@ function getWebAppHtml(options: WebServerOptions): string {
             String(promptSession.sampleCount || 0) +
             ' / avg prompt: ' +
             (promptSession.avg_prompt_length || '-');
+          const memoryIntentRequests = Array.isArray(memoryIntent.recentRequests)
+            ? memoryIntent.recentRequests
+            : [];
+          const latestMemoryIntent = memoryIntentRequests.length > 0
+            ? memoryIntentRequests[memoryIntentRequests.length - 1]
+            : null;
+          statMemoryIntent.textContent = latestMemoryIntent && latestMemoryIntent.level
+            ? latestMemoryIntent.level
+            : '-';
+          statMemoryIntentMeta.textContent =
+            'samples: ' + String(memoryIntent.sampleCount || 0) +
+            ' / latest confidence: ' +
+            (latestMemoryIntent && latestMemoryIntent.confidence ? latestMemoryIntent.confidence : '-');
           evaluateGlobalAlert(st, issues.length);
 
           const scheduleItems = Array.isArray(scheduler.scheduleItems) ? scheduler.scheduleItems.slice(0, 5) : [];
@@ -1520,12 +1614,32 @@ function getWebAppHtml(options: WebServerOptions): string {
               promptSessionPreview.appendChild(div);
             });
           }
+
+          memoryIntentPreview.innerHTML = '';
+          if (memoryIntentRequests.length === 0) {
+            memoryIntentPreview.innerHTML = '<div class="mini-item">(none)</div>';
+          } else {
+            memoryIntentRequests.slice(-5).reverse().forEach((item) => {
+              const div = document.createElement('div');
+              div.className = 'mini-item';
+              div.textContent =
+                (item.level || '-') +
+                ' | ' +
+                (item.confidence || '-') +
+                ' | ' +
+                humanizePromptMode(item.promptMode) +
+                ' | ' +
+                (item.reason || '-');
+              memoryIntentPreview.appendChild(div);
+            });
+          }
         } catch (error) {
           runtimeSnapshot.textContent = '讀取失敗：' + error.message;
           schedulerSnapshot.textContent = '';
           providerSnapshot.textContent = '';
           runnerSnapshot.textContent = '';
           promptSessionSnapshot.textContent = '';
+          memoryIntentSnapshot.textContent = '';
           statProvider.textContent = '-';
           statModel.textContent = 'model: -';
           statSchedules.textContent = '0';
@@ -1536,9 +1650,12 @@ function getWebAppHtml(options: WebServerOptions): string {
           statErrorCount.className = 'v err';
           statPromptMode.textContent = '-';
           statPromptMeta.textContent = 'samples: 0';
+          statMemoryIntent.textContent = '-';
+          statMemoryIntentMeta.textContent = 'samples: 0';
           renderLatestPromptDecision(null);
           schedulePreview.innerHTML = '<div class="mini-item">讀取失敗</div>';
           promptSessionPreview.innerHTML = '<div class="mini-item">讀取失敗</div>';
+          memoryIntentPreview.innerHTML = '<div class="mini-item">讀取失敗</div>';
           showGlobalAlert('danger', 'Dashboard Error', '狀態資料讀取失敗，請檢查服務與網路連線。');
         }
       }
@@ -2216,6 +2333,8 @@ export function startWebServer(options: WebServerOptions): WebServerHandle {
         error: readContextFile('error-summary.md'),
         runner: readContextFile('runner-status.md'),
         memory: readContextFile('memory-status.md'),
+        memoria: readContextFile('memoria-status.md'),
+        memoryIntent: readContextFile('memory-intent-status.md'),
         promptSession: readContextFile('prompt-session-status.md')
       };
       sendJson(res, 200, {

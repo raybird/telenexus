@@ -9,6 +9,10 @@ import {
   clearPromptSessionTraces,
   getRecentPromptSessionTraces
 } from '../src/services/prompt-session-telemetry.js';
+import {
+  clearMemoryIntentTraces as clearIntentTelemetry,
+  getRecentMemoryIntentTraces
+} from '../src/services/memory-intent-telemetry.js';
 import type { AIAgent } from '../src/core/agent.js';
 import type { Connector, UnifiedMessage } from '../src/types/index.js';
 
@@ -34,6 +38,7 @@ function withTempProject<T>(fn: (projectDir: string) => Promise<T> | T): Promise
 
   const finalize = () => {
     clearPromptSessionTraces();
+    clearIntentTelemetry();
     process.chdir(prevCwd);
     if (prevDbPath === undefined) delete process.env.DB_PATH;
     else process.env.DB_PATH = prevDbPath;
@@ -576,5 +581,59 @@ test('message pipeline keeps memory context in compact mode for historical rule 
     assert.equal(traces[1]?.promptMode, 'compact');
     assert.equal(traces[1]?.memoryContextLength, 80);
     assert.equal(traces[1]?.memoryContextSectionCount, 2);
+  });
+});
+
+test('message pipeline observes memory intent and strips marker from delivered response', async () => {
+  await withTempProject(async () => {
+    const { connector, sentMessages } = createConnectorRecorder();
+    const memory = new MemoryManager();
+
+    const pipeline = createMessagePipeline({
+      connector,
+      commandRouter: {
+        async handleMessage() {
+          return false;
+        },
+        isPassthroughCommand() {
+          return false;
+        }
+      } as never,
+      memory,
+      scheduler: {
+        resetSilenceTimer() {}
+      } as never,
+      userAgent: createAgentStub({
+        async chat() {
+          return '這是正文。\n\n[[MEMORY_INTENT:{"level":"decision","confidence":"high","reason":"使用者指定固定策略","summary":"keep shell as control plane"}]]';
+        }
+      }),
+      chatRunnerAgent: createAgentStub(),
+      useRunnerForChat: false,
+      chatRunnerPercent: 0,
+      chatRunnerOnlyUsers: new Set(),
+      shouldSummarize() {
+        return false;
+      },
+      buildPrompt(userMessage, _userId, mode = 'full') {
+        return {
+          prompt: `MODE:${mode}\n${userMessage}`,
+          mode,
+          memoryContextLength: 20,
+          usedMemoryContext: true,
+          memoryContextSectionCount: 1
+        };
+      },
+      recordRuntimeIssue() {},
+      writeContextSnapshots() {}
+    });
+
+    await pipeline(createMessage('請整理這輪策略', { id: 'mi-1' }));
+
+    const intents = getRecentMemoryIntentTraces();
+    assert.equal(intents.length, 1);
+    assert.equal(intents[0]?.intent.level, 'decision');
+    assert.ok(sentMessages.some((item) => item.text === '這是正文。'));
+    assert.ok(!sentMessages.some((item) => /MEMORY_INTENT/.test(item.text)));
   });
 });

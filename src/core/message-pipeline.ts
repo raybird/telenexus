@@ -31,6 +31,8 @@ import { randomUUID } from 'crypto';
 import type { PromptBuildResult, PromptMode } from './prompt-build.js';
 import { recordPromptSessionTrace } from '../services/prompt-session-telemetry.js';
 import type { PromptTelemetry } from './message-pipeline-chat.js';
+import { parseMemoryIntent } from './memory-intent.js';
+import { recordMemoryIntentTrace } from '../services/memory-intent-telemetry.js';
 
 type MessagePipelineOptions = {
   connector: Connector;
@@ -198,13 +200,25 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       );
 
       const { response, directives } = normalizeAgentResponse(rawResponse);
+      const { cleanedResponse, intent: memoryIntent } = parseMemoryIntent(response);
 
       log.info('response.received', {
         userId: context.userId,
         requestId,
-        length: response.length,
+        length: cleanedResponse.length,
         directives: directives.length
       });
+
+      if (memoryIntent) {
+        recordMemoryIntentTrace({
+          requestId,
+          timestamp: Date.now(),
+          userId: context.userId,
+          channel: context.msg.sender.platform || 'unknown',
+          promptMode: promptTelemetry.promptMode,
+          intent: memoryIntent
+        });
+      }
 
       recordPromptSessionTrace({
         requestId,
@@ -221,19 +235,19 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         forceNewSession: context.forceNewSession,
         isPassthroughCommand: context.isPassthroughCommand,
         durationMs: Date.now() - now,
-        responseLength: response.length,
+        responseLength: cleanedResponse.length,
         ok: true
       });
 
       const modelMessageTimestamp = persistModelResponse({
         memory: options.memory,
         context,
-        response,
+        response: cleanedResponse,
         ...(options.enqueueMemoriaSync ? { enqueueMemoriaSync: options.enqueueMemoriaSync } : {})
       });
 
       await thinkingMessenger.stop();
-      await thinkingMessenger.deliverFinalResponse(response);
+      await thinkingMessenger.deliverFinalResponse(cleanedResponse);
 
       if (directives.length > 0) {
         await deliverFileDirectives(
@@ -247,7 +261,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       maybeSendSummaryFollowup({
         enabled: summaryFollowupEnabled,
         context,
-        response,
+        response: cleanedResponse,
         minLength: summaryFollowupMinLength,
         maxLength: summaryFollowupMaxLength,
         shouldSummarize: options.shouldSummarize,
