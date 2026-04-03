@@ -8,10 +8,26 @@
 - `docs/README.md`：文件入口，幫你找到正確的模組文件
 - 深層設計文件：只在需要維護、調整或追歷史時再深入
 
+## 維護者先看
+
+如果你是第一次維護這個 repo，建議先看這一組：
+
+1. `README.md`
+2. `ARCHITECTURE.md`
+3. `docs/configuration-reference.md`
+4. `docs/runtime-boundary-and-security.md`
+5. `docs/web-console-reference.md`
+6. `docs/summary-aware-retrieval-plan.md`
+
+這 6 份最接近目前實作。
+
 ## 第一次看建議先讀
 
 - 想先知道這個專案是做什麼：`README.md`
+- 想快速理解目前真實架構：`ARCHITECTURE.md`
 - 想快速上線或切換環境：`docs/deployment-cutover-checklist.md`
+- 想理解配置、runner、session：`docs/configuration-reference.md`
+- 想理解 runtime 邊界與 observability：`docs/runtime-boundary-and-security.md`
 - 想理解整體記憶與長對話能力：`docs/summary-aware-retrieval-plan.md`
 
 ## 依目的閱讀
@@ -19,7 +35,16 @@
 ### 我想快速上手
 
 - 專案首頁：`README.md`
+- 架構總覽：`ARCHITECTURE.md`
 - 部署與切換 checklist：`docs/deployment-cutover-checklist.md`
+
+### 我想先看目前系統怎麼跑
+
+- 架構總覽：`ARCHITECTURE.md`
+- 配置與 runner/session：`docs/configuration-reference.md`
+- Runtime 邊界與安全模型：`docs/runtime-boundary-and-security.md`
+- CLI session 與 runner 整合：`docs/cli-session-integration.md`
+- 流程演進與現況差異：`docs/flow-old-vs-new.md`
 
 ### 我想看 Web Console
 
@@ -31,6 +56,7 @@
 
 - 環境變數與 runner/session 設定：`docs/configuration-reference.md`
 - Runtime 邊界與安全模型：`docs/runtime-boundary-and-security.md`
+- 目前聊天 prompt 組裝：`docs/current-chat-prompt.md`
 - Prompt / session 注入改造計畫：`docs/prompt-session-injection-implementation-plan.md`
 - 發版 SOP 指令流：`npm run release:patch -- -m "<commit message>"`
 - 記憶健康檢查：`npm run memory:health`
@@ -47,8 +73,8 @@
 
 ### 我想理解記憶與長對話能力
 
-- 記憶系統實作分析報告：`docs/memory-system-analysis-2026-03-30.md`
 - 長對話記憶檢索主規劃（維護者主文件）：`docs/summary-aware-retrieval-plan.md`
+- 記憶系統實作分析報告：`docs/memory-system-analysis-2026-03-30.md`
 - Memoria 提示與 memory intent 計畫：`docs/memoria-capability-hint-and-memory-intent-plan.md`
 - Sessions archive -> 長期記憶回填實作計畫：`docs/sessions-db-backfill-implementation-plan.md`
 - 最小改進計畫（偏 roadmap）：`docs/sar-improvement-plan-minimal.md`
@@ -58,19 +84,24 @@
 
 ### 我想看架構與歷史
 
+- 目前架構入口：`ARCHITECTURE.md`
+- 流程演進：`docs/flow-old-vs-new.md`
 - Docker 重構路線：`docs/docker-refactor-roadmap.md`
 - Phase 3 歷史：`docs/phase3-migration-history.md`
 - 遷移紀錄（完整時序）：`docs/migration-log.md`
 
-### 其他提案 / 研究文件
+### 其他現況參考
+
+- 目前聊天 prompt 組裝：`docs/current-chat-prompt.md`
+- CLI session 與 runner 整合：`docs/cli-session-integration.md`
+- 記憶系統實作分析報告：`docs/memory-system-analysis-2026-03-30.md`
+
+### 歷史提案 / 研究文件
 
 - 這一區是歷史提案或較早期草案，不建議當成現況入口。
 
 - `docs/claude-code-leak-shell-takeaways-2026-04-01.md`
-- `docs/cli-session-integration.md`
-- `docs/current-chat-prompt.md`
 - `docs/chat-prompt-config-proposal.md`
 - `docs/memory-improvement-plan.md`
 - `docs/memory-v3-architecture-plan.md`
-- `docs/flow-old-vs-new.md`
 - `docs/commit-split-plan.md`

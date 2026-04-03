@@ -1,61 +1,132 @@
-# Current Chat Prompt (一般對話)
+# Current Chat Prompt
 
-本文件匯出目前 TeleNexus 在「一般對話」時送進 AI 的 prompt 範本（來源：`src/main.ts`）。
+本文件描述目前 TeleNexus 一般聊天 prompt 的組裝方式。實際來源以程式碼為準：
 
-## 1) 一般對話 Prompt（非 passthrough）
+- `src/main.ts`
+- `src/prompt/builder.ts`
+- `src/core/prompt-build.ts`
+- `src/config/ai-config.ts`
+
+## 1) Prompt 組裝不是固定單一模板
+
+目前聊天 prompt 依訊息情境分成四種模式：
+
+- `full`
+  - 週期性注入完整 system prompt、工作區規則、檔案回傳協議、SAR 記憶內容
+- `compact`
+  - 延續既有 session 規則，只在必要時補 memory context
+- `minimal`
+  - 極短 follow-up，不重複大段 system prompt
+- `passthrough`
+  - 命中 `passthrough_commands` 時，直接把原始 slash command 傳給底層 CLI
+
+## 2) 一般對話 Prompt（full / compact / minimal）
+
+### `full`
+
+主要結構：
 
 ```text
-System: 你是 TeleNexus，一個具備強大工具執行能力的本地 AI 助理。
-當使用者要求你搜尋網路、查看檔案或執行指令時，請善用你手邊的工具（如 google_search, read_file 等）。
+System: <來自 ai-config.yaml 的 role_system>
+
 現在已經開啟了 YOLO 模式，你的所有工具調用都會被自動允許。
-請用繁體中文回應。
+
+請用<language>回應。
 
 【知識管理 - 重要】
-你有 MCP Memory 工具可以儲存長期知識與關係：
-- 當對話包含重要資訊（如：使用者偏好、專案細節、重要決策）時，請主動使用 create_entities 儲存
-- 當發現實體間的關係時，使用 create_relations 建立連結
-- 需要回想相關知識時，使用 search_entities 搜尋
-- 在對話結束前，如果有值得記住的內容，請務必儲存到 Memory
+<來自 chat_prompt.memory_policy_lines 的條列>
 
 【工作目錄限制 - 重要】
-- 你的當前工作目錄是 workspace/
-- 優先讀取 workspace/context/ 內的系統快照檔案理解運行狀態
-- 若需產生暫存資料，請放在 workspace/temp/
-- 不要主動修改應用程式原始碼或部署設定，除非使用者明確要求
+<來自 chat_prompt.workspace_policy_lines 的條列>
+
+【可用能力提示】
+<僅在 Memoria 可用且需要時注入>
+
+【檔案回傳協議】
+<workspace/temp/ + [[SEND_FILE: ...]] 規則>
+
+【SAR 使用規則】
+<僅在 memory context 存在時注入>
+
+<核心決策回顧 / 相關歷史摘要 / 最近對話等 memory context>
+
+User Message:
+<user input>
 
 AI Response:
 ```
 
-## 2) Passthrough Prompt（命中 `passthrough_commands`）
+### `compact`
 
-- 命中 `ai-config.yaml` 的 `passthrough_commands`（例如 `/compress`、`/compact`）時：
-  - 不套用上述 System prompt
-  - 直接把原始指令字串送給 CLI
+重點差異：
 
-範例：
+- 仍保留 `System: ...`
+- 不再重複 YOLO notice、memory policy、workspace policy、檔案回傳協議
+- 會加一段「延續目前對話 Session 的既有規則」
+- 只有在判定使用者問題需要歷史規則、決策、設定時才注入 memory context
 
-```text
-/compress
-```
+### `minimal`
 
-## 3) 目前已移除的內容
+重點差異：
 
-- 已移除舊版的 `Conversation History` 注入（原本 15 則混合上下文）。
-- 目前對話延續主要依賴 CLI session：
-  - Gemini: `-r`
-  - Opencode: `-c`
+- 不放 `System: ...`
+- 不放 memory policy / workspace policy / file return policy
+- 僅保留「延續目前對話 Session 與最近一次系統規則」的短提示
 
-## 4) 可配置化建議
+## 3) `passthrough` 流程
 
-目前 `passthrough_commands` 已可在 `ai-config.yaml` 設定。若要進一步把一般對話 prompt 也配置化，可考慮新增：
+當訊息命中 `ai-config.yaml` 的 `passthrough_commands`，例如：
+
+- `/compress`
+- `/compact`
+- `/clear`
+
+TeleNexus 不會包裝一般聊天 prompt，而是直接把原始指令送給 provider CLI。
+
+補充：
+
+- Gemini / Opencode 之間會在必要時做 `/compress` 與 `/compact` 的指令改寫
+- `forceNewSession` 啟用時，不會接續既有 CLI session
+
+## 4) 記憶注入現況
+
+目前不是「固定注入最近 15 則歷史」。
+
+現在的做法是：
+
+- prompt mode 決定是否需要注入記憶
+- 記憶內容由 TeleNexus 自己的 memory/SAR retrieval 組裝
+- 內容可能包含：
+  - 核心決策回顧
+  - 相關歷史摘要
+  - 最近對話
+- 若 Memoria 可用，會額外注入 capability hint，提醒模型可輸出 `[[MEMORY_INTENT:...]]` 給系統觀測
+
+## 5) 配置來源
+
+一般聊天 prompt 的可調整部分來自 `ai-config.yaml`：
 
 ```yaml
 chat_prompt:
   language: zh-TW
-  yolo_notice: true
-  include_memory_policy: true
-  include_workspace_policy: true
-  custom_system_prefix: '你是 TeleNexus...'
+  role_system: |
+    你是 TeleNexus，一個具備強大工具執行能力的本地 AI 助理。
+  yolo_notice_enabled: true
+  memory_policy_enabled: true
+  workspace_policy_enabled: true
+  include_ai_response_suffix: true
+  memory_policy_lines:
+    - ...
+  workspace_policy_lines:
+    - ...
 ```
 
-然後在 `main.ts` 根據 `chat_prompt` 組合 prompt 區塊，讓行為可調而不需改碼。
+## 6) 以哪裡為準
+
+若文件與程式碼不一致，以下優先順序較可靠：
+
+1. `src/prompt/builder.ts`
+2. `src/core/prompt-build.ts`
+3. `src/config/ai-config.ts`
+4. `ai-config.yaml`
+5. 本文件

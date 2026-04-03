@@ -1,50 +1,113 @@
-# 技術文件：整合 CLI Session 記憶機制
+# CLI Session 與 Runner 整合
 
-## 📅 更新日期：2026-02-06
+## 更新日期
 
-## 📌 背景與動態
-目前系統已從「純手動注入對話歷史」轉向「利用 CLI 原生 Session 管理」的混合模式。
-- **Gemini**: 使用 `--resume`
-- **Opencode**: 使用 `-c`
+2026-04-03
 
-## 🛠️ 變更重點
+## 現況摘要
 
-### 1. 核心參數調整
-- **gemini.ts**: 在 `chat()` 方法中添加 `--resume` 參數。這讓 Gemini CLI 自動尋找並接續最近的一筆 session。
-- **opencode.ts**: 在 `chat()` 方法中添加 `-c` 參數，接續上次的執行狀態。
+TeleNexus 目前的 session continuity 主軸，已經不是單純「CLI 原生 session + 手動注入最近歷史」。
 
-### 2. 記憶架構現況 (混合模式)
-為了確保穩定性，目前採用以下三層記憶架構：
-1. **CLI Native Session (New)**: 負責維持模型層級的對話連貫性與工具執行狀態。
-2. **SQLite 短期注入 (Fallback)**: 保留 `getHistoryContext()`，注入最近 15 則對話摘要，作為 CLI session 遺失時的保險。
-3. **MCP Memory (Long-term)**: 向量搜尋與知識圖譜，處理跨 session 的長期知識檢索。
+現在的實際模式是：
 
-## 🔍 後續追蹤重點 (Critical)
+- chat 預設可走 `agent-runner`
+- runner 內執行 Gemini / Opencode CLI
+- TeleNexus 在 dispatch 前自行決定 prompt mode 與 memory injection
+- provider CLI session 用來延續工具與對話狀態
+- TeleNexus memory / SAR retrieval 用來補跨輪規則、決策與長期背景
+- Memoria sync 是背景補強，不是主對話硬依賴
 
-### 1. Session 清除機制 (/reset)
-> [!WARNING]
-> 目前 `/reset` 指令僅清除 SQLite 資料，**尚未實作**清除 CLI session 的功能。
-- **Gemini**: 需研究如何透過指令或刪除檔案（如 `.gemini/sessions/`）來讓 `--resume` 重置。
-- **Opencode**: 需確認清除對話串的具體方式。
+## 1) Session continuity 怎麼維持
 
-### 2. Docker 持久性
-需驗證在 `docker compose down` 或重新構建後，掛載的 volume 是否足以保留 CLI 的 session 狀態。
+### Gemini
 
-### 3. 跨 Provider 記憶轉發 (User Idea)
-當系統偵測到 Provider 切換（例如從 Gemini 切換到 Opencode）時：
-1. 先讓原本的 Provider 生成一份當前會話的 **Summary**。
-2. 將此 Summary 作為 context 傳遞給新的 Provider。
-3. 這樣可以確保切換大腦時，工作脈絡不會中斷。
+- 一般 chat 會用 `gemini --yolo -r -p <prompt>`
+- 若 `forceNewSession=true`，則不加 `-r`
+- passthrough command 同樣可走 session，除非強制新 session
 
-## 🧪 驗證計畫
-1. **重啟測試**: 確認服務重啟後 `AI 能否記得剛提過的名字`。
-2. **Token 壓力測試**: 觀察在長對話下，若移除 SQLite 注入，CLI session 能否穩定維持對話深度。
-3. **Provider 切換測試**: 在 Gemini 與 Opencode 間切換時的記憶中斷表現。
+### Opencode
 
----
+- 一般 chat 會用 `opencode run -c`
+- 若 `forceNewSession=true`，則不加 `-c`
 
-## 相關檔案
+## 2) Runner 在這裡扮演什麼角色
+
+`agent-runner` 的目的不是替代 provider，而是把真正的 CLI session 從 orchestrator 中抽離出來，讓聊天脈絡更穩定。
+
+目前特性：
+
+- 提供 `/run` HTTP API
+- 支援 `chat` 與 `summarize`
+- 可附帶 `provider`、`model`、`isPassthroughCommand`、`forceNewSession`
+- 會寫 `runner-status.md` 與 `runner-audit.log`
+- Gemini 可在 runner 內序列化執行，降低併發導致的 session 問題
+
+## 3) TeleNexus memory 與 CLI session 的分工
+
+請把它理解成兩套不同層次的脈絡系統：
+
+- CLI session
+  - 維持單一 provider 當前工作串的對話與工具狀態
+- TeleNexus memory / SAR
+  - 維持較穩定的規則、決策、歷史摘要、長期背景
+
+所以現在不是「CLI session 取代所有記憶」，而是：
+
+- session 負責連續性
+- SAR 負責可治理的歷史回收
+
+## 4) `/new` 的語意
+
+`/new` 不會直接把所有資料庫清空，也不代表刪除 provider 端所有歷史檔。
+
+目前語意是：
+
+- 標記「下一則一般對話」強制使用新 session
+- 實作上會讓 Gemini 不帶 `-r`，或讓 Opencode 不帶 `-c`
+- TeleNexus 自己的記憶資料仍保留，是否注入則由 prompt mode 與 memory policy 決定
+
+## 5) Provider 切換時會怎樣
+
+當 `ai-config.yaml` 的 provider 從 Gemini 切到 Opencode，或反過來：
+
+- provider CLI session 不會自動跨引擎共享
+- 但 TeleNexus 的 memory / SAR 仍可把核心決策與歷史摘要重新注入
+- 若 Memoria 可用，也可能提供額外長期背景補強
+
+因此，跨 provider continuity 目前主要靠：
+
+- TeleNexus prompt injection
+- TeleNexus memory / summary
+- 可選的 Memoria 補強
+
+不是直接搬運 provider 原生 session 檔案
+
+## 6) 風險與限制
+
+- 若直接在 `telenexus` 容器裡手動跑 CLI，看到的 session 不一定是聊天實際使用的那一條
+- 若 runner 掛掉，`DynamicAIAgent` 可能 fallback 到 local execution，造成 session 邊界暫時改變
+- CLI session continuity 仍受 provider 自身穩定性影響，不能把它當成唯一記憶來源
+
+## 7) 除錯建議
+
+若要確認真實聊天 session 狀態，優先看：
+
+1. `workspace/context/runtime-status.md`
+2. `workspace/context/runner-status.md`
+3. `workspace/context/prompt-session-status.md`
+4. `workspace/context/memoria-status.md`
+
+若要人工接續真實 CLI context，優先進 `agent-runner`：
+
+```bash
+docker compose exec agent-runner sh -lc "cd /app/workspace && gemini -r"
+docker compose exec agent-runner sh -lc "cd /app/workspace && opencode run -c"
+```
+
+## 8) 相關檔案
+
+- `src/core/agent.ts`
 - `src/core/gemini.ts`
 - `src/core/opencode.ts`
-- `src/core/memory.ts`
-- `src/main.ts`
+- `src/runner.ts`
+- `docs/configuration-reference.md`
