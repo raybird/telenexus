@@ -20,6 +20,7 @@ type MemoriaSyncOptions = {
   projectDir?: string;
   mode?: MemoriaSyncMode;
   timeoutMs?: number;
+  onStatusChange?: (status: MemoriaSyncStatus) => void;
 };
 
 export type MemoriaSyncStatus = {
@@ -208,6 +209,7 @@ export class MemoriaSyncBridge {
   private lastSyncAt: number | null;
   private lastFailureAt: number | null;
   private lastFailureMessage: string | null;
+  private readonly onStatusChange: ((status: MemoriaSyncStatus) => void) | undefined;
 
   constructor(options: MemoriaSyncOptions = {}) {
     this.mode = options.mode || parseMode(process.env.MEMORIA_SYNC_ENABLED);
@@ -246,6 +248,7 @@ export class MemoriaSyncBridge {
     this.lastSyncAt = null;
     this.lastFailureAt = null;
     this.lastFailureMessage = null;
+    this.onStatusChange = options.onStatusChange;
 
     if (this.mode === 'off') {
       console.log('[MemoriaSync] Disabled by MEMORIA_SYNC_ENABLED.');
@@ -322,11 +325,13 @@ export class MemoriaSyncBridge {
           this.lastFailureMessage = null;
           this.lastFailureAt = null;
           this.lastSyncAt = Date.now();
+          this.notifyStatusChange();
           console.log(`[MemoriaSync] Synced session ${sessionId}`);
         } catch (error) {
           this.recentFailureCount += 1;
           this.lastFailureAt = Date.now();
           this.lastFailureMessage = toErrorMessage(error);
+          this.notifyStatusChange();
           const failedPath = this.preserveFailedPayload(payloadPath, sessionId);
           const details = failedPath
             ? `${toErrorMessage(error)} (payload preserved: ${failedPath})`
@@ -346,6 +351,10 @@ export class MemoriaSyncBridge {
       .catch((error) => {
         console.warn('[MemoriaSync] Sync failed:', error);
       });
+  }
+
+  whenIdle(): Promise<void> {
+    return this.queue.catch(() => undefined);
   }
 
   private makeTurnHash(turn: MemoriaSyncTurn): string {
@@ -479,5 +488,13 @@ export class MemoriaSyncBridge {
       lastFailureAt: this.lastFailureAt,
       lastFailureMessage: this.lastFailureMessage
     };
+  }
+
+  private notifyStatusChange(): void {
+    try {
+      this.onStatusChange?.(this.getStatus());
+    } catch (error) {
+      console.warn('[MemoriaSync] Status change hook failed:', error);
+    }
   }
 }

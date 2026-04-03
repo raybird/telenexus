@@ -138,7 +138,15 @@ async function bootstrap() {
     console.log(`[System] Chat runner whitelist: ${Array.from(chatRunnerOnlyUsers).join(', ')}`);
   }
   const memory = new MemoryManager();
-  const memoriaSync = new MemoriaSyncBridge();
+  let memoriaSync: MemoriaSyncBridge;
+  const writeContextSnapshotsFn = () => {
+    writeContextSnapshots(memory, { memoriaStatus: memoriaSync.getStatus() });
+  };
+  memoriaSync = new MemoriaSyncBridge({
+    onStatusChange: () => {
+      writeContextSnapshotsFn();
+    }
+  });
   const enqueueMemoriaSyncFn = (turn: Parameters<typeof memoriaSync.enqueueTurn>[0]) => {
     memoriaSync.enqueueTurn(turn);
   };
@@ -185,9 +193,6 @@ async function bootstrap() {
     };
   };
 
-  const writeContextSnapshotsFn = () => {
-    writeContextSnapshots(memory, { memoriaStatus: memoriaSync.getStatus() });
-  };
   const memoryBackfillWorker = new MemoryBackfillWorker({
     onAfterRun: writeContextSnapshotsFn
   });
