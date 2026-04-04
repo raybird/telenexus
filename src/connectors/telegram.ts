@@ -964,15 +964,18 @@ export class TelegramConnector implements Connector {
     chatId: string,
     messageId: string,
     newText: string,
-    options?: { retries?: number; suppressFallbackSend?: boolean }
+    options?: { retries?: number; suppressFallbackSend?: boolean; formatMode?: 'auto' | 'plain' }
   ): Promise<void> {
     try {
       const chunks = this.splitMessage(newText);
       const firstChunk = chunks[0] || '';
       const allowFormatting = chunks.length === 1;
-      const formatted = allowFormatting
-        ? this.formatChunkForTelegram(firstChunk)
-        : { text: firstChunk };
+      const formatted =
+        options?.formatMode === 'plain'
+          ? { text: firstChunk }
+          : allowFormatting
+            ? this.formatChunkForTelegram(firstChunk)
+            : { text: firstChunk };
       const callOptions = options?.retries !== undefined ? { retries: options.retries } : undefined;
 
       // 1. Edit the original message (placeholder) with the first chunk

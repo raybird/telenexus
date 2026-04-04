@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto';
 import { fileURLToPath } from 'url';
 import { createMessagePipeline } from '../core/message-pipeline.js';
 import type { AIAgent } from '../core/agent.js';
+import type { AgentEvent } from '../core/agent-result.js';
 import type { CommandRouter } from '../core/command-router.js';
 import type { MemoriaSyncTurn } from '../core/memoria-sync.js';
 import type { MemoryManager } from '../core/memory.js';
@@ -207,24 +208,6 @@ function writeSseEvent(
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
 }
 
-function splitStreamChunks(text: string): string[] {
-  const normalized = text.replace(/\r\n/g, '\n');
-  const blocks = normalized
-    .split(/\n\n+/)
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
-
-  if (blocks.length > 0) {
-    return blocks;
-  }
-
-  if (!normalized.trim()) {
-    return [''];
-  }
-
-  return [normalized.trim()];
-}
-
 function readAppVersion(): string {
   try {
     const packageJsonPath = path.resolve(process.cwd(), 'package.json');
@@ -236,10 +219,6 @@ function readAppVersion(): string {
   } catch {
     return 'unknown';
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function isAuthorized(
@@ -1327,7 +1306,7 @@ function getWebAppHtml(options: WebServerOptions): string {
 
         const appendChunk = (chunk) => {
           const node = ensureAiNode();
-          const next = node.textContent ? node.textContent + '\\n\\n' + chunk : chunk;
+          const next = node.textContent ? node.textContent + chunk : chunk;
           node.textContent = next;
           messages.scrollTop = messages.scrollHeight;
         };
@@ -1365,9 +1344,8 @@ function getWebAppHtml(options: WebServerOptions): string {
             throw new Error(payload.error || 'Stream error');
           }
           if (eventName === 'done') {
-            if (!aiNode) {
-              appendChunk(payload.reply || '(empty)');
-            }
+            const node = ensureAiNode();
+            node.textContent = payload.reply || '(empty)';
             status.textContent = 'Done';
           }
         };
@@ -1959,6 +1937,28 @@ export function startWebServer(options: WebServerOptions): WebServerHandle {
         }, 3500);
 
         const connector = new CaptureConnector();
+        let streamedReply = '';
+        const streamResponse = (event: AgentEvent): void => {
+          if (event.type === 'status') {
+            writeSseEvent(res, 'status', { text: event.text });
+            return;
+          }
+          if (event.type === 'delta') {
+            writeSseEvent(res, 'chunk', { text: event.text });
+            return;
+          }
+          if (event.type === 'usage') {
+            writeSseEvent(res, 'usage', { stats: event.stats });
+            return;
+          }
+          if (event.type === 'done') {
+            streamedReply = event.text;
+            return;
+          }
+          if (event.type === 'error') {
+            writeSseEvent(res, 'status', { text: event.message });
+          }
+        };
         const unifiedMessage: UnifiedMessage = {
           id: randomUUID(),
           content: message,
@@ -1968,23 +1968,11 @@ export function startWebServer(options: WebServerOptions): WebServerHandle {
             platform: 'console'
           },
           timestamp: Date.now(),
-          raw: { connector }
+          raw: { connector, streamResponse }
         };
 
         await handleWebMessage(unifiedMessage);
-        const reply = connector.getFinalMessage();
-        const chunks = splitStreamChunks(reply);
-
-        for (let i = 0; i < chunks.length; i += 1) {
-          writeSseEvent(res, 'chunk', {
-            index: i,
-            total: chunks.length,
-            text: chunks[i]
-          });
-          if (i < chunks.length - 1) {
-            await sleep(25);
-          }
-        }
+        const reply = streamedReply || connector.getFinalMessage();
 
         writeSseEvent(res, 'done', {
           ok: true,

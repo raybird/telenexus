@@ -1,5 +1,56 @@
+import { spawn } from 'child_process';
 import type { AIAgent, AIAgentOptions } from './agent.js';
+import {
+  buildTextOnlyStructuredResult,
+  type AgentEvent,
+  type AgentStructuredResult
+} from './agent-result.js';
 import { ProcessError, runProcess } from './process-runner.js';
+
+type GeminiJsonOutput = {
+  session_id?: string;
+  response?: string;
+  stats?: unknown;
+};
+
+type GeminiStreamEvent = {
+  type?: string;
+  session_id?: string;
+  role?: string;
+  content?: string;
+  delta?: boolean;
+  stats?: unknown;
+};
+
+export function parseGeminiJsonOutput(stdout: string): AgentStructuredResult | null {
+  const trimmed = stdout.trim();
+  if (!trimmed.startsWith('{')) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as GeminiJsonOutput;
+    if (typeof parsed.response !== 'string') {
+      return null;
+    }
+
+    const result: AgentStructuredResult = {
+      provider: 'gemini',
+      text: parsed.response.trim() || 'Gemini 執行完成，但沒有返回任何文字內容。',
+      raw: parsed
+    };
+
+    if (typeof parsed.session_id === 'string' && parsed.session_id.trim().length > 0) {
+      result.sessionId = parsed.session_id;
+    }
+    if (parsed.stats !== undefined) {
+      result.stats = parsed.stats;
+    }
+    return result;
+  } catch {
+    return null;
+  }
+}
 
 export class GeminiAgent implements AIAgent {
   private isCompressCommand(prompt: string): boolean {
@@ -53,6 +104,74 @@ export class GeminiAgent implements AIAgent {
     }
 
     return cleaned;
+  }
+
+  private buildChatArgs(
+    prompt: string,
+    options?: AIAgentOptions,
+    outputFormat: 'json' | 'stream-json' | null = 'json'
+  ): string[] {
+    const isPassthrough = options?.isPassthroughCommand === true;
+    const forceNewSession = options?.forceNewSession === true;
+    const args = ['--yolo'];
+    if (!forceNewSession) {
+      args.push('-r');
+    }
+    args.push('-p', prompt);
+    if (!isPassthrough && outputFormat) {
+      args.push('--output-format', outputFormat);
+    }
+    if (options?.model) {
+      args.push('--model', options.model);
+    }
+    return args;
+  }
+
+  private async executeChatProcess(
+    prompt: string,
+    options?: AIAgentOptions
+  ): Promise<{ stdout: string; stderr: string }> {
+    const isPassthrough = options?.isPassthroughCommand === true;
+    const args = this.buildChatArgs(prompt, options, 'json');
+
+    if (isPassthrough) {
+      console.log(`[Gemini] isPassthroughCommand: true`);
+      console.log(`[Gemini] Original prompt: ${prompt}`);
+      console.log(
+        `[Gemini] Executing passthrough via -p only: gemini ${args.join(' ')} (hook bypass)`
+      );
+    } else if (options?.model) {
+      console.log(`[Gemini] Executing (YOLO Mode) with model: ${options.model}`);
+    } else {
+      console.log(`[Gemini] Executing (YOLO Mode): gemini ${args.join(' ')} ...`);
+    }
+
+    return runProcess('gemini', args, {
+      timeoutMs: 600000,
+      cwd: 'workspace',
+      env: {
+        ...process.env,
+        GEMINI_PROJECT_DIR: process.env.GEMINI_PROJECT_DIR || process.cwd(),
+        GEMINI_BYPASS_MEMORY_HOOK: '1'
+      }
+    });
+  }
+
+  private toStructuredResult(stdout: string, options?: AIAgentOptions): AgentStructuredResult {
+    if (options?.isPassthroughCommand !== true) {
+      const structured = parseGeminiJsonOutput(stdout);
+      if (structured) {
+        structured.text = this.cleanOutput(structured.text);
+        return structured;
+      }
+    }
+
+    const cleaned = this.cleanOutput(stdout);
+    return buildTextOnlyStructuredResult(
+      'gemini',
+      cleaned || 'Gemini 執行完成，但沒有返回任何文字內容。',
+      { raw: stdout }
+    );
   }
 
   /**
@@ -110,99 +229,19 @@ ${text}
     }
   }
 
-  /**
-   * 呼叫系統的 gemini-cli 處理訊息
-   * @param prompt 使用者的輸入
-   * @param options 選項，可指定 model
-   * @returns Gemini 的回應文字
-   */
-  async chat(prompt: string, options?: AIAgentOptions): Promise<string> {
+  async chatStructured(prompt: string, options?: AIAgentOptions): Promise<AgentStructuredResult> {
     try {
-      // 判斷是否為 passthrough 指令（如 /compress, /compact）
-      const isPassthrough = options?.isPassthroughCommand === true;
-      const forceNewSession = options?.forceNewSession === true;
-
-      let stdout: string;
-      let stderr: string;
-
-      if (isPassthrough) {
-        // Passthrough 指令：僅透過 -p 傳遞，避免與 stdin 重複送入相同指令
-        console.log(`[Gemini] isPassthroughCommand: true`);
-        console.log(`[Gemini] Original prompt: ${prompt}`);
-        const args = ['--yolo'];
-        if (!forceNewSession) {
-          args.push('-r');
-        }
-        args.push('-p', prompt);
-
-        if (options?.model) {
-          args.push('--model', options.model);
-        }
-
-        console.log(
-          `[Gemini] Executing passthrough via -p only: gemini ${args.join(' ')} (hook bypass)`
-        );
-
-        const result = await runProcess('gemini', args, {
-          timeoutMs: 600000,
-          // 保持在 workspace，確保 session 一致；僅略過記憶 hook
-          cwd: 'workspace',
-          env: {
-            ...process.env,
-            GEMINI_PROJECT_DIR: process.env.GEMINI_PROJECT_DIR || process.cwd(),
-            GEMINI_BYPASS_MEMORY_HOOK: '1'
-          }
-        });
-        stdout = result.stdout;
-        stderr = result.stderr;
-      } else {
-        // 一般對話：使用陣列參數傳遞
-        // 開啟 --yolo 模式，允許自動執行所有工具 (搜尋、讀取檔案、執行指令等)
-        // 使用 -p 進入非互動模式
-        // 使用 --resume 接續上次 session，減少重複注入記憶
-        const args = ['--yolo'];
-        if (!forceNewSession) {
-          args.push('-r');
-        }
-        args.push('-p', prompt);
-
-        // 若有指定 model，加入參數
-        if (options?.model) {
-          args.push('--model', options.model);
-          console.log(`[Gemini] Executing (YOLO Mode) with model: ${options.model}`);
-        } else {
-          console.log(`[Gemini] Executing (YOLO Mode): gemini ${args.join(' ')} ...`);
-        }
-
-        // 設定 10 分鐘超時，並在 workspace/ 目錄執行，避免意外修改源碼
-        const result = await runProcess('gemini', args, {
-          timeoutMs: 600000,
-          cwd: 'workspace',
-          env: {
-            ...process.env,
-            GEMINI_PROJECT_DIR: process.env.GEMINI_PROJECT_DIR || process.cwd(),
-            GEMINI_BYPASS_MEMORY_HOOK: '1'
-          }
-        });
-        stdout = result.stdout;
-        stderr = result.stderr;
+      const result = await this.executeChatProcess(prompt, options);
+      if (result.stderr && result.stderr.trim().length > 0) {
+        console.log(`[Gemini-Tools] Log: ${result.stderr}`);
       }
-
-      if (stderr && stderr.trim().length > 0) {
-        // 工具執行的過程通常會輸出很多 stderr 資訊，這裡我們記錄下來但不中斷流程
-        console.log(`[Gemini-Tools] Log: ${stderr}`);
-      }
-
-      // 使用統一的清洗器
-      const cleaned = this.cleanOutput(stdout);
-
-      return cleaned || 'Gemini 執行完成，但沒有返回任何文字內容。';
+      return this.toStructuredResult(result.stdout, options);
     } catch (error: unknown) {
       console.error('[Gemini] Execution failed:', error);
       const recovered = this.recoverOutputFromError(error);
       if (recovered) {
         console.warn('[Gemini] Returning recovered stdout despite non-zero exit/signal.');
-        return recovered;
+        return buildTextOnlyStructuredResult('gemini', recovered);
       }
 
       const isPassthrough = options?.isPassthroughCommand === true;
@@ -218,7 +257,7 @@ ${text}
         this.isInvalidArgument(stderr)
       ) {
         console.warn('[Gemini] /compress invalid argument. Retrying with a new session...');
-        return this.chat(prompt, {
+        return this.chatStructured(prompt, {
           ...options,
           forceNewSession: true
         });
@@ -244,11 +283,11 @@ ${text}
             compressOptions.model = options.model;
           }
 
-          await this.chat('/compress', {
+          await this.chatStructured('/compress', {
             ...compressOptions
           });
 
-          const recovered = await this.chat(prompt, {
+          const recoveredResult = await this.chatStructured(prompt, {
             ...options,
             isPassthroughCommand: false,
             forceNewSession: false,
@@ -256,9 +295,12 @@ ${text}
           });
 
           if (autoRecoveryNotice) {
-            return `⚠️ 偵測到 Gemini Session 壓縮異常，已自動執行 /compress 並恢復對話。\n\n${recovered}`;
+            return {
+              ...recoveredResult,
+              text: `⚠️ 偵測到 Gemini Session 壓縮異常，已自動執行 /compress 並恢復對話。\n\n${recoveredResult.text}`
+            };
           }
-          return recovered;
+          return recoveredResult;
         } catch (recoveryError) {
           console.error('[Gemini] Auto /compress recovery failed:', recoveryError);
         }
@@ -268,7 +310,7 @@ ${text}
         error instanceof ProcessError &&
         (error.code === 'ETIMEDOUT' || error.signal === 'SIGTERM')
       ) {
-        return '✨ 10分鐘內未完成';
+        return buildTextOnlyStructuredResult('gemini', '✨ 10分鐘內未完成');
       }
 
       const message = error instanceof Error ? error.message : String(error);
@@ -282,5 +324,208 @@ ${text}
       if (pe?.signal !== undefined) fields.signal = pe.signal;
       throw new ProcessError(`Error calling Gemini: ${message}`, fields);
     }
+  }
+
+  async streamChat(
+    prompt: string,
+    options: AIAgentOptions | undefined,
+    onEvent: (event: AgentEvent) => Promise<void> | void
+  ): Promise<AgentStructuredResult> {
+    if (options?.isPassthroughCommand) {
+      const fallback = await this.chatStructured(prompt, options);
+      await onEvent({ type: 'start', provider: 'gemini' });
+      await onEvent({ type: 'done', text: fallback.text });
+      return fallback;
+    }
+
+    const args = this.buildChatArgs(prompt, options, 'stream-json');
+    const child = spawn('gemini', args, {
+      cwd: 'workspace',
+      env: {
+        ...process.env,
+        GEMINI_PROJECT_DIR: process.env.GEMINI_PROJECT_DIR || process.cwd(),
+        GEMINI_BYPASS_MEMORY_HOOK: '1'
+      },
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    let stdoutBuffer = '';
+    let stderr = '';
+    let aggregatedText = '';
+    let sessionId: string | undefined;
+    let stats: unknown;
+    let started = false;
+    let settled = false;
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGTERM');
+    }, 600000);
+
+    const emitStart = async (): Promise<void> => {
+      if (started) {
+        return;
+      }
+      started = true;
+      await onEvent({ type: 'start', provider: 'gemini' });
+    };
+
+    return new Promise<AgentStructuredResult>((resolve, reject) => {
+      child.stdout?.on('data', (chunk) => {
+        stdoutBuffer += chunk.toString();
+        const lines = stdoutBuffer.split(/\r?\n/);
+        stdoutBuffer = lines.pop() || '';
+
+        void (async () => {
+          for (const rawLine of lines) {
+            const line = rawLine.trim();
+            if (!line) {
+              continue;
+            }
+            try {
+              const parsed = JSON.parse(line) as GeminiStreamEvent;
+              if (parsed.type === 'init') {
+                if (typeof parsed.session_id === 'string' && parsed.session_id.trim().length > 0) {
+                  sessionId = parsed.session_id;
+                }
+                await emitStart();
+                continue;
+              }
+              if (
+                parsed.type === 'message' &&
+                parsed.role === 'assistant' &&
+                typeof parsed.content === 'string'
+              ) {
+                await emitStart();
+                aggregatedText += parsed.content;
+                await onEvent({ type: 'delta', text: parsed.content });
+                continue;
+              }
+              if (parsed.type === 'result') {
+                stats = parsed.stats;
+              }
+            } catch {
+              // ignore malformed stream lines
+            }
+          }
+        })().catch((error) => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          clearTimeout(timer);
+          reject(error);
+        });
+      });
+
+      child.stderr?.on('data', (chunk) => {
+        stderr += chunk.toString();
+      });
+
+      child.on('error', (error) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        clearTimeout(timer);
+        reject(error);
+      });
+
+      child.on('close', (code, signal) => {
+        void (async () => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          clearTimeout(timer);
+
+          if (stdoutBuffer.trim()) {
+            try {
+              const parsed = JSON.parse(stdoutBuffer.trim()) as GeminiStreamEvent;
+              if (parsed.type === 'result') {
+                stats = parsed.stats;
+              }
+            } catch {
+              // ignore trailing partial data
+            }
+          }
+
+          if (signal || (code && code !== 0)) {
+            if (timedOut || signal === 'SIGTERM') {
+              const timeoutResult = buildTextOnlyStructuredResult('gemini', '✨ 10分鐘內未完成');
+              await onEvent({ type: 'error', message: timeoutResult.text });
+              resolve(timeoutResult);
+              return;
+            }
+
+            if (aggregatedText.trim()) {
+              aggregatedText = this.cleanOutput(aggregatedText);
+              if (!started) {
+                await emitStart();
+              }
+              if (stats !== undefined) {
+                await onEvent({ type: 'usage', stats });
+              }
+              await onEvent({ type: 'done', text: aggregatedText });
+              resolve({
+                provider: 'gemini',
+                text: aggregatedText,
+                ...(sessionId ? { sessionId } : {}),
+                ...(stats !== undefined ? { stats } : {})
+              });
+              return;
+            }
+
+            const message = `Error calling Gemini: exit=${code || 0}${signal ? ` signal=${signal}` : ''} stderr=${stderr}`;
+            const fields: { code?: string | number; signal?: string; stderr?: string } = { stderr };
+            if (code !== null && code !== undefined) {
+              fields.code = code;
+            }
+            if (signal) {
+              fields.signal = signal;
+            }
+            reject(new ProcessError(message, fields));
+            return;
+          }
+
+          if (!aggregatedText.trim()) {
+            const fallback = await this.chatStructured(prompt, options);
+            await onEvent({ type: 'done', text: fallback.text });
+            resolve(fallback);
+            return;
+          }
+
+          aggregatedText = this.cleanOutput(aggregatedText);
+          if (!started) {
+            await emitStart();
+          }
+          if (stats !== undefined) {
+            await onEvent({ type: 'usage', stats });
+          }
+          await onEvent({ type: 'done', text: aggregatedText });
+          resolve({
+            provider: 'gemini',
+            text: aggregatedText,
+            ...(sessionId ? { sessionId } : {}),
+            ...(stats !== undefined ? { stats } : {})
+          });
+        })().catch((error) => {
+          reject(error);
+        });
+      });
+
+      child.stdin?.end();
+    });
+  }
+
+  /**
+   * 呼叫系統的 gemini-cli 處理訊息
+   * @param prompt 使用者的輸入
+   * @param options 選項，可指定 model
+   * @returns Gemini 的回應文字
+   */
+  async chat(prompt: string, options?: AIAgentOptions): Promise<string> {
+    const result = await this.chatStructured(prompt, options);
+    return result.text;
   }
 }

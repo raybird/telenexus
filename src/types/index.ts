@@ -60,6 +60,7 @@ export interface Connector {
     options?: {
       retries?: number;
       suppressFallbackSend?: boolean;
+      formatMode?: 'auto' | 'plain';
     }
   ): Promise<void>;
 

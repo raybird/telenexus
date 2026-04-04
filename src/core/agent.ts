@@ -4,6 +4,7 @@ import https from 'https';
 import yaml from 'js-yaml';
 import { GeminiAgent } from './gemini.js';
 import { OpencodeAgent } from './opencode.js';
+import type { AgentEvent, AgentStructuredResult } from './agent-result.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
 
 export interface AIAgentOptions {
@@ -29,6 +30,7 @@ interface RunnerRequest {
 interface RunnerResponse {
   ok: boolean;
   output?: string;
+  structured?: AgentStructuredResult;
   provider?: string;
   requestId?: string;
   durationMs?: number;
@@ -48,6 +50,11 @@ export interface DynamicAgentOptions {
 export interface AIAgent {
   chat(prompt: string, options?: AIAgentOptions): Promise<string>;
   summarize(text: string, options?: AIAgentOptions): Promise<string>;
+  streamChat?(
+    prompt: string,
+    options: AIAgentOptions | undefined,
+    onEvent: (event: AgentEvent) => Promise<void> | void
+  ): Promise<AgentStructuredResult>;
 }
 
 interface AIConfig {
@@ -207,6 +214,136 @@ export class DynamicAIAgent implements AIAgent {
     }
   }
 
+  private async callRunnerStream(
+    payload: RunnerRequest,
+    onEvent: (event: AgentEvent) => Promise<void> | void
+  ): Promise<RunnerResponse> {
+    if (!this.runnerEndpoint) {
+      return { ok: false, error: 'RUNNER_ENDPOINT is not configured.' };
+    }
+
+    const body = JSON.stringify(payload);
+    const endpoint = new URL(`${this.runnerEndpoint}/run/stream`);
+    const transport = endpoint.protocol === 'https:' ? https : http;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(body).toString()
+    };
+    if (this.runnerToken) {
+      headers['x-runner-token'] = this.runnerToken;
+    }
+
+    try {
+      return await new Promise<RunnerResponse>((resolve, reject) => {
+        const req = transport.request({
+          protocol: endpoint.protocol,
+          hostname: endpoint.hostname,
+          port: endpoint.port || undefined,
+          path: `${endpoint.pathname}${endpoint.search}`,
+          method: 'POST',
+          headers
+        });
+
+        req.setTimeout(this.runnerTimeoutMs, () => {
+          req.destroy(new Error(`Runner request timed out after ${this.runnerTimeoutMs}ms`));
+        });
+
+        req.on('response', (res) => {
+          if ((res.statusCode || 0) < 200 || (res.statusCode || 0) >= 300) {
+            let bodyText = '';
+            res.setEncoding('utf8');
+            res.on('data', (chunk) => {
+              bodyText += chunk;
+            });
+            res.on('end', () => {
+              resolve({ ok: false, error: `Runner HTTP ${res.statusCode}: ${bodyText}` });
+            });
+            return;
+          }
+
+          let buffer = '';
+          let finalResult: RunnerResponse | null = null;
+          res.setEncoding('utf8');
+          res.on('data', (chunk) => {
+            buffer += chunk;
+            let splitIndex = buffer.indexOf('\n\n');
+            while (splitIndex !== -1) {
+              const rawEvent = buffer.slice(0, splitIndex);
+              buffer = buffer.slice(splitIndex + 2);
+              splitIndex = buffer.indexOf('\n\n');
+
+              const lines = rawEvent.split('\n');
+              let eventName = 'message';
+              let dataText = '';
+              for (const line of lines) {
+                if (line.startsWith('event:')) {
+                  eventName = line.slice(6).trim();
+                } else if (line.startsWith('data:')) {
+                  dataText += line.slice(5).trim();
+                }
+              }
+              if (!dataText) {
+                continue;
+              }
+
+              let payload: Record<string, unknown>;
+              try {
+                payload = JSON.parse(dataText) as Record<string, unknown>;
+              } catch {
+                continue;
+              }
+
+              if (eventName === 'start' && typeof payload.provider === 'string') {
+                void onEvent({
+                  type: 'start',
+                  provider: payload.provider as 'gemini' | 'opencode'
+                });
+                continue;
+              }
+              if (eventName === 'status' && typeof payload.text === 'string') {
+                void onEvent({ type: 'status', text: payload.text });
+                continue;
+              }
+              if (eventName === 'delta' && typeof payload.text === 'string') {
+                void onEvent({ type: 'delta', text: payload.text });
+                continue;
+              }
+              if (eventName === 'usage' && payload.stats !== undefined) {
+                void onEvent({ type: 'usage', stats: payload.stats });
+                continue;
+              }
+              if (eventName === 'error' && typeof payload.message === 'string') {
+                void onEvent({ type: 'error', message: payload.message });
+                continue;
+              }
+              if (eventName === 'done' && typeof payload.text === 'string') {
+                void onEvent({ type: 'done', text: payload.text });
+                continue;
+              }
+              if (eventName === 'result') {
+                finalResult = payload as unknown as RunnerResponse;
+              }
+            }
+          });
+
+          res.on('end', () => {
+            resolve(finalResult || { ok: false, error: 'Runner stream ended without result.' });
+          });
+        });
+
+        req.on('error', (error) => {
+          reject(error);
+        });
+
+        req.write(body);
+        req.end();
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { ok: false, error: `Runner request failed: ${message}` };
+    }
+  }
+
   private async executeLocal(
     task: RunnerTask,
     provider: string,
@@ -218,8 +355,8 @@ export class DynamicAIAgent implements AIAgent {
 
     if (provider === 'opencode') {
       if (task === 'chat') {
-        const response = await this.opencodeAgent.chat(input, mergedOptions);
-        return `[Opencode] ${response}`;
+        const response = await this.opencodeAgent.chatStructured(input, mergedOptions);
+        return `[Opencode] ${response.text}`;
       }
       return this.opencodeAgent.summarize(input, mergedOptions);
     }
@@ -229,6 +366,91 @@ export class DynamicAIAgent implements AIAgent {
       return `[Gemini] ${response}`;
     }
     return this.geminiAgent.summarize(input, mergedOptions);
+  }
+
+  async streamChat(
+    prompt: string,
+    options: AIAgentOptions | undefined,
+    onEvent: (event: AgentEvent) => Promise<void> | void
+  ): Promise<AgentStructuredResult> {
+    const config = this.loadProviderConfig();
+    const provider = config.provider === 'opencode' ? 'opencode' : 'gemini';
+    const model = options?.model || config.model;
+    const mergedOptions: AIAgentOptions = { ...options };
+    if (model) {
+      mergedOptions.model = model;
+    }
+
+    const normalizedInput = this.normalizePassthroughInput(
+      prompt,
+      provider,
+      mergedOptions.isPassthroughCommand === true
+    );
+
+    if (this.preferRunner && this.runnerEndpoint) {
+      if (this.isRunnerCircuitOpen()) {
+        const remainingMs = this.runnerOpenUntil - Date.now();
+        recordRuntimeIssue('runner:circuit-open', `skip runner stream for ${remainingMs}ms`);
+        if (!this.fallbackToLocal) {
+          const message = `Error calling runner: circuit open (${remainingMs}ms remaining)`;
+          await onEvent({ type: 'error', message });
+          return { provider, text: message };
+        }
+      } else {
+        const runnerPayload: RunnerRequest = {
+          task: 'chat',
+          input: normalizedInput,
+          provider,
+          ...(mergedOptions.isPassthroughCommand ? { isPassthroughCommand: true } : {}),
+          ...(mergedOptions.forceNewSession ? { forceNewSession: true } : {}),
+          ...(mergedOptions.autoRecoveryNotice ? { autoRecoveryNotice: true } : {})
+        };
+        if (model) {
+          runnerPayload.model = model;
+        }
+
+        const runnerResult = await this.callRunnerStream(runnerPayload, onEvent);
+        if (runnerResult.ok && runnerResult.output) {
+          this.markRunnerSuccess();
+          const text = runnerResult.structured?.text || runnerResult.output;
+          return {
+            provider: (runnerResult.provider === 'opencode' ? 'opencode' : 'gemini') as
+              | 'gemini'
+              | 'opencode',
+            text,
+            ...(runnerResult.structured?.sessionId
+              ? { sessionId: runnerResult.structured.sessionId }
+              : {}),
+            ...(runnerResult.structured?.stats !== undefined
+              ? { stats: runnerResult.structured.stats }
+              : {})
+          };
+        }
+
+        const errorMessage = runnerResult.error || 'Unknown runner error';
+        this.markRunnerFailure(errorMessage);
+        if (!this.fallbackToLocal) {
+          await onEvent({ type: 'error', message: `Error calling runner: ${errorMessage}` });
+          return { provider, text: `Error calling runner: ${errorMessage}` };
+        }
+      }
+    }
+
+    if (provider === 'gemini' && this.geminiAgent.streamChat) {
+      return this.geminiAgent.streamChat(normalizedInput, mergedOptions, onEvent);
+    }
+
+    if (provider === 'opencode' && this.opencodeAgent.streamChat) {
+      return this.opencodeAgent.streamChat(normalizedInput, mergedOptions, onEvent);
+    }
+
+    await onEvent({ type: 'start', provider });
+    const text = await this.executeTask('chat', normalizedInput, mergedOptions);
+    await onEvent({ type: 'done', text });
+    return {
+      provider,
+      text
+    };
   }
 
   private async executeTask(
@@ -312,11 +534,12 @@ export class DynamicAIAgent implements AIAgent {
             ? ` duration=${runnerResult.durationMs}ms`
             : '';
         console.log(`[DynamicAgent] Runner success.${runnerMeta}${durationMeta}`);
+        const outputText = runnerResult.structured?.text || runnerResult.output;
         if (task === 'chat') {
           const providerLabel = runnerResult.provider === 'opencode' ? 'Opencode' : 'Gemini';
-          return `[${providerLabel}] ${runnerResult.output}`;
+          return `[${providerLabel}] ${outputText}`;
         }
-        return runnerResult.output;
+        return outputText;
       }
 
       const errorMessage = runnerResult.error || 'Unknown runner error';

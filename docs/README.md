@@ -57,6 +57,10 @@
 - 環境變數與 runner/session 設定：`docs/configuration-reference.md`
 - Runtime 邊界與安全模型：`docs/runtime-boundary-and-security.md`
 - 目前聊天 prompt 組裝：`docs/current-chat-prompt.md`
+- CLI 結構化輸出與 streaming 規劃：`docs/cli-structured-output-streaming-plan.md`
+- CLI 結構化輸出 / streaming implementation plan：`docs/cli-structured-output-streaming-implementation-plan.md`
+- Telegram streaming 細化設計：`docs/telegram-streaming-design.md`
+- Streaming rollout note (2026-04-04)：`docs/streaming-rollout-note-2026-04-04.md`
 - Prompt / session 注入改造計畫：`docs/prompt-session-injection-implementation-plan.md`
 - 發版 SOP 指令流：`npm run release:patch -- -m "<commit message>"`
 - 記憶健康檢查：`npm run memory:health`
@@ -94,6 +98,10 @@
 
 - 目前聊天 prompt 組裝：`docs/current-chat-prompt.md`
 - CLI session 與 runner 整合：`docs/cli-session-integration.md`
+- CLI 結構化輸出與 streaming 規劃：`docs/cli-structured-output-streaming-plan.md`
+- CLI 結構化輸出 / streaming implementation plan：`docs/cli-structured-output-streaming-implementation-plan.md`
+- Telegram streaming 細化設計：`docs/telegram-streaming-design.md`
+- Streaming rollout note (2026-04-04)：`docs/streaming-rollout-note-2026-04-04.md`
 - 記憶系統實作分析報告：`docs/memory-system-analysis-2026-03-30.md`
 
 ### 歷史提案 / 研究文件

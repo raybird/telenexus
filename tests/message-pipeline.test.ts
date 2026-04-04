@@ -690,3 +690,78 @@ test('message pipeline refreshes snapshots immediately after successful response
     assert.ok(snapshotWrites >= 1);
   });
 });
+
+test('message pipeline uses throttled telegram streaming renderer for telegram chats', async () => {
+  await withTempProject(async () => {
+    const prevStreamingEnabled = process.env.TELEGRAM_STREAMING_ENABLED;
+    const prevThrottleMs = process.env.TELEGRAM_STREAM_EDIT_THROTTLE_MS;
+    const prevMinDeltaChars = process.env.TELEGRAM_STREAM_MIN_DELTA_CHARS;
+    const prevForceFlushMs = process.env.TELEGRAM_STREAM_FORCE_FLUSH_MS;
+    const prevEarlyFlushChars = process.env.TELEGRAM_STREAM_EARLY_FLUSH_CHARS;
+
+    process.env.TELEGRAM_STREAMING_ENABLED = 'true';
+    process.env.TELEGRAM_STREAM_EDIT_THROTTLE_MS = '1';
+    process.env.TELEGRAM_STREAM_MIN_DELTA_CHARS = '1';
+    process.env.TELEGRAM_STREAM_FORCE_FLUSH_MS = '1';
+    process.env.TELEGRAM_STREAM_EARLY_FLUSH_CHARS = '1';
+
+    try {
+      const { connector, sentMessages, placeholders, edits } = createConnectorRecorder();
+      const memory = new MemoryManager();
+      const streamedPrompts: string[] = [];
+      const agent = createAgentStub({
+        async streamChat(prompt, _options, onEvent) {
+          streamedPrompts.push(prompt);
+          await onEvent({ type: 'start', provider: 'gemini' });
+          await onEvent({ type: 'delta', text: 'Hello' });
+          await onEvent({ type: 'delta', text: ' world' });
+          await onEvent({ type: 'done', text: 'Hello world' });
+          return { provider: 'gemini', text: 'Hello world' };
+        }
+      });
+
+      const pipeline = createMessagePipeline({
+        connector,
+        commandRouter: {
+          async handleMessage() {
+            return false;
+          },
+          isPassthroughCommand() {
+            return false;
+          }
+        } as never,
+        memory,
+        scheduler: { resetSilenceTimer() {} } as never,
+        userAgent: agent,
+        chatRunnerAgent: agent,
+        useRunnerForChat: false,
+        chatRunnerPercent: 0,
+        chatRunnerOnlyUsers: new Set(),
+        shouldSummarize: () => false,
+        buildPrompt: (userMessage) => `PROMPT:${userMessage}`,
+        recordRuntimeIssue() {},
+        writeContextSnapshots() {}
+      });
+
+      await pipeline(createMessage('請開始串流'));
+
+      assert.equal(streamedPrompts.length, 1);
+      assert.equal(placeholders.length, 1);
+      assert.equal(placeholders[0]?.text, '🤔 思考中...');
+      assert.equal(sentMessages.length, 0);
+      assert.ok(edits.some((item) => item.text.includes('✍️ 回覆中...')));
+      assert.equal(edits[edits.length - 1]?.text, 'Hello world');
+    } finally {
+      if (prevStreamingEnabled === undefined) delete process.env.TELEGRAM_STREAMING_ENABLED;
+      else process.env.TELEGRAM_STREAMING_ENABLED = prevStreamingEnabled;
+      if (prevThrottleMs === undefined) delete process.env.TELEGRAM_STREAM_EDIT_THROTTLE_MS;
+      else process.env.TELEGRAM_STREAM_EDIT_THROTTLE_MS = prevThrottleMs;
+      if (prevMinDeltaChars === undefined) delete process.env.TELEGRAM_STREAM_MIN_DELTA_CHARS;
+      else process.env.TELEGRAM_STREAM_MIN_DELTA_CHARS = prevMinDeltaChars;
+      if (prevForceFlushMs === undefined) delete process.env.TELEGRAM_STREAM_FORCE_FLUSH_MS;
+      else process.env.TELEGRAM_STREAM_FORCE_FLUSH_MS = prevForceFlushMs;
+      if (prevEarlyFlushChars === undefined) delete process.env.TELEGRAM_STREAM_EARLY_FLUSH_CHARS;
+      else process.env.TELEGRAM_STREAM_EARLY_FLUSH_CHARS = prevEarlyFlushChars;
+    }
+  });
+});

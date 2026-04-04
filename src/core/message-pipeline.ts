@@ -1,5 +1,6 @@
 import type { Connector, UnifiedMessage } from '../types/index.js';
 import type { AIAgent } from './agent.js';
+import type { AgentEvent } from './agent-result.js';
 import type { CommandRouter } from './command-router.js';
 import { executionQueue } from './execution-queue.js';
 import {
@@ -27,6 +28,7 @@ import {
 import { createLogger } from './logger.js';
 import type { Scheduler } from './scheduler.js';
 import { parseBool, parsePositiveInt } from '../utils/env.js';
+import { TelegramStreamRenderer } from './telegram-stream-renderer.js';
 import { randomUUID } from 'crypto';
 import type { PromptBuildResult, PromptMode } from './prompt-build.js';
 import { recordPromptSessionTrace } from '../services/prompt-session-telemetry.js';
@@ -64,6 +66,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
   const pendingImageTtlMs = parsePendingImageTtlMs(process.env.IMAGE_ATTACHMENT_PENDING_TTL_MS);
   const maxSendFileBytes = 45 * 1024 * 1024;
   const summaryFollowupEnabled = parseBool(process.env.SUMMARY_FOLLOWUP_ENABLED, true);
+  const telegramStreamingEnabled = parseBool(process.env.TELEGRAM_STREAMING_ENABLED, false);
   const fullPromptEvery = parsePositiveInt(process.env.CHAT_FULL_PROMPT_EVERY, 6);
   const summaryFollowupMinLength = parsePositiveInt(process.env.SUMMARY_FOLLOWUP_MIN_LENGTH, 500);
   const summaryFollowupMaxLength = parsePositiveInt(process.env.SUMMARY_FOLLOWUP_MAX_LENGTH, 320);
@@ -81,6 +84,9 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
     const requestId = randomUUID();
     let msg = incomingMsg;
     const connector = options.resolveConnector?.(msg) || options.connector;
+    const streamResponse =
+      (msg.raw as { streamResponse?: (event: AgentEvent) => Promise<void> | void } | undefined)
+        ?.streamResponse || null;
     const attachmentCount = msg.attachments?.length || 0;
     log.info('message.received', {
       platform: msg.sender.platform,
@@ -125,6 +131,13 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       MessagePipelineContext,
       'msg' | 'connector' | 'userId' | 'targetChatId' | 'isPassthroughCommand' | 'forceNewSession'
     >;
+    const telegramStreamRenderer =
+      !streamResponse &&
+      telegramStreamingEnabled &&
+      msg.sender.platform === 'telegram' &&
+      !baseContext.isPassthroughCommand
+        ? new TelegramStreamRenderer(connector, targetChatId)
+        : null;
 
     await maybeNotifyQueueAhead(baseContext);
 
@@ -151,7 +164,11 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       context.targetChatId,
       thinkingMessages
     );
-    await thinkingMessenger.start();
+    if (telegramStreamRenderer) {
+      await telegramStreamRenderer.start();
+    } else if (!streamResponse) {
+      await thinkingMessenger.start();
+    }
     let promptLength = 0;
     let promptTelemetry: PromptTelemetry = {
       promptMode: context.isPassthroughCommand ? 'passthrough' : 'compact',
@@ -191,13 +208,35 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         });
       }
 
-      const rawResponse = await executionQueue.enqueue(userId, 'chat', 'high', () =>
-        context.activeAgent.chat(promptForAgent, {
+      const rawResponse = await executionQueue.enqueue(userId, 'chat', 'high', async () => {
+        const eventHandler = async (event: AgentEvent): Promise<void> => {
+          if (streamResponse) {
+            await streamResponse(event);
+          }
+          if (telegramStreamRenderer) {
+            await telegramStreamRenderer.handleEvent(event);
+          }
+        };
+
+        if ((streamResponse || telegramStreamRenderer) && context.activeAgent.streamChat) {
+          const result = await context.activeAgent.streamChat(
+            promptForAgent,
+            {
+              isPassthroughCommand: context.isPassthroughCommand,
+              forceNewSession: context.forceNewSession,
+              autoRecoveryNotice: true
+            },
+            eventHandler
+          );
+          return result.text;
+        }
+
+        return context.activeAgent.chat(promptForAgent, {
           isPassthroughCommand: context.isPassthroughCommand,
           forceNewSession: context.forceNewSession,
           autoRecoveryNotice: true
-        })
-      );
+        });
+      });
 
       const { response, directives } = normalizeAgentResponse(rawResponse);
       const { cleanedResponse, intent: memoryIntent } = parseMemoryIntent(response);
@@ -246,8 +285,12 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         ...(options.enqueueMemoriaSync ? { enqueueMemoriaSync: options.enqueueMemoriaSync } : {})
       });
 
-      await thinkingMessenger.stop();
-      await thinkingMessenger.deliverFinalResponse(cleanedResponse);
+      if (telegramStreamRenderer) {
+        await telegramStreamRenderer.finalize(cleanedResponse);
+      } else if (!streamResponse) {
+        await thinkingMessenger.stop();
+        await thinkingMessenger.deliverFinalResponse(cleanedResponse);
+      }
 
       if (directives.length > 0) {
         await deliverFileDirectives(
@@ -294,8 +337,12 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       options.writeContextSnapshots();
       const errorMsg = 'Sorry, I encountered an error while exercising my powers.';
 
-      await thinkingMessenger.stop();
-      await thinkingMessenger.deliverFinalResponse(errorMsg);
+      if (telegramStreamRenderer) {
+        await telegramStreamRenderer.fail(errorMsg);
+      } else if (!streamResponse) {
+        await thinkingMessenger.stop();
+        await thinkingMessenger.deliverFinalResponse(errorMsg);
+      }
     }
   };
 }

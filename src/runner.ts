@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 import yaml from 'js-yaml';
 import { GeminiAgent } from './core/gemini.js';
 import { OpencodeAgent } from './core/opencode.js';
+import type { AgentEvent, AgentStructuredResult } from './core/agent-result.js';
 import { safeCompare } from './utils/crypto.js';
 import { resolveProjectDir } from './utils/paths.js';
 
@@ -301,6 +302,15 @@ function sendJson(res: http.ServerResponse, statusCode: number, payload: unknown
   res.end(body);
 }
 
+function writeSseEvent(
+  res: http.ServerResponse,
+  event: string,
+  payload: Record<string, unknown>
+): void {
+  res.write(`event: ${event}\n`);
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
 function getRunnerToken(req: http.IncomingMessage): string | null {
   const token = req.headers['x-runner-token'];
   const presented = Array.isArray(token) ? token[0] : token;
@@ -317,7 +327,7 @@ function isRunnerAuthorized(req: http.IncomingMessage): boolean {
 
 async function executeTask(
   request: RunnerRequest
-): Promise<{ provider: Provider; output: string }> {
+): Promise<{ provider: Provider; output: string; structured?: AgentStructuredResult }> {
   const config = loadProviderConfig();
   const provider = request.provider || config.provider;
   const model = request.model || config.model;
@@ -347,22 +357,78 @@ async function executeTask(
   }
 
   if (provider === 'opencode') {
-    const output =
-      request.task === 'chat'
-        ? await opencode.chat(request.input, options)
-        : await opencode.summarize(request.input, options);
+    if (request.task === 'chat') {
+      const structured = await opencode.chatStructured(request.input, options);
+      return { provider, output: structured.text, structured };
+    }
+    const output = await opencode.summarize(request.input, options);
     return { provider, output };
   }
 
-  const output =
-    request.task === 'chat'
-      ? await (serializeGemini
-          ? runGeminiInQueue(() => gemini.chat(request.input!, options))
-          : gemini.chat(request.input, options))
-      : await (serializeGemini
-          ? runGeminiInQueue(() => gemini.summarize(request.input!, options))
-          : gemini.summarize(request.input, options));
+  if (request.task === 'chat') {
+    const structured = await (serializeGemini
+      ? runGeminiInQueue(() => gemini.chatStructured(request.input!, options))
+      : gemini.chatStructured(request.input, options));
+    return { provider: 'gemini', output: structured.text, structured };
+  }
+
+  const output = await (serializeGemini
+    ? runGeminiInQueue(() => gemini.summarize(request.input!, options))
+    : gemini.summarize(request.input, options));
   return { provider: 'gemini', output };
+}
+
+async function executeTaskStream(
+  request: RunnerRequest,
+  onEvent: (event: AgentEvent) => Promise<void> | void
+): Promise<{ provider: Provider; output: string; structured?: AgentStructuredResult }> {
+  const config = loadProviderConfig();
+  const provider = request.provider || config.provider;
+  const model = request.model || config.model;
+  const options = model
+    ? {
+        model,
+        ...(request.isPassthroughCommand ? { isPassthroughCommand: true } : {}),
+        ...(request.forceNewSession ? { forceNewSession: true } : {}),
+        ...(request.autoRecoveryNotice ? { autoRecoveryNotice: true } : {})
+      }
+    : request.isPassthroughCommand
+      ? {
+          isPassthroughCommand: true,
+          ...(request.autoRecoveryNotice ? { autoRecoveryNotice: true } : {})
+        }
+      : request.forceNewSession
+        ? {
+            forceNewSession: true,
+            ...(request.autoRecoveryNotice ? { autoRecoveryNotice: true } : {})
+          }
+        : request.autoRecoveryNotice
+          ? { autoRecoveryNotice: true }
+          : undefined;
+
+  if (!request.input || request.task !== 'chat') {
+    throw new Error('Invalid stream request: chat task and input are required.');
+  }
+
+  if (provider === 'gemini' && gemini.streamChat) {
+    const structured = await (serializeGemini
+      ? runGeminiInQueue(() => gemini.streamChat!(request.input!, options, onEvent))
+      : gemini.streamChat(request.input, options, onEvent));
+    return { provider: 'gemini', output: structured.text, structured };
+  }
+
+  if (provider === 'opencode' && opencode.streamChat) {
+    const structured = await opencode.streamChat(request.input, options, onEvent);
+    return { provider: 'opencode', output: structured.text, structured };
+  }
+
+  await onEvent({ type: 'start', provider });
+  const structured = await gemini.chatStructured(request.input, options);
+  if (structured.stats !== undefined) {
+    await onEvent({ type: 'usage', stats: structured.stats });
+  }
+  await onEvent({ type: 'done', text: structured.text });
+  return { provider: 'gemini', output: structured.text, structured };
 }
 
 const port = Number.parseInt(process.env.RUNNER_PORT || '8787', 10);
@@ -462,7 +528,8 @@ const server = http.createServer(async (req, res) => {
         requestId,
         durationMs,
         provider: result.provider,
-        output: result.output
+        output: result.output,
+        ...(result.structured ? { structured: result.structured } : {})
       });
     } catch (error: unknown) {
       const durationMs = Date.now() - startedAt;
@@ -484,6 +551,140 @@ const server = http.createServer(async (req, res) => {
         error: `${errorType}: ${message}`
       });
       sendJson(res, 500, { ok: false, requestId, durationMs, error: message });
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && req.url === '/run/stream') {
+    const requestId = randomUUID();
+    const startedAt = Date.now();
+
+    try {
+      if (!isRunnerAuthorized(req)) {
+        const durationMs = Date.now() - startedAt;
+        markRunnerResult({
+          requestId,
+          durationMs,
+          ok: false,
+          error: 'unauthorized-token'
+        });
+        appendAuditLine({
+          requestId,
+          timestamp: startedAt,
+          durationMs,
+          ok: false,
+          httpStatus: 401,
+          reason: 'unauthorized-token',
+          streaming: true
+        });
+        sendJson(res, 401, { ok: false, error: 'Unauthorized runner token.' });
+        return;
+      }
+
+      const raw = await readBody(req);
+      const parsed = JSON.parse(raw || '{}') as RunnerRequest;
+
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive'
+      });
+
+      const result = await executeTaskStream(parsed, async (event) => {
+        if (event.type === 'start') {
+          writeSseEvent(res, 'start', { provider: event.provider });
+          return;
+        }
+        if (event.type === 'status') {
+          writeSseEvent(res, 'status', { text: event.text });
+          return;
+        }
+        if (event.type === 'delta') {
+          writeSseEvent(res, 'delta', { text: event.text });
+          return;
+        }
+        if (event.type === 'usage') {
+          writeSseEvent(res, 'usage', { stats: event.stats });
+          return;
+        }
+        if (event.type === 'error') {
+          writeSseEvent(res, 'error', { message: event.message });
+          return;
+        }
+        if (event.type === 'done') {
+          writeSseEvent(res, 'done', { text: event.text });
+        }
+      });
+
+      const durationMs = Date.now() - startedAt;
+      appendAuditLine({
+        requestId,
+        timestamp: startedAt,
+        durationMs,
+        ok: true,
+        task: parsed.task,
+        provider: result.provider,
+        model: parsed.model || '(default)',
+        passthrough: parsed.isPassthroughCommand === true,
+        streaming: true
+      });
+      const successResult: {
+        requestId: string;
+        durationMs: number;
+        ok: boolean;
+        task?: RunnerTask;
+        provider?: Provider;
+      } = {
+        requestId,
+        durationMs,
+        ok: true,
+        provider: result.provider
+      };
+      if (parsed.task) {
+        successResult.task = parsed.task;
+      }
+      markRunnerResult(successResult);
+      writeSseEvent(res, 'result', {
+        ok: true,
+        requestId,
+        durationMs,
+        provider: result.provider,
+        output: result.output,
+        ...(result.structured ? { structured: result.structured } : {})
+      });
+      res.end();
+    } catch (error: unknown) {
+      const durationMs = Date.now() - startedAt;
+      const message = error instanceof Error ? error.message : String(error);
+      const errorType = classifyRunnerError(message);
+      appendAuditLine({
+        requestId,
+        timestamp: startedAt,
+        durationMs,
+        ok: false,
+        httpStatus: 500,
+        error: message,
+        errorType,
+        streaming: true
+      });
+      markRunnerResult({
+        requestId,
+        durationMs,
+        ok: false,
+        error: `${errorType}: ${message}`
+      });
+      try {
+        if (!res.headersSent) {
+          res.writeHead(500, {
+            'Content-Type': 'text/event-stream; charset=utf-8',
+            'Cache-Control': 'no-cache, no-transform',
+            Connection: 'keep-alive'
+          });
+        }
+        writeSseEvent(res, 'error', { message, requestId, durationMs });
+      } finally {
+        res.end();
+      }
     }
     return;
   }
