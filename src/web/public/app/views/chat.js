@@ -366,13 +366,14 @@ export function mountChatView(container, ctx) {
     status.textContent = 'Thinking...';
     chatState.isStreaming = true;
 
-    let modelContentNode = null;
-    let modelBuffer = '';
     const modelTs = Date.now();
+    let modelBuffer = '思考中...';
+    let modelContentNode = addMessageBubble('model', modelBuffer, modelTs);
+    let modelFinalized = false;
 
     const ensureModelNode = () => {
       if (modelContentNode) return modelContentNode;
-      modelContentNode = addMessageBubble('model', '', modelTs);
+      modelContentNode = addMessageBubble('model', modelBuffer, modelTs);
       return modelContentNode;
     };
 
@@ -384,23 +385,25 @@ export function mountChatView(container, ctx) {
         chunk(payload) {
           const contentNode = ensureModelNode();
           const chunk = payload.text || '';
-          modelBuffer = modelBuffer ? `${modelBuffer}\n\n${chunk}` : chunk;
+          modelBuffer = modelBuffer ? `${modelBuffer}${chunk}` : chunk;
+          if (modelBuffer.startsWith('思考中...')) {
+            modelBuffer = modelBuffer.slice('思考中...'.length);
+          }
           if (contentNode) {
-            contentNode.innerHTML = renderMarkdownToHtml(modelBuffer);
+            contentNode.innerHTML = renderMarkdownToHtml(modelBuffer || '思考中...');
           }
           status.textContent = 'Streaming...';
           scrollToBottom(stream);
         },
         done(payload) {
-          if (!modelContentNode) {
-            const reply = payload.reply || '(empty)';
-            const contentNode = ensureModelNode();
-            modelBuffer = reply;
-            if (contentNode) {
-              contentNode.innerHTML = renderMarkdownToHtml(reply);
-            }
+          const reply = payload.reply || '(empty)';
+          const contentNode = ensureModelNode();
+          modelBuffer = reply;
+          if (contentNode) {
+            contentNode.innerHTML = renderMarkdownToHtml(reply);
           }
           chatState.items.push({ role: 'model', content: modelBuffer, timestamp: modelTs });
+          modelFinalized = true;
           status.textContent = 'Done';
           scrollToBottom(stream);
         },
@@ -409,12 +412,19 @@ export function mountChatView(container, ctx) {
         }
       });
     } catch (error) {
-      addMessageBubble('model', `錯誤：${toErrorMessage(error)}`, modelTs);
-      chatState.items.push({
-        role: 'model',
-        content: `錯誤：${toErrorMessage(error)}`,
-        timestamp: modelTs
-      });
+      const errorText = `錯誤：${toErrorMessage(error)}`;
+      const contentNode = ensureModelNode();
+      modelBuffer = errorText;
+      if (contentNode) {
+        contentNode.innerHTML = renderMarkdownToHtml(errorText);
+      }
+      if (!modelFinalized) {
+        chatState.items.push({
+          role: 'model',
+          content: errorText,
+          timestamp: modelTs
+        });
+      }
       status.textContent = 'Error';
     } finally {
       chatState.isStreaming = false;
