@@ -7,7 +7,7 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 - 互動層：Telegram Bot、Web Console
 - 協調層：訊息管線、命令路由、記憶注入、排程
 - 執行層：本地 provider 執行與 `agent-runner`
-- 觀測層：`workspace/context/` 狀態快照、runner audit、memory intent / prompt telemetry
+- 觀測層：`workspace/context/` 狀態快照、runner audit、memory intent / prompt telemetry、邏輯崩測 (Logic Crash Detection)、推論驗證 (InferenceValidator)
 
 ## 核心模組
 
@@ -68,7 +68,7 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 - `src/web/public/app/*`
   - 純 vanilla JS 的前端頁面與資料服務
 
-### 可觀測性
+### 觀測與自癒
 
 - `src/services/context-snapshots.ts`
   - 定期寫出 runtime/provider/scheduler/error/memory/memoria/prompt session 快照
@@ -76,6 +76,10 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
   - 記錄 prompt 長度、memory 注入量、prompt mode
 - `src/services/memory-intent-telemetry.ts`
   - 記錄模型輸出的 `[[MEMORY_INTENT:...]]` 結構化觀測
+- `src/core/inference-validator.ts` [新進]
+  - 實作「推論主權」的回測地板，量化 Token 的因果權力 (Causal Power)
+  - 監控 `Causal Bias Score` 漂移，識別非物理性的「邏輯崩潰」
+  - 觸發 `SelfHealingProbe` 進行邏輯回滾與權重重校準
 
 ## 主要資料流
 
