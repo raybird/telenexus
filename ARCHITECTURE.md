@@ -80,6 +80,10 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
   - 實作「推論主權」的回測地板，量化 Token 的因果權力 (Causal Power)
   - 監控 `Causal Bias Score` 漂移，識別非物理性的「邏輯崩潰」
   - 觸發 `SelfHealingProbe` 進行邏輯回滾與權重重校準
+- `src/core/ensemble-inference.ts` [規劃中]
+  - 定義「感知層-策略層-協調層」三層代理人架構，實現跨域意圖融合
+  - 實裝 Purged & Embargoed K-Fold 規訓，杜絕金融時序回測中的資訊洩漏
+  - 透過組合對稱交叉驗證 (CPCV) 提升統計顯著性，產出具備 95% 置信區間的決策報告
 
 ## 主要資料流
 
