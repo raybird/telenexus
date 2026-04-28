@@ -83,7 +83,8 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 - `src/core/ensemble-inference.ts` [規劃中]
   - 定義「感知層-策略層-協調層」三層代理人架構，實現跨域意圖融合
   - 實裝 Purged & Embargoed K-Fold 規訓，杜絕金融時序回測中的資訊洩漏
-  - 透過組合對稱交叉驗證 (CPCV) 提升統計顯著性，產出具備 95% 置信區間的決策報告
+  - 透過組合對稱交叉驗證 (CPCV) 提升統計顯著性，產出 $\binom{N-1}{k-1}$ 條替代歷史路徑
+  - 計算回測過擬合機率 (PBO)，確保金融語義 Token 的權重具備物理級穩定性
 
 ## 主要資料流
 
