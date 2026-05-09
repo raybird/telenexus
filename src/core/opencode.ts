@@ -185,7 +185,7 @@ export class OpencodeAgent implements AIAgent {
     console.log(`[Opencode] Starting execution...`);
 
     return runProcess('opencode', args, {
-      timeoutMs: 600000,
+      timeoutMs: 1200000,
       cwd: workspacePath,
       env: {
         ...process.env

@@ -147,7 +147,7 @@ export class GeminiAgent implements AIAgent {
     }
 
     return runProcess('gemini', args, {
-      timeoutMs: 600000,
+      timeoutMs: 1200000,
       cwd: 'workspace',
       env: {
         ...process.env,
