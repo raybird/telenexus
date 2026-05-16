@@ -10,22 +10,37 @@ TeleNexus is a local AI assistant gateway that bridges Telegram to local AI CLI 
 
 ```bash
 # Development
-npm run dev              # Start main TeleNexus service (tsx watch)
+npm run dev              # Start main TeleNexus service (tsx watch) — runs sync-skills.mjs first
 npm run dev:runner       # Start agent-runner service (tsx watch)
 npm run build            # TypeScript compile + copy web assets
 npm run lint             # ESLint on src/**/*.ts
 npm run format           # Prettier on src/**/*.ts and *.md
-npm run test             # Run all tests (Node.js built-in test runner via tsx)
+npm run test             # Run all tests via `tsx --test tests/**/*.test.ts`
 
-# Run a single test
+# Run a single test (tests may live in nested dirs under tests/)
 npx tsx --test tests/memory-manager.test.ts
 
 # Docker
-npm run docker:up:build  # Build and start both services
-npm run docker:up:meta   # Build with git metadata and force recreate
-docker compose ps        # Check service status
+npm run docker:up:build     # Build and start both services
+npm run docker:up:meta      # Build with git metadata and force recreate
+npm run docker:up:nocache   # Full no-cache rebuild + force recreate
+docker compose ps           # Check service status
 docker compose logs -f telenexus  # Follow logs
+
+# Memory tooling (require `npm run build` first — these run dist/*)
+npm run memory:health              # Memory health report
+npm run memory:backfill:dry-run    # Scan archive sessions, no writes
+npm run memory:backfill:write      # Apply backfill
+npm run memory:cli -- search "..." # Search / forget / inspect memory
+npm run memory:seed-sar-anchors    # Seed SAR retrieval anchors
+
+# Reports & release
+npm run report:compare           # Execution-comparison report
+npm run report:compare:24h       # Last 24h window
+npm run release:patch|minor|major  # Bump version + release workflow
 ```
+
+> `npm run dev`, `start`, and `dev:runner` all auto-run `scripts/sync-skills.mjs` to materialize `skills/` into the workspace before launching.
 
 ## Architecture
 
@@ -69,9 +84,29 @@ Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per
 - **`.env`**: Telegram token, allowed user ID, runner settings, web console settings, Memoria sync options
 - **`skills/`**: Skill definitions synced to workspace on startup via `scripts/sync-skills.mjs`
 
+### Prompt Modes
+
+`src/core/prompt-build.ts` selects one of four modes per turn (rather than always sending full context):
+
+- **full** — periodic full prompt + memory context injection
+- **compact** — lightweight follow-up prompt; memory context only injected when the message clearly needs prior rules/decisions/settings
+- **minimal** — short follow-ups, no extra context bloat
+- **passthrough** — slash command forwarded verbatim to the underlying CLI, no TeleNexus wrapping
+
+Long-term context comes from two sources: the SQLite memory store (with SAR — Summary-Aware Retrieval) and the optional Memoria CLI background sync.
+
 ### Observability
 
-Context snapshots are auto-written to `workspace/context/` (runtime, provider, scheduler, error, runner status as markdown). Refresh interval is controlled by `CONTEXT_REFRESH_MS` (default 60s). The runner writes audit logs to `workspace/context/runner-audit.log`.
+Context snapshots are auto-written to `workspace/context/` as markdown — `runtime-status`, `provider-status`, `scheduler-status`, `error-summary`, `memory-status`, `memoria-status`, `prompt-session-status`, `memory-intent-status`, `runner-status`, plus `runner-audit.log`. Refresh interval is `CONTEXT_REFRESH_MS` (default 60s). The Web Console `#/status` page reads these files directly — they are the canonical system-state view, not `src/`.
+
+### Further Reading
+
+- `ARCHITECTURE.md` — fuller module map and data-flow diagrams
+- `docs/configuration-reference.md` — config & runner/session details
+- `docs/web-console-reference.md` — Web Console API & views
+- `docs/summary-aware-retrieval-plan.md` — memory / SAR design
+- `docs/runtime-boundary-and-security.md` — runtime boundary notes
+- `AGENTS.md` — soul/style principles for AI behavior in this repo (Traditional Chinese)
 
 ## Code Conventions
 

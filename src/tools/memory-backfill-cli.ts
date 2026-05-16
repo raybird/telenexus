@@ -7,7 +7,7 @@ import {
   runMemoryBackfillDryRun
 } from '../services/memory-backfill.js';
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const defaults = getMemoryBackfillDefaults();
 const program = new Command();

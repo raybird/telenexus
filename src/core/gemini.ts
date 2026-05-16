@@ -153,6 +153,11 @@ export class GeminiAgent implements AIAgent {
         ...process.env,
         GEMINI_PROJECT_DIR: process.env.GEMINI_PROJECT_DIR || process.cwd(),
         GEMINI_BYPASS_MEMORY_HOOK: '1'
+      },
+      abortOnStderr: {
+        pattern: /(status|code)\s*[:=]?\s*429|RESOURCE_EXHAUSTED/i,
+        code: 'ERATELIMIT',
+        message: 'Gemini upstream rate-limited (HTTP 429); aborted before internal backoff retries.'
       }
     });
   }
@@ -306,6 +311,14 @@ ${text}
         }
       }
 
+      if (error instanceof ProcessError && error.code === 'ERATELIMIT') {
+        console.warn('[Gemini] Fail-fast on upstream 429 (rate limit).');
+        return buildTextOnlyStructuredResult(
+          'gemini',
+          '⏳ Gemini 上游配額已達上限 (HTTP 429)，本次任務已快速中止以避免長時間退避重試。請稍後再試或錯開排程時間。'
+        );
+      }
+
       if (
         error instanceof ProcessError &&
         (error.code === 'ETIMEDOUT' || error.signal === 'SIGTERM')
@@ -357,6 +370,8 @@ ${text}
     let started = false;
     let settled = false;
     let timedOut = false;
+    let rateLimited = false;
+    const rateLimitPattern = /(status|code)\s*[:=]?\s*429|RESOURCE_EXHAUSTED/i;
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill('SIGTERM');
@@ -420,6 +435,11 @@ ${text}
 
       child.stderr?.on('data', (chunk) => {
         stderr += chunk.toString();
+        if (!rateLimited && rateLimitPattern.test(stderr)) {
+          rateLimited = true;
+          clearTimeout(timer);
+          child.kill('SIGTERM');
+        }
       });
 
       child.on('error', (error) => {
@@ -451,6 +471,19 @@ ${text}
           }
 
           if (signal || (code && code !== 0)) {
+            if (rateLimited) {
+              console.warn('[Gemini] streamChat fail-fast on upstream 429.');
+              const rlResult = buildTextOnlyStructuredResult(
+                'gemini',
+                '⏳ Gemini 上游配額已達上限 (HTTP 429)，本次任務已快速中止以避免長時間退避重試。請稍後再試或錯開排程時間。'
+              );
+              if (!started) {
+                await emitStart();
+              }
+              await onEvent({ type: 'done', text: rlResult.text });
+              resolve(rlResult);
+              return;
+            }
             if (timedOut || signal === 'SIGTERM') {
               const timeoutResult = buildTextOnlyStructuredResult('gemini', '✨ 10分鐘內未完成');
               await onEvent({ type: 'error', message: timeoutResult.text });

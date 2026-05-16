@@ -8,6 +8,11 @@ export type RunOptions = {
   env?: NodeJS.ProcessEnv;
   timeoutMs?: number;
   stdin?: string;
+  /**
+   * 當 stderr 累積內容首次命中 pattern 時，立即 SIGTERM 子程序並以指定 code/message 拒絕。
+   * 用於 fail-fast：例如偵測到 Gemini 上游 429 後不再等待內部退避重試。
+   */
+  abortOnStderr?: { pattern: RegExp; code: string; message: string };
 };
 
 export class ProcessError extends Error {
@@ -43,6 +48,7 @@ export function runProcess(
 
     let stdout = '';
     let stderr = '';
+    let aborted = false;
     const timer = options.timeoutMs
       ? setTimeout(() => {
           child.kill('SIGTERM');
@@ -55,14 +61,28 @@ export function runProcess(
     });
     child.stderr?.on('data', (chunk) => {
       stderr += chunk.toString();
+      if (!aborted && options.abortOnStderr && options.abortOnStderr.pattern.test(stderr)) {
+        aborted = true;
+        if (timer) clearTimeout(timer);
+        child.kill('SIGTERM');
+        reject(
+          new ProcessError(options.abortOnStderr.message, {
+            code: options.abortOnStderr.code,
+            stdout,
+            stderr
+          })
+        );
+      }
     });
 
     child.on('error', (err) => {
+      if (aborted) return;
       if (timer) clearTimeout(timer);
       reject(err);
     });
 
     child.on('close', (code, signal) => {
+      if (aborted) return;
       if (timer) clearTimeout(timer);
       if (signal) {
         reject(
