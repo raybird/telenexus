@@ -412,11 +412,12 @@ export class DynamicAIAgent implements AIAgent {
         const runnerResult = await this.callRunnerStream(runnerPayload, onEvent);
         if (runnerResult.ok && runnerResult.output) {
           this.markRunnerSuccess();
-          const text = runnerResult.structured?.text || runnerResult.output;
+          const rawText = runnerResult.structured?.text || runnerResult.output;
+          const resolvedProvider = runnerResult.provider === 'opencode' ? 'opencode' : 'gemini';
+          const providerLabel = resolvedProvider === 'opencode' ? 'Opencode' : 'Gemini';
+          const text = `[${providerLabel}] ${rawText}`;
           return {
-            provider: (runnerResult.provider === 'opencode' ? 'opencode' : 'gemini') as
-              | 'gemini'
-              | 'opencode',
+            provider: resolvedProvider as 'gemini' | 'opencode',
             text,
             ...(runnerResult.structured?.sessionId
               ? { sessionId: runnerResult.structured.sessionId }
@@ -437,11 +438,13 @@ export class DynamicAIAgent implements AIAgent {
     }
 
     if (provider === 'gemini' && this.geminiAgent.streamChat) {
-      return this.geminiAgent.streamChat(normalizedInput, mergedOptions, onEvent);
+      const result = await this.geminiAgent.streamChat(normalizedInput, mergedOptions, onEvent);
+      return { ...result, text: `[Gemini] ${result.text}` };
     }
 
     if (provider === 'opencode' && this.opencodeAgent.streamChat) {
-      return this.opencodeAgent.streamChat(normalizedInput, mergedOptions, onEvent);
+      const result = await this.opencodeAgent.streamChat(normalizedInput, mergedOptions, onEvent);
+      return { ...result, text: `[Opencode] ${result.text}` };
     }
 
     await onEvent({ type: 'start', provider });
