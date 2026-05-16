@@ -190,7 +190,12 @@ export class OpencodeAgent implements AIAgent {
       env: {
         ...process.env
       },
-      stdin: prompt
+      stdin: prompt,
+      abortOnStderr: {
+        pattern: /\b429\b|Too Many Requests|RESOURCE_EXHAUSTED/i,
+        code: 'ERATELIMIT',
+        message: 'Opencode upstream rate-limited (HTTP 429); aborted before internal backoff retries.'
+      }
     });
   }
 
@@ -302,6 +307,14 @@ ${text}
         console.error(`  Stderr: ${error.stderr.substring(0, 500)}`);
       }
 
+      if (isProcessError && error.code === 'ERATELIMIT') {
+        console.warn('[Opencode] Fail-fast on upstream 429 (rate limit).');
+        return buildTextOnlyStructuredResult(
+          'opencode',
+          '⏳ Opencode 上游配額已達上限 (HTTP 429)，本次任務已快速中止以避免長時間退避重試。請稍後再試或錯開排程時間。'
+        );
+      }
+
       if (isProcessError && (error.code === 'ETIMEDOUT' || error.signal === 'SIGTERM')) {
         return buildTextOnlyStructuredResult('opencode', '✨ 10分鐘內未完成');
       }
@@ -350,6 +363,8 @@ ${text}
     let started = false;
     let settled = false;
     let timedOut = false;
+    let rateLimited = false;
+    const rateLimitPattern = /\b429\b|Too Many Requests|RESOURCE_EXHAUSTED/i;
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill('SIGTERM');
@@ -421,6 +436,11 @@ ${text}
 
       child.stderr?.on('data', (chunk) => {
         stderr += chunk.toString();
+        if (!rateLimited && rateLimitPattern.test(stderr)) {
+          rateLimited = true;
+          clearTimeout(timer);
+          child.kill('SIGTERM');
+        }
       });
 
       child.on('error', (error) => {
@@ -441,6 +461,19 @@ ${text}
           clearTimeout(timer);
 
           if (signal || (code && code !== 0)) {
+            if (rateLimited) {
+              console.warn('[Opencode] streamChat fail-fast on upstream 429.');
+              const rlResult = buildTextOnlyStructuredResult(
+                'opencode',
+                '⏳ Opencode 上游配額已達上限 (HTTP 429)，本次任務已快速中止以避免長時間退避重試。請稍後再試或錯開排程時間。'
+              );
+              if (!started) {
+                await emitStart();
+              }
+              await onEvent({ type: 'done', text: rlResult.text });
+              resolve(rlResult);
+              return;
+            }
             if (timedOut || signal === 'SIGTERM') {
               const timeoutResult = buildTextOnlyStructuredResult('opencode', '✨ 10分鐘內未完成');
               await onEvent({ type: 'error', message: timeoutResult.text });
