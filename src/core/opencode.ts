@@ -140,6 +140,9 @@ export class OpencodeAgent implements AIAgent {
       ''
     );
 
+    // 3. 移除 opencode 啟動 banner 行 (e.g. "> build · model/name")
+    cleaned = cleaned.replace(/^\s*>\s*build\s*·.*$/gim, '');
+
     return cleaned.trim();
   }
 
@@ -181,17 +184,17 @@ export class OpencodeAgent implements AIAgent {
     }
 
     const workspacePath = this.getWorkspacePath();
-    console.log(`[Opencode] Command: opencode ${args.join(' ')}`);
+    const argsWithPrompt = [...args, prompt];
+    console.log(`[Opencode] Command: opencode ${args.join(' ')} <prompt>`);
     console.log(`[Opencode] Working directory: ${workspacePath}`);
     console.log(`[Opencode] Starting execution...`);
 
-    return runProcess('opencode', args, {
+    return runProcess('opencode', argsWithPrompt, {
       timeoutMs: 1200000,
       cwd: workspacePath,
       env: {
         ...process.env
       },
-      stdin: prompt,
       abortOnStderr: {
         pattern: /\b429\b|Too Many Requests|RESOURCE_EXHAUSTED/i,
         code: 'ERATELIMIT',
@@ -252,7 +255,7 @@ ${text}
       }
 
       console.log(`[Opencode Summarize] Starting...`);
-      const { stdout, stderr } = await runProcess('opencode', args, { stdin: prompt });
+      const { stdout, stderr } = await runProcess('opencode', [...args, prompt]);
 
       this.logStderr('Summarize', stderr);
 
@@ -349,7 +352,7 @@ ${text}
 
     const args = this.buildChatArgs(options, 'json');
     const workspacePath = this.getWorkspacePath();
-    const child = spawn('opencode', args, {
+    const child = spawn('opencode', [...args, prompt], {
       cwd: workspacePath,
       env: {
         ...process.env
@@ -542,7 +545,6 @@ ${text}
         });
       });
 
-      child.stdin?.write(prompt);
       child.stdin?.end();
     });
   }
