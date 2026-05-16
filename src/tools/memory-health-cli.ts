@@ -6,7 +6,7 @@ import {
   formatMemoryHealthMarkdown
 } from '../services/memory-health.js';
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const program = new Command();
 

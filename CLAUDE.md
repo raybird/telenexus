@@ -63,25 +63,27 @@ Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per
 
 ### Key Modules
 
-| Path | Responsibility |
-|------|----------------|
-| `src/core/agent.ts` | `AIAgent` interface, `DynamicAIAgent` proxy with runner support and circuit breaker |
-| `src/core/message-pipeline.ts` | Main chat pipeline: prompt assembly, execution queue, file directives, image attachment bundling |
-| `src/core/command-router.ts` | Slash command registry with passthrough whitelist from `ai-config.yaml` |
-| `src/core/scheduler.ts` | Cron-based scheduling with silence-timer reflection system |
-| `src/core/memory.ts` | `MemoryManager` — SQLite-backed chat history, schedules, and full-text search |
-| `src/core/execution-queue.ts` | Per-user priority queue (high/normal/low) ensuring serial execution per user |
-| `src/core/memoria-sync.ts` | Background sync bridge to external Memoria CLI for long-term knowledge |
-| `src/core/gemini.ts` | Wraps `gemini-cli` subprocess calls |
-| `src/core/opencode.ts` | Wraps `opencode run` subprocess calls |
-| `src/connectors/telegram.ts` | Telegraf-based connector implementing `Connector` interface |
-| `src/web/server.ts` | Built-in Web Console (HTTP, default port 3030) |
-| `src/types/index.ts` | Shared interfaces: `UnifiedMessage`, `Connector`, `UserProfile` |
+| Path                            | Responsibility                                                                                            |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `src/core/agent.ts`             | `AIAgent` interface, `DynamicAIAgent` proxy with runner support and circuit breaker                       |
+| `src/core/message-pipeline.ts`  | Main chat pipeline: prompt assembly, execution queue, file directives, image attachment bundling          |
+| `src/core/command-router.ts`    | Slash command registry with passthrough whitelist from `ai-config.yaml`                                   |
+| `src/core/scheduler.ts`         | Cron-based scheduling with silence-timer reflection system                                                |
+| `src/core/memory.ts`            | `MemoryManager` — SQLite-backed chat history, schedules, and full-text search                             |
+| `src/core/execution-queue.ts`   | Per-user priority queue (high/normal/low) ensuring serial execution per user                              |
+| `src/core/memoria-sync.ts`      | Background sync bridge to external Memoria CLI for long-term knowledge                                    |
+| `src/core/gemini.ts`            | Wraps `gemini-cli` subprocess calls; fail-fast on upstream 429 via stderr abort pattern                   |
+| `src/core/opencode.ts`          | Wraps `opencode run` subprocess calls; same 429 fail-fast contract                                        |
+| `src/services/error-alerter.ts` | Sliding-window error alerter; pushes Telegram message to `ALLOWED_USER_ID` when a scope crosses threshold |
+| `src/services/issue-store.ts`   | Persists `recordRuntimeIssue` events to SQLite `runtime_issues` table (7-day retention)                   |
+| `src/connectors/telegram.ts`    | Telegraf-based connector implementing `Connector` interface                                               |
+| `src/web/server.ts`             | Built-in Web Console (HTTP, default port 3030)                                                            |
+| `src/types/index.ts`            | Shared interfaces: `UnifiedMessage`, `Connector`, `UserProfile`                                           |
 
 ### Configuration
 
 - **`ai-config.yaml`**: Runtime AI provider selection (`gemini` / `opencode`), model override, passthrough command whitelist, chat prompt assembly config
-- **`.env`**: Telegram token, allowed user ID, runner settings, web console settings, Memoria sync options
+- **`.env`**: Telegram token, allowed user ID, runner settings, web console settings, Memoria sync options, error alerter / schedule timeout knobs (`ERROR_ALERT_THRESHOLD`, `ERROR_ALERT_WINDOW_MS`, `ERROR_ALERT_COOLDOWN_MS`, `SCHEDULE_TASK_TIMEOUT_MS`)
 - **`skills/`**: Skill definitions synced to workspace on startup via `scripts/sync-skills.mjs`
 
 ### Prompt Modes
@@ -98,6 +100,14 @@ Long-term context comes from two sources: the SQLite memory store (with SAR — 
 ### Observability
 
 Context snapshots are auto-written to `workspace/context/` as markdown — `runtime-status`, `provider-status`, `scheduler-status`, `error-summary`, `memory-status`, `memoria-status`, `prompt-session-status`, `memory-intent-status`, `runner-status`, plus `runner-audit.log`. Refresh interval is `CONTEXT_REFRESH_MS` (default 60s). The Web Console `#/status` page reads these files directly — they are the canonical system-state view, not `src/`.
+
+**Error pipeline** — `recordRuntimeIssue(scope, err)` fans out to three subscribers via `addIssueHook`:
+
+1. **In-memory** `recentIssues[]` (20-entry buffer, 60s dedupe) — rendered into `error-summary.md`
+2. **`IssueStore`** (`src/services/issue-store.ts`) — persists to SQLite `runtime_issues` table; 7-day retention; surfaced as `Past 24h by Scope (persisted)` and `Rate-limit Issues (24h)` in `error-summary.md`
+3. **`ErrorAlerter`** (`src/services/error-alerter.ts`) — sliding-window counter per scope; pushes Telegram alert to `ALLOWED_USER_ID` when ≥`ERROR_ALERT_THRESHOLD` events in `ERROR_ALERT_WINDOW_MS`; respects `ERROR_ALERT_COOLDOWN_MS` between alerts
+
+When adding new error handling, always emit `recordRuntimeIssue('<subsystem>:<reason>', err)` rather than only `console.error`, so it lands in all three observability surfaces.
 
 ### Further Reading
 
@@ -118,6 +128,7 @@ Context snapshots are auto-written to `workspace/context/` as markdown — `runt
 - Primary language for UI strings and comments: Traditional Chinese (Taiwan)
 
 <!-- gitnexus:start -->
+
 # GitNexus — Code Intelligence
 
 This project is indexed by GitNexus as **telenexus** (9722 symbols, 13961 relationships, 298 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
@@ -141,22 +152,22 @@ This project is indexed by GitNexus as **telenexus** (9722 symbols, 13961 relati
 
 ## Resources
 
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/telenexus/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/telenexus/clusters` | All functional areas |
-| `gitnexus://repo/telenexus/processes` | All execution flows |
-| `gitnexus://repo/telenexus/process/{name}` | Step-by-step execution trace |
+| Resource                                   | Use for                                  |
+| ------------------------------------------ | ---------------------------------------- |
+| `gitnexus://repo/telenexus/context`        | Codebase overview, check index freshness |
+| `gitnexus://repo/telenexus/clusters`       | All functional areas                     |
+| `gitnexus://repo/telenexus/processes`      | All execution flows                      |
+| `gitnexus://repo/telenexus/process/{name}` | Step-by-step execution trace             |
 
 ## CLI
 
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+| Task                                         | Read this skill file                                        |
+| -------------------------------------------- | ----------------------------------------------------------- |
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md`       |
+| Blast radius / "What breaks if I change X?"  | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?"             | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md`       |
+| Rename / extract / split / refactor          | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md`     |
+| Tools, resources, schema reference           | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md`           |
+| Index, status, clean, wiki CLI commands      | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md`             |
 
 <!-- gitnexus:end -->

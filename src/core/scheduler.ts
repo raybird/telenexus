@@ -19,8 +19,45 @@ import { createLogger } from './logger.js';
 import type { Connector } from '../types/index.js';
 import { inferSummaryMetadata } from './summary-metadata.js';
 import type { MemoriaSyncTurn } from './memoria-sync.js';
+import { recordRuntimeIssue } from '../utils/errors.js';
 
 const log = createLogger('scheduler');
+
+const DEFAULT_SCHEDULE_TASK_TIMEOUT_MS = 15 * 60 * 1000;
+
+function readScheduleTaskTimeoutMs(): number {
+  const raw = process.env.SCHEDULE_TASK_TIMEOUT_MS;
+  if (!raw) return DEFAULT_SCHEDULE_TASK_TIMEOUT_MS;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 30_000) {
+    return DEFAULT_SCHEDULE_TASK_TIMEOUT_MS;
+  }
+  return parsed;
+}
+
+function withScheduleTimeout<T>(label: string, scheduleId: number, fn: () => Promise<T>): Promise<T> {
+  const timeoutMs = readScheduleTaskTimeoutMs();
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(
+        new Error(
+          `Schedule task '${label}' (id=${scheduleId}) exceeded ${timeoutMs}ms timeout`
+        )
+      );
+    }, timeoutMs);
+    timer.unref?.();
+    fn().then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
 
 export class Scheduler {
   private jobs: Map<number, Cron> = new Map();
@@ -346,19 +383,20 @@ export class Scheduler {
       // 2. 組合 Prompt
       const fullPrompt = buildScheduledTaskPrompt(schedule.name, schedule.prompt, longTermMemory);
 
-      // 3. 呼叫 Gemini CLI
-      let response = await executionQueue.enqueue(schedule.user_id, 'scheduler-task', 'low', () =>
-        this.gemini.chat(fullPrompt)
+      // 3. 呼叫 Gemini CLI（套用 schedule-level timeout 防止下游卡死）
+      let response = await withScheduleTimeout(schedule.name, schedule.id, () =>
+        executionQueue.enqueue(schedule.user_id, 'scheduler-task', 'low', () =>
+          this.gemini.chat(fullPrompt)
+        )
       );
       const firstAssessment = assessAiResponse(response);
       if (firstAssessment.shouldRetry) {
         log.warn('task.retrying', { scheduleId: schedule.id, reason: firstAssessment.reason });
         await new Promise((resolve) => setTimeout(resolve, 2500));
-        response = await executionQueue.enqueue(
-          schedule.user_id,
-          'scheduler-task-retry',
-          'low',
-          () => this.gemini.chat(fullPrompt)
+        response = await withScheduleTimeout(schedule.name, schedule.id, () =>
+          executionQueue.enqueue(schedule.user_id, 'scheduler-task-retry', 'low', () =>
+            this.gemini.chat(fullPrompt)
+          )
         );
         const secondAssessment = assessAiResponse(response);
         if (secondAssessment.shouldRetry) {
@@ -384,7 +422,15 @@ export class Scheduler {
       await this.connector.sendMessage(schedule.user_id, messageHeader + response);
     } catch (error) {
       log.error('task.failed', { scheduleId: schedule.id, name: schedule.name, error });
-      const errorMessage = `❌ 排程任務 "${schedule.name}" 執行失敗：${error}`;
+      const message = error instanceof Error ? error.message : String(error);
+      const isTimeout = /exceeded\s+\d+ms\s+timeout/.test(message);
+      recordRuntimeIssue(
+        isTimeout ? 'scheduler:task-timeout' : 'scheduler:task-failed',
+        error
+      );
+      const errorMessage = isTimeout
+        ? `⏱️ 排程任務 "${schedule.name}" 逾時自動中止（${message}）`
+        : `❌ 排程任務 "${schedule.name}" 執行失敗：${error}`;
       this.persistSchedulerMessage(
         schedule.user_id,
         `[排程任務失敗] ${schedule.name}: ${schedule.prompt}`,

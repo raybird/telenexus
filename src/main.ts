@@ -13,6 +13,8 @@ import { shouldSummarize, buildMemoryContext, buildChatPrompt } from './prompt/b
 import { recordRuntimeIssue } from './utils/errors.js';
 import { writeContextSnapshots, writeSchedulerHealth } from './services/context-snapshots.js';
 import { MemoryBackfillWorker } from './services/memory-backfill-worker.js';
+import { startErrorAlerter } from './services/error-alerter.js';
+import { startIssueStore } from './services/issue-store.js';
 import {
   shouldIncludeMemoryContext,
   type PromptBuildResult,
@@ -151,6 +153,8 @@ async function bootstrap() {
     memoriaSync.enqueueTurn(turn);
   };
   const scheduler = new Scheduler(memory, schedulerAgent, telegram, enqueueMemoriaSyncFn);
+  startIssueStore(memory);
+  startErrorAlerter({ connector: telegram, adminUserId: ALLOWED_USER_ID });
   const commandRouter = new CommandRouter();
   let contextRefreshTimer: NodeJS.Timeout | null = null;
   const webEnabled = getWebEnabled();

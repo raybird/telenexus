@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import dotenv from 'dotenv';
 import { MemoryManager } from '../core/memory.js';
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const program = new Command();
 

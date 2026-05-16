@@ -6,6 +6,7 @@ import {
   type AgentStructuredResult
 } from './agent-result.js';
 import { ProcessError, runProcess } from './process-runner.js';
+import { recordRuntimeIssue } from '../utils/errors.js';
 
 type GeminiJsonOutput = {
   session_id?: string;
@@ -147,7 +148,7 @@ export class GeminiAgent implements AIAgent {
     }
 
     return runProcess('gemini', args, {
-      timeoutMs: 1200000,
+      timeoutMs: 660000,
       cwd: 'workspace',
       env: {
         ...process.env,
@@ -313,6 +314,7 @@ ${text}
 
       if (error instanceof ProcessError && error.code === 'ERATELIMIT') {
         console.warn('[Gemini] Fail-fast on upstream 429 (rate limit).');
+        recordRuntimeIssue('gemini:rate-limit', error);
         return buildTextOnlyStructuredResult(
           'gemini',
           '⏳ Gemini 上游配額已達上限 (HTTP 429)，本次任務已快速中止以避免長時間退避重試。請稍後再試或錯開排程時間。'
@@ -473,6 +475,7 @@ ${text}
           if (signal || (code && code !== 0)) {
             if (rateLimited) {
               console.warn('[Gemini] streamChat fail-fast on upstream 429.');
+              recordRuntimeIssue('gemini:rate-limit', new Error('streamChat upstream 429'));
               const rlResult = buildTextOnlyStructuredResult(
                 'gemini',
                 '⏳ Gemini 上游配額已達上限 (HTTP 429)，本次任務已快速中止以避免長時間退避重試。請稍後再試或錯開排程時間。'

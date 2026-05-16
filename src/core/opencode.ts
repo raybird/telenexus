@@ -6,6 +6,7 @@ import {
   type AgentStructuredResult
 } from './agent-result.js';
 import { ProcessError, runProcess } from './process-runner.js';
+import { recordRuntimeIssue } from '../utils/errors.js';
 
 type OpencodeEvent = {
   type?: string;
@@ -309,6 +310,7 @@ ${text}
 
       if (isProcessError && error.code === 'ERATELIMIT') {
         console.warn('[Opencode] Fail-fast on upstream 429 (rate limit).');
+        recordRuntimeIssue('opencode:rate-limit', error);
         return buildTextOnlyStructuredResult(
           'opencode',
           '⏳ Opencode 上游配額已達上限 (HTTP 429)，本次任務已快速中止以避免長時間退避重試。請稍後再試或錯開排程時間。'
@@ -463,6 +465,7 @@ ${text}
           if (signal || (code && code !== 0)) {
             if (rateLimited) {
               console.warn('[Opencode] streamChat fail-fast on upstream 429.');
+              recordRuntimeIssue('opencode:rate-limit', new Error('streamChat upstream 429'));
               const rlResult = buildTextOnlyStructuredResult(
                 'opencode',
                 '⏳ Opencode 上游配額已達上限 (HTTP 429)，本次任務已快速中止以避免長時間退避重試。請稍後再試或錯開排程時間。'

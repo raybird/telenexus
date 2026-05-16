@@ -7,7 +7,7 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 - 互動層：Telegram Bot、Web Console
 - 協調層：訊息管線、命令路由、記憶注入、排程
 - 執行層：本地 provider 執行與 `agent-runner`
-- 觀測層：`workspace/context/` 狀態快照、runner audit、memory intent / prompt telemetry
+- 觀測層：`workspace/context/` 狀態快照、runner audit、memory intent / prompt telemetry、**錯誤事件持久化 (`runtime_issues` 表) 與 Telegram 主動告警**
 
 ## 核心模組
 
@@ -76,6 +76,12 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
   - 記錄 prompt 長度、memory 注入量、prompt mode
 - `src/services/memory-intent-telemetry.ts`
   - 記錄模型輸出的 `[[MEMORY_INTENT:...]]` 結構化觀測
+- `src/services/issue-store.ts`
+  - 將 `recordRuntimeIssue` 事件寫入 SQLite `runtime_issues` 表（7 天保留、每 6h 清理）
+  - 提供 `Past 24h by Scope` 與 `Rate-limit Issues (24h)` 給 `error-summary.md`
+- `src/services/error-alerter.ts`
+  - 滑動視窗統計 per scope 錯誤頻率，超過閾值即推 Telegram 給 `ALLOWED_USER_ID`
+  - 環境變數：`ERROR_ALERT_THRESHOLD` / `ERROR_ALERT_WINDOW_MS` / `ERROR_ALERT_COOLDOWN_MS`
 
 ## 主要資料流
 

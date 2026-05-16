@@ -108,15 +108,35 @@ export function writeContextSnapshots(
         (issue) =>
           `- [${new Date(issue.timestamp).toLocaleString('zh-TW')}] (${issue.scope}) ${issue.message}${issue.count > 1 ? ` (x${issue.count})` : ''}`
       );
+    const dayAgo = now.getTime() - 24 * 60 * 60 * 1000;
+    const persistedByScope = (() => {
+      try {
+        return memory.countIssuesByScope(dayAgo);
+      } catch {
+        return [];
+      }
+    })();
+    const rateLimit24h =
+      persistedByScope
+        .filter((row) => row.scope === 'gemini:rate-limit' || row.scope === 'opencode:rate-limit')
+        .reduce((sum, row) => sum + row.count, 0) ?? 0;
+    const persistedScopeLines = persistedByScope
+      .slice(0, 10)
+      .map((row) => `- ${row.scope}: ${row.count}`);
+
     const errorSummary = [
       '# Error Summary',
       '',
       `- Updated: ${now.toLocaleString('zh-TW')}`,
       `- Total Runtime Issues (buffered): ${totalIssueCount}`,
       `- Recent 15m Issues: ${recentIssueCount}`,
+      `- Rate-limit Issues (24h): ${rateLimit24h}`,
       '',
       '## Top Scopes',
       ...(topScopeLines.length > 0 ? topScopeLines : ['- (none)']),
+      '',
+      '## Past 24h by Scope (persisted)',
+      ...(persistedScopeLines.length > 0 ? persistedScopeLines : ['- (none)']),
       '',
       '## Recent Runtime Issues',
       ...(recentIssueLines.length > 0 ? recentIssueLines : ['- (none)'])

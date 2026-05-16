@@ -13,6 +13,24 @@ const RECENT_ISSUE_LIMIT = 20;
 const ISSUE_DEDUPE_WINDOW_MS = 60_000;
 const recentIssues: RuntimeIssue[] = [];
 
+export type IssueEvent = { scope: string; message: string; timestamp: number };
+export type IssueHook = (issue: IssueEvent) => void;
+const issueHooks = new Set<IssueHook>();
+
+/** 註冊 issue 監聽器（alerter / persistence 各一個）。回傳 unsubscribe 函式。 */
+export function addIssueHook(hook: IssueHook): () => void {
+  issueHooks.add(hook);
+  return () => {
+    issueHooks.delete(hook);
+  };
+}
+
+/** 舊 API：直接替換唯一 hook。傳 null 清空所有。保留以向下相容。 */
+export function setIssueHook(hook: IssueHook | null): void {
+  issueHooks.clear();
+  if (hook) issueHooks.add(hook);
+}
+
 export function toErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return `${error.name}: ${error.message}`;
@@ -53,6 +71,13 @@ export function recordRuntimeIssue(scope: string, error: unknown): void {
   });
   if (recentIssues.length > RECENT_ISSUE_LIMIT) {
     recentIssues.splice(0, recentIssues.length - RECENT_ISSUE_LIMIT);
+  }
+  for (const hook of issueHooks) {
+    try {
+      hook({ scope, message, timestamp });
+    } catch (hookError) {
+      console.error('[errors] issue hook failed:', hookError);
+    }
   }
 }
 

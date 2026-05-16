@@ -19,6 +19,14 @@ RUNNER_COOLDOWN_MS=60000
 RUNNER_SERIALIZE_GEMINI=true
 RUNNER_ZOMBIE_WARN_THRESHOLD=8
 
+# 排程任務逾時保險（防止下游卡死）
+SCHEDULE_TASK_TIMEOUT_MS=900000
+
+# 錯誤告警（推送至 ALLOWED_USER_ID）
+ERROR_ALERT_THRESHOLD=3
+ERROR_ALERT_WINDOW_MS=600000
+ERROR_ALERT_COOLDOWN_MS=1800000
+
 # context 快照刷新
 CONTEXT_REFRESH_MS=60000
 ```
@@ -185,3 +193,33 @@ MEMORY_BACKFILL_CHECKPOINT_FILE=/app/data/memory-backfill-checkpoint.json
 - `SUMMARY_FOLLOWUP_MIN_LENGTH`（預設 `500`）：主回覆超過此長度才會背景補一則摘要
 - `SUMMARY_FOLLOWUP_MAX_LENGTH`（預設 `320`）：補充摘要最大字數（超出會截斷）
 - 補充摘要在主回覆送出後非阻塞執行，不影響首則回覆速度
+
+## 錯誤告警與排程逾時保險
+
+TeleNexus 對 `recordRuntimeIssue(scope, error)` 的呼叫鏈為：
+
+```
+recordRuntimeIssue(scope, err)
+  ├─ in-memory recentIssues[]          (現有，20 筆上限、60s 去重)
+  ├─ IssueStore hook → SQLite `runtime_issues` 表    (retention 7 天，每 6 小時清理)
+  └─ ErrorAlerter hook → 滑動視窗計數 → Telegram 推送 (cooldown 避免轟炸)
+```
+
+**ErrorAlerter**
+
+- `ERROR_ALERT_THRESHOLD`（預設 `3`）：同 scope 在視窗內出現 N 次即推送
+- `ERROR_ALERT_WINDOW_MS`（預設 `600000` = 10 分）：滑動視窗長度
+- `ERROR_ALERT_COOLDOWN_MS`（預設 `1800000` = 30 分）：同 scope 至少冷卻 N 毫秒才能再次推送
+- 訊息推送對象：`ALLOWED_USER_ID`
+- 觸發 scope 範例：`memory-backfill:worker`、`scheduler:task-timeout`、`scheduler:task-failed`、`gemini:rate-limit`、`opencode:rate-limit`
+
+**Schedule task timeout**
+
+- `SCHEDULE_TASK_TIMEOUT_MS`（預設 `900000` = 15 分）：單一排程任務最長執行時間
+- 包覆 `executeTask` 對 agent 的呼叫；逾時會記錄 `scheduler:task-timeout` scope 並送出 `⏱️` 訊息給使用者
+- 不替代下游 timeout，是最後一道防呆：runner HTTP timeout 650s、`gemini.ts` runProcess timeout 660s 仍然優先生效
+
+**Rate-limit 計數 (`error-summary.md`)**
+
+- `gemini:rate-limit` / `opencode:rate-limit` 被合計顯示為 `Rate-limit Issues (24h)`
+- `Past 24h by Scope (persisted)` 區塊跨重啟保留，可看週期性模式
