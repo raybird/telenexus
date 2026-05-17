@@ -55,3 +55,4 @@ docker-compose.override.yml
 
 # docs
 .gitnexus
+workspace/.opencode/package-lock.json

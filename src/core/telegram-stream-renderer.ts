@@ -18,7 +18,11 @@ type TelegramStreamRendererOptions = {
   forceFlushMs?: number;
   earlyFlushChars?: number;
   maxEditFailures?: number;
+  thinkingMessages?: string[];
+  thinkingRotateMs?: number;
 };
+
+const DEFAULT_THINKING_ROTATE_MS = 3000;
 
 export class TelegramStreamRenderer {
   private placeholderMsgId = '';
@@ -35,12 +39,17 @@ export class TelegramStreamRenderer {
   private flushInterval: NodeJS.Timeout | null = null;
   private flushInFlight: Promise<void> | null = null;
   private consecutiveEditFailures = 0;
+  private thinkingRotateInterval: NodeJS.Timeout | null = null;
+  private thinkingIndex = 0;
+  private thinkingUpdateInFlight: Promise<void> | null = null;
 
   private readonly editThrottleMs: number;
   private readonly minDeltaChars: number;
   private readonly forceFlushMs: number;
   private readonly earlyFlushChars: number;
   private readonly maxEditFailures: number;
+  private readonly thinkingMessages: string[];
+  private readonly thinkingRotateMs: number;
 
   constructor(
     private readonly connector: Connector,
@@ -62,15 +71,23 @@ export class TelegramStreamRenderer {
     this.maxEditFailures =
       options.maxEditFailures ??
       parsePositiveInt(process.env.TELEGRAM_STREAM_MAX_EDIT_FAILURES, DEFAULT_MAX_EDIT_FAILURES);
+    this.thinkingMessages =
+      options.thinkingMessages && options.thinkingMessages.length > 0
+        ? options.thinkingMessages
+        : ['🤔 思考中...'];
+    this.thinkingRotateMs =
+      options.thinkingRotateMs ??
+      parsePositiveInt(process.env.TELEGRAM_STREAM_THINKING_ROTATE_MS, DEFAULT_THINKING_ROTATE_MS);
   }
 
   async start(): Promise<void> {
     if (this.placeholderSent) {
       return;
     }
-    this.placeholderMsgId = await this.connector.sendPlaceholder(this.chatId, '🤔 思考中...');
+    const firstThinking = this.thinkingMessages[0]!;
+    this.placeholderMsgId = await this.connector.sendPlaceholder(this.chatId, firstThinking);
     this.placeholderSent = this.placeholderMsgId.length > 0;
-    this.lastRenderedText = '🤔 思考中...';
+    this.lastRenderedText = firstThinking;
     this.lastRenderAt = Date.now();
     log.info('stream.started', {
       chatId: this.chatId,
@@ -86,6 +103,67 @@ export class TelegramStreamRenderer {
       this.flushInterval = setInterval(() => {
         void this.maybeFlush(false);
       }, 250);
+      if (this.thinkingMessages.length > 1) {
+        this.thinkingRotateInterval = setInterval(() => {
+          void this.rotateThinkingMessage();
+        }, this.thinkingRotateMs);
+      }
+    }
+  }
+
+  private async rotateThinkingMessage(): Promise<void> {
+    if (
+      this.sawDelta ||
+      this.completed ||
+      this.streamingDisabled ||
+      !this.placeholderSent ||
+      !this.placeholderMsgId ||
+      this.thinkingUpdateInFlight
+    ) {
+      this.stopThinkingRotateInterval();
+      return;
+    }
+
+    this.thinkingIndex = (this.thinkingIndex + 1) % this.thinkingMessages.length;
+    const nextText = this.thinkingMessages[this.thinkingIndex]!;
+    if (nextText === this.lastRenderedText) {
+      return;
+    }
+
+    this.thinkingUpdateInFlight = this.connector
+      .editMessage(this.chatId, this.placeholderMsgId, nextText, {
+        retries: 0,
+        suppressFallbackSend: true
+      })
+      .then(() => {
+        this.lastRenderedText = nextText;
+        this.lastRenderAt = Date.now();
+        this.consecutiveEditFailures = 0;
+      })
+      .catch((error) => {
+        this.consecutiveEditFailures += 1;
+        log.warn('thinking.rotate-failed', {
+          chatId: this.chatId,
+          consecutiveEditFailures: this.consecutiveEditFailures,
+          error
+        });
+        if (this.consecutiveEditFailures >= this.maxEditFailures) {
+          this.streamingDisabled = true;
+          this.stopThinkingRotateInterval();
+          log.warn('thinking.rotate-disabled-after-failures', { chatId: this.chatId });
+        }
+      })
+      .finally(() => {
+        this.thinkingUpdateInFlight = null;
+      });
+
+    await this.thinkingUpdateInFlight;
+  }
+
+  private stopThinkingRotateInterval(): void {
+    if (this.thinkingRotateInterval) {
+      clearInterval(this.thinkingRotateInterval);
+      this.thinkingRotateInterval = null;
     }
   }
 
@@ -99,6 +177,7 @@ export class TelegramStreamRenderer {
       this.sawDelta = true;
       this.buffer += event.text;
       if (isFirstDelta) {
+        this.stopThinkingRotateInterval();
         log.info('stream.first-delta', {
           chatId: this.chatId,
           chunkLength: event.text.length,
@@ -125,7 +204,9 @@ export class TelegramStreamRenderer {
     }
     this.completed = true;
     this.stopFlushInterval();
+    this.stopThinkingRotateInterval();
     await this.awaitFlush();
+    await this.awaitThinkingUpdate();
 
     const resolvedText = finalText.trim() || this.finalEventText.trim() || this.buffer.trim();
     if (!resolvedText) {
@@ -198,7 +279,9 @@ export class TelegramStreamRenderer {
     }
     this.completed = true;
     this.stopFlushInterval();
+    this.stopThinkingRotateInterval();
     await this.awaitFlush();
+    await this.awaitThinkingUpdate();
 
     const fallback = message.trim() || this.latestErrorMessage.trim() || '⚠️ 生成中斷';
     log.warn('stream.failed', {
@@ -247,6 +330,17 @@ export class TelegramStreamRenderer {
     }
     try {
       await this.flushInFlight;
+    } catch {
+      // noop
+    }
+  }
+
+  private async awaitThinkingUpdate(): Promise<void> {
+    if (!this.thinkingUpdateInFlight) {
+      return;
+    }
+    try {
+      await this.thinkingUpdateInFlight;
     } catch {
       // noop
     }

@@ -1,12 +1,11 @@
-import { spawn } from 'child_process';
-import type { AIAgent, AIAgentOptions } from './agent.js';
+import type { AIAgentOptions } from './agent.js';
 import {
   buildTextOnlyStructuredResult,
-  type AgentEvent,
   type AgentStructuredResult
 } from './agent-result.js';
 import { ProcessError, runProcess } from './process-runner.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
+import { CliAgentBase, type CliAgentConfig, type CliStreamParse } from './cli-agent-base.js';
 
 type OpencodeEvent = {
   type?: string;
@@ -88,7 +87,61 @@ export function parseOpencodeJsonOutput(stdout: string): AgentStructuredResult |
   return result;
 }
 
-export class OpencodeAgent implements AIAgent {
+const OPENCODE_RATE_LIMIT_PATTERN = /\b429\b|Too Many Requests|RESOURCE_EXHAUSTED/i;
+const OPENCODE_RATE_LIMIT_MESSAGE =
+  '⏳ Opencode 上游配額已達上限 (HTTP 429)，本次任務已快速中止以避免長時間退避重試。請稍後再試或錯開排程時間。';
+const OPENCODE_TIMEOUT_MESSAGE = '✨ 10分鐘內未完成';
+
+export class OpencodeAgent extends CliAgentBase {
+  protected readonly config: CliAgentConfig = {
+    provider: 'opencode',
+    binary: 'opencode',
+    rateLimitPattern: OPENCODE_RATE_LIMIT_PATTERN,
+    rateLimitMessage: OPENCODE_RATE_LIMIT_MESSAGE,
+    timeoutMessage: OPENCODE_TIMEOUT_MESSAGE
+  };
+
+  protected override getCwd(): string {
+    return this.getWorkspacePath();
+  }
+
+  protected parseStreamLine(line: string): CliStreamParse | null {
+    if (!line.startsWith('{')) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(line) as OpencodeEvent;
+      const result: CliStreamParse = {};
+      if (typeof parsed.sessionID === 'string' && parsed.sessionID.trim().length > 0) {
+        result.sessionId = parsed.sessionID;
+      }
+      if (parsed.type === 'step_start') {
+        result.emitStart = true;
+      }
+      if (parsed.type === 'text' && typeof parsed.part?.text === 'string') {
+        result.deltaText = parsed.part.text;
+      }
+      if (parsed.type === 'step_finish' && parsed.part) {
+        const nextStats: Record<string, unknown> = {};
+        if (parsed.part.tokens !== undefined) {
+          nextStats.tokens = parsed.part.tokens;
+        }
+        if (parsed.part.cost !== undefined) {
+          nextStats.cost = parsed.part.cost;
+        }
+        if (parsed.part.reason !== undefined) {
+          nextStats.reason = parsed.part.reason;
+        }
+        if (Object.keys(nextStats).length > 0) {
+          result.stats = nextStats;
+        }
+      }
+      return result;
+    } catch {
+      return null;
+    }
+  }
+
   private isVerboseStderrEnabled(): boolean {
     const raw = (process.env.OPENCODE_VERBOSE_STDERR || '').trim().toLowerCase();
     return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
@@ -129,7 +182,7 @@ export class OpencodeAgent implements AIAgent {
   /**
    * 清除輸出中的 <thinking> 區塊和其他雜訊
    */
-  private cleanOutput(text: string): string {
+  protected cleanOutput(text: string): string {
     // 1. 移除 <thinking>...</thinking> 區塊 (包含 XML 和 HTML 樣式)
     let cleaned = text.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '');
 
@@ -146,7 +199,7 @@ export class OpencodeAgent implements AIAgent {
     return cleaned.trim();
   }
 
-  private buildChatArgs(options?: AIAgentOptions, format: 'json' | null = 'json'): string[] {
+  protected buildChatArgs(options?: AIAgentOptions, format: 'json' | null = 'json'): string[] {
     const forceNewSession = options?.forceNewSession === true;
     const isPassthrough = options?.isPassthroughCommand === true;
     const args = ['run'];
@@ -335,225 +388,4 @@ ${text}
     }
   }
 
-  async streamChat(
-    prompt: string,
-    options: AIAgentOptions | undefined,
-    onEvent: (event: AgentEvent) => Promise<void> | void
-  ): Promise<AgentStructuredResult> {
-    if (options?.isPassthroughCommand) {
-      const fallback = await this.chatStructured(prompt, options);
-      await onEvent({ type: 'start', provider: 'opencode' });
-      if (fallback.stats !== undefined) {
-        await onEvent({ type: 'usage', stats: fallback.stats });
-      }
-      await onEvent({ type: 'done', text: fallback.text });
-      return fallback;
-    }
-
-    const args = this.buildChatArgs(options, 'json');
-    const workspacePath = this.getWorkspacePath();
-    const child = spawn('opencode', [...args, prompt], {
-      cwd: workspacePath,
-      env: {
-        ...process.env
-      },
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
-
-    let stdoutBuffer = '';
-    let stderr = '';
-    let aggregatedText = '';
-    let sessionId: string | undefined;
-    let stats: Record<string, unknown> | undefined;
-    let started = false;
-    let settled = false;
-    let timedOut = false;
-    let rateLimited = false;
-    const rateLimitPattern = /\b429\b|Too Many Requests|RESOURCE_EXHAUSTED/i;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      child.kill('SIGTERM');
-    }, 600000);
-
-    const emitStart = async (): Promise<void> => {
-      if (started) {
-        return;
-      }
-      started = true;
-      await onEvent({ type: 'start', provider: 'opencode' });
-    };
-
-    return new Promise<AgentStructuredResult>((resolve, reject) => {
-      child.stdout?.on('data', (chunk) => {
-        stdoutBuffer += chunk.toString();
-        const lines = stdoutBuffer.split(/\r?\n/);
-        stdoutBuffer = lines.pop() || '';
-
-        void (async () => {
-          for (const rawLine of lines) {
-            const line = rawLine.trim();
-            if (!line) {
-              continue;
-            }
-            try {
-              const parsed = JSON.parse(line) as OpencodeEvent;
-              if (typeof parsed.sessionID === 'string' && parsed.sessionID.trim().length > 0) {
-                sessionId = parsed.sessionID;
-              }
-              if (parsed.type === 'step_start') {
-                await emitStart();
-                continue;
-              }
-              if (parsed.type === 'text' && typeof parsed.part?.text === 'string') {
-                await emitStart();
-                aggregatedText += parsed.part.text;
-                await onEvent({ type: 'delta', text: parsed.part.text });
-                continue;
-              }
-              if (parsed.type === 'step_finish' && parsed.part) {
-                const nextStats: Record<string, unknown> = {};
-                if (parsed.part.tokens !== undefined) {
-                  nextStats.tokens = parsed.part.tokens;
-                }
-                if (parsed.part.cost !== undefined) {
-                  nextStats.cost = parsed.part.cost;
-                }
-                if (parsed.part.reason !== undefined) {
-                  nextStats.reason = parsed.part.reason;
-                }
-                if (Object.keys(nextStats).length > 0) {
-                  stats = nextStats;
-                }
-              }
-            } catch {
-              // ignore malformed lines; fallback remains available on close
-            }
-          }
-        })().catch((error) => {
-          if (settled) {
-            return;
-          }
-          settled = true;
-          clearTimeout(timer);
-          reject(error);
-        });
-      });
-
-      child.stderr?.on('data', (chunk) => {
-        stderr += chunk.toString();
-        if (!rateLimited && rateLimitPattern.test(stderr)) {
-          rateLimited = true;
-          clearTimeout(timer);
-          child.kill('SIGTERM');
-        }
-      });
-
-      child.on('error', (error) => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        clearTimeout(timer);
-        reject(error);
-      });
-
-      child.on('close', (code, signal) => {
-        void (async () => {
-          if (settled) {
-            return;
-          }
-          settled = true;
-          clearTimeout(timer);
-
-          if (signal || (code && code !== 0)) {
-            if (rateLimited) {
-              console.warn('[Opencode] streamChat fail-fast on upstream 429.');
-              recordRuntimeIssue('opencode:rate-limit', new Error('streamChat upstream 429'));
-              const rlResult = buildTextOnlyStructuredResult(
-                'opencode',
-                '⏳ Opencode 上游配額已達上限 (HTTP 429)，本次任務已快速中止以避免長時間退避重試。請稍後再試或錯開排程時間。'
-              );
-              if (!started) {
-                await emitStart();
-              }
-              await onEvent({ type: 'done', text: rlResult.text });
-              resolve(rlResult);
-              return;
-            }
-            if (timedOut || signal === 'SIGTERM') {
-              const timeoutResult = buildTextOnlyStructuredResult('opencode', '✨ 10分鐘內未完成');
-              await onEvent({ type: 'error', message: timeoutResult.text });
-              resolve(timeoutResult);
-              return;
-            }
-
-            if (aggregatedText.trim()) {
-              aggregatedText = this.cleanOutput(aggregatedText);
-              if (!started) {
-                await emitStart();
-              }
-              if (stats !== undefined) {
-                await onEvent({ type: 'usage', stats });
-              }
-              await onEvent({ type: 'done', text: aggregatedText });
-              resolve({
-                provider: 'opencode',
-                text: aggregatedText,
-                ...(sessionId ? { sessionId } : {}),
-                ...(stats !== undefined ? { stats } : {})
-              });
-              return;
-            }
-
-            const fields: { code?: string | number; signal?: string; stderr?: string } = { stderr };
-            if (code !== null && code !== undefined) {
-              fields.code = code;
-            }
-            if (signal) {
-              fields.signal = signal;
-            }
-            reject(new ProcessError(`Error calling Opencode: exit=${code || 0}`, fields));
-            return;
-          }
-
-          if (!aggregatedText.trim()) {
-            const fallback = await this.chatStructured(prompt, options);
-            if (fallback.stats !== undefined) {
-              await onEvent({ type: 'usage', stats: fallback.stats });
-            }
-            await onEvent({ type: 'done', text: fallback.text });
-            resolve(fallback);
-            return;
-          }
-
-          aggregatedText = this.cleanOutput(aggregatedText);
-          if (!started) {
-            await emitStart();
-          }
-          if (stats !== undefined) {
-            await onEvent({ type: 'usage', stats });
-          }
-          await onEvent({ type: 'done', text: aggregatedText });
-          resolve({
-            provider: 'opencode',
-            text: aggregatedText,
-            ...(sessionId ? { sessionId } : {}),
-            ...(stats !== undefined ? { stats } : {})
-          });
-        })().catch((error) => {
-          reject(error);
-        });
-      });
-
-      child.stdin?.end();
-    });
-  }
-
-  /**
-   * 呼叫 opencode run 處理訊息
-   */
-  async chat(prompt: string, options?: AIAgentOptions): Promise<string> {
-    const result = await this.chatStructured(prompt, options);
-    return result.text;
-  }
 }

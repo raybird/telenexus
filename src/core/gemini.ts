@@ -1,12 +1,11 @@
-import { spawn } from 'child_process';
-import type { AIAgent, AIAgentOptions } from './agent.js';
+import type { AIAgentOptions } from './agent.js';
 import {
   buildTextOnlyStructuredResult,
-  type AgentEvent,
   type AgentStructuredResult
 } from './agent-result.js';
 import { ProcessError, runProcess } from './process-runner.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
+import { CliAgentBase, type CliAgentConfig, type CliStreamParse } from './cli-agent-base.js';
 
 type GeminiJsonOutput = {
   session_id?: string;
@@ -53,7 +52,82 @@ export function parseGeminiJsonOutput(stdout: string): AgentStructuredResult | n
   }
 }
 
-export class GeminiAgent implements AIAgent {
+const GEMINI_RATE_LIMIT_PATTERN = /(status|code)\s*[:=]?\s*429|RESOURCE_EXHAUSTED/i;
+const GEMINI_RATE_LIMIT_MESSAGE =
+  '⏳ Gemini 上游配額已達上限 (HTTP 429)，本次任務已快速中止以避免長時間退避重試。請稍後再試或錯開排程時間。';
+const GEMINI_TIMEOUT_MESSAGE = '✨ 10分鐘內未完成';
+
+export class GeminiAgent extends CliAgentBase {
+  protected readonly config: CliAgentConfig = {
+    provider: 'gemini',
+    binary: 'gemini',
+    rateLimitPattern: GEMINI_RATE_LIMIT_PATTERN,
+    rateLimitMessage: GEMINI_RATE_LIMIT_MESSAGE,
+    timeoutMessage: GEMINI_TIMEOUT_MESSAGE
+  };
+
+  protected override getEnv(): NodeJS.ProcessEnv {
+    return {
+      ...process.env,
+      GEMINI_PROJECT_DIR: process.env.GEMINI_PROJECT_DIR || process.cwd(),
+      GEMINI_BYPASS_MEMORY_HOOK: '1'
+    };
+  }
+
+  protected parseStreamLine(line: string): CliStreamParse | null {
+    try {
+      const parsed = JSON.parse(line) as GeminiStreamEvent;
+      const result: CliStreamParse = {};
+      if (parsed.type === 'init') {
+        if (typeof parsed.session_id === 'string' && parsed.session_id.trim().length > 0) {
+          result.sessionId = parsed.session_id;
+        }
+        result.emitStart = true;
+        return result;
+      }
+      if (
+        parsed.type === 'message' &&
+        parsed.role === 'assistant' &&
+        typeof parsed.content === 'string'
+      ) {
+        result.deltaText = parsed.content;
+        return result;
+      }
+      if (parsed.type === 'result') {
+        result.stats = (parsed.stats as Record<string, unknown>) || undefined;
+        return result;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  protected override buildChatArgs(options?: AIAgentOptions): string[] {
+    return this.buildArgsCore(options, 'stream-json');
+  }
+
+  private buildArgsCore(
+    options: AIAgentOptions | undefined,
+    outputFormat: 'json' | 'stream-json' | null
+  ): string[] {
+    const isPassthrough = options?.isPassthroughCommand === true;
+    const forceNewSession = options?.forceNewSession === true;
+    const args = ['--yolo'];
+    if (!forceNewSession) {
+      args.push('-r');
+    }
+    if (!isPassthrough && outputFormat) {
+      args.push('--output-format', outputFormat);
+    }
+    if (options?.model) {
+      args.push('--model', options.model);
+    }
+    // -p 放最後一個 flag，prompt 由呼叫端以位置參數附加在尾端
+    args.push('-p');
+    return args;
+  }
+
   private isCompressCommand(prompt: string): boolean {
     const trimmed = prompt.trim();
     return trimmed.startsWith('/compress') || trimmed.startsWith('/compact');
@@ -78,7 +152,7 @@ export class GeminiAgent implements AIAgent {
   /**
    * 清除輸出中的 <thinking> 區塊和其他雜訊
    */
-  private cleanOutput(text: string): string {
+  protected cleanOutput(text: string): string {
     // 1. 移除 <thinking>...</thinking> 區塊 (包含 XML 和 HTML 樣式)
     let cleaned = text.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '');
 
@@ -107,56 +181,32 @@ export class GeminiAgent implements AIAgent {
     return cleaned;
   }
 
-  private buildChatArgs(
-    prompt: string,
-    options?: AIAgentOptions,
-    outputFormat: 'json' | 'stream-json' | null = 'json'
-  ): string[] {
-    const isPassthrough = options?.isPassthroughCommand === true;
-    const forceNewSession = options?.forceNewSession === true;
-    const args = ['--yolo'];
-    if (!forceNewSession) {
-      args.push('-r');
-    }
-    args.push('-p', prompt);
-    if (!isPassthrough && outputFormat) {
-      args.push('--output-format', outputFormat);
-    }
-    if (options?.model) {
-      args.push('--model', options.model);
-    }
-    return args;
-  }
-
   private async executeChatProcess(
     prompt: string,
     options?: AIAgentOptions
   ): Promise<{ stdout: string; stderr: string }> {
     const isPassthrough = options?.isPassthroughCommand === true;
-    const args = this.buildChatArgs(prompt, options, 'json');
+    const args = this.buildArgsCore(options, 'json');
+    const argsWithPrompt = [...args, prompt];
 
     if (isPassthrough) {
       console.log(`[Gemini] isPassthroughCommand: true`);
       console.log(`[Gemini] Original prompt: ${prompt}`);
       console.log(
-        `[Gemini] Executing passthrough via -p only: gemini ${args.join(' ')} (hook bypass)`
+        `[Gemini] Executing passthrough via -p only: gemini ${args.join(' ')} <prompt> (hook bypass)`
       );
     } else if (options?.model) {
       console.log(`[Gemini] Executing (YOLO Mode) with model: ${options.model}`);
     } else {
-      console.log(`[Gemini] Executing (YOLO Mode): gemini ${args.join(' ')} ...`);
+      console.log(`[Gemini] Executing (YOLO Mode): gemini ${args.join(' ')} <prompt>`);
     }
 
-    return runProcess('gemini', args, {
+    return runProcess('gemini', argsWithPrompt, {
       timeoutMs: 660000,
       cwd: 'workspace',
-      env: {
-        ...process.env,
-        GEMINI_PROJECT_DIR: process.env.GEMINI_PROJECT_DIR || process.cwd(),
-        GEMINI_BYPASS_MEMORY_HOOK: '1'
-      },
+      env: this.getEnv(),
       abortOnStderr: {
-        pattern: /(status|code)\s*[:=]?\s*429|RESOURCE_EXHAUSTED/i,
+        pattern: GEMINI_RATE_LIMIT_PATTERN,
         code: 'ERATELIMIT',
         message: 'Gemini upstream rate-limited (HTTP 429); aborted before internal backoff retries.'
       }
@@ -341,227 +391,5 @@ ${text}
     }
   }
 
-  async streamChat(
-    prompt: string,
-    options: AIAgentOptions | undefined,
-    onEvent: (event: AgentEvent) => Promise<void> | void
-  ): Promise<AgentStructuredResult> {
-    if (options?.isPassthroughCommand) {
-      const fallback = await this.chatStructured(prompt, options);
-      await onEvent({ type: 'start', provider: 'gemini' });
-      await onEvent({ type: 'done', text: fallback.text });
-      return fallback;
-    }
-
-    const args = this.buildChatArgs(prompt, options, 'stream-json');
-    const child = spawn('gemini', args, {
-      cwd: 'workspace',
-      env: {
-        ...process.env,
-        GEMINI_PROJECT_DIR: process.env.GEMINI_PROJECT_DIR || process.cwd(),
-        GEMINI_BYPASS_MEMORY_HOOK: '1'
-      },
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
-
-    let stdoutBuffer = '';
-    let stderr = '';
-    let aggregatedText = '';
-    let sessionId: string | undefined;
-    let stats: unknown;
-    let started = false;
-    let settled = false;
-    let timedOut = false;
-    let rateLimited = false;
-    const rateLimitPattern = /(status|code)\s*[:=]?\s*429|RESOURCE_EXHAUSTED/i;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      child.kill('SIGTERM');
-    }, 600000);
-
-    const emitStart = async (): Promise<void> => {
-      if (started) {
-        return;
-      }
-      started = true;
-      await onEvent({ type: 'start', provider: 'gemini' });
-    };
-
-    return new Promise<AgentStructuredResult>((resolve, reject) => {
-      child.stdout?.on('data', (chunk) => {
-        stdoutBuffer += chunk.toString();
-        const lines = stdoutBuffer.split(/\r?\n/);
-        stdoutBuffer = lines.pop() || '';
-
-        void (async () => {
-          for (const rawLine of lines) {
-            const line = rawLine.trim();
-            if (!line) {
-              continue;
-            }
-            try {
-              const parsed = JSON.parse(line) as GeminiStreamEvent;
-              if (parsed.type === 'init') {
-                if (typeof parsed.session_id === 'string' && parsed.session_id.trim().length > 0) {
-                  sessionId = parsed.session_id;
-                }
-                await emitStart();
-                continue;
-              }
-              if (
-                parsed.type === 'message' &&
-                parsed.role === 'assistant' &&
-                typeof parsed.content === 'string'
-              ) {
-                await emitStart();
-                aggregatedText += parsed.content;
-                await onEvent({ type: 'delta', text: parsed.content });
-                continue;
-              }
-              if (parsed.type === 'result') {
-                stats = parsed.stats;
-              }
-            } catch {
-              // ignore malformed stream lines
-            }
-          }
-        })().catch((error) => {
-          if (settled) {
-            return;
-          }
-          settled = true;
-          clearTimeout(timer);
-          reject(error);
-        });
-      });
-
-      child.stderr?.on('data', (chunk) => {
-        stderr += chunk.toString();
-        if (!rateLimited && rateLimitPattern.test(stderr)) {
-          rateLimited = true;
-          clearTimeout(timer);
-          child.kill('SIGTERM');
-        }
-      });
-
-      child.on('error', (error) => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        clearTimeout(timer);
-        reject(error);
-      });
-
-      child.on('close', (code, signal) => {
-        void (async () => {
-          if (settled) {
-            return;
-          }
-          settled = true;
-          clearTimeout(timer);
-
-          if (stdoutBuffer.trim()) {
-            try {
-              const parsed = JSON.parse(stdoutBuffer.trim()) as GeminiStreamEvent;
-              if (parsed.type === 'result') {
-                stats = parsed.stats;
-              }
-            } catch {
-              // ignore trailing partial data
-            }
-          }
-
-          if (signal || (code && code !== 0)) {
-            if (rateLimited) {
-              console.warn('[Gemini] streamChat fail-fast on upstream 429.');
-              recordRuntimeIssue('gemini:rate-limit', new Error('streamChat upstream 429'));
-              const rlResult = buildTextOnlyStructuredResult(
-                'gemini',
-                '⏳ Gemini 上游配額已達上限 (HTTP 429)，本次任務已快速中止以避免長時間退避重試。請稍後再試或錯開排程時間。'
-              );
-              if (!started) {
-                await emitStart();
-              }
-              await onEvent({ type: 'done', text: rlResult.text });
-              resolve(rlResult);
-              return;
-            }
-            if (timedOut || signal === 'SIGTERM') {
-              const timeoutResult = buildTextOnlyStructuredResult('gemini', '✨ 10分鐘內未完成');
-              await onEvent({ type: 'error', message: timeoutResult.text });
-              resolve(timeoutResult);
-              return;
-            }
-
-            if (aggregatedText.trim()) {
-              aggregatedText = this.cleanOutput(aggregatedText);
-              if (!started) {
-                await emitStart();
-              }
-              if (stats !== undefined) {
-                await onEvent({ type: 'usage', stats });
-              }
-              await onEvent({ type: 'done', text: aggregatedText });
-              resolve({
-                provider: 'gemini',
-                text: aggregatedText,
-                ...(sessionId ? { sessionId } : {}),
-                ...(stats !== undefined ? { stats } : {})
-              });
-              return;
-            }
-
-            const message = `Error calling Gemini: exit=${code || 0}${signal ? ` signal=${signal}` : ''} stderr=${stderr}`;
-            const fields: { code?: string | number; signal?: string; stderr?: string } = { stderr };
-            if (code !== null && code !== undefined) {
-              fields.code = code;
-            }
-            if (signal) {
-              fields.signal = signal;
-            }
-            reject(new ProcessError(message, fields));
-            return;
-          }
-
-          if (!aggregatedText.trim()) {
-            const fallback = await this.chatStructured(prompt, options);
-            await onEvent({ type: 'done', text: fallback.text });
-            resolve(fallback);
-            return;
-          }
-
-          aggregatedText = this.cleanOutput(aggregatedText);
-          if (!started) {
-            await emitStart();
-          }
-          if (stats !== undefined) {
-            await onEvent({ type: 'usage', stats });
-          }
-          await onEvent({ type: 'done', text: aggregatedText });
-          resolve({
-            provider: 'gemini',
-            text: aggregatedText,
-            ...(sessionId ? { sessionId } : {}),
-            ...(stats !== undefined ? { stats } : {})
-          });
-        })().catch((error) => {
-          reject(error);
-        });
-      });
-
-      child.stdin?.end();
-    });
-  }
-
-  /**
-   * 呼叫系統的 gemini-cli 處理訊息
-   * @param prompt 使用者的輸入
-   * @param options 選項，可指定 model
-   * @returns Gemini 的回應文字
-   */
-  async chat(prompt: string, options?: AIAgentOptions): Promise<string> {
-    const result = await this.chatStructured(prompt, options);
-    return result.text;
-  }
 }
+

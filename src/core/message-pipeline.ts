@@ -136,7 +136,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       telegramStreamingEnabled &&
       msg.sender.platform === 'telegram' &&
       !baseContext.isPassthroughCommand
-        ? new TelegramStreamRenderer(connector, targetChatId)
+        ? new TelegramStreamRenderer(connector, targetChatId, { thinkingMessages })
         : null;
 
     await maybeNotifyQueueAhead(baseContext);
