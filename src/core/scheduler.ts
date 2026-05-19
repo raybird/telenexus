@@ -23,7 +23,7 @@ import { recordRuntimeIssue } from '../utils/errors.js';
 
 const log = createLogger('scheduler');
 
-const DEFAULT_SCHEDULE_TASK_TIMEOUT_MS = 15 * 60 * 1000;
+const DEFAULT_SCHEDULE_TASK_TIMEOUT_MS = 30 * 60 * 1000;
 
 function readScheduleTaskTimeoutMs(): number {
   const raw = process.env.SCHEDULE_TASK_TIMEOUT_MS;
@@ -729,7 +729,7 @@ export class Scheduler {
       const summaryPrompt = buildDailySummaryPrompt(new Date().toLocaleDateString('zh-TW'));
 
       const response = await executionQueue.enqueue(userId, 'scheduler-daily-summary', 'low', () =>
-        this.gemini.chat(summaryPrompt)
+        this.gemini.chat(summaryPrompt, { forceNewSession: true })
       );
       const outgoing = '📅 [每日摘要]\n\n' + response;
       this.persistSchedulerMessage(userId, '[每日摘要] 生成當日摘要', outgoing, {

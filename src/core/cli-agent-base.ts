@@ -88,7 +88,7 @@ export abstract class CliAgentBase implements AIAgent {
     let settled = false;
     let timedOut = false;
     let rateLimited = false;
-    const streamTimeoutMs = this.config.streamTimeoutMs ?? 600000;
+    const streamTimeoutMs = this.config.streamTimeoutMs ?? 1800000;
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill('SIGTERM');

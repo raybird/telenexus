@@ -49,6 +49,14 @@ function getRunnerCooldownMs(): number {
   return parsed;
 }
 
+function getRunnerRequestTimeoutMs(): number {
+  const raw = process.env.RUNNER_REQUEST_TIMEOUT_MS?.trim();
+  if (!raw) return 1900000;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < 10000) return 1900000;
+  return parsed;
+}
+
 function getWebEnabled(): boolean {
   return parseBool(process.env.WEB_ENABLED, true);
 }
@@ -109,6 +117,7 @@ async function bootstrap() {
   const runnerToken = process.env.RUNNER_SHARED_SECRET?.trim();
   const runnerFailureThreshold = getRunnerFailureThreshold();
   const runnerCooldownMs = getRunnerCooldownMs();
+  const runnerRequestTimeoutMs = getRunnerRequestTimeoutMs();
   const useRunnerForSchedule =
     process.env.SCHEDULE_USE_RUNNER === 'true' && Boolean(runnerEndpoint);
   const chatRunnerPercent = getChatRunnerPercent();
@@ -120,6 +129,7 @@ async function bootstrap() {
         ...(runnerToken ? { runnerToken } : {}),
         runnerFailureThreshold,
         runnerCooldownMs,
+        runnerTimeoutMs: runnerRequestTimeoutMs,
         preferRunner: true,
         fallbackToLocal: true
       }

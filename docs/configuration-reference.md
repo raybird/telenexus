@@ -215,9 +215,13 @@ recordRuntimeIssue(scope, err)
 
 **Schedule task timeout**
 
-- `SCHEDULE_TASK_TIMEOUT_MS`（預設 `900000` = 15 分）：單一排程任務最長執行時間
+- `SCHEDULE_TASK_TIMEOUT_MS`（預設 `1800000` = 30 分）：單一排程任務最長執行時間
 - 包覆 `executeTask` 對 agent 的呼叫；逾時會記錄 `scheduler:task-timeout` scope 並送出 `⏱️` 訊息給使用者
-- 不替代下游 timeout，是最後一道防呆：runner HTTP timeout 650s、`gemini.ts` runProcess timeout 660s 仍然優先生效
+- 不替代下游 timeout，是最後一道防呆：runner HTTP timeout 與 process timeout 仍然優先生效
+
+- `RUNNER_REQUEST_TIMEOUT_MS`（預設 `1900000` = 31.7 分）：telenexus 端等待 runner HTTP 回應的上限
+- 應設為略大於 runner 端 process timeout（opencode/gemini 均為 1800s = 30 min），讓 process timeout 先觸發
+- 低於此值的長任務會導致 telenexus 誤判為 runner 失敗並觸發 fallback，但 runner 仍會繼續跑完
 
 **Rate-limit 計數 (`error-summary.md`)**
 

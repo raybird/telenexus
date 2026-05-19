@@ -243,7 +243,7 @@ export class OpencodeAgent extends CliAgentBase {
     console.log(`[Opencode] Starting execution...`);
 
     return runProcess('opencode', argsWithPrompt, {
-      timeoutMs: 1200000,
+      timeoutMs: 1800000,
       cwd: workspacePath,
       env: {
         ...process.env
@@ -262,6 +262,15 @@ export class OpencodeAgent extends CliAgentBase {
       if (structured) {
         structured.text = this.cleanOutput(structured.text);
         return structured;
+      }
+      // stdout 是 Opencode JSON events 格式但沒有文字事件 (e.g. 只有 step_start)
+      // 此時不應把原始 JSON 當作回應內容回傳
+      if (stdout.trimStart().startsWith('{')) {
+        return buildTextOnlyStructuredResult(
+          'opencode',
+          'Opencode 執行完成,但沒有返回任何文字內容。',
+          { raw: stdout }
+        );
       }
     }
 

@@ -202,7 +202,7 @@ export class GeminiAgent extends CliAgentBase {
     }
 
     return runProcess('gemini', argsWithPrompt, {
-      timeoutMs: 660000,
+      timeoutMs: 1800000,
       cwd: 'workspace',
       env: this.getEnv(),
       abortOnStderr: {
