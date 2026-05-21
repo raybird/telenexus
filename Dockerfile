@@ -44,7 +44,7 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:$PATH"
 
 # Install global CLI tools (含 pnpm，Memoria 使用)
-RUN npm install -g pnpm @google/gemini-cli opencode-ai@1.15.5 mcp-memory-libsql agent-browser
+RUN npm install -g pnpm @google/gemini-cli opencode-ai@1.15.6 mcp-memory-libsql agent-browser
 RUN agent-browser install
 
 # 從 Builder 階段複製編譯好的檔案

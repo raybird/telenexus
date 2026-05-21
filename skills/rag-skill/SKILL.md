@@ -1,5 +1,5 @@
 ---
-name: kb-retriever
+name: rag-skill
 description: 面向本地知識庫目錄的檢索與問答助手。核心流程：(1)分層索引導覽 (2)遇到 PDF/Excel 時必須先讀取 references 學習處理方法 (3)處理檔案後再檢索。按檔案類型組合使用 grep、Read、pdfplumber、pandas 進行漸進式檢索，避免整份檔案載入。使用者問題涉及「從知識庫目錄回答問題/檢索資訊/查資料」時使用。
 ---
 

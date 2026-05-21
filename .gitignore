@@ -22,6 +22,7 @@ workspace/.opencode/.credentials
 workspace/.opencode/skills/*
 !workspace/.opencode/skills/.gitkeep
 workspace/.opencode/skills-backups/
+workspace/.opencode/AGENTS.md
 
 workspace/.claude/auth/
 workspace/.claude/cache/
