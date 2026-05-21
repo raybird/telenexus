@@ -386,7 +386,7 @@ export class Scheduler {
       // 3. 呼叫 Gemini CLI（套用 schedule-level timeout 防止下游卡死）
       let response = await withScheduleTimeout(schedule.name, schedule.id, () =>
         executionQueue.enqueue(schedule.user_id, 'scheduler-task', 'low', () =>
-          this.gemini.chat(fullPrompt)
+          this.gemini.chat(fullPrompt, { forceNewSession: true })
         )
       );
       const firstAssessment = assessAiResponse(response);
@@ -395,7 +395,7 @@ export class Scheduler {
         await new Promise((resolve) => setTimeout(resolve, 2500));
         response = await withScheduleTimeout(schedule.name, schedule.id, () =>
           executionQueue.enqueue(schedule.user_id, 'scheduler-task-retry', 'low', () =>
-            this.gemini.chat(fullPrompt)
+            this.gemini.chat(fullPrompt, { forceNewSession: true })
           )
         );
         const secondAssessment = assessAiResponse(response);

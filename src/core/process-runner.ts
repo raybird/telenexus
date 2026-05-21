@@ -43,7 +43,7 @@ export function runProcess(
     const child = spawn(command, args, {
       cwd: options.cwd,
       env: options.env,
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: [options.stdin ? 'pipe' : 'ignore', 'pipe', 'pipe']
     });
 
     let stdout = '';

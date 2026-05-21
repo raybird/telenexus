@@ -7,8 +7,8 @@ provider: opencode
 #   model: gemini-2.0-flash-exp
 #   model: google/gemini-2.0-flash
 #   model: nvidia/moonshotai/kimi-k2.6
-#model: nvidia/minimaxai/minimax-m2.7
-model: nvidia/deepseek-ai/deepseek-v4-flash
+model: nvidia/minimaxai/minimax-m2.7
+#model: nvidia/nvidia/nemotron-3-super-120b-a12b
 
 # Slash commands passthrough whitelist (handled by CLI/Agent)
 passthrough_commands:
