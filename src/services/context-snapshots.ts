@@ -41,7 +41,7 @@ export function writeContextSnapshots(
       `- Runner Cooldown (ms): ${process.env.RUNNER_COOLDOWN_MS || '60000'}`,
       `- DB_PATH: ${process.env.DB_PATH || '(auto-resolved)'}`,
       `- DB_DIR: ${process.env.DB_DIR || '(not set)'}`,
-      `- GEMINI_PROJECT_DIR: ${process.env.GEMINI_PROJECT_DIR || process.cwd()}`
+      `- APP_PROJECT_DIR: ${process.env.APP_PROJECT_DIR || process.env.GEMINI_PROJECT_DIR || process.cwd()}`
     ].join('\n');
 
     const providerStatus = [
@@ -72,7 +72,7 @@ export function writeContextSnapshots(
       '',
       '- Input channel: Telegram -> CommandRouter -> Scheduler/Agent',
       '- Scheduler source of truth: SQLite schedules table',
-      '- Agent runtime: Gemini/Opencode CLI executed from workspace/',
+      '- Agent runtime: Opencode CLI executed from workspace/',
       '- Long-term memory: TeleNexus provider-agnostic retrieval before chat dispatch',
       '- Main runtime service: TeleNexus orchestrator'
     ].join('\n');
@@ -118,7 +118,7 @@ export function writeContextSnapshots(
     })();
     const rateLimit24h =
       persistedByScope
-        .filter((row) => row.scope === 'gemini:rate-limit' || row.scope === 'opencode:rate-limit')
+        .filter((row) => row.scope === 'opencode:rate-limit')
         .reduce((sum, row) => sum + row.count, 0) ?? 0;
     const persistedScopeLines = persistedByScope
       .slice(0, 10)

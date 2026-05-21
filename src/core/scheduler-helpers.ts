@@ -128,7 +128,7 @@ export function assessAiResponse(response: string): {
     return { shouldRetry: true, reason: 'empty_response', normalized };
   }
 
-  if (/^Error calling (Gemini|Opencode):/i.test(normalized)) {
+  if (/^Error calling (Opencode):/i.test(normalized)) {
     return { shouldRetry: true, reason: 'provider_error', normalized };
   }
   if (normalized.startsWith('Error calling runner:')) {

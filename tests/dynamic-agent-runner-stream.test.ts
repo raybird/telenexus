@@ -19,7 +19,7 @@ function writeSseEvent(
 test('DynamicAIAgent streamChat consumes runner SSE stream', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'telenexus-runner-stream-test-'));
   const configPath = path.join(tempDir, 'ai-config.yaml');
-  fs.writeFileSync(configPath, 'provider: gemini\n', 'utf8');
+  fs.writeFileSync(configPath, 'provider: opencode\n', 'utf8');
 
   const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/run/stream') {
@@ -28,17 +28,17 @@ test('DynamicAIAgent streamChat consumes runner SSE stream', async () => {
         'Cache-Control': 'no-cache, no-transform',
         Connection: 'keep-alive'
       });
-      writeSseEvent(res, 'start', { provider: 'gemini' });
+      writeSseEvent(res, 'start', { provider: 'opencode' });
       writeSseEvent(res, 'delta', { text: 'Hello' });
       writeSseEvent(res, 'delta', { text: ' runner' });
       writeSseEvent(res, 'usage', { stats: { total_tokens: 9 } });
       writeSseEvent(res, 'done', { text: 'Hello runner' });
       writeSseEvent(res, 'result', {
         ok: true,
-        provider: 'gemini',
+        provider: 'opencode',
         output: 'Hello runner',
         structured: {
-          provider: 'gemini',
+          provider: 'opencode',
           text: 'Hello runner',
           stats: { total_tokens: 9 }
         }
@@ -69,9 +69,9 @@ test('DynamicAIAgent streamChat consumes runner SSE stream', async () => {
       events.push(event);
     });
 
-    assert.equal(result.text, 'Hello runner');
+    assert.equal(result.text, '[Opencode] Hello runner');
     assert.deepEqual(events, [
-      { type: 'start', provider: 'gemini' },
+      { type: 'start', provider: 'opencode' },
       { type: 'delta', text: 'Hello' },
       { type: 'delta', text: ' runner' },
       { type: 'usage', stats: { total_tokens: 9 } },

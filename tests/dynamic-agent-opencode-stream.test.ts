@@ -40,7 +40,7 @@ test('DynamicAIAgent streamChat uses local opencode streamChat when provider is 
     });
 
     assert.equal(called, true);
-    assert.equal(result.text, 'OpenCode');
+    assert.equal(result.text, '[Opencode] OpenCode');
     assert.deepEqual(recorded, [
       { type: 'start', provider: 'opencode' },
       { type: 'delta', text: 'Open' },

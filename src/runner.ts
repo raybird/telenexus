@@ -4,7 +4,6 @@ import http from 'http';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import yaml from 'js-yaml';
-import { GeminiAgent } from './core/gemini.js';
 import { OpencodeAgent } from './core/opencode.js';
 import type { AgentEvent, AgentStructuredResult } from './core/agent-result.js';
 import { safeCompare } from './utils/crypto.js';
@@ -12,7 +11,7 @@ import { resolveProjectDir } from './utils/paths.js';
 
 dotenv.config();
 
-type Provider = 'gemini' | 'opencode';
+type Provider = 'opencode';
 type RunnerTask = 'chat' | 'summarize';
 
 type RunnerRequest = {
@@ -30,22 +29,9 @@ type AIConfig = {
   model?: string;
 };
 
-const gemini = new GeminiAgent();
 const opencode = new OpencodeAgent();
 const runnerSharedSecret = process.env.RUNNER_SHARED_SECRET?.trim() || null;
-const serializeGemini =
-  (process.env.RUNNER_SERIALIZE_GEMINI || 'true').trim().toLowerCase() !== 'false';
 const zombieWarnThreshold = Number.parseInt(process.env.RUNNER_ZOMBIE_WARN_THRESHOLD || '8', 10);
-let geminiExecutionQueue: Promise<void> = Promise.resolve();
-
-function runGeminiInQueue<T>(task: () => Promise<T>): Promise<T> {
-  const pending = geminiExecutionQueue.then(task);
-  geminiExecutionQueue = pending.then(
-    () => undefined,
-    () => undefined
-  );
-  return pending;
-}
 
 type RunnerStats = {
   startedAt: number;
@@ -110,9 +96,6 @@ function appendAuditLine(payload: Record<string, unknown>): void {
 }
 
 function classifyRunnerError(message: string): string {
-  if (/invalid argument/i.test(message)) {
-    return 'gemini_bad_request_invalid_argument';
-  }
   if (/timed out|ETIMEDOUT|timeout/i.test(message)) {
     return 'runner_timeout';
   }
@@ -262,14 +245,14 @@ function loadProviderConfig(configPath = 'ai-config.yaml'): { provider: Provider
     const content = fs.readFileSync(configPath, 'utf8');
     const parsed = yaml.load(content) as AIConfig;
     const result: { provider: Provider; model?: string } = {
-      provider: parsed?.provider === 'opencode' ? 'opencode' : 'gemini'
+      provider: 'opencode'
     };
     if (typeof parsed?.model === 'string' && parsed.model.trim().length > 0) {
       result.model = parsed.model;
     }
     return result;
   } catch {
-    return { provider: 'gemini' };
+    return { provider: 'opencode' };
   }
 }
 
@@ -328,9 +311,8 @@ function isRunnerAuthorized(req: http.IncomingMessage): boolean {
 async function executeTask(
   request: RunnerRequest
 ): Promise<{ provider: Provider; output: string; structured?: AgentStructuredResult }> {
-  const config = loadProviderConfig();
-  const provider = request.provider || config.provider;
-  const model = request.model || config.model;
+  const { model: configModel } = loadProviderConfig();
+  const model = request.model || configModel;
   const options = model
     ? {
         model,
@@ -356,35 +338,21 @@ async function executeTask(
     throw new Error('Invalid request: task and input are required.');
   }
 
-  if (provider === 'opencode') {
-    if (request.task === 'chat') {
-      const structured = await opencode.chatStructured(request.input, options);
-      return { provider, output: structured.text, structured };
-    }
-    const output = await opencode.summarize(request.input, options);
-    return { provider, output };
-  }
-
   if (request.task === 'chat') {
-    const structured = await (serializeGemini
-      ? runGeminiInQueue(() => gemini.chatStructured(request.input!, options))
-      : gemini.chatStructured(request.input, options));
-    return { provider: 'gemini', output: structured.text, structured };
+    const structured = await opencode.chatStructured(request.input, options);
+    return { provider: 'opencode', output: structured.text, structured };
   }
-
-  const output = await (serializeGemini
-    ? runGeminiInQueue(() => gemini.summarize(request.input!, options))
-    : gemini.summarize(request.input, options));
-  return { provider: 'gemini', output };
+  const output = await opencode.summarize(request.input, options);
+  return { provider: 'opencode', output };
 }
 
 async function executeTaskStream(
   request: RunnerRequest,
   onEvent: (event: AgentEvent) => Promise<void> | void
 ): Promise<{ provider: Provider; output: string; structured?: AgentStructuredResult }> {
-  const config = loadProviderConfig();
-  const provider = request.provider || config.provider;
-  const model = request.model || config.model;
+  const { model: configModel } = loadProviderConfig();
+  const provider: Provider = 'opencode';
+  const model = request.model || configModel;
   const options = model
     ? {
         model,
@@ -410,25 +378,18 @@ async function executeTaskStream(
     throw new Error('Invalid stream request: chat task and input are required.');
   }
 
-  if (provider === 'gemini' && gemini.streamChat) {
-    const structured = await (serializeGemini
-      ? runGeminiInQueue(() => gemini.streamChat!(request.input!, options, onEvent))
-      : gemini.streamChat(request.input, options, onEvent));
-    return { provider: 'gemini', output: structured.text, structured };
-  }
-
-  if (provider === 'opencode' && opencode.streamChat) {
+  if (opencode.streamChat) {
     const structured = await opencode.streamChat(request.input, options, onEvent);
     return { provider: 'opencode', output: structured.text, structured };
   }
 
   await onEvent({ type: 'start', provider });
-  const structured = await gemini.chatStructured(request.input, options);
+  const structured = await opencode.chatStructured(request.input, options);
   if (structured.stats !== undefined) {
     await onEvent({ type: 'usage', stats: structured.stats });
   }
   await onEvent({ type: 'done', text: structured.text });
-  return { provider: 'gemini', output: structured.text, structured };
+  return { provider: 'opencode', output: structured.text, structured };
 }
 
 const port = Number.parseInt(process.env.RUNNER_PORT || '8787', 10);

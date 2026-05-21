@@ -24,7 +24,7 @@ type SentMessage = {
 function withTempProject<T>(fn: (projectDir: string) => Promise<T> | T): Promise<T> | T {
   const prevCwd = process.cwd();
   const prevDbPath = process.env.DB_PATH;
-  const prevProjectDir = process.env.GEMINI_PROJECT_DIR;
+  const prevProjectDir = process.env.APP_PROJECT_DIR;
   const prevSummaryFollowup = process.env.SUMMARY_FOLLOWUP_ENABLED;
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'telenexus-message-pipeline-'));
   const dbPath = path.join(tempDir, 'test.db');
@@ -33,7 +33,7 @@ function withTempProject<T>(fn: (projectDir: string) => Promise<T> | T): Promise
   fs.mkdirSync(path.join(tempDir, 'workspace', 'reports'), { recursive: true });
   process.chdir(tempDir);
   process.env.DB_PATH = dbPath;
-  process.env.GEMINI_PROJECT_DIR = tempDir;
+  process.env.APP_PROJECT_DIR = tempDir;
   process.env.SUMMARY_FOLLOWUP_ENABLED = 'false';
 
   const finalize = () => {
@@ -42,8 +42,8 @@ function withTempProject<T>(fn: (projectDir: string) => Promise<T> | T): Promise
     process.chdir(prevCwd);
     if (prevDbPath === undefined) delete process.env.DB_PATH;
     else process.env.DB_PATH = prevDbPath;
-    if (prevProjectDir === undefined) delete process.env.GEMINI_PROJECT_DIR;
-    else process.env.GEMINI_PROJECT_DIR = prevProjectDir;
+    if (prevProjectDir === undefined) delete process.env.APP_PROJECT_DIR;
+    else process.env.APP_PROJECT_DIR = prevProjectDir;
     if (prevSummaryFollowup === undefined) delete process.env.SUMMARY_FOLLOWUP_ENABLED;
     else process.env.SUMMARY_FOLLOWUP_ENABLED = prevSummaryFollowup;
     fs.rmSync(tempDir, { recursive: true, force: true });
@@ -712,11 +712,11 @@ test('message pipeline uses throttled telegram streaming renderer for telegram c
       const agent = createAgentStub({
         async streamChat(prompt, _options, onEvent) {
           streamedPrompts.push(prompt);
-          await onEvent({ type: 'start', provider: 'gemini' });
+          await onEvent({ type: 'start', provider: 'opencode' });
           await onEvent({ type: 'delta', text: 'Hello' });
           await onEvent({ type: 'delta', text: ' world' });
           await onEvent({ type: 'done', text: 'Hello world' });
-          return { provider: 'gemini', text: 'Hello world' };
+          return { provider: 'opencode', text: 'Hello world' };
         }
       });
 

@@ -67,18 +67,18 @@ export class Scheduler {
   private lastReflectionFingerprint: Map<string, string> = new Map();
   private readonly SILENCE_TIMEOUT_MS = 30 * 60 * 1000; // 正式環境：30 分鐘
   private memory: MemoryManager;
-  private gemini: AIAgent; // 改用 AIAgent 介面
+  private taskAgent: AIAgent;
   private connector: Connector;
   private enqueueMemoriaSync: ((turn: MemoriaSyncTurn) => void) | undefined;
 
   constructor(
     memory: MemoryManager,
-    gemini: AIAgent,
+    taskAgent: AIAgent,
     connector: Connector,
     enqueueMemoriaSync?: (turn: MemoriaSyncTurn) => void
   ) {
     this.memory = memory;
-    this.gemini = gemini;
+    this.taskAgent = taskAgent;
     this.connector = connector;
     this.enqueueMemoriaSync = enqueueMemoriaSync;
   }
@@ -386,7 +386,7 @@ export class Scheduler {
       // 3. 呼叫 Gemini CLI（套用 schedule-level timeout 防止下游卡死）
       let response = await withScheduleTimeout(schedule.name, schedule.id, () =>
         executionQueue.enqueue(schedule.user_id, 'scheduler-task', 'low', () =>
-          this.gemini.chat(fullPrompt, { forceNewSession: true })
+          this.taskAgent.chat(fullPrompt, { forceNewSession: true })
         )
       );
       const firstAssessment = assessAiResponse(response);
@@ -395,7 +395,7 @@ export class Scheduler {
         await new Promise((resolve) => setTimeout(resolve, 2500));
         response = await withScheduleTimeout(schedule.name, schedule.id, () =>
           executionQueue.enqueue(schedule.user_id, 'scheduler-task-retry', 'low', () =>
-            this.gemini.chat(fullPrompt, { forceNewSession: true })
+            this.taskAgent.chat(fullPrompt, { forceNewSession: true })
           )
         );
         const secondAssessment = assessAiResponse(response);
@@ -632,7 +632,7 @@ export class Scheduler {
       );
 
       const response = await executionQueue.enqueue(userId, 'scheduler-reflection', 'low', () =>
-        this.gemini.chat(reflectionPrompt)
+        this.taskAgent.chat(reflectionPrompt)
       );
       const hasNoAction = !response || response.includes('無待處理事項');
       const currentFingerprint = fingerprintReflection(response || '');
@@ -729,7 +729,7 @@ export class Scheduler {
       const summaryPrompt = buildDailySummaryPrompt(new Date().toLocaleDateString('zh-TW'));
 
       const response = await executionQueue.enqueue(userId, 'scheduler-daily-summary', 'low', () =>
-        this.gemini.chat(summaryPrompt, { forceNewSession: true })
+        this.taskAgent.chat(summaryPrompt, { forceNewSession: true })
       );
       const outgoing = '📅 [每日摘要]\n\n' + response;
       this.persistSchedulerMessage(userId, '[每日摘要] 生成當日摘要', outgoing, {

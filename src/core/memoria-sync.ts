@@ -450,10 +450,10 @@ export class MemoriaSyncBridge {
             }
 
             const turn: MemoriaSyncTurn = {
-              userId: typeof parsed.userId === 'string' ? parsed.userId : 'gemini-hook',
+              userId: typeof parsed.userId === 'string' ? parsed.userId : 'unknown',
               userMessage,
               modelMessage,
-              platform: typeof parsed.platform === 'string' ? parsed.platform : 'gemini-hook',
+              platform: typeof parsed.platform === 'string' ? parsed.platform : 'unknown',
               isPassthroughCommand: parsed.isPassthroughCommand === true,
               forceNewSession: parsed.forceNewSession === true
             };

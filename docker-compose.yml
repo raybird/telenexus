@@ -10,18 +10,16 @@ x-common-config: &common-config
     - ./data:/app/data
     - ./workspace:/app/workspace
     - ./ai-config.yaml:/app/ai-config.yaml:ro
-    - gemini_auth:/root/.gemini
     # 使用容器內獨立 opencode 認證儲存 (不依賴 host)
     - opencode_auth:/root/.local/share/opencode
     - ./skills:/app/skills:ro
-    - ./GEMINI.md:/app/workspace/GEMINI.md:ro
     - ./AGENTS.md:/app/workspace/AGENTS.md:ro
 
 x-common-env: &common-env
   TZ: Asia/Taipei
   DB_PATH: /app/data/moltbot.db
   DB_DIR: /app/data
-  GEMINI_PROJECT_DIR: /app
+  APP_PROJECT_DIR: /app
   RUNNER_SHARED_SECRET: ${RUNNER_SHARED_SECRET:-}
   MEMORIA_SYNC_ENABLED: ${MEMORIA_SYNC_ENABLED:-auto}
   MEMORIA_HOME: ${MEMORIA_HOME:-/app/workspace/Memoria}
@@ -72,5 +70,4 @@ services:
       start_period: 20s
 
 volumes:
-  gemini_auth:
   opencode_auth:

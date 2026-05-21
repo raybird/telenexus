@@ -27,7 +27,6 @@ const COMPACT_MEMORY_KEYWORDS = [
   /release/i,
   /scheduler/i,
   /runner/i,
-  /gemini/i,
   /opencode/i,
   /memory/i,
   /session/i,

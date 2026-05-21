@@ -8,14 +8,6 @@ moltbot.db**
 .env
 ai-config.yaml
 
-# Gemini CLI - 只保留設定檔，忽略認證與快取
-workspace/.gemini/auth/
-workspace/.gemini/cache/
-workspace/.gemini/.credentials
-workspace/.gemini/skills/*
-!workspace/.gemini/skills/.gitkeep
-workspace/.gemini/skills-backups/
-
 workspace/.opencode/auth/
 workspace/.opencode/cache/
 workspace/.opencode/.credentials
@@ -36,7 +28,6 @@ workspace/.pnpm-store/
 workspace/temp/
 workspace/context/
 workspace/AGENTS.md
-workspace/GEMINI.md
 workspace/*.skill
 workspace/scripts/
 workspace/Memoria/
@@ -46,7 +37,6 @@ workspace/projects/*
 # Local AI tool state
 /.agent/
 /.codex/
-/.gemini/
 /.opencode/
 
 data/

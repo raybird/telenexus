@@ -3,7 +3,6 @@ import path from 'path';
 
 const sourceDir = process.env.BUILTIN_SKILLS_DIR || '/app/skills';
 const targetDirs = [
-  process.env.GEMINI_SKILLS_DIR || '/app/workspace/.gemini/skills',
   process.env.OPENCODE_SKILLS_DIR || '/app/workspace/.opencode/skills'
 ];
 

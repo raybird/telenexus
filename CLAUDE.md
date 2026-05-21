@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-TeleNexus is a local AI assistant gateway that bridges Telegram to local AI CLI agents (Gemini CLI / Opencode). It provides scheduling, memory management, observability, and a dual-service runner architecture. The project uses TypeScript (ESM) with strict mode, SQLite for persistence, and Docker Compose for deployment.
+TeleNexus is a local AI assistant gateway that bridges Telegram to Opencode CLI agent. It provides scheduling, memory management, observability, and a dual-service runner architecture. The project uses TypeScript (ESM) with strict mode, SQLite for persistence, and Docker Compose for deployment.
 
 ## Common Commands
 
@@ -49,7 +49,7 @@ npm run release:patch|minor|major  # Bump version + release workflow
 The system runs two Docker services that share volumes (`data/`, `workspace/`, `ai-config.yaml`, `skills/`):
 
 - **telenexus** (`src/main.ts`): Orchestrator service — handles Telegram ingress, command routing, scheduling, memory, Web Console, and dispatches AI tasks either locally or to the runner.
-- **agent-runner** (`src/runner.ts`): Standalone HTTP service (port 8787) that executes AI CLI commands (Gemini/Opencode). Provides `/run`, `/health`, and `/stats` endpoints. Serializes Gemini requests via an execution queue.
+- **agent-runner** (`src/runner.ts`): Standalone HTTP service (port 8787) that executes Opencode CLI commands. Provides `/run`, `/health`, and `/stats` endpoints.
 
 Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per-user whitelisting. The runner has a circuit breaker pattern (`RUNNER_FAILURE_THRESHOLD` / `RUNNER_COOLDOWN_MS`) with automatic local fallback.
 
@@ -58,7 +58,7 @@ Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per
 1. `TelegramConnector` receives message → converts to `UnifiedMessage`
 2. `CommandRouter` checks for built-in commands (`/start`, `/reset`, `/new`, `/add_schedule`, etc.) or passthrough commands (`/compress`, `/compact`, `/clear` — forwarded to CLI)
 3. Non-command messages enter `createMessagePipeline()` which: builds prompt with memory context, routes to appropriate agent (local vs runner), manages thinking-placeholder UX, handles `[[SEND_FILE:]]` directives, and triggers optional summary follow-ups
-4. `DynamicAIAgent` reads `ai-config.yaml` at each call to select provider (gemini/opencode) and delegates to `GeminiAgent` or `OpencodeAgent`
+4. `DynamicAIAgent` reads `ai-config.yaml` at each call and delegates to `OpencodeAgent`
 5. Responses are stored in `MemoryManager` (SQLite) and optionally synced to Memoria
 
 ### Key Modules
@@ -72,8 +72,7 @@ Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per
 | `src/core/memory.ts`            | `MemoryManager` — SQLite-backed chat history, schedules, and full-text search                             |
 | `src/core/execution-queue.ts`   | Per-user priority queue (high/normal/low) ensuring serial execution per user                              |
 | `src/core/memoria-sync.ts`      | Background sync bridge to external Memoria CLI for long-term knowledge                                    |
-| `src/core/gemini.ts`            | Wraps `gemini-cli` subprocess calls; fail-fast on upstream 429 via stderr abort pattern                   |
-| `src/core/opencode.ts`          | Wraps `opencode run` subprocess calls; same 429 fail-fast contract                                        |
+| `src/core/opencode.ts`          | Wraps `opencode run` subprocess calls; fail-fast on upstream 429 via stderr abort pattern                 |
 | `src/services/error-alerter.ts` | Sliding-window error alerter; pushes Telegram message to `ALLOWED_USER_ID` when a scope crosses threshold |
 | `src/services/issue-store.ts`   | Persists `recordRuntimeIssue` events to SQLite `runtime_issues` table (7-day retention)                   |
 | `src/connectors/telegram.ts`    | Telegraf-based connector implementing `Connector` interface                                               |
@@ -82,7 +81,7 @@ Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per
 
 ### Configuration
 
-- **`ai-config.yaml`**: Runtime AI provider selection (`gemini` / `opencode`), model override, passthrough command whitelist, chat prompt assembly config
+- **`ai-config.yaml`**: Runtime AI provider selection (opencode), model override, passthrough command whitelist, chat prompt assembly config
 - **`.env`**: Telegram token, allowed user ID, runner settings, web console settings, Memoria sync options, error alerter / schedule timeout knobs (`ERROR_ALERT_THRESHOLD`, `ERROR_ALERT_WINDOW_MS`, `ERROR_ALERT_COOLDOWN_MS`, `SCHEDULE_TASK_TIMEOUT_MS`)
 - **`skills/`**: Skill definitions synced to workspace on startup via `scripts/sync-skills.mjs`
 

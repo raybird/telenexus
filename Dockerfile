@@ -44,7 +44,7 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:$PATH"
 
 # Install global CLI tools (含 pnpm，Memoria 使用)
-RUN npm install -g pnpm @google/gemini-cli opencode-ai@1.15.6 mcp-memory-libsql agent-browser
+RUN npm install -g pnpm opencode-ai@1.15.6 mcp-memory-libsql agent-browser
 RUN agent-browser install
 
 # 從 Builder 階段複製編譯好的檔案
@@ -57,7 +57,7 @@ COPY --from=builder /app/dist ./dist
 COPY workspace ./workspace
 COPY --from=builder /app/scripts ./scripts
 COPY debug-container.sh ./
-RUN chmod +x debug-container.sh && chmod +x workspace/.gemini/hooks/*.sh 2>/dev/null || true
+RUN chmod +x debug-container.sh
 
 ENV NODE_ENV=production
 ENV GEMINI_PROJECT_DIR=/app

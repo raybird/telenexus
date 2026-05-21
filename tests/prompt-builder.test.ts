@@ -28,11 +28,11 @@ function seedSarRegressionFixtures(memory: MemoryManager, userId: string, baseTs
   const fixtures = [
     {
       ts: baseTs + 1000,
-      content: 'Gemini recovery memory',
+      content: 'Opencode recovery memory',
       summary:
-        'Gemini Recovery Rule: INVALID_ARGUMENT / ChatCompressionService.compress 先 /compress；RESOURCE_EXHAUSTED / MODEL_CAPACITY_EXHAUSTED 則等待重試或 fallback model/provider。',
+        'Opencode Recovery Rule: RESOURCE_EXHAUSTED / rate-limit 則等待重試或錯開排程；compress 失敗時改用 /compact 指令。',
       impactLevel: 3,
-      tags: ['gemini', 'runner', 'memory', 'infra']
+      tags: ['opencode', 'runner', 'memory', 'infra']
     },
     {
       ts: baseTs + 2000,
@@ -237,15 +237,15 @@ test('buildMemoryContext does not duplicate anchor into semantic section', () =>
 
     try {
       const memory = new MemoryManager();
-      memory.addMessage('user-a', 'model', 'Gemini recovery memory', {
+      memory.addMessage('user-a', 'model', 'Opencode recovery memory', {
         summary:
-          'Gemini Recovery Rule: INVALID_ARGUMENT 先 /compress，RESOURCE_EXHAUSTED 則等待重試或 fallback provider。',
+          'Opencode Recovery Rule: rate-limit 則等待重試或錯開排程；compress 失敗時改用 /compact 指令。',
         impactLevel: 3,
-        tags: ['gemini', 'runner', 'memory']
+        tags: ['opencode', 'runner', 'memory']
       });
 
-      const context = buildMemoryContext(memory, 'user-a', '之前 Gemini 常壞是怎麼處理的？');
-      const occurrences = (context.match(/Gemini Recovery Rule/g) || []).length;
+      const context = buildMemoryContext(memory, 'user-a', '之前 opencode 常出錯是怎麼處理的？');
+      const occurrences = (context.match(/Opencode Recovery Rule/g) || []).length;
       assert.equal(occurrences, 1);
     } finally {
       Date.now = originalNow;
@@ -353,18 +353,18 @@ test('buildMemoryContext keeps at least one semantic item under heavy budget pre
   });
 });
 
-test('buildMemoryContext includes SAR wrapper and core section for gemini regression case', () => {
+test('buildMemoryContext includes SAR wrapper and core section for opencode regression case', () => {
   withTempDb(() => {
     const baseTs = Date.parse('2026-04-20T00:00:00Z');
     const memory = new MemoryManager();
     seedSarRegressionFixtures(memory, 'user-a', baseTs);
 
-    const context = buildMemoryContext(memory, 'user-a', '之前 Gemini 常壞是怎麼處理的？');
+    const context = buildMemoryContext(memory, 'user-a', '之前 opencode 常出錯是怎麼處理的？');
     assert.match(context, /^【記憶參考（TeleNexus SAR）】/);
     assert.match(context, /【核心決策回顧】/);
-    assert.match(context, /Gemini Recovery Rule/);
+    assert.match(context, /Opencode Recovery Rule/);
     assert.match(context, /compress/);
-    assert.match(context, /fallback model\/provider/);
+    assert.match(context, /rate-limit/);
   });
 });
 
@@ -410,15 +410,14 @@ test('buildMemoryContext resolves alias query normalization for release workflow
   });
 });
 
-test('buildMemoryContext resolves alias query normalization for gemini recovery', () => {
+test('buildMemoryContext resolves alias query normalization for opencode compress recovery', () => {
   withTempDb(() => {
     const baseTs = Date.parse('2026-04-20T00:00:00Z');
     const memory = new MemoryManager();
     seedSarRegressionFixtures(memory, 'user-a', baseTs);
 
-    const context = buildMemoryContext(memory, 'user-a', 'Gemini 壓縮壞掉時怎麼救？');
-    assert.match(context, /Gemini Recovery Rule/);
-    assert.match(context, /INVALID_ARGUMENT/);
+    const context = buildMemoryContext(memory, 'user-a', 'opencode compress 壞掉時怎麼救？');
+    assert.match(context, /Opencode Recovery Rule/);
     assert.match(context, /compress/);
   });
 });

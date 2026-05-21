@@ -2,7 +2,6 @@ import fs from 'fs';
 import http from 'http';
 import https from 'https';
 import yaml from 'js-yaml';
-import { GeminiAgent } from './gemini.js';
 import { OpencodeAgent } from './opencode.js';
 import type { AgentEvent, AgentStructuredResult } from './agent-result.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
@@ -67,7 +66,6 @@ interface AIConfig {
  * 每次呼叫時重新讀取 ai-config.yaml 來決定使用哪個 provider
  */
 export class DynamicAIAgent implements AIAgent {
-  private geminiAgent: GeminiAgent;
   private opencodeAgent: OpencodeAgent;
   private configPath: string;
   private runnerEndpoint: string | null;
@@ -82,7 +80,6 @@ export class DynamicAIAgent implements AIAgent {
 
   constructor(configPath = 'ai-config.yaml', options: DynamicAgentOptions = {}) {
     this.configPath = configPath;
-    this.geminiAgent = new GeminiAgent();
     this.opencodeAgent = new OpencodeAgent();
     this.runnerEndpoint = options.runnerEndpoint?.trim() || null;
     this.preferRunner = options.preferRunner ?? false;
@@ -124,27 +121,6 @@ export class DynamicAIAgent implements AIAgent {
   private markRunnerSuccess(): void {
     this.consecutiveRunnerFailures = 0;
     this.runnerOpenUntil = 0;
-  }
-
-  private isInvalidArgumentError(message: string | undefined): boolean {
-    if (!message) {
-      return false;
-    }
-    return (
-      /invalid argument/i.test(message) || /Request contains an invalid argument/i.test(message)
-    );
-  }
-
-  private isGeminiCompressPassthrough(
-    provider: string,
-    isPassthrough: boolean,
-    normalizedInput: string
-  ): boolean {
-    if (provider !== 'gemini' || !isPassthrough) {
-      return false;
-    }
-    const trimmed = normalizedInput.trim();
-    return trimmed.startsWith('/compress') || trimmed.startsWith('/compact');
   }
 
   private async callRunner(payload: RunnerRequest): Promise<RunnerResponse> {
@@ -296,7 +272,7 @@ export class DynamicAIAgent implements AIAgent {
               if (eventName === 'start' && typeof payload.provider === 'string') {
                 void onEvent({
                   type: 'start',
-                  provider: payload.provider as 'gemini' | 'opencode'
+                  provider: payload.provider as 'opencode'
                 });
                 continue;
               }
@@ -346,26 +322,16 @@ export class DynamicAIAgent implements AIAgent {
 
   private async executeLocal(
     task: RunnerTask,
-    provider: string,
     input: string,
     options?: AIAgentOptions
   ): Promise<string> {
-    // 直接傳遞所有 options（包含 isPassthroughCommand）
     const mergedOptions: AIAgentOptions = { ...options };
 
-    if (provider === 'opencode') {
-      if (task === 'chat') {
-        const response = await this.opencodeAgent.chatStructured(input, mergedOptions);
-        return `[Opencode] ${response.text}`;
-      }
-      return this.opencodeAgent.summarize(input, mergedOptions);
-    }
-
     if (task === 'chat') {
-      const response = await this.geminiAgent.chat(input, mergedOptions);
-      return `[Gemini] ${response}`;
+      const response = await this.opencodeAgent.chatStructured(input, mergedOptions);
+      return `[Opencode] ${response.text}`;
     }
-    return this.geminiAgent.summarize(input, mergedOptions);
+    return this.opencodeAgent.summarize(input, mergedOptions);
   }
 
   async streamChat(
@@ -374,7 +340,7 @@ export class DynamicAIAgent implements AIAgent {
     onEvent: (event: AgentEvent) => Promise<void> | void
   ): Promise<AgentStructuredResult> {
     const config = this.loadProviderConfig();
-    const provider = config.provider === 'opencode' ? 'opencode' : 'gemini';
+    const provider = 'opencode';
     const model = options?.model || config.model;
     const mergedOptions: AIAgentOptions = { ...options };
     if (model) {
@@ -383,7 +349,6 @@ export class DynamicAIAgent implements AIAgent {
 
     const normalizedInput = this.normalizePassthroughInput(
       prompt,
-      provider,
       mergedOptions.isPassthroughCommand === true
     );
 
@@ -413,11 +378,9 @@ export class DynamicAIAgent implements AIAgent {
         if (runnerResult.ok && runnerResult.output) {
           this.markRunnerSuccess();
           const rawText = runnerResult.structured?.text || runnerResult.output;
-          const resolvedProvider = runnerResult.provider === 'opencode' ? 'opencode' : 'gemini';
-          const providerLabel = resolvedProvider === 'opencode' ? 'Opencode' : 'Gemini';
-          const text = `[${providerLabel}] ${rawText}`;
+          const text = `[Opencode] ${rawText}`;
           return {
-            provider: resolvedProvider as 'gemini' | 'opencode',
+            provider: 'opencode',
             text,
             ...(runnerResult.structured?.sessionId
               ? { sessionId: runnerResult.structured.sessionId }
@@ -437,12 +400,7 @@ export class DynamicAIAgent implements AIAgent {
       }
     }
 
-    if (provider === 'gemini' && this.geminiAgent.streamChat) {
-      const result = await this.geminiAgent.streamChat(normalizedInput, mergedOptions, onEvent);
-      return { ...result, text: `[Gemini] ${result.text}` };
-    }
-
-    if (provider === 'opencode' && this.opencodeAgent.streamChat) {
+    if (this.opencodeAgent.streamChat) {
       const result = await this.opencodeAgent.streamChat(normalizedInput, mergedOptions, onEvent);
       return { ...result, text: `[Opencode] ${result.text}` };
     }
@@ -462,7 +420,7 @@ export class DynamicAIAgent implements AIAgent {
     options?: AIAgentOptions
   ): Promise<string> {
     const config = this.loadProviderConfig();
-    const provider = config.provider === 'opencode' ? 'opencode' : 'gemini';
+    const provider = 'opencode';
     const model = options?.model || config.model;
 
     // 完整傳遞所有 options（包含 isPassthroughCommand）
@@ -474,7 +432,7 @@ export class DynamicAIAgent implements AIAgent {
     const isPassthrough = options?.isPassthroughCommand === true;
     const forceNewSession = options?.forceNewSession === true;
     const autoRecoveryNotice = options?.autoRecoveryNotice === true;
-    const normalizedInput = this.normalizePassthroughInput(input, provider, isPassthrough);
+    const normalizedInput = this.normalizePassthroughInput(input, isPassthrough);
     if (isPassthrough) {
       console.log('[DynamicAgent] Passthrough command detected.');
     }
@@ -491,7 +449,7 @@ export class DynamicAIAgent implements AIAgent {
         if (!this.fallbackToLocal) {
           return `Error calling runner: circuit open (${remainingMs}ms remaining)`;
         }
-        return this.executeLocal(task, provider, input, mergedOptions);
+        return this.executeLocal(task, input, mergedOptions);
       }
 
       const runnerPayload: RunnerRequest = {
@@ -506,28 +464,7 @@ export class DynamicAIAgent implements AIAgent {
         runnerPayload.model = model;
       }
 
-      let runnerResult = await this.callRunner(runnerPayload);
-      const isCompressPassthrough = this.isGeminiCompressPassthrough(
-        provider,
-        isPassthrough,
-        normalizedInput
-      );
-
-      if (
-        !runnerResult.ok &&
-        isCompressPassthrough &&
-        !forceNewSession &&
-        this.isInvalidArgumentError(runnerResult.error)
-      ) {
-        console.warn(
-          '[DynamicAgent] /compress failed with invalid argument; retrying once with forceNewSession.'
-        );
-        const retryPayload: RunnerRequest = {
-          ...runnerPayload,
-          forceNewSession: true
-        };
-        runnerResult = await this.callRunner(retryPayload);
-      }
+      const runnerResult = await this.callRunner(runnerPayload);
 
       if (runnerResult.ok && runnerResult.output) {
         this.markRunnerSuccess();
@@ -539,16 +476,12 @@ export class DynamicAIAgent implements AIAgent {
         console.log(`[DynamicAgent] Runner success.${runnerMeta}${durationMeta}`);
         const outputText = runnerResult.structured?.text || runnerResult.output;
         if (task === 'chat') {
-          const providerLabel = runnerResult.provider === 'opencode' ? 'Opencode' : 'Gemini';
-          return `[${providerLabel}] ${outputText}`;
+          return `[Opencode] ${outputText}`;
         }
         return outputText;
       }
 
       const errorMessage = runnerResult.error || 'Unknown runner error';
-      if (isCompressPassthrough && this.isInvalidArgumentError(errorMessage)) {
-        return '⚠️ `/compress` 失敗：目前這個 Session 的壓縮請求被 Gemini API 拒絕（invalid argument）。請先送 `/new`，再重試 `/compress`。';
-      }
       this.markRunnerFailure(errorMessage);
       console.warn(`[DynamicAgent] Runner failed: ${errorMessage}`);
       if (!this.fallbackToLocal) {
@@ -557,12 +490,11 @@ export class DynamicAIAgent implements AIAgent {
       console.log('[DynamicAgent] Falling back to local execution...');
     }
 
-    return this.executeLocal(task, provider, normalizedInput, mergedOptions);
+    return this.executeLocal(task, normalizedInput, mergedOptions);
   }
 
   private normalizePassthroughInput(
     input: string,
-    provider: string,
     isPassthrough: boolean
   ): string {
     if (!isPassthrough) {
@@ -577,38 +509,25 @@ export class DynamicAIAgent implements AIAgent {
     const parts = trimmed.split(/\s+/);
     const cmd = parts[0]?.split('@')[0] || '';
 
-    if (provider === 'opencode' && cmd === '/compress') {
+    if (cmd === '/compress') {
       const rewritten = ['/compact', ...parts.slice(1)].join(' ');
-      console.log(
-        '[DynamicAgent] Rewriting passthrough command /compress -> /compact for opencode.'
-      );
-      return rewritten;
-    }
-
-    if (provider === 'gemini' && cmd === '/compact') {
-      const rewritten = ['/compress', ...parts.slice(1)].join(' ');
-      console.log('[DynamicAgent] Rewriting passthrough command /compact -> /compress for gemini.');
+      console.log('[DynamicAgent] Rewriting passthrough command /compress -> /compact for opencode.');
       return rewritten;
     }
 
     return input;
   }
 
-  /**
-   * 載入設定檔
-   * 若檔案不存在或解析失敗，回退至預設值 { provider: 'gemini' }
-   */
   private loadProviderConfig(): AIConfig {
     try {
       const fileContent = fs.readFileSync(this.configPath, 'utf8');
       const config = yaml.load(fileContent) as AIConfig;
       return {
-        provider: config?.provider || 'gemini',
+        provider: config?.provider || 'opencode',
         model: config?.model
       };
     } catch {
-      // 檔案不存在或解析失敗，使用預設值
-      return { provider: 'gemini' };
+      return { provider: 'opencode' };
     }
   }
 

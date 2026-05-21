@@ -110,13 +110,13 @@ export function loadProviderStatus(): { provider: string; model: string; timezon
   try {
     const parsed = loadAiConfigRaw();
 
-    const provider = typeof parsed?.provider === 'string' ? parsed.provider : 'gemini';
+    const provider = typeof parsed?.provider === 'string' ? parsed.provider : 'opencode';
     const model = typeof parsed?.model === 'string' ? parsed.model : 'default';
     const timezone = process.env.TZ || 'Asia/Taipei';
     return { provider, model, timezone };
   } catch {
     return {
-      provider: 'gemini',
+      provider: 'opencode',
       model: 'default',
       timezone: process.env.TZ || 'Asia/Taipei'
     };

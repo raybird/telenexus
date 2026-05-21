@@ -15,7 +15,7 @@ export const SAR_TAG_RULES: Array<{ tag: string; patterns: RegExp[] }> = [
     ]
   },
   { tag: 'scheduler', patterns: [/scheduler/i, /cron/i, /排程/] },
-  { tag: 'gemini', patterns: [/gemini/i, /compress/i, /invalid_argument/i, /resource_exhausted/i] },
+  { tag: 'opencode', patterns: [/opencode/i, /compress/i, /compact/i, /invalid_argument/i, /resource_exhausted/i] },
   { tag: 'runner', patterns: [/runner/i, /agent-runner/i] },
   { tag: 'memory', patterns: [/memory/i, /summary-aware retrieval/i, /sar/i, /記憶/, /摘要/] },
   { tag: 'infra', patterns: [/docker/i, /bootstrap/i, /git/i, /git identity/i, /部署/, /infra/i] }
@@ -34,7 +34,7 @@ export const SAR_QUERY_ALIAS_RULES: Array<{
   {
     patterns: [/壓縮/, /compress/i, /invalid_argument/i, /resource_exhausted/i, /容量不足/],
     keywords: ['compress', 'invalid_argument', 'resource_exhausted', 'model_capacity_exhausted'],
-    tags: ['gemini', 'runner']
+    tags: ['opencode', 'runner']
   },
   {
     patterns: [/上滑載入/, /聊天往上滾/, /chat history/i, /cursor/i, /prepend/i, /閃爍/],
@@ -51,7 +51,7 @@ export const SAR_QUERY_ALIAS_RULES: Array<{
 export const SAR_METADATA_IMPACT_PATTERNS = {
   level3: /sop|營運憲法|技術地板|bootstrap|fallback|compress|resource_exhausted|invalid_argument/i,
   level2:
-    /decision|決策|fix|修復|release|deploy|workflow|scheduler|runner|gemini|chat history|cursor/i
+    /decision|決策|fix|修復|release|deploy|workflow|scheduler|runner|opencode|chat history|cursor/i
 } as const;
 
 export const SAR_SUMMARY_SEARCH_CONFIG = {
@@ -113,7 +113,7 @@ export const SAR_PROMPT_POLICY = {
     'docker',
     'git',
     'runner',
-    'gemini',
+    'opencode',
     'scheduler',
     'memory',
     'prompt',
@@ -133,8 +133,8 @@ export const SAR_PROMPT_POLICY = {
   summaryLengthMaxBonus: 3,
   summaryImpactBonus: 3,
   summaryImportantTextPattern:
-    /[Dd]ecision|決策|SOP|流程|規則|限制|fallback|bootstrap|runner|Gemini/,
-  summaryImportantTags: ['release', 'gemini', 'runner'],
+    /[Dd]ecision|決策|SOP|流程|規則|限制|fallback|bootstrap|runner|Opencode/,
+  summaryImportantTags: ['release', 'opencode', 'runner'],
   summaryImportantTagBonus: 2,
   summaryImportantTextBonus: 2,
   summaryModelRoleBonus: 1,
