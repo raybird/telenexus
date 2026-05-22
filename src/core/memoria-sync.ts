@@ -216,7 +216,7 @@ export class MemoriaSyncBridge {
     this.timeoutMs =
       options.timeoutMs || parsePositiveInt(process.env.MEMORIA_SYNC_TIMEOUT_MS, 20000);
     this.projectDir = path.resolve(
-      options.projectDir || process.env.GEMINI_PROJECT_DIR || process.cwd()
+      options.projectDir || process.env.APP_PROJECT_DIR || process.cwd()
     );
     this.memoriaHome = path.resolve(
       process.env.MEMORIA_HOME || path.join(this.projectDir, 'workspace', 'Memoria')

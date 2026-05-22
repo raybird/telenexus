@@ -60,7 +60,7 @@ COPY debug-container.sh ./
 RUN chmod +x debug-container.sh
 
 ENV NODE_ENV=production
-ENV GEMINI_PROJECT_DIR=/app
+ENV APP_PROJECT_DIR=/app
 ENV APP_GIT_SHA=$APP_GIT_SHA
 ENV APP_BUILD_TIME=$APP_BUILD_TIME
 

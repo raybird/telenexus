@@ -10,7 +10,7 @@ export type RunOptions = {
   stdin?: string;
   /**
    * 當 stderr 累積內容首次命中 pattern 時，立即 SIGTERM 子程序並以指定 code/message 拒絕。
-   * 用於 fail-fast：例如偵測到 Gemini 上游 429 後不再等待內部退避重試。
+   * 用於 fail-fast：例如偵測到上游 429 後不再等待內部退避重試。
    */
   abortOnStderr?: { pattern: RegExp; code: string; message: string };
 };

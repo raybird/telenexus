@@ -383,7 +383,7 @@ export class Scheduler {
       // 2. 組合 Prompt
       const fullPrompt = buildScheduledTaskPrompt(schedule.name, schedule.prompt, longTermMemory);
 
-      // 3. 呼叫 Gemini CLI（套用 schedule-level timeout 防止下游卡死）
+      // 3. 呼叫 Opencode CLI（套用 schedule-level timeout 防止下游卡死）
       let response = await withScheduleTimeout(schedule.name, schedule.id, () =>
         executionQueue.enqueue(schedule.user_id, 'scheduler-task', 'low', () =>
           this.taskAgent.chat(fullPrompt, { forceNewSession: true })

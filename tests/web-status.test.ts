@@ -41,7 +41,7 @@ test('parseMemoryIntentRequests parses recent intent lines', () => {
 test('toStructuredStatus includes prompt session structured fields', () => {
   const structured = toStructuredStatus({
     runtime: '- Updated: 2026/4/3 上午10:00:00',
-    provider: '- Provider: gemini\n- Model: gemini-2.5-pro',
+    provider: '- Provider: opencode\n- Model: nvidia/minimaxai/minimax-m2.7',
     scheduler: '- Active Schedules: 2\n- #1 | Daily | 0 9 * * * | user=user-a',
     error: '- [2026/4/3 上午10:00:00] (message-processing) boom',
     runner: '- Success Rate: 98%\n- Last 5m Success Rate: 100%',

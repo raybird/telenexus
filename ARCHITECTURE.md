@@ -29,11 +29,9 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 
 - `src/core/agent.ts`
   - `DynamicAIAgent` 會在每次請求時讀取 `ai-config.yaml`
-  - 依設定選擇 Gemini 或 Opencode
+  - 以 Opencode 作為唯一 AI 執行後端
   - 可優先走 runner，並在 runner 失敗時 fallback 到本地執行
   - 內建 runner circuit breaker、passthrough command 改寫
-- `src/core/gemini.ts`
-  - 封裝 Gemini CLI 呼叫
 - `src/core/opencode.ts`
   - 封裝 Opencode CLI 呼叫
 - `src/runner.ts`
@@ -146,7 +144,7 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 - timeout 控制
 - 連續失敗計數與 cooldown
 - 失敗後 fallback 到 local
-- `/compress` 與 `/compact` 在 Gemini / Opencode 間的 passthrough 轉換
+- `/compress` 與 `/compact` 對 Opencode 的 passthrough 轉換
 
 ## Context Snapshot
 

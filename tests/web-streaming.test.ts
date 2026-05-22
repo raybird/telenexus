@@ -38,13 +38,13 @@ class StreamingAgentStub implements AIAgent {
     _options: AIAgentOptions | undefined,
     onEvent: (event: AgentEvent) => Promise<void> | void
   ): Promise<AgentStructuredResult> {
-    await onEvent({ type: 'start', provider: 'gemini' });
+    await onEvent({ type: 'start', provider: 'opencode' });
     await onEvent({ type: 'delta', text: 'Hello' });
     await onEvent({ type: 'delta', text: ' world' });
     await onEvent({ type: 'usage', stats: { total_tokens: 12 } });
     await onEvent({ type: 'done', text: 'Hello world' });
     return {
-      provider: 'gemini',
+      provider: 'opencode',
       text: 'Hello world',
       stats: { total_tokens: 12 }
     };

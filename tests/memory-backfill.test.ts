@@ -142,7 +142,7 @@ test('extractCandidatesFromSession keeps more than one candidate of the same typ
   const candidates = extractCandidatesFromSession(baseSession, [
     {
       event_type: 'UserMessage',
-      content: JSON.stringify({ text: '我想用 Gemini 當主要 provider。' }),
+      content: JSON.stringify({ text: '我想用 Opencode 當主要 provider。' }),
       metadata: JSON.stringify({ user_id: 'user-a' })
     },
     {

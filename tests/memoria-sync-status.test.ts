@@ -6,14 +6,14 @@ import path from 'node:path';
 import { MemoriaSyncBridge } from '../src/core/memoria-sync.js';
 
 function withTempProject<T>(fn: (projectDir: string) => T | Promise<T>): T | Promise<T> {
-  const prevProjectDir = process.env.GEMINI_PROJECT_DIR;
+  const prevProjectDir = process.env.APP_PROJECT_DIR;
   const prevMemoriaHome = process.env.MEMORIA_HOME;
   const prevMode = process.env.MEMORIA_SYNC_ENABLED;
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'telenexus-memoria-status-'));
 
   const finalize = () => {
-    if (prevProjectDir === undefined) delete process.env.GEMINI_PROJECT_DIR;
-    else process.env.GEMINI_PROJECT_DIR = prevProjectDir;
+    if (prevProjectDir === undefined) delete process.env.APP_PROJECT_DIR;
+    else process.env.APP_PROJECT_DIR = prevProjectDir;
     if (prevMemoriaHome === undefined) delete process.env.MEMORIA_HOME;
     else process.env.MEMORIA_HOME = prevMemoriaHome;
     if (prevMode === undefined) delete process.env.MEMORIA_SYNC_ENABLED;
@@ -22,7 +22,7 @@ function withTempProject<T>(fn: (projectDir: string) => T | Promise<T>): T | Pro
   };
 
   try {
-    process.env.GEMINI_PROJECT_DIR = tempDir;
+    process.env.APP_PROJECT_DIR = tempDir;
     process.env.MEMORIA_HOME = path.join(tempDir, 'workspace', 'Memoria');
     const result = fn(tempDir);
     if (result && typeof (result as Promise<T>).then === 'function') {

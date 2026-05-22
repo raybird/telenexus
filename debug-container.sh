@@ -11,7 +11,7 @@ echo "NPM: $(npm -v)"
 echo "Python: $(python3 --version)"
 
 echo -e "\n=== Environment Variables ==="
-env | grep -E "NODE_|GEMINI_|DB_|AI_|TELEGRAM_" || true
+env | grep -E "NODE_|APP_|DB_|AI_|TELEGRAM_" || true
 
 echo -e "\n=== Network Check ==="
 curl -I https://www.google.com 2>/dev/null | head -n 1 || echo "No internet access?"

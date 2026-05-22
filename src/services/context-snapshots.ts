@@ -41,7 +41,7 @@ export function writeContextSnapshots(
       `- Runner Cooldown (ms): ${process.env.RUNNER_COOLDOWN_MS || '60000'}`,
       `- DB_PATH: ${process.env.DB_PATH || '(auto-resolved)'}`,
       `- DB_DIR: ${process.env.DB_DIR || '(not set)'}`,
-      `- APP_PROJECT_DIR: ${process.env.APP_PROJECT_DIR || process.env.GEMINI_PROJECT_DIR || process.cwd()}`
+      `- APP_PROJECT_DIR: ${process.env.APP_PROJECT_DIR || process.cwd()}`
     ].join('\n');
 
     const providerStatus = [

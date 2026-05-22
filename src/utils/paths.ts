@@ -4,11 +4,7 @@
 import path from 'path';
 
 export function resolveProjectDir(): string {
-  return (
-    process.env.APP_PROJECT_DIR?.trim() ||
-    process.env.GEMINI_PROJECT_DIR?.trim() ||
-    process.cwd()
-  );
+  return process.env.APP_PROJECT_DIR?.trim() || process.cwd();
 }
 
 export function resolveDataDir(): string {

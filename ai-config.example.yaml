@@ -1,11 +1,11 @@
 # AI Provider Configuration Example
 # Copy this file to ai-config.yaml and customize
 
-# Provider options: gemini, opencode
-provider: gemini
+# Provider options: opencode
+provider: opencode
 
 # Optional: Specify model
-# model: gemini-2.0-flash-exp
+# model: nvidia/minimaxai/minimax-m2.7
 
 # Slash commands to passthrough directly to CLI/Agent
 # Defaults are shown explicitly here for clarity

@@ -143,7 +143,7 @@ program
   .description('Update impact level and tags for a summarized memory by message ID')
   .argument('<id>', 'Message ID')
   .requiredOption('-i, --impact <number>', 'Impact level (1-3)')
-  .option('-t, --tags <tags>', 'Comma-separated tags, e.g. gemini,runner,release')
+  .option('-t, --tags <tags>', 'Comma-separated tags, e.g. opencode,runner,release')
   .option('-s, --summary <summary>', 'Override summary text')
   .action((id, options) => {
     try {

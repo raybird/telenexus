@@ -18,14 +18,14 @@ import type { MemoriaSyncStatus } from '../src/core/memoria-sync.js';
 function withTempProject<T>(fn: (projectDir: string) => T): T {
   const prevCwd = process.cwd();
   const prevDbPath = process.env.DB_PATH;
-  const prevProjectDir = process.env.GEMINI_PROJECT_DIR;
+  const prevProjectDir = process.env.APP_PROJECT_DIR;
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'telenexus-context-snapshots-'));
   const dbPath = path.join(tempDir, 'test.db');
 
   fs.mkdirSync(path.join(tempDir, 'workspace', 'context'), { recursive: true });
   process.chdir(tempDir);
   process.env.DB_PATH = dbPath;
-  process.env.GEMINI_PROJECT_DIR = tempDir;
+  process.env.APP_PROJECT_DIR = tempDir;
 
   try {
     clearPromptSessionTraces();
@@ -37,8 +37,8 @@ function withTempProject<T>(fn: (projectDir: string) => T): T {
     process.chdir(prevCwd);
     if (prevDbPath === undefined) delete process.env.DB_PATH;
     else process.env.DB_PATH = prevDbPath;
-    if (prevProjectDir === undefined) delete process.env.GEMINI_PROJECT_DIR;
-    else process.env.GEMINI_PROJECT_DIR = prevProjectDir;
+    if (prevProjectDir === undefined) delete process.env.APP_PROJECT_DIR;
+    else process.env.APP_PROJECT_DIR = prevProjectDir;
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
 }

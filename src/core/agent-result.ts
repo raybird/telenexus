@@ -1,4 +1,4 @@
-export type AgentProvider = 'gemini' | 'opencode' | 'codex';
+export type AgentProvider = 'opencode';
 
 export type AgentStructuredResult = {
   text: string;

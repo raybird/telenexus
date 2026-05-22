@@ -1,11 +1,9 @@
 # AI Provider Configuration
-# Options: gemini, opencode
+# Options: opencode
 provider: opencode
 
 # Optional: Specify model
 # Examples:
-#   model: gemini-2.0-flash-exp
-#   model: google/gemini-2.0-flash
 #   model: nvidia/moonshotai/kimi-k2.6
 model: nvidia/minimaxai/minimax-m2.7
 #model: nvidia/nvidia/nemotron-3-super-120b-a12b

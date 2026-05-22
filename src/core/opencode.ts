@@ -216,8 +216,8 @@ export class OpencodeAgent extends CliAgentBase {
   }
 
   private getWorkspacePath(): string {
-    return process.env.GEMINI_PROJECT_DIR
-      ? `${process.env.GEMINI_PROJECT_DIR}/workspace`
+    return process.env.APP_PROJECT_DIR
+      ? `${process.env.APP_PROJECT_DIR}/workspace`
       : 'workspace';
   }
 

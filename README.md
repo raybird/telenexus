@@ -17,7 +17,7 @@
 
 > 您的私人本地 AI 助理閘道器（Telegram -> Local CLI Agent）
 
-TeleNexus 讓您用 Telegram 控制本機 AI CLI（Gemini / Opencode），並提供排程、記憶、觀測與 runner 架構。
+TeleNexus 讓您用 Telegram 控制本機 AI CLI（Opencode），並提供排程、記憶、觀測與 runner 架構。
 
 它不是單純把 Telegram 接到模型，而是把「本地 CLI 能力、長對話記憶、排程、自動化治理、可觀測性」整合成一個可長期運作的個人 AI 控制平面。
 
@@ -64,7 +64,7 @@ TeleNexus 適合想要把 AI 當成「長期可治理的本地代理人」而不
 
 - 內建 `Summary-Aware Retrieval (SAR)`，不是只抓最近幾筆訊息。
 - 會把近期對話、核心決策回顧、相關歷史摘要一起整理進 prompt。
-- 對 `release`、`gemini`、`scheduler`、`web chat history` 這類已治理過的規則，命中穩定性更高。
+- 對 `release`、`opencode`、`scheduler`、`web chat history` 這類已治理過的規則，命中穩定性更高。
 
 ### 3) 記憶治理不是黑盒
 
@@ -105,7 +105,7 @@ TeleNexus 適合想要把 AI 當成「長期可治理的本地代理人」而不
 
 - `telenexus`：主協調服務，負責對話、記憶、排程、觀測
 - `agent-runner`：承接 CLI 執行脈絡，降低 session 斷裂
-- 動態 provider：可在 Gemini / Opencode 間切換
+- AI 後端：以 Opencode CLI 作為唯一執行後端
 
 ### 記憶層
 
@@ -129,14 +129,13 @@ flowchart TD
     A[Telegram / Web Console] --> B[TeleNexus Core]
     B --> C[Memory Manager]
     B --> D[Scheduler]
-    B --> E[Provider Router]
+    B --> E[AI Backend]
     B --> F[Agent Runner]
     C --> C1[Recent Conversation]
     C --> C2[SAR Anchors]
     C --> C3[Semantic Summaries]
     D --> D1[Add / Update / Reload / Health]
-    E --> E1[Gemini]
-    E --> E2[Opencode]
+    E --> E1[Opencode]
     F --> F1[CLI Session Continuity]
     F --> F2[Tool Execution Context]
 ```
@@ -203,7 +202,7 @@ docker compose logs -f telenexus
 ## 你會得到什麼
 
 - 單人白名單模型（`ALLOWED_USER_ID`）
-- 動態 provider（Gemini / Opencode，`ai-config.yaml` 控制）
+- Opencode CLI 後端（`ai-config.yaml` 控制 model 等設定）
 - 排程系統（新增、刪除、重載、健康檢查）
 - 雙服務標準架構（`telenexus` + `agent-runner`）
 - `Summary-Aware Retrieval (SAR)` 記憶檢索與 canonical anchors
@@ -239,9 +238,6 @@ docker compose exec telenexus node -e "fetch('http://agent-runner:8787/health').
 - 若要人工除錯並接續同一條 CLI context，請優先進 `agent-runner`
 
 ```bash
-# Gemini（接續 session）
-docker compose exec agent-runner sh -lc "cd /app/workspace && gemini -r"
-
 # Opencode（接續 session）
 docker compose exec agent-runner sh -lc "cd /app/workspace && opencode run -c"
 ```

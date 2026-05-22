@@ -38,6 +38,7 @@ workspace/projects/*
 /.agent/
 /.codex/
 /.opencode/
+/.gemini/
 
 data/
 

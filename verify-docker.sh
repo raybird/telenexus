@@ -19,41 +19,22 @@ docker compose run --rm telenexus bash --version | head -1
 echo "✅ bash is available"
 echo ""
 
-# Test 3: Check .gemini directory and hooks
-echo "3️⃣ Checking .gemini hooks..."
-docker compose run --rm telenexus ls -la /app/workspace/.gemini/hooks/
-echo "✅ .gemini hooks are present"
-echo ""
-
-# Test 4: Check hook script permissions
-echo "4️⃣ Verifying hook script permissions..."
-docker compose run --rm telenexus stat -c '%a %n' /app/workspace/.gemini/hooks/retrieve-memory.sh
-echo "✅ retrieve-memory.sh is executable"
-echo ""
-
-# Test 5: Check environment variables
-echo "5️⃣ Checking environment variables..."
-docker compose run --rm telenexus bash -c 'echo "GEMINI_PROJECT_DIR=$GEMINI_PROJECT_DIR"'
+# Test 3: Check environment variables
+echo "3️⃣ Checking environment variables..."
+docker compose run --rm telenexus bash -c 'echo "APP_PROJECT_DIR=$APP_PROJECT_DIR"'
 docker compose run --rm telenexus bash -c 'echo "DB_DIR=$DB_DIR"'
 docker compose run --rm telenexus bash -c 'echo "DB_PATH=$DB_PATH"'
 echo "✅ Environment variables are set"
 echo ""
 
-# Test 6: Test Hook script execution
-echo "6️⃣ Testing retrieve-memory.sh Hook..."
-docker compose run --rm telenexus bash -c \
-  'GEMINI_PROJECT_DIR=/app echo "{\"prompt\": \"TeleGem\"}" | /app/workspace/.gemini/hooks/retrieve-memory.sh'
-echo "✅ Hook script executes successfully"
-echo ""
-
-# Test 7: Check volume mounting
-echo "7️⃣ Verifying volume mounting..."
+# Test 4: Check volume mounting
+echo "4️⃣ Verifying volume mounting..."
 docker compose run --rm telenexus ls -la /app/data/
 echo "✅ /app/data volume is mounted"
 echo ""
 
-# Test 8: Check context snapshots and CLI visibility
-echo "8️⃣ Verifying context snapshots and CLI access..."
+# Test 5: Check context snapshots and CLI visibility
+echo "5️⃣ Verifying context snapshots and CLI access..."
 docker compose run --rm telenexus ls -la /app/workspace/context/
 docker compose run --rm telenexus test -f /app/workspace/context/runtime-status.md
 docker compose run --rm telenexus test -f /app/workspace/context/provider-status.md
