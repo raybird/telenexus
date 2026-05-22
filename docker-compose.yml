@@ -52,6 +52,10 @@ services:
       CHAT_USE_RUNNER_ONLY_USERS: ${CHAT_USE_RUNNER_ONLY_USERS:-}
       RUNNER_FAILURE_THRESHOLD: ${RUNNER_FAILURE_THRESHOLD:-3}
       RUNNER_COOLDOWN_MS: ${RUNNER_COOLDOWN_MS:-60000}
+      MEMORIA_RECALL_ENABLED: ${MEMORIA_RECALL_ENABLED:-auto}
+      MEMORIA_ENDPOINT: ${MEMORIA_ENDPOINT:-http://memoria:3917}
+      MEMORIA_RECALL_TIMEOUT_MS: ${MEMORIA_RECALL_TIMEOUT_MS:-1500}
+      MEMORIA_RECALL_TOP_K: ${MEMORIA_RECALL_TOP_K:-5}
     ports:
       - ${WEB_PORT:-3030}:${WEB_PORT:-3030}
     healthcheck:
@@ -70,6 +74,23 @@ services:
     command: [ 'node', 'dist/runner.js' ]
     healthcheck:
       test: [ 'CMD', 'node', '-e', "fetch('http://127.0.0.1:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  memoria:
+    build:
+      context: ./workspace/Memoria
+    environment:
+      MEMORIA_HOME: /app/data
+      MEMORIA_PORT: 3917
+    command: ['node', 'dist/cli.mjs', 'serve']
+    volumes:
+      - ./workspace/Memoria:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: [ 'CMD', 'node', '-e', "fetch('http://127.0.0.1:3917/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
       interval: 30s
       timeout: 5s
       retries: 3
