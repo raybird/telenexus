@@ -8,6 +8,9 @@ import { OpencodeAgent } from './core/opencode.js';
 import type { AgentEvent, AgentStructuredResult } from './core/agent-result.js';
 import { safeCompare } from './utils/crypto.js';
 import { resolveProjectDir } from './utils/paths.js';
+import { createLogger } from './core/logger.js';
+
+const logger = createLogger('Runner');
 
 dotenv.config();
 
@@ -19,6 +22,7 @@ type RunnerRequest = {
   input?: string;
   provider?: Provider;
   model?: string;
+  requestId?: string;
   isPassthroughCommand?: boolean;
   forceNewSession?: boolean;
   autoRecoveryNotice?: boolean;
@@ -91,7 +95,7 @@ function appendAuditLine(payload: Record<string, unknown>): void {
     fs.mkdirSync(path.dirname(auditPath), { recursive: true });
     fs.appendFileSync(auditPath, `${JSON.stringify(payload)}\n`, 'utf8');
   } catch (error) {
-    console.warn('[Runner] Failed to write audit log:', error);
+    logger.warn('audit_write_failed', { err: error instanceof Error ? error.message : String(error) });
   }
 }
 
@@ -190,7 +194,7 @@ function writeRunnerStatus(): void {
 
     fs.writeFileSync(statusPath, lines.join('\n'), 'utf8');
   } catch (error) {
-    console.warn('[Runner] Failed to write runner status:', error);
+    logger.warn('status_write_failed', { err: error instanceof Error ? error.message : String(error) });
   }
 }
 
@@ -428,7 +432,8 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'POST' && req.url === '/run') {
-    const requestId = randomUUID();
+    const callerRequestId = typeof req.headers['x-request-id'] === 'string' ? req.headers['x-request-id'].trim() : '';
+    const requestId = callerRequestId || randomUUID();
     const startedAt = Date.now();
 
     try {
@@ -517,7 +522,8 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'POST' && req.url === '/run/stream') {
-    const requestId = randomUUID();
+    const callerRequestId = typeof req.headers['x-request-id'] === 'string' ? req.headers['x-request-id'].trim() : '';
+    const requestId = callerRequestId || randomUUID();
     const startedAt = Date.now();
 
     try {
@@ -655,5 +661,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(port, '0.0.0.0', () => {
   writeRunnerStatus();
-  console.log(`[Runner] agent-runner listening on :${port}`);
+  logger.info('listening', { port });
 });

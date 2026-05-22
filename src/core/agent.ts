@@ -5,9 +5,13 @@ import yaml from 'js-yaml';
 import { OpencodeAgent } from './opencode.js';
 import type { AgentEvent, AgentStructuredResult } from './agent-result.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
+import { createLogger } from './logger.js';
+
+const logger = createLogger('DynamicAgent');
 
 export interface AIAgentOptions {
   model?: string;
+  requestId?: string;
   isPassthroughCommand?: boolean;
   forceNewSession?: boolean;
   autoRecoveryNotice?: boolean;
@@ -21,6 +25,7 @@ interface RunnerRequest {
   input: string;
   provider: string;
   model?: string;
+  requestId?: string;
   isPassthroughCommand?: boolean;
   forceNewSession?: boolean;
   autoRecoveryNotice?: boolean;
@@ -111,9 +116,7 @@ export class DynamicAIAgent implements AIAgent {
         'runner:circuit-open',
         `opened for ${this.runnerCooldownMs}ms after ${this.runnerFailureThreshold} failures`
       );
-      console.warn(
-        `[DynamicAgent] Runner circuit opened for ${this.runnerCooldownMs}ms after ${this.consecutiveRunnerFailures} failures. Last error: ${errorMessage}`
-      );
+      logger.warn('circuit_open', { cooldownMs: this.runnerCooldownMs, failures: this.consecutiveRunnerFailures, lastErr: errorMessage });
       this.consecutiveRunnerFailures = 0;
     }
   }
@@ -137,6 +140,9 @@ export class DynamicAIAgent implements AIAgent {
     };
     if (this.runnerToken) {
       headers['x-runner-token'] = this.runnerToken;
+    }
+    if (payload.requestId) {
+      headers['x-request-id'] = payload.requestId;
     }
 
     try {
@@ -207,6 +213,9 @@ export class DynamicAIAgent implements AIAgent {
     };
     if (this.runnerToken) {
       headers['x-runner-token'] = this.runnerToken;
+    }
+    if (payload.requestId) {
+      headers['x-request-id'] = payload.requestId;
     }
 
     try {
@@ -366,6 +375,7 @@ export class DynamicAIAgent implements AIAgent {
           task: 'chat',
           input: normalizedInput,
           provider,
+          ...(mergedOptions.requestId ? { requestId: mergedOptions.requestId } : {}),
           ...(mergedOptions.isPassthroughCommand ? { isPassthroughCommand: true } : {}),
           ...(mergedOptions.forceNewSession ? { forceNewSession: true } : {}),
           ...(mergedOptions.autoRecoveryNotice ? { autoRecoveryNotice: true } : {})
@@ -434,17 +444,15 @@ export class DynamicAIAgent implements AIAgent {
     const autoRecoveryNotice = options?.autoRecoveryNotice === true;
     const normalizedInput = this.normalizePassthroughInput(input, isPassthrough);
     if (isPassthrough) {
-      console.log('[DynamicAgent] Passthrough command detected.');
+      logger.info('passthrough_detected');
     }
 
-    console.log(
-      `[DynamicAgent] Provider: ${provider}, Model: ${model || 'default'}, PreferRunner: ${this.preferRunner}`
-    );
+    logger.info('execute', { provider, model: model || 'default', preferRunner: this.preferRunner });
 
     if (this.preferRunner && this.runnerEndpoint) {
       if (this.isRunnerCircuitOpen()) {
         const remainingMs = this.runnerOpenUntil - Date.now();
-        console.warn(`[DynamicAgent] Runner circuit open, skip runner for ${remainingMs}ms.`);
+        logger.warn('circuit_skip', { remainingMs });
         recordRuntimeIssue('runner:circuit-open', `skip runner for ${remainingMs}ms`);
         if (!this.fallbackToLocal) {
           return `Error calling runner: circuit open (${remainingMs}ms remaining)`;
@@ -456,6 +464,7 @@ export class DynamicAIAgent implements AIAgent {
         task,
         input: normalizedInput,
         provider,
+        ...(mergedOptions.requestId ? { requestId: mergedOptions.requestId } : {}),
         ...(isPassthrough ? { isPassthroughCommand: true } : {}),
         ...(forceNewSession ? { forceNewSession: true } : {}),
         ...(autoRecoveryNotice ? { autoRecoveryNotice: true } : {})
@@ -468,12 +477,10 @@ export class DynamicAIAgent implements AIAgent {
 
       if (runnerResult.ok && runnerResult.output) {
         this.markRunnerSuccess();
-        const runnerMeta = runnerResult.requestId ? ` requestId=${runnerResult.requestId}` : '';
-        const durationMeta =
-          typeof runnerResult.durationMs === 'number'
-            ? ` duration=${runnerResult.durationMs}ms`
-            : '';
-        console.log(`[DynamicAgent] Runner success.${runnerMeta}${durationMeta}`);
+        logger.info('runner_success', {
+          requestId: runnerResult.requestId,
+          durationMs: runnerResult.durationMs
+        });
         const outputText = runnerResult.structured?.text || runnerResult.output;
         if (task === 'chat') {
           return `[Opencode] ${outputText}`;
@@ -483,11 +490,11 @@ export class DynamicAIAgent implements AIAgent {
 
       const errorMessage = runnerResult.error || 'Unknown runner error';
       this.markRunnerFailure(errorMessage);
-      console.warn(`[DynamicAgent] Runner failed: ${errorMessage}`);
+      logger.warn('runner_failed', { err: errorMessage });
       if (!this.fallbackToLocal) {
         return `Error calling runner: ${errorMessage}`;
       }
-      console.log('[DynamicAgent] Falling back to local execution...');
+      logger.info('fallback');
     }
 
     return this.executeLocal(task, normalizedInput, mergedOptions);
@@ -511,7 +518,7 @@ export class DynamicAIAgent implements AIAgent {
 
     if (cmd === '/compress') {
       const rewritten = ['/compact', ...parts.slice(1)].join(' ');
-      console.log('[DynamicAgent] Rewriting passthrough command /compress -> /compact for opencode.');
+      logger.info('rewrite_compress');
       return rewritten;
     }
 

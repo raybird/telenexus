@@ -7,6 +7,9 @@ import { ProcessError, runProcess } from './process-runner.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
 import { CliAgentBase, type CliAgentConfig, type CliStreamParse } from './cli-agent-base.js';
 import { getOpencodeTaskTimeoutMs } from '../config/timeouts.js';
+import { createLogger } from './logger.js';
+
+const logger = createLogger('Opencode');
 
 type OpencodeEvent = {
   type?: string;
@@ -170,15 +173,11 @@ export class OpencodeAgent extends CliAgentBase {
     const verbose = this.isVerboseStderrEnabled();
     const errorLike = this.hasErrorLikeStderr(stderr);
     if (verbose || errorLike) {
-      console.log(
-        `[Opencode ${scope}] stderr (len=${stderr.length}):\n${stderr.substring(0, 2000)}`
-      );
+      logger.info('stderr', { scope, len: stderr.length, text: stderr.substring(0, 2000) });
       return;
     }
 
-    console.log(
-      `[Opencode ${scope}] stderr summary: ${this.summarizeStderr(stderr)} (len=${stderr.length})`
-    );
+    logger.info('stderr_summary', { scope, summary: this.summarizeStderr(stderr), len: stderr.length });
   }
 
   /**
@@ -230,19 +229,13 @@ export class OpencodeAgent extends CliAgentBase {
     const isPassthrough = options?.isPassthroughCommand === true;
     const args = this.buildChatArgs(options, 'json');
     if (isPassthrough) {
-      console.log('[Opencode] Passthrough command detected, sending raw command to CLI.');
+      logger.info('passthrough_detected');
     }
-    if (options?.model) {
-      console.log(`[Opencode] Executing with model: ${options.model}`);
-    } else {
-      console.log(`[Opencode] Executing (default model)`);
-    }
+    logger.info('execute', { model: options?.model || 'default' });
 
     const workspacePath = this.getWorkspacePath();
     const argsWithPrompt = [...args, prompt];
-    console.log(`[Opencode] Command: opencode ${args.join(' ')} <prompt>`);
-    console.log(`[Opencode] Working directory: ${workspacePath}`);
-    console.log(`[Opencode] Starting execution...`);
+    logger.info('start', { cmd: `opencode ${args.join(' ')} <prompt>`, cwd: workspacePath });
 
     return runProcess('opencode', argsWithPrompt, {
       timeoutMs: getOpencodeTaskTimeoutMs(),
@@ -318,7 +311,7 @@ ${text}
         args.push('--model', options.model);
       }
 
-      console.log(`[Opencode Summarize] Starting...`);
+      logger.info('summarize_start');
       const { stdout, stderr } = await runProcess('opencode', [...args, prompt]);
 
       this.logStderr('Summarize', stderr);
@@ -333,8 +326,7 @@ ${text}
       return cleaned || '(摘要失敗)';
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error('[Opencode] Summarization failed:', message);
-      // Fallback: 截斷原文
+      logger.error('summarize_failed', { err: message });
       return text.substring(0, 200) + '...';
     }
   }
@@ -343,40 +335,33 @@ ${text}
     try {
       const { stdout, stderr } = await this.executeChatProcess(prompt, options);
 
-      console.log(`[Opencode] Execution completed. Output length: ${stdout.length}`);
+      logger.info('done', { outputLen: stdout.length });
       this.logStderr('Chat', stderr);
 
       const structured = this.toStructuredResult(stdout, options);
       if (!structured.text || structured.text.length === 0) {
-        console.warn('[Opencode] Warning: No output after parsing/cleaning');
-        console.log(`[Opencode] Raw stdout:\n${stdout.substring(0, 500)}...`);
+        logger.warn('no_output', { rawStdout: stdout.substring(0, 500) });
         return buildTextOnlyStructuredResult(
           'opencode',
           'Opencode 執行完成,但沒有返回任何文字內容。'
         );
       }
 
-      console.log(`[Opencode] Reply length: ${structured.text.length}`);
+      logger.info('reply', { len: structured.text.length });
       return structured;
     } catch (error: unknown) {
       const isProcessError = error instanceof ProcessError;
       const message = error instanceof Error ? error.message : String(error);
-      const stack = error instanceof Error ? error.stack : undefined;
-      console.error('[Opencode] Execution failed:');
-      console.error(`  Message: ${message}`);
-      console.error(`  Code: ${isProcessError ? error.code : undefined}`);
-      console.error(`  Signal: ${isProcessError ? error.signal : undefined}`);
-      console.error(`  Stack: ${stack}`);
-
-      if (isProcessError && error.stdout) {
-        console.error(`  Stdout: ${error.stdout.substring(0, 500)}`);
-      }
-      if (isProcessError && error.stderr) {
-        console.error(`  Stderr: ${error.stderr.substring(0, 500)}`);
-      }
+      logger.error('execution_failed', {
+        err: message,
+        code: isProcessError ? String(error.code) : undefined,
+        signal: isProcessError ? error.signal : undefined,
+        stdout: isProcessError && error.stdout ? error.stdout.substring(0, 500) : undefined,
+        stderr: isProcessError && error.stderr ? error.stderr.substring(0, 500) : undefined
+      });
 
       if (isProcessError && error.code === 'ERATELIMIT') {
-        console.warn('[Opencode] Fail-fast on upstream 429 (rate limit).');
+        logger.warn('rate_limit');
         recordRuntimeIssue('opencode:rate-limit', error);
         return buildTextOnlyStructuredResult(
           'opencode',
