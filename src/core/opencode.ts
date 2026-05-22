@@ -6,6 +6,7 @@ import {
 import { ProcessError, runProcess } from './process-runner.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
 import { CliAgentBase, type CliAgentConfig, type CliStreamParse } from './cli-agent-base.js';
+import { getOpencodeTaskTimeoutMs } from '../config/timeouts.js';
 
 type OpencodeEvent = {
   type?: string;
@@ -98,7 +99,8 @@ export class OpencodeAgent extends CliAgentBase {
     binary: 'opencode',
     rateLimitPattern: OPENCODE_RATE_LIMIT_PATTERN,
     rateLimitMessage: OPENCODE_RATE_LIMIT_MESSAGE,
-    timeoutMessage: OPENCODE_TIMEOUT_MESSAGE
+    timeoutMessage: OPENCODE_TIMEOUT_MESSAGE,
+    streamTimeoutMs: getOpencodeTaskTimeoutMs()
   };
 
   protected override getCwd(): string {
@@ -243,7 +245,7 @@ export class OpencodeAgent extends CliAgentBase {
     console.log(`[Opencode] Starting execution...`);
 
     return runProcess('opencode', argsWithPrompt, {
-      timeoutMs: 1800000,
+      timeoutMs: getOpencodeTaskTimeoutMs(),
       cwd: workspacePath,
       env: {
         ...process.env

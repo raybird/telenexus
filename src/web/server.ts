@@ -1789,6 +1789,8 @@ export function startWebServer(options: WebServerOptions): WebServerHandle {
     writeContextSnapshots: options.writeContextSnapshots
   });
 
+  const activeSseStreams = new Set<http.ServerResponse>();
+
   const server = http.createServer(async (req, res) => {
     if (!req.url) {
       sendJson(res, 400, { ok: false, error: 'Missing URL' });
@@ -1916,10 +1918,12 @@ export function startWebServer(options: WebServerOptions): WebServerHandle {
 
     if (req.method === 'POST' && url.pathname === '/api/chat/stream') {
       let keepalive: NodeJS.Timeout | null = null;
+      activeSseStreams.add(res);
       try {
         const parsed = await readJsonBody<{ message?: string }>(req);
         const message = parsed.message?.trim() || '';
         if (!message) {
+          activeSseStreams.delete(res);
           sendJson(res, 400, { ok: false, error: 'message is required' });
           return;
         }
@@ -1987,6 +1991,7 @@ export function startWebServer(options: WebServerOptions): WebServerHandle {
           // ignore stream write failures
         }
       } finally {
+        activeSseStreams.delete(res);
         if (keepalive) {
           clearInterval(keepalive);
         }
@@ -2091,10 +2096,12 @@ export function startWebServer(options: WebServerOptions): WebServerHandle {
       let monitor: NodeJS.Timeout | null = null;
       let keepalive: NodeJS.Timeout | null = null;
       let closed = false;
+      activeSseStreams.add(res);
 
       const closeStream = () => {
         if (closed) return;
         closed = true;
+        activeSseStreams.delete(res);
         if (monitor) {
           clearInterval(monitor);
           monitor = null;
@@ -2343,6 +2350,14 @@ export function startWebServer(options: WebServerOptions): WebServerHandle {
 
   return {
     close: async () => {
+      for (const sseRes of activeSseStreams) {
+        try {
+          sseRes.end();
+        } catch {
+          // ignore
+        }
+      }
+      activeSseStreams.clear();
       await new Promise<void>((resolve) => {
         server.close(() => resolve());
       });

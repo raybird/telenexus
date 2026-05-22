@@ -8,7 +8,7 @@ import { createMessagePipeline } from './core/message-pipeline.js';
 import { Scheduler } from './core/scheduler.js';
 import { startWebServer } from './web/server.js';
 import { parseBool, parsePositiveInt, parseNumber } from './utils/env.js';
-import { loadChatPromptConfig } from './config/ai-config.js';
+import { loadChatPromptConfig, validateAiConfig } from './config/ai-config.js';
 import { shouldSummarize, buildMemoryContext, buildChatPrompt } from './prompt/builder.js';
 import { recordRuntimeIssue } from './utils/errors.js';
 import { writeContextSnapshots, writeSchedulerHealth } from './services/context-snapshots.js';
@@ -110,11 +110,17 @@ async function bootstrap() {
     process.exit(1);
   }
 
+  validateAiConfig();
+
   // 初始化元件
   const telegram = new TelegramConnector(TELEGRAM_TOKEN, [ALLOWED_USER_ID]);
   const userAgent = new DynamicAIAgent();
   const runnerEndpoint = process.env.RUNNER_ENDPOINT?.trim();
   const runnerToken = process.env.RUNNER_SHARED_SECRET?.trim();
+
+  if (runnerEndpoint && !runnerToken) {
+    console.warn('[Security] RUNNER_ENDPOINT 已設定但 RUNNER_SHARED_SECRET 為空,Runner 通訊未受保護。');
+  }
   const runnerFailureThreshold = getRunnerFailureThreshold();
   const runnerCooldownMs = getRunnerCooldownMs();
   const runnerRequestTimeoutMs = getRunnerRequestTimeoutMs();
@@ -171,6 +177,10 @@ async function bootstrap() {
   const webHost = getWebBindHost();
   const webPort = getWebPort();
   const webAuthToken = process.env.WEB_AUTH_TOKEN?.trim();
+
+  if (webEnabled && !webAuthToken) {
+    console.warn('[Security] Web Console 已啟用但 WEB_AUTH_TOKEN 未設定,任何人均可存取 Web UI。');
+  }
   const webUserId = process.env.WEB_USER_ID?.trim() || ALLOWED_USER_ID;
   const webTrustPrivateNetwork = getWebTrustPrivateNetwork();
   const webAlertErrorThreshold = getWebAlertErrorThreshold();

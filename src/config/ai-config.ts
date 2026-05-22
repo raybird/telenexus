@@ -4,6 +4,7 @@
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
+import { recordRuntimeIssue } from '../utils/errors.js';
 
 export type ChatPromptConfig = {
   language: string;
@@ -120,5 +121,31 @@ export function loadProviderStatus(): { provider: string; model: string; timezon
       model: 'default',
       timezone: process.env.TZ || 'Asia/Taipei'
     };
+  }
+}
+
+const VALID_PROVIDERS = new Set(['opencode']);
+
+export function validateAiConfig(): void {
+  const raw = loadAiConfigRaw();
+  if (!raw) return;
+
+  const warnings: string[] = [];
+
+  if (raw.provider !== undefined && !VALID_PROVIDERS.has(String(raw.provider))) {
+    warnings.push(`provider "${String(raw.provider)}" 不在支援清單 [${[...VALID_PROVIDERS].join(', ')}]`);
+  }
+
+  if (raw.model !== undefined && (typeof raw.model !== 'string' || raw.model.trim() === '')) {
+    warnings.push(`model 欄位必須為非空字串,目前值: ${JSON.stringify(raw.model)}`);
+  }
+
+  if (raw.chat_prompt !== undefined && (typeof raw.chat_prompt !== 'object' || raw.chat_prompt === null || Array.isArray(raw.chat_prompt))) {
+    warnings.push(`chat_prompt 欄位必須為物件,目前型別: ${typeof raw.chat_prompt}`);
+  }
+
+  for (const msg of warnings) {
+    console.warn(`[Config] ai-config.yaml 驗證警告: ${msg}`);
+    recordRuntimeIssue('config:invalid', new Error(msg));
   }
 }
