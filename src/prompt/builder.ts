@@ -158,8 +158,10 @@ function getAnchorCandidates(memory: MemoryManager, userId: string): SummaryMess
     SAR_PROMPT_POLICY.canonicalCandidateLimit,
     3
   );
+  // 時間視窗 fallback：所有 impact_level=3 規則不因老化而遺失
+  const allCanonicals = memory.getAllCanonicalSummaries(userId);
   const fallbackAnchors = recentAnchors.length > 0 ? [] : memory.getRecentSummaries(userId, 20, 1);
-  return mergeUniqueSummaries(canonicalAnchors, recentAnchors, fallbackAnchors);
+  return mergeUniqueSummaries(allCanonicals, canonicalAnchors, recentAnchors, fallbackAnchors);
 }
 
 function selectCausalAnchors(
@@ -347,7 +349,7 @@ function applyContextBudget(
     }
   };
 
-  const trimOrder = ['【相關歷史摘要】', '【核心決策回顧】', '【近期對話】'];
+  const trimOrder = ['【相關歷史摘要】', '【近期對話】', '【核心決策回顧】'];
   for (const sectionTitle of trimOrder) {
     while (trimSectionToMinimum(sectionTitle)) {
       result = renderSections(mutableSections);
