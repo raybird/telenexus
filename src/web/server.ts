@@ -40,7 +40,7 @@ type WebServerOptions = {
     userMessage: string,
     userId: string,
     mode?: PromptMode
-  ) => string | PromptBuildResult;
+  ) => Promise<string | PromptBuildResult> | string | PromptBuildResult;
   enqueueMemoriaSync?: (turn: MemoriaSyncTurn) => void;
   recordRuntimeIssue: (scope: string, error: unknown) => void;
   writeContextSnapshots: () => void;

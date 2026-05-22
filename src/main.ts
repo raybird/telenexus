@@ -9,7 +9,8 @@ import { Scheduler } from './core/scheduler.js';
 import { startWebServer } from './web/server.js';
 import { parseBool, parsePositiveInt, parseNumber } from './utils/env.js';
 import { loadChatPromptConfig, validateAiConfig } from './config/ai-config.js';
-import { shouldSummarize, buildMemoryContext, buildChatPrompt } from './prompt/builder.js';
+import { shouldSummarize, buildMemoryContextAsync, buildChatPrompt } from './prompt/builder.js';
+import { getMemoriaRecallClient } from './core/memoria-recall.js';
 import { recordRuntimeIssue } from './utils/errors.js';
 import { writeContextSnapshots, writeSchedulerHealth } from './services/context-snapshots.js';
 import { MemoryBackfillWorker } from './services/memory-backfill-worker.js';
@@ -186,14 +187,21 @@ async function bootstrap() {
   const webAlertErrorThreshold = getWebAlertErrorThreshold();
   const webAlertRunnerSuccessWarnThreshold = getWebAlertRunnerSuccessWarnThreshold();
 
-  const buildPromptFn = (
+  const memoriaRecallClient = getMemoriaRecallClient();
+
+  const buildPromptFn = async (
     userMessage: string,
     userId: string,
     mode: PromptMode = 'full'
-  ): PromptBuildResult => {
+  ): Promise<PromptBuildResult> => {
     const promptConfig = loadChatPromptConfig();
     const memoryContext = shouldIncludeMemoryContext(mode, userMessage)
-      ? buildMemoryContext(memory, userId, userMessage)
+      ? await buildMemoryContextAsync(
+          memory,
+          userId,
+          userMessage,
+          memoriaRecallClient ? (q, s) => memoriaRecallClient.recall(q, s) : null
+        )
       : '';
     const memoriaStatus = memoriaSync.getStatus();
     const shouldIncludeMemoriaHint =

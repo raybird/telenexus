@@ -422,6 +422,69 @@ export function buildMemoryContext(
   return [SAR_PROMPT_POLICY.memoryContextTitle, context].join('\n');
 }
 
+export type MemoriaRecallFn = (query: string, scope?: string) => Promise<string[]>;
+
+export async function buildMemoryContextAsync(
+  memory: MemoryManager,
+  userId: string,
+  userMessage: string,
+  recallFn?: MemoriaRecallFn | null
+): Promise<string> {
+  if (!recallFn) {
+    return buildMemoryContext(memory, userId, userMessage);
+  }
+
+  const keywords = applyKeywordAliases(userMessage, extractQueryKeywords(userMessage));
+  const queryTags = extractTopicTags(userMessage);
+  const recent = memory.getRecentConversation(userId, SAR_PROMPT_POLICY.recentLimit);
+  const anchorCandidates = getAnchorCandidates(memory, userId);
+  const anchors = selectCausalAnchors(anchorCandidates, queryTags, keywords);
+
+  let semanticLines: string[];
+  try {
+    const snippets = await recallFn(userMessage, `user:${userId}`);
+    if (snippets.length > 0) {
+      semanticLines = snippets
+        .slice(0, SAR_PROMPT_POLICY.semanticLimit)
+        .map((s) => `- ${truncateInline(s, SAR_PROMPT_POLICY.summaryItemCharBudget)}`);
+    } else {
+      semanticLines = buildLocalSemanticLines(memory, userId, userMessage, anchorCandidates, anchors);
+    }
+  } catch {
+    semanticLines = buildLocalSemanticLines(memory, userId, userMessage, anchorCandidates, anchors);
+  }
+
+  const context = applyContextBudget(
+    [
+      { title: '【核心決策回顧】', lines: formatSummaryItems(anchors) },
+      { title: '【相關歷史摘要】', lines: semanticLines },
+      { title: '【近期對話】', lines: formatRecentMessages(recent) }
+    ],
+    Math.max(200, SAR_PROMPT_POLICY.totalCharBudget - `${SAR_PROMPT_POLICY.memoryContextTitle}\n`.length)
+  );
+
+  if (!context.trim()) return '';
+  return [SAR_PROMPT_POLICY.memoryContextTitle, context].join('\n');
+}
+
+function buildLocalSemanticLines(
+  memory: MemoryManager,
+  userId: string,
+  userMessage: string,
+  anchorCandidates: SummaryMessage[],
+  anchors: SummaryMessage[]
+): string[] {
+  const anchorKeys = new Set(
+    anchors.map((item) => buildDedupKey(item.role, item.summary || item.content, item.timestamp))
+  );
+  const semanticCandidates = selectSemanticSummaries(memory, userId, userMessage, anchorCandidates);
+  const semantics = semanticCandidates.filter(
+    (item) =>
+      !anchorKeys.has(buildDedupKey(item.role, item.summary || item.content, item.timestamp))
+  );
+  return formatSummaryItems(semantics.slice(0, SAR_PROMPT_POLICY.semanticLimit));
+}
+
 export function buildChatPrompt(
   config: ChatPromptConfig,
   userMessage: string,

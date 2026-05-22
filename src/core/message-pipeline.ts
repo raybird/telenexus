@@ -52,7 +52,7 @@ type MessagePipelineOptions = {
     userMessage: string,
     userId: string,
     mode?: PromptMode
-  ) => string | PromptBuildResult;
+  ) => Promise<string | PromptBuildResult> | string | PromptBuildResult;
   enqueueMemoriaSync?: (turn: MemoriaSyncTurn) => void;
   recordRuntimeIssue: (scope: string, error: unknown) => void;
   writeContextSnapshots: () => void;
@@ -185,7 +185,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         shouldSummarize: options.shouldSummarize
       });
 
-      const { promptForAgent, telemetry } = preparePromptForAgent({
+      const { promptForAgent, telemetry } = await preparePromptForAgent({
         context,
         fullPromptEvery,
         fullPromptCounterByUser,

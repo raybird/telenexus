@@ -16,7 +16,7 @@ type PreparePromptOptions = {
     userMessage: string,
     userId: string,
     mode?: PromptMode
-  ) => string | PromptBuildResult;
+  ) => Promise<string | PromptBuildResult> | string | PromptBuildResult;
 };
 
 export type PromptTelemetry = {
@@ -119,10 +119,10 @@ export async function persistUserMessage(options: PersistUserMessageOptions): Pr
   );
 }
 
-export function preparePromptForAgent(options: PreparePromptOptions): {
+export async function preparePromptForAgent(options: PreparePromptOptions): Promise<{
   promptForAgent: string;
   telemetry: PromptTelemetry;
-} {
+}> {
   const { context } = options;
   let promptForAgent = context.msg.content.trim();
   let telemetry: PromptTelemetry = {
@@ -149,7 +149,7 @@ export function preparePromptForAgent(options: PreparePromptOptions): {
         ? 'minimal'
         : 'compact';
     const promptResult = normalizePromptBuildResult(
-      options.buildPrompt(context.msg.content, context.userId, promptMode),
+      await options.buildPrompt(context.msg.content, context.userId, promptMode),
       promptMode
     );
     promptForAgent = promptResult.prompt;
