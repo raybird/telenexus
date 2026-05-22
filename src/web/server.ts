@@ -13,6 +13,7 @@ import type { Scheduler } from '../core/scheduler.js';
 import type { Connector, UnifiedMessage } from '../types/index.js';
 import { safeCompare } from '../utils/crypto.js';
 import { resolveContextDir } from '../utils/paths.js';
+import { getRecentIssues } from '../utils/errors.js';
 import { collectMemoryHealthReport } from '../services/memory-health.js';
 import { getRecentMemoryBackfillReports } from '../services/memory-backfill.js';
 import type { PromptBuildResult, PromptMode } from '../core/prompt-build.js';
@@ -2337,6 +2338,53 @@ export function startWebServer(options: WebServerOptions): WebServerHandle {
         ok: true,
         snapshots,
         structured: toStructuredStatus(snapshots)
+      });
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/metrics') {
+      const now = Date.now();
+      const windowMs = 15 * 60 * 1000;
+      const cutoff = now - windowMs;
+
+      const memoryStats = options.memory.getStats(options.defaultUserId);
+      const schedules = options.memory.getUserSchedules(options.defaultUserId);
+      const activeSchedules = schedules.filter((s) => s.is_active).length;
+
+      const recentIssues = getRecentIssues().filter((i) => i.timestamp >= cutoff);
+      const errorCountByScope: Record<string, number> = {};
+      for (const issue of recentIssues) {
+        errorCountByScope[issue.scope] = (errorCountByScope[issue.scope] ?? 0) + issue.count;
+      }
+
+      let dbSizeBytes: number | null = null;
+      try {
+        const dbPath = process.env.DB_PATH;
+        if (dbPath) {
+          dbSizeBytes = fs.statSync(dbPath).size;
+        }
+      } catch {
+        // ignore — DB path not set or inaccessible
+      }
+
+      sendJson(res, 200, {
+        ok: true,
+        timestamp: now,
+        uptimeMs: now - appStartedAt,
+        memory: {
+          totalMessages: memoryStats.totalMessages,
+          lastActiveAt: memoryStats.lastActive,
+          dbSizeBytes
+        },
+        scheduler: {
+          totalSchedules: schedules.length,
+          activeSchedules
+        },
+        errors: {
+          windowMs,
+          totalInWindow: recentIssues.reduce((sum, i) => sum + i.count, 0),
+          byScope: errorCountByScope
+        }
       });
       return;
     }
