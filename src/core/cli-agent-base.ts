@@ -10,6 +10,7 @@ import {
 } from './agent-result.js';
 import { ProcessError } from './process-runner.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
+import { createLogger } from './logger.js';
 
 export type CliStreamParse = {
   sessionId?: string;
@@ -27,6 +28,8 @@ export type CliAgentConfig = {
   timeoutMessage: string;
   streamTimeoutMs?: number;
 };
+
+const logger = createLogger('CliAgent');
 
 const DEFAULT_STREAM_HEARTBEAT_MS = 20000;
 
@@ -118,6 +121,7 @@ export abstract class CliAgentBase implements AIAgent {
     let stdoutBuffer = '';
     let stderr = '';
     let aggregatedText = '';
+    let parsedLineCount = 0;
     let sessionId: string | undefined;
     let stats: Record<string, unknown> | undefined;
     let started = false;
@@ -188,6 +192,7 @@ export abstract class CliAgentBase implements AIAgent {
             if (!parsed) {
               continue;
             }
+            parsedLineCount += 1;
             if (parsed.sessionId) {
               sessionId = parsed.sessionId;
             }
@@ -319,19 +324,62 @@ export abstract class CliAgentBase implements AIAgent {
           }
 
           if (!aggregatedText.trim()) {
-            const fallback = await this.chatStructured(prompt, options);
+            const reason = parsedLineCount === 0 ? 'no_events' : 'tool_only';
+            recordRuntimeIssue(
+              `${provider}:empty-output:${reason}`,
+              new Error(`stream ended with empty output (${reason})`)
+            );
+
+            if (reason === 'tool_only') {
+              logger.warn('empty_output_follow_up', { reason });
+              const followUp = await this.chatStructured(
+                '請整理你剛才工具執行的結果並回答原問題',
+                options
+              );
+              if (!started) {
+                await emitStart();
+              }
+              if (followUp.stats !== undefined) {
+                await onEvent({ type: 'usage', stats: followUp.stats });
+              }
+              await onEvent({ type: 'done', text: followUp.text });
+              resolve(followUp);
+              return;
+            }
+
+            logger.warn('empty_output_no_events');
+            const emptyResult = buildTextOnlyStructuredResult(
+              provider,
+              'Opencode 沒有任何輸出，請重試。'
+            );
             if (!started) {
               await emitStart();
             }
-            if (fallback.stats !== undefined) {
-              await onEvent({ type: 'usage', stats: fallback.stats });
-            }
-            await onEvent({ type: 'done', text: fallback.text });
-            resolve(fallback);
+            await onEvent({ type: 'done', text: emptyResult.text });
+            resolve(emptyResult);
             return;
           }
 
+          const rawLen = aggregatedText.length;
           aggregatedText = this.cleanOutput(aggregatedText);
+          if (!aggregatedText.trim()) {
+            recordRuntimeIssue(
+              `${provider}:empty-output:text_filtered_out`,
+              new Error('stream text was entirely filtered by cleanOutput')
+            );
+            logger.warn('text_filtered_out', { rawLen, verbosePath: verbosePath ?? '(not set)' });
+            const filteredResult = buildTextOnlyStructuredResult(
+              provider,
+              '模型輸出被清洗規則濾光，已記錄原始內容。'
+            );
+            if (!started) {
+              await emitStart();
+            }
+            await onEvent({ type: 'done', text: filteredResult.text });
+            resolve(filteredResult);
+            return;
+          }
+
           if (!started) {
             await emitStart();
           }
