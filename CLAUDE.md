@@ -65,19 +65,24 @@ Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per
 
 | Path                            | Responsibility                                                                                            |
 | ------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `src/core/agent.ts`             | `AIAgent` interface, `DynamicAIAgent` proxy with runner support and circuit breaker                       |
-| `src/core/message-pipeline.ts`  | Main chat pipeline: prompt assembly, execution queue, file directives, image attachment bundling          |
-| `src/core/command-router.ts`    | Slash command registry with passthrough whitelist from `ai-config.yaml`                                   |
-| `src/core/scheduler.ts`         | Cron-based scheduling with silence-timer reflection system                                                |
-| `src/core/memory.ts`            | `MemoryManager` — SQLite-backed chat history, schedules, and full-text search                             |
-| `src/core/execution-queue.ts`   | Per-user priority queue (high/normal/low) ensuring serial execution per user                              |
-| `src/core/memoria-sync.ts`      | Background sync bridge to external Memoria CLI for long-term knowledge                                    |
-| `src/core/opencode.ts`          | Wraps `opencode run` subprocess calls; fail-fast on upstream 429 via stderr abort pattern                 |
-| `src/services/error-alerter.ts` | Sliding-window error alerter; pushes Telegram message to `ALLOWED_USER_ID` when a scope crosses threshold |
-| `src/services/issue-store.ts`   | Persists `recordRuntimeIssue` events to SQLite `runtime_issues` table (7-day retention)                   |
-| `src/connectors/telegram.ts`    | Telegraf-based connector implementing `Connector` interface                                               |
-| `src/web/server.ts`             | Built-in Web Console (HTTP, default port 3030)                                                            |
-| `src/types/index.ts`            | Shared interfaces: `UnifiedMessage`, `Connector`, `UserProfile`                                           |
+| `src/core/agent.ts`                    | `AIAgent` interface, `DynamicAIAgent` proxy with runner support and circuit breaker                       |
+| `src/core/config-loader.ts`            | Unified AI config reader — merges `ai-config.yaml` + `data/ai-config.override.yaml`; single source of truth for both services |
+| `src/core/message-pipeline.ts`         | Main chat pipeline: prompt assembly, execution queue, file directives, image attachment bundling          |
+| `src/core/command-router.ts`           | Slash command registry with passthrough whitelist from `ai-config.yaml`                                   |
+| `src/core/scheduler.ts`               | Cron-based scheduling with silence-timer reflection system                                                |
+| `src/core/memory.ts`                  | `MemoryManager` — SQLite-backed chat history, schedules, and full-text search                             |
+| `src/core/execution-queue.ts`         | Per-user priority queue (high/normal/low) ensuring serial execution per user                              |
+| `src/core/memoria-sync.ts`            | Background sync bridge to external Memoria CLI for long-term knowledge                                    |
+| `src/core/opencode.ts`                | Wraps `opencode run` subprocess calls; fail-fast on upstream 429 via stderr abort pattern                 |
+| `src/core/opencode-event-parser.ts`   | Shared Opencode JSON event schema — `interpretEvent()` used by both stream and non-stream paths           |
+| `src/core/cli-agent-base.ts`          | Base class for CLI agents: stream lifecycle, heartbeat, smart empty-output classification (`no_events` / `tool_only` / `text_filtered_out`) |
+| `src/services/event-bus.ts`           | `emitEvent(type, payload)` — append-only NDJSON to `workspace/context/events.jsonl`; daily rotate + 7-day purge; in-process pub/sub hooks |
+| `src/services/event-projector.ts`     | Subscribes to event-bus; triggers immediate context snapshot refresh on key lifecycle events              |
+| `src/services/error-alerter.ts`       | Sliding-window error alerter; pushes Telegram message to `ALLOWED_USER_ID` when a scope crosses threshold |
+| `src/services/issue-store.ts`         | Persists `recordRuntimeIssue` events to SQLite `runtime_issues` table (7-day retention)                   |
+| `src/connectors/telegram.ts`          | Telegraf-based connector implementing `Connector` interface                                               |
+| `src/web/server.ts`                   | Built-in Web Console (HTTP, default port 3030)                                                            |
+| `src/types/index.ts`                  | Shared interfaces: `UnifiedMessage`, `Connector`, `UserProfile`                                           |
 
 ### Configuration
 
@@ -98,15 +103,31 @@ Long-term context comes from two sources: the SQLite memory store (with SAR — 
 
 ### Observability
 
-Context snapshots are auto-written to `workspace/context/` as markdown — `runtime-status`, `provider-status`, `scheduler-status`, `error-summary`, `memory-status`, `memoria-status`, `prompt-session-status`, `memory-intent-status`, `runner-status`, plus `runner-audit.log`. Refresh interval is `CONTEXT_REFRESH_MS` (default 60s). The Web Console `#/status` page reads these files directly — they are the canonical system-state view, not `src/`.
+Context snapshots are auto-written to `workspace/context/` as markdown — `runtime-status`, `provider-status`, `scheduler-status`, `error-summary`, `memory-status`, `memoria-status`, `prompt-session-status`, `memory-intent-status`, `runner-status`, plus `runner-audit.log`. Refresh interval is `CONTEXT_REFRESH_MS` (default 60s), but key lifecycle events also trigger an immediate refresh via `event-projector`. The Web Console `#/status` page reads these files directly — they are the canonical system-state view, not `src/`.
 
-**Error pipeline** — `recordRuntimeIssue(scope, err)` fans out to three subscribers via `addIssueHook`:
+**Event stream** — `emitEvent(type, payload)` (`src/services/event-bus.ts`) appends NDJSON to `workspace/context/events.jsonl`. Events are rotated daily and retained for 7 days. `tail -f workspace/context/events.jsonl` shows live lifecycle: `request_start → opencode_start → opencode_done → request_done`. Covered emit points:
+
+- `message-pipeline.ts`: `request_start` / `request_done` / `request_error`
+- `opencode.ts`: `opencode_start` / `opencode_done`
+- `scheduler.ts`: `schedule_fire` / `schedule_done` / `schedule_fail`
+- `runner.ts`: `runner_request_start` / `runner_request_done` / `runner_request_error`
+- `errors.ts` (via `recordRuntimeIssue`): `runtime_issue`
+
+**Error pipeline** — `recordRuntimeIssue(scope, err)` fans out to four subscribers:
 
 1. **In-memory** `recentIssues[]` (20-entry buffer, 60s dedupe) — rendered into `error-summary.md`
 2. **`IssueStore`** (`src/services/issue-store.ts`) — persists to SQLite `runtime_issues` table; 7-day retention; surfaced as `Past 24h by Scope (persisted)` and `Rate-limit Issues (24h)` in `error-summary.md`
 3. **`ErrorAlerter`** (`src/services/error-alerter.ts`) — sliding-window counter per scope; pushes Telegram alert to `ALLOWED_USER_ID` when ≥`ERROR_ALERT_THRESHOLD` events in `ERROR_ALERT_WINDOW_MS`; respects `ERROR_ALERT_COOLDOWN_MS` between alerts
+4. **`EventBus`** (`src/services/event-bus.ts`) — emits `runtime_issue` to `events.jsonl` and in-process subscribers
 
-When adding new error handling, always emit `recordRuntimeIssue('<subsystem>:<reason>', err)` rather than only `console.error`, so it lands in all three observability surfaces.
+When adding new error handling, always emit `recordRuntimeIssue('<subsystem>:<reason>', err)` rather than only `console.error`, so it lands in all four observability surfaces.
+
+**Empty output handling** — `cli-agent-base.ts` classifies empty stream output into three cases instead of blindly re-running:
+- `no_events`: no JSON parsed at all → returns "Opencode 沒有任何輸出，請重試。"
+- `tool_only`: tool calls ran but no text reply → sends follow-up in same session
+- `text_filtered_out`: text was stripped by `cleanOutput` → returns warning, raw content in verbose log
+
+All three cases emit `recordRuntimeIssue('${provider}:empty-output:${reason}', ...)` for tracking.
 
 ### Further Reading
 
@@ -129,7 +150,7 @@ When adding new error handling, always emit `recordRuntimeIssue('<subsystem>:<re
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **telenexus** (9716 symbols, 14011 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **telenexus** (10891 symbols, 15846 relationships, 298 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

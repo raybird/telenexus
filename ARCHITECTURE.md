@@ -27,13 +27,20 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 
 ### Provider 與執行層
 
+- `src/core/config-loader.ts`
+  - `loadAiConfig()` 合併 `ai-config.yaml` + `data/ai-config.override.yaml`
+  - telenexus 與 agent-runner 共用同一份邏輯，消除 override 不一致問題
 - `src/core/agent.ts`
-  - `DynamicAIAgent` 會在每次請求時讀取 `ai-config.yaml`
+  - `DynamicAIAgent` 會在每次請求時讀取 `ai-config.yaml`（透過 config-loader）
   - 以 Opencode 作為唯一 AI 執行後端
   - 可優先走 runner，並在 runner 失敗時 fallback 到本地執行
   - 內建 runner circuit breaker、passthrough command 改寫
 - `src/core/opencode.ts`
-  - 封裝 Opencode CLI 呼叫
+  - 封裝 Opencode CLI 呼叫；stream / non-stream 路徑均透過 `opencode-event-parser` 解析事件
+- `src/core/opencode-event-parser.ts`
+  - 共用 `interpretEvent()` dispatch table；兩條路徑從同一份 schema 取 text / statusText / stats
+- `src/core/cli-agent-base.ts`
+  - stream 生命週期基底；偵測空輸出類型（`no_events` / `tool_only` / `text_filtered_out`）並採對應策略
 - `src/runner.ts`
   - `agent-runner` HTTP 服務
   - 接收 `/run` 任務，實際執行 chat / summarize
@@ -68,8 +75,15 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 
 ### 可觀測性
 
+- `src/services/event-bus.ts`
+  - `emitEvent(type, payload)` — 同步 append NDJSON 到 `workspace/context/events.jsonl`
+  - 日期跨越時自動 rotate 為 `events-YYYY-MM-DD.jsonl`；保留 7 天
+  - 提供 in-process pub/sub hooks 給 event-projector 即時觸發
+- `src/services/event-projector.ts`
+  - 訂閱 event-bus；在 `schedule_*` / `runtime_issue` / `request_done` 等事件時立即觸發 context snapshot
+  - 取代純輪詢，讓關鍵 markdown 快照即時更新
 - `src/services/context-snapshots.ts`
-  - 定期寫出 runtime/provider/scheduler/error/memory/memoria/prompt session 快照
+  - 定期（`CONTEXT_REFRESH_MS`，預設 60s）或由 event-projector 觸發，寫出 runtime/provider/scheduler/error/memory/memoria/prompt session 快照
 - `src/services/prompt-session-telemetry.ts`
   - 記錄 prompt 長度、memory 注入量、prompt mode
 - `src/services/memory-intent-telemetry.ts`
