@@ -202,7 +202,7 @@ docker compose logs -f telenexus
 ## 你會得到什麼
 
 - 單人白名單模型（`ALLOWED_USER_ID`）
-- Opencode CLI 後端（`ai-config.yaml` 控制 model 等設定）
+- Opencode CLI 後端（`ai-config.yaml` 控制基礎設定；可透過 `/set_model` 即時切換模型，不需重啟）
 - 排程系統（新增、刪除、重載、健康檢查）
 - 雙服務標準架構（`telenexus` + `agent-runner`）
 - `Summary-Aware Retrieval (SAR)` 記憶檢索與 canonical anchors
@@ -222,6 +222,18 @@ docker compose exec telenexus node /app/dist/tools/scheduler-cli.js add "每小�
 docker compose exec telenexus node /app/dist/tools/scheduler-cli.js reload
 docker compose exec telenexus node /app/dist/tools/scheduler-cli.js health
 ```
+
+### 模型管理（Telegram 指令）
+
+| 指令 | 說明 |
+|------|------|
+| `/model` | 顯示目前生效的模型及來源（override / base config） |
+| `/models` | 列出所有可用模型 |
+| `/models opencode` | 篩選特定 provider（如 `opencode`、`nvidia`） |
+| `/set_model <model-id>` | 切換模型，下一則訊息立即生效 |
+| `/reset_model` | 清除 override，恢復 `ai-config.yaml` 的基礎設定 |
+
+模型 override 寫入 `data/ai-config.override.yaml`，`ai-config.yaml` 本身維持唯讀不變動。
 
 ### Runner 健康檢查
 
