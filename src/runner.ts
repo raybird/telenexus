@@ -17,6 +17,7 @@ dotenv.config();
 
 type Provider = 'opencode';
 type RunnerTask = 'chat' | 'summarize';
+type Lane = 'interactive' | 'scheduled';
 
 type RunnerRequest = {
   task?: RunnerTask;
@@ -27,7 +28,30 @@ type RunnerRequest = {
   isPassthroughCommand?: boolean;
   forceNewSession?: boolean;
   autoRecoveryNotice?: boolean;
+  lane?: Lane;
 };
+
+// 每 lane 一條序列化 Promise 鏈；兩 lane 可並行，同 lane 內依序執行
+const laneQueues: Record<Lane, Promise<void>> = {
+  interactive: Promise.resolve(),
+  scheduled: Promise.resolve()
+};
+const activeLaneCounts: Record<Lane, number> = { interactive: 0, scheduled: 0 };
+
+function withLane<T>(lane: Lane, fn: () => Promise<T>): Promise<T> {
+  const prev = laneQueues[lane];
+  let settle!: () => void;
+  laneQueues[lane] = new Promise<void>((r) => { settle = r; });
+  return prev
+    .then(() => {
+      activeLaneCounts[lane] += 1;
+      return fn();
+    })
+    .finally(() => {
+      activeLaneCounts[lane] = Math.max(0, activeLaneCounts[lane] - 1);
+      settle();
+    });
+}
 
 const opencode = new OpencodeAgent();
 const runnerSharedSecret = process.env.RUNNER_SHARED_SECRET?.trim() || null;
@@ -167,6 +191,7 @@ function writeRunnerStatus(): void {
       '',
       `- Updated: ${new Date(runnerStats.updatedAt).toLocaleString('zh-TW')}`,
       `- Started: ${new Date(runnerStats.startedAt).toLocaleString('zh-TW')}`,
+      `- Active Lanes: interactive=${activeLaneCounts.interactive} scheduled=${activeLaneCounts.scheduled}`,
       `- Total Requests: ${runnerStats.total}`,
       `- Success: ${runnerStats.success}`,
       `- Failed: ${runnerStats.failed}`,
@@ -449,9 +474,10 @@ const server = http.createServer(async (req, res) => {
 
       const raw = await readBody(req);
       const parsed = JSON.parse(raw || '{}') as RunnerRequest;
-      logger.info('run_start', { requestId, task: parsed.task, stream: false });
-      emitEvent('runner_request_start', { requestId, task: parsed.task, stream: false });
-      const result = await executeTask(parsed);
+      const lane: Lane = parsed.lane === 'scheduled' ? 'scheduled' : 'interactive';
+      logger.info('run_start', { requestId, task: parsed.task, stream: false, lane });
+      emitEvent('runner_request_start', { requestId, task: parsed.task, stream: false, lane });
+      const result = await withLane(lane, () => executeTask(parsed));
       const durationMs = Date.now() - startedAt;
 
       appendAuditLine({
@@ -462,7 +488,8 @@ const server = http.createServer(async (req, res) => {
         task: parsed.task,
         provider: result.provider,
         model: parsed.model || '(default)',
-        passthrough: parsed.isPassthroughCommand === true
+        passthrough: parsed.isPassthroughCommand === true,
+        lane
       });
       const successResult: {
         requestId: string;
@@ -480,8 +507,8 @@ const server = http.createServer(async (req, res) => {
         successResult.task = parsed.task;
       }
       markRunnerResult(successResult);
-      logger.info('run_done', { requestId, durationMs, provider: result.provider });
-      emitEvent('runner_request_done', { requestId, durationMs, provider: result.provider, stream: false });
+      logger.info('run_done', { requestId, durationMs, provider: result.provider, lane });
+      emitEvent('runner_request_done', { requestId, durationMs, provider: result.provider, stream: false, lane });
 
       sendJson(res, 200, {
         ok: true,
@@ -547,8 +574,9 @@ const server = http.createServer(async (req, res) => {
 
       const raw = await readBody(req);
       const parsed = JSON.parse(raw || '{}') as RunnerRequest;
-      logger.info('run_start', { requestId, task: parsed.task, stream: true });
-      emitEvent('runner_request_start', { requestId, task: parsed.task, stream: true });
+      const lane: Lane = parsed.lane === 'scheduled' ? 'scheduled' : 'interactive';
+      logger.info('run_start', { requestId, task: parsed.task, stream: true, lane });
+      emitEvent('runner_request_start', { requestId, task: parsed.task, stream: true, lane });
 
       res.writeHead(200, {
         'Content-Type': 'text/event-stream; charset=utf-8',
@@ -556,7 +584,7 @@ const server = http.createServer(async (req, res) => {
         Connection: 'keep-alive'
       });
 
-      const result = await executeTaskStream(parsed, async (event) => {
+      const result = await withLane(lane, () => executeTaskStream(parsed, async (event) => {
         if (event.type === 'start') {
           writeSseEvent(res, 'start', { provider: event.provider });
           return;
@@ -580,7 +608,7 @@ const server = http.createServer(async (req, res) => {
         if (event.type === 'done') {
           writeSseEvent(res, 'done', { text: event.text });
         }
-      });
+      }));
 
       const durationMs = Date.now() - startedAt;
       appendAuditLine({
@@ -592,7 +620,8 @@ const server = http.createServer(async (req, res) => {
         provider: result.provider,
         model: parsed.model || '(default)',
         passthrough: parsed.isPassthroughCommand === true,
-        streaming: true
+        streaming: true,
+        lane
       });
       const successResult: {
         requestId: string;
@@ -610,8 +639,8 @@ const server = http.createServer(async (req, res) => {
         successResult.task = parsed.task;
       }
       markRunnerResult(successResult);
-      logger.info('run_done', { requestId, durationMs, provider: result.provider, stream: true });
-      emitEvent('runner_request_done', { requestId, durationMs, provider: result.provider, stream: true });
+      logger.info('run_done', { requestId, durationMs, provider: result.provider, stream: true, lane });
+      emitEvent('runner_request_done', { requestId, durationMs, provider: result.provider, stream: true, lane });
       writeSseEvent(res, 'result', {
         ok: true,
         requestId,

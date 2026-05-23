@@ -15,6 +15,7 @@ export interface AIAgentOptions {
   forceNewSession?: boolean;
   autoRecoveryNotice?: boolean;
   autoCompressAttempted?: boolean;
+  fromScheduler?: boolean;
 }
 
 type RunnerTask = 'chat' | 'summarize';
@@ -28,6 +29,7 @@ interface RunnerRequest {
   isPassthroughCommand?: boolean;
   forceNewSession?: boolean;
   autoRecoveryNotice?: boolean;
+  lane?: 'interactive' | 'scheduled';
 }
 
 interface RunnerResponse {
@@ -377,7 +379,8 @@ export class DynamicAIAgent implements AIAgent {
           ...(mergedOptions.requestId ? { requestId: mergedOptions.requestId } : {}),
           ...(mergedOptions.isPassthroughCommand ? { isPassthroughCommand: true } : {}),
           ...(mergedOptions.forceNewSession ? { forceNewSession: true } : {}),
-          ...(mergedOptions.autoRecoveryNotice ? { autoRecoveryNotice: true } : {})
+          ...(mergedOptions.autoRecoveryNotice ? { autoRecoveryNotice: true } : {}),
+          lane: mergedOptions.fromScheduler ? 'scheduled' : 'interactive'
         };
         if (model) {
           runnerPayload.model = model;
@@ -466,7 +469,8 @@ export class DynamicAIAgent implements AIAgent {
         ...(mergedOptions.requestId ? { requestId: mergedOptions.requestId } : {}),
         ...(isPassthrough ? { isPassthroughCommand: true } : {}),
         ...(forceNewSession ? { forceNewSession: true } : {}),
-        ...(autoRecoveryNotice ? { autoRecoveryNotice: true } : {})
+        ...(autoRecoveryNotice ? { autoRecoveryNotice: true } : {}),
+        lane: mergedOptions.fromScheduler ? 'scheduled' : 'interactive'
       };
       if (model) {
         runnerPayload.model = model;
