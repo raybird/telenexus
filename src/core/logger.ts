@@ -1,3 +1,5 @@
+import { writeSync } from 'node:fs';
+
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
 function formatValue(value: unknown): string {
@@ -28,16 +30,11 @@ function emit(
     }
   }
 
-  const line = parts.join(' ');
-  if (level === 'warn') {
-    console.warn(line);
-    return;
-  }
-  if (level === 'error') {
-    console.error(line);
-    return;
-  }
-  console.log(line);
+  const line = parts.join(' ') + '\n';
+  // fs.writeSync 直接寫 fd，繞過 Node.js stream 緩衝
+  // 避免 pipe 模式下 Docker 看不到 log 的問題
+  const fd = level === 'warn' || level === 'error' ? 2 : 1;
+  writeSync(fd, line);
 }
 
 export function createLogger(scope: string) {
