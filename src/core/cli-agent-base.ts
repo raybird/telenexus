@@ -12,6 +12,7 @@ import { recordRuntimeIssue } from '../utils/errors.js';
 export type CliStreamParse = {
   sessionId?: string;
   deltaText?: string;
+  statusText?: string;
   stats?: Record<string, unknown>;
   emitStart?: boolean;
 };
@@ -24,6 +25,13 @@ export type CliAgentConfig = {
   timeoutMessage: string;
   streamTimeoutMs?: number;
 };
+
+const DEFAULT_STREAM_HEARTBEAT_MS = 20000;
+
+function getStreamHeartbeatMs(): number {
+  const raw = Number.parseInt(process.env.CLI_AGENT_STREAM_HEARTBEAT_MS || '', 10);
+  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_STREAM_HEARTBEAT_MS;
+}
 
 /**
  * 共通的 CLI agent 基底：
@@ -88,7 +96,11 @@ export abstract class CliAgentBase implements AIAgent {
     let settled = false;
     let timedOut = false;
     let rateLimited = false;
+    let lastDeltaAt = Date.now();
+    let lastStatusAt = 0;
+    let lastStatusText = '';
     const streamTimeoutMs = this.config.streamTimeoutMs ?? 1800000;
+    const heartbeatMs = getStreamHeartbeatMs();
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill('SIGTERM');
@@ -101,6 +113,33 @@ export abstract class CliAgentBase implements AIAgent {
       started = true;
       await onEvent({ type: 'start', provider });
     };
+
+    const emitStatus = async (text: string): Promise<void> => {
+      const normalized = text.trim();
+      if (!normalized) {
+        return;
+      }
+      const now = Date.now();
+      if (normalized === lastStatusText && now - lastStatusAt < heartbeatMs) {
+        return;
+      }
+      lastStatusText = normalized;
+      lastStatusAt = now;
+      await emitStart();
+      await onEvent({ type: 'status', text: normalized });
+    };
+
+    const heartbeatInterval = setInterval(() => {
+      if (settled || heartbeatMs <= 0) {
+        return;
+      }
+      const now = Date.now();
+      if (now - lastDeltaAt >= heartbeatMs && now - lastStatusAt >= heartbeatMs) {
+        void emitStatus('仍在等待模型輸出...').catch(() => {
+          // Status updates are best-effort; model output should continue even if UI updates fail.
+        });
+      }
+    }, Math.max(1000, Math.min(heartbeatMs, 5000)));
 
     return new Promise<AgentStructuredResult>((resolve, reject) => {
       child.stdout?.on('data', (chunk) => {
@@ -124,7 +163,11 @@ export abstract class CliAgentBase implements AIAgent {
             if (parsed.emitStart) {
               await emitStart();
             }
+            if (parsed.statusText) {
+              await emitStatus(parsed.statusText);
+            }
             if (typeof parsed.deltaText === 'string' && parsed.deltaText.length > 0) {
+              lastDeltaAt = Date.now();
               await emitStart();
               aggregatedText += parsed.deltaText;
               await onEvent({ type: 'delta', text: parsed.deltaText });
@@ -139,6 +182,7 @@ export abstract class CliAgentBase implements AIAgent {
           }
           settled = true;
           clearTimeout(timer);
+          clearInterval(heartbeatInterval);
           reject(error);
         });
       });
@@ -148,6 +192,7 @@ export abstract class CliAgentBase implements AIAgent {
         if (!rateLimited && this.config.rateLimitPattern.test(stderr)) {
           rateLimited = true;
           clearTimeout(timer);
+          clearInterval(heartbeatInterval);
           child.kill('SIGTERM');
         }
       });
@@ -158,6 +203,7 @@ export abstract class CliAgentBase implements AIAgent {
         }
         settled = true;
         clearTimeout(timer);
+        clearInterval(heartbeatInterval);
         reject(error);
       });
 
@@ -168,6 +214,7 @@ export abstract class CliAgentBase implements AIAgent {
           }
           settled = true;
           clearTimeout(timer);
+          clearInterval(heartbeatInterval);
 
           if (stdoutBuffer.trim()) {
             const trailing = this.parseStreamLine(stdoutBuffer.trim());

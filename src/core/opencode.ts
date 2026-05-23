@@ -15,12 +15,62 @@ type OpencodeEvent = {
   type?: string;
   sessionID?: string;
   part?: {
+    type?: string;
+    tool?: string;
     text?: string;
     tokens?: unknown;
     cost?: unknown;
     reason?: unknown;
+    state?: {
+      input?: unknown;
+      title?: string;
+    };
   };
 };
+
+function truncateStatusValue(value: string): string {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  return normalized.length > 80 ? `${normalized.slice(0, 77)}...` : normalized;
+}
+
+function getToolTarget(input: unknown): string | null {
+  if (!input || typeof input !== 'object') {
+    return null;
+  }
+  const values = input as Record<string, unknown>;
+  const candidate =
+    values.filePath ??
+    values.path ??
+    values.pattern ??
+    values.command ??
+    values.query ??
+    values.name;
+  return typeof candidate === 'string' && candidate.trim().length > 0
+    ? truncateStatusValue(candidate)
+    : null;
+}
+
+function formatToolStatus(tool: string | undefined, input: unknown): string | null {
+  const target = getToolTarget(input);
+  const suffix = target ? `：${target}` : '';
+
+  switch (tool) {
+    case 'grep':
+      return `正在搜尋專案檔案${suffix}...`;
+    case 'glob':
+      return `正在掃描檔案列表${suffix}...`;
+    case 'read':
+      return `正在讀取檔案${suffix}...`;
+    case 'bash':
+      return `正在執行指令${suffix}...`;
+    case 'skill':
+      return `正在載入技能${suffix}...`;
+    case undefined:
+      return null;
+    default:
+      return `正在使用工具 ${tool}${suffix}...`;
+  }
+}
 
 export function parseOpencodeJsonOutput(stdout: string): AgentStructuredResult | null {
   const lines = stdout
@@ -122,11 +172,21 @@ export class OpencodeAgent extends CliAgentBase {
       }
       if (parsed.type === 'step_start') {
         result.emitStart = true;
+        result.statusText = '開始處理請求...';
+      }
+      if (parsed.type === 'tool_use') {
+        const toolStatus = formatToolStatus(parsed.part?.tool, parsed.part?.state?.input);
+        if (toolStatus) {
+          result.statusText = toolStatus;
+        }
       }
       if (parsed.type === 'text' && typeof parsed.part?.text === 'string') {
         result.deltaText = parsed.part.text;
       }
       if (parsed.type === 'step_finish' && parsed.part) {
+        if (parsed.part.reason === 'tool-calls') {
+          result.statusText = '工具執行完成，等待模型整理回覆...';
+        }
         const nextStats: Record<string, unknown> = {};
         if (parsed.part.tokens !== undefined) {
           nextStats.tokens = parsed.part.tokens;

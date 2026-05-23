@@ -167,8 +167,65 @@ export class TelegramStreamRenderer {
     }
   }
 
+  private async renderStatus(text: string): Promise<void> {
+    if (
+      this.sawDelta ||
+      this.completed ||
+      this.streamingDisabled ||
+      !this.placeholderSent ||
+      !this.placeholderMsgId ||
+      this.thinkingUpdateInFlight
+    ) {
+      return;
+    }
+
+    const statusText = text.trim();
+    if (!statusText || statusText === this.lastRenderedText) {
+      return;
+    }
+
+    const now = Date.now();
+    if (now - this.lastRenderAt < this.editThrottleMs) {
+      return;
+    }
+
+    this.stopThinkingRotateInterval();
+    this.thinkingUpdateInFlight = this.connector
+      .editMessage(this.chatId, this.placeholderMsgId, statusText, {
+        retries: 0,
+        suppressFallbackSend: true
+      })
+      .then(() => {
+        this.lastRenderedText = statusText;
+        this.lastRenderAt = Date.now();
+        this.consecutiveEditFailures = 0;
+      })
+      .catch((error) => {
+        this.consecutiveEditFailures += 1;
+        log.warn('status.update-failed', {
+          chatId: this.chatId,
+          consecutiveEditFailures: this.consecutiveEditFailures,
+          error
+        });
+        if (this.consecutiveEditFailures >= this.maxEditFailures) {
+          this.streamingDisabled = true;
+          log.warn('status.update-disabled-after-failures', { chatId: this.chatId });
+        }
+      })
+      .finally(() => {
+        this.thinkingUpdateInFlight = null;
+      });
+
+    await this.thinkingUpdateInFlight;
+  }
+
   async handleEvent(event: AgentEvent): Promise<void> {
     if (this.completed) {
+      return;
+    }
+
+    if (event.type === 'status') {
+      await this.renderStatus(event.text);
       return;
     }
 
