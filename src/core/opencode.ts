@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import type { AIAgentOptions } from './agent.js';
 import {
   buildTextOnlyStructuredResult,
@@ -7,6 +9,7 @@ import { ProcessError, runProcess } from './process-runner.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
 import { CliAgentBase, type CliAgentConfig, type CliStreamParse } from './cli-agent-base.js';
 import { getOpencodeTaskTimeoutMs } from '../config/timeouts.js';
+import { resolveProjectDir } from '../utils/paths.js';
 import { createLogger } from './logger.js';
 
 const logger = createLogger('Opencode');
@@ -158,6 +161,26 @@ export class OpencodeAgent extends CliAgentBase {
 
   protected override getCwd(): string {
     return this.getWorkspacePath();
+  }
+
+  protected override getVerboseStdoutPath(): string | null {
+    if (process.env.OPENCODE_VERBOSE_STDOUT !== 'true') {
+      return null;
+    }
+    return path.resolve(resolveProjectDir(), 'workspace', 'context', 'opencode-last-run.jsonl');
+  }
+
+  private writeVerboseStdout(stdout: string): void {
+    const verbosePath = this.getVerboseStdoutPath();
+    if (!verbosePath) {
+      return;
+    }
+    try {
+      fs.mkdirSync(path.dirname(verbosePath), { recursive: true });
+      fs.writeFileSync(verbosePath, stdout, 'utf8');
+    } catch {
+      // best-effort
+    }
   }
 
   protected parseStreamLine(line: string): CliStreamParse | null {
@@ -414,6 +437,7 @@ ${text}
   async chatStructured(prompt: string, options?: AIAgentOptions): Promise<AgentStructuredResult> {
     try {
       const { stdout, stderr } = await this.executeChatProcess(prompt, options);
+      this.writeVerboseStdout(stdout);
 
       logger.info('done', { outputLen: stdout.length });
       this.logStderr('Chat', stderr);

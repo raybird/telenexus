@@ -1,4 +1,6 @@
 import { spawn } from 'child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 import type { AIAgent, AIAgentOptions } from './agent.js';
 import {
   buildTextOnlyStructuredResult,
@@ -59,6 +61,27 @@ export abstract class CliAgentBase implements AIAgent {
     return { ...process.env };
   }
 
+  protected getVerboseStdoutPath(): string | null {
+    return null;
+  }
+
+  private initVerboseLog(verbosePath: string): void {
+    try {
+      fs.mkdirSync(path.dirname(verbosePath), { recursive: true });
+      fs.writeFileSync(verbosePath, '', 'utf8');
+    } catch {
+      // best-effort
+    }
+  }
+
+  private appendVerboseLine(verbosePath: string, line: string): void {
+    try {
+      fs.appendFileSync(verbosePath, line + '\n', 'utf8');
+    } catch {
+      // best-effort
+    }
+  }
+
   async chat(prompt: string, options?: AIAgentOptions): Promise<string> {
     const result = await this.chatStructured(prompt, options);
     return result.text;
@@ -78,6 +101,11 @@ export abstract class CliAgentBase implements AIAgent {
       }
       await onEvent({ type: 'done', text: fallback.text });
       return fallback;
+    }
+
+    const verbosePath = this.getVerboseStdoutPath();
+    if (verbosePath) {
+      this.initVerboseLog(verbosePath);
     }
 
     const args = this.buildChatArgs(options);
@@ -152,6 +180,9 @@ export abstract class CliAgentBase implements AIAgent {
             const line = rawLine.trim();
             if (!line) {
               continue;
+            }
+            if (verbosePath) {
+              this.appendVerboseLine(verbosePath, line);
             }
             const parsed = this.parseStreamLine(line);
             if (!parsed) {
