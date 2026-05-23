@@ -3,12 +3,12 @@ import fs from 'fs';
 import http from 'http';
 import path from 'path';
 import { randomUUID } from 'crypto';
-import yaml from 'js-yaml';
 import { OpencodeAgent } from './core/opencode.js';
 import type { AgentEvent, AgentStructuredResult } from './core/agent-result.js';
 import { safeCompare } from './utils/crypto.js';
 import { resolveProjectDir } from './utils/paths.js';
 import { createLogger } from './core/logger.js';
+import { loadAiConfig } from './core/config-loader.js';
 
 const logger = createLogger('Runner');
 
@@ -26,11 +26,6 @@ type RunnerRequest = {
   isPassthroughCommand?: boolean;
   forceNewSession?: boolean;
   autoRecoveryNotice?: boolean;
-};
-
-type AIConfig = {
-  provider?: string;
-  model?: string;
 };
 
 const opencode = new OpencodeAgent();
@@ -245,19 +240,12 @@ function markRunnerResult(result: {
 }
 
 function loadProviderConfig(configPath = 'ai-config.yaml'): { provider: Provider; model?: string } {
-  try {
-    const content = fs.readFileSync(configPath, 'utf8');
-    const parsed = yaml.load(content) as AIConfig;
-    const result: { provider: Provider; model?: string } = {
-      provider: 'opencode'
-    };
-    if (typeof parsed?.model === 'string' && parsed.model.trim().length > 0) {
-      result.model = parsed.model;
-    }
-    return result;
-  } catch {
-    return { provider: 'opencode' };
+  const config = loadAiConfig({ basePath: configPath });
+  const result: { provider: Provider; model?: string } = { provider: 'opencode' };
+  if (config.model) {
+    result.model = config.model;
   }
+  return result;
 }
 
 const MAX_BODY_BYTES = 10 * 1024 * 1024;

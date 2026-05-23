@@ -7,14 +7,21 @@ export type RuntimeIssue = {
   scope: string;
   message: string;
   count: number;
+  requestId?: string;
 };
 
 const RECENT_ISSUE_LIMIT = 20;
 const ISSUE_DEDUPE_WINDOW_MS = 60_000;
 const recentIssues: RuntimeIssue[] = [];
 
-export type IssueEvent = { scope: string; message: string; timestamp: number };
+export type IssueEvent = {
+  scope: string;
+  message: string;
+  timestamp: number;
+  requestId?: string;
+};
 export type IssueHook = (issue: IssueEvent) => void;
+export type IssueContext = { requestId?: string };
 const issueHooks = new Set<IssueHook>();
 
 /** 註冊 issue 監聽器（alerter / persistence 各一個）。回傳 unsubscribe 函式。 */
@@ -45,9 +52,14 @@ export function toErrorMessage(error: unknown): string {
   }
 }
 
-export function recordRuntimeIssue(scope: string, error: unknown): void {
+export function recordRuntimeIssue(
+  scope: string,
+  error: unknown,
+  context: IssueContext = {}
+): void {
   const timestamp = Date.now();
   const message = toErrorMessage(error);
+  const requestId = context.requestId;
   const dedupeKey = `${scope}\u0000${message}`;
 
   for (let i = recentIssues.length - 1; i >= 0; i -= 1) {
@@ -59,22 +71,28 @@ export function recordRuntimeIssue(scope: string, error: unknown): void {
     if (issueKey === dedupeKey) {
       issue.timestamp = timestamp;
       issue.count += 1;
+      if (requestId) {
+        issue.requestId = requestId;
+      }
       return;
     }
   }
 
-  recentIssues.push({
-    timestamp,
-    scope,
-    message,
-    count: 1
-  });
+  const entry: RuntimeIssue = { timestamp, scope, message, count: 1 };
+  if (requestId) {
+    entry.requestId = requestId;
+  }
+  recentIssues.push(entry);
   if (recentIssues.length > RECENT_ISSUE_LIMIT) {
     recentIssues.splice(0, recentIssues.length - RECENT_ISSUE_LIMIT);
   }
   for (const hook of issueHooks) {
     try {
-      hook({ scope, message, timestamp });
+      const payload: IssueEvent = { scope, message, timestamp };
+      if (requestId) {
+        payload.requestId = requestId;
+      }
+      hook(payload);
     } catch (hookError) {
       console.error('[errors] issue hook failed:', hookError);
     }

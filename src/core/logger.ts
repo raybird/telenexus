@@ -24,7 +24,13 @@ function emit(
 ): void {
   const parts = [`[${scope}]`, level.toUpperCase(), event];
   if (fields) {
+    // requestId 優先排在 event 之後，方便跨服務跨檔案 trace
+    const requestId = fields.requestId;
+    if (typeof requestId === 'string' && requestId.length > 0) {
+      parts.push(`req=${requestId}`);
+    }
     for (const [key, value] of Object.entries(fields)) {
+      if (key === 'requestId') continue;
       if (value === undefined) continue;
       parts.push(`${key}=${formatValue(value)}`);
     }

@@ -11,69 +11,9 @@ import { CliAgentBase, type CliAgentConfig, type CliStreamParse } from './cli-ag
 import { getOpencodeTaskTimeoutMs } from '../config/timeouts.js';
 import { resolveProjectDir } from '../utils/paths.js';
 import { createLogger } from './logger.js';
+import { interpretEvent, parseEventLine, type OpencodeEvent } from './opencode-event-parser.js';
 
 const logger = createLogger('Opencode');
-
-type OpencodeEvent = {
-  type?: string;
-  sessionID?: string;
-  part?: {
-    type?: string;
-    tool?: string;
-    text?: string;
-    tokens?: unknown;
-    cost?: unknown;
-    reason?: unknown;
-    state?: {
-      input?: unknown;
-      title?: string;
-    };
-  };
-};
-
-function truncateStatusValue(value: string): string {
-  const normalized = value.replace(/\s+/g, ' ').trim();
-  return normalized.length > 80 ? `${normalized.slice(0, 77)}...` : normalized;
-}
-
-function getToolTarget(input: unknown): string | null {
-  if (!input || typeof input !== 'object') {
-    return null;
-  }
-  const values = input as Record<string, unknown>;
-  const candidate =
-    values.filePath ??
-    values.path ??
-    values.pattern ??
-    values.command ??
-    values.query ??
-    values.name;
-  return typeof candidate === 'string' && candidate.trim().length > 0
-    ? truncateStatusValue(candidate)
-    : null;
-}
-
-function formatToolStatus(tool: string | undefined, input: unknown): string | null {
-  const target = getToolTarget(input);
-  const suffix = target ? `：${target}` : '';
-
-  switch (tool) {
-    case 'grep':
-      return `正在搜尋專案檔案${suffix}...`;
-    case 'glob':
-      return `正在掃描檔案列表${suffix}...`;
-    case 'read':
-      return `正在讀取檔案${suffix}...`;
-    case 'bash':
-      return `正在執行指令${suffix}...`;
-    case 'skill':
-      return `正在載入技能${suffix}...`;
-    case undefined:
-      return null;
-    default:
-      return `正在使用工具 ${tool}${suffix}...`;
-  }
-}
 
 export function parseOpencodeJsonOutput(stdout: string): AgentStructuredResult | null {
   const lines = stdout
@@ -84,46 +24,28 @@ export function parseOpencodeJsonOutput(stdout: string): AgentStructuredResult |
     return null;
   }
 
-  const events: unknown[] = [];
+  const events: OpencodeEvent[] = [];
   const textParts: string[] = [];
-  let sawJson = false;
   let stats: Record<string, unknown> | undefined;
 
   for (const line of lines) {
-    if (!line.startsWith('{')) {
+    const event = parseEventLine(line);
+    if (!event) {
+      // 整段 stdout 必須全部是 JSON event；遇到非 JSON 行直接放棄
       return null;
     }
+    events.push(event);
 
-    try {
-      const parsed = JSON.parse(line) as OpencodeEvent;
-      sawJson = true;
-      events.push(parsed);
-
-      if (parsed.type === 'text' && typeof parsed.part?.text === 'string') {
-        textParts.push(parsed.part.text);
-      }
-
-      if (parsed.type === 'step_finish' && parsed.part) {
-        const nextStats: Record<string, unknown> = {};
-        if (parsed.part.tokens !== undefined) {
-          nextStats.tokens = parsed.part.tokens;
-        }
-        if (parsed.part.cost !== undefined) {
-          nextStats.cost = parsed.part.cost;
-        }
-        if (parsed.part.reason !== undefined) {
-          nextStats.reason = parsed.part.reason;
-        }
-        if (Object.keys(nextStats).length > 0) {
-          stats = nextStats;
-        }
-      }
-    } catch {
-      return null;
+    const interpreted = interpretEvent(event);
+    if (interpreted.text) {
+      textParts.push(interpreted.text);
+    }
+    if (interpreted.stats) {
+      stats = interpreted.stats;
     }
   }
 
-  if (!sawJson) {
+  if (events.length === 0) {
     return null;
   }
 
@@ -184,50 +106,18 @@ export class OpencodeAgent extends CliAgentBase {
   }
 
   protected parseStreamLine(line: string): CliStreamParse | null {
-    if (!line.startsWith('{')) {
+    const event = parseEventLine(line);
+    if (!event) {
       return null;
     }
-    try {
-      const parsed = JSON.parse(line) as OpencodeEvent;
-      const result: CliStreamParse = {};
-      if (typeof parsed.sessionID === 'string' && parsed.sessionID.trim().length > 0) {
-        result.sessionId = parsed.sessionID;
-      }
-      if (parsed.type === 'step_start') {
-        result.emitStart = true;
-        result.statusText = '開始處理請求...';
-      }
-      if (parsed.type === 'tool_use') {
-        const toolStatus = formatToolStatus(parsed.part?.tool, parsed.part?.state?.input);
-        if (toolStatus) {
-          result.statusText = toolStatus;
-        }
-      }
-      if (parsed.type === 'text' && typeof parsed.part?.text === 'string') {
-        result.deltaText = parsed.part.text;
-      }
-      if (parsed.type === 'step_finish' && parsed.part) {
-        if (parsed.part.reason === 'tool-calls') {
-          result.statusText = '工具執行完成，等待模型整理回覆...';
-        }
-        const nextStats: Record<string, unknown> = {};
-        if (parsed.part.tokens !== undefined) {
-          nextStats.tokens = parsed.part.tokens;
-        }
-        if (parsed.part.cost !== undefined) {
-          nextStats.cost = parsed.part.cost;
-        }
-        if (parsed.part.reason !== undefined) {
-          nextStats.reason = parsed.part.reason;
-        }
-        if (Object.keys(nextStats).length > 0) {
-          result.stats = nextStats;
-        }
-      }
-      return result;
-    } catch {
-      return null;
-    }
+    const interpreted = interpretEvent(event);
+    const result: CliStreamParse = {};
+    if (interpreted.sessionId) result.sessionId = interpreted.sessionId;
+    if (interpreted.emitStart) result.emitStart = true;
+    if (interpreted.statusText) result.statusText = interpreted.statusText;
+    if (interpreted.text !== undefined) result.deltaText = interpreted.text;
+    if (interpreted.stats) result.stats = interpreted.stats;
+    return result;
   }
 
   private isVerboseStderrEnabled(): boolean {
