@@ -33,6 +33,27 @@ CONTEXT_REFRESH_MS=60000
 
 備註：若未設定 `CHAT_USE_RUNNER_ONLY_USERS`，系統會預設使用 `ALLOWED_USER_ID`。
 
+## ai-config.yaml（model 切換）
+
+可透過 Telegram 指令即時切換 `ai-config.yaml` 中的 `model:` 欄位，無須重啟服務：
+
+| 指令 | 說明 |
+|------|------|
+| `/model` | 顯示目前 ai-config.yaml 設定的模型 |
+| `/models` | 列出所有可用模型（最多顯示 40 個） |
+| `/models opencode` | 篩選特定 provider 的模型（如 `opencode`、`nvidia`） |
+| `/set_model <model-id>` | 切換模型，下一則訊息立即生效 |
+
+範例：
+```
+/set_model nvidia/deepseek-ai/deepseek-v4-flash
+/set_model opencode/big-pickle
+```
+
+- `DynamicAIAgent` 每次呼叫時重新讀取 `ai-config.yaml`，因此切換後立即生效
+- `/set_model` 以 regex 替換 `model:` 行，YAML 注釋與其他欄位完整保留
+- 模型來源為 `opencode models` 指令，涵蓋所有已設定 provider 的可用模型
+
 ## ai-config.yaml（passthrough_commands）
 
 可在 `ai-config.yaml` 設定要直通給底層 CLI/Agent 的 slash 指令：
