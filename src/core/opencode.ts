@@ -11,6 +11,7 @@ import { CliAgentBase, type CliAgentConfig, type CliStreamParse } from './cli-ag
 import { getOpencodeTaskTimeoutMs } from '../config/timeouts.js';
 import { resolveProjectDir } from '../utils/paths.js';
 import { createLogger } from './logger.js';
+import { emitEvent } from '../services/event-bus.js';
 import { interpretEvent, parseEventLine, type OpencodeEvent } from './opencode-event-parser.js';
 
 const logger = createLogger('Opencode');
@@ -229,6 +230,7 @@ export class OpencodeAgent extends CliAgentBase {
     const workspacePath = this.getWorkspacePath();
     const argsWithPrompt = [...args, prompt];
     logger.info('start', { cmd: `opencode ${args.join(' ')} <prompt>`, cwd: workspacePath });
+    emitEvent('opencode_start', { model: options?.model || 'default' });
 
     return runProcess('opencode', argsWithPrompt, {
       timeoutMs: getOpencodeTaskTimeoutMs(),
@@ -330,6 +332,7 @@ ${text}
       this.writeVerboseStdout(stdout);
 
       logger.info('done', { outputLen: stdout.length });
+      emitEvent('opencode_done', { outputLen: stdout.length });
       this.logStderr('Chat', stderr);
 
       const structured = this.toStructuredResult(stdout, options);

@@ -1,6 +1,7 @@
 /**
  * 統一錯誤處理與 runtime issue 追蹤
  */
+import { emitEvent } from '../services/event-bus.js';
 
 export type RuntimeIssue = {
   timestamp: number;
@@ -83,6 +84,11 @@ export function recordRuntimeIssue(
     entry.requestId = requestId;
   }
   recentIssues.push(entry);
+  emitEvent('runtime_issue', {
+    scope,
+    message,
+    ...(requestId ? { requestId } : {})
+  });
   if (recentIssues.length > RECENT_ISSUE_LIMIT) {
     recentIssues.splice(0, recentIssues.length - RECENT_ISSUE_LIMIT);
   }

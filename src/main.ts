@@ -16,6 +16,7 @@ import { writeContextSnapshots, writeSchedulerHealth } from './services/context-
 import { MemoryBackfillWorker } from './services/memory-backfill-worker.js';
 import { startErrorAlerter } from './services/error-alerter.js';
 import { startIssueStore } from './services/issue-store.js';
+import { initEventProjector } from './services/event-projector.js';
 import {
   shouldIncludeMemoryContext,
   type PromptBuildResult,
@@ -172,6 +173,7 @@ async function bootstrap() {
   const scheduler = new Scheduler(memory, schedulerAgent, telegram, enqueueMemoriaSyncFn);
   startIssueStore(memory);
   startErrorAlerter({ connector: telegram, adminUserId: ALLOWED_USER_ID });
+  initEventProjector(writeContextSnapshotsFn);
   const commandRouter = new CommandRouter();
   let contextRefreshTimer: NodeJS.Timeout | null = null;
   const webEnabled = getWebEnabled();

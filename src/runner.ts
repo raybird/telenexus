@@ -9,6 +9,7 @@ import { safeCompare } from './utils/crypto.js';
 import { resolveProjectDir } from './utils/paths.js';
 import { createLogger } from './core/logger.js';
 import { loadAiConfig } from './core/config-loader.js';
+import { emitEvent } from './services/event-bus.js';
 
 const logger = createLogger('Runner');
 
@@ -449,6 +450,7 @@ const server = http.createServer(async (req, res) => {
       const raw = await readBody(req);
       const parsed = JSON.parse(raw || '{}') as RunnerRequest;
       logger.info('run_start', { requestId, task: parsed.task, stream: false });
+      emitEvent('runner_request_start', { requestId, task: parsed.task, stream: false });
       const result = await executeTask(parsed);
       const durationMs = Date.now() - startedAt;
 
@@ -479,6 +481,7 @@ const server = http.createServer(async (req, res) => {
       }
       markRunnerResult(successResult);
       logger.info('run_done', { requestId, durationMs, provider: result.provider });
+      emitEvent('runner_request_done', { requestId, durationMs, provider: result.provider, stream: false });
 
       sendJson(res, 200, {
         ok: true,
@@ -508,6 +511,7 @@ const server = http.createServer(async (req, res) => {
         error: `${errorType}: ${message}`
       });
       logger.warn('run_error', { requestId, durationMs, error: message });
+      emitEvent('runner_request_error', { requestId, durationMs, error: message, stream: false });
       sendJson(res, 500, { ok: false, requestId, durationMs, error: message });
     }
     return;
@@ -544,6 +548,7 @@ const server = http.createServer(async (req, res) => {
       const raw = await readBody(req);
       const parsed = JSON.parse(raw || '{}') as RunnerRequest;
       logger.info('run_start', { requestId, task: parsed.task, stream: true });
+      emitEvent('runner_request_start', { requestId, task: parsed.task, stream: true });
 
       res.writeHead(200, {
         'Content-Type': 'text/event-stream; charset=utf-8',
@@ -606,6 +611,7 @@ const server = http.createServer(async (req, res) => {
       }
       markRunnerResult(successResult);
       logger.info('run_done', { requestId, durationMs, provider: result.provider, stream: true });
+      emitEvent('runner_request_done', { requestId, durationMs, provider: result.provider, stream: true });
       writeSseEvent(res, 'result', {
         ok: true,
         requestId,
@@ -636,6 +642,7 @@ const server = http.createServer(async (req, res) => {
         error: `${errorType}: ${message}`
       });
       logger.warn('run_error', { requestId, durationMs, error: message, stream: true });
+      emitEvent('runner_request_error', { requestId, durationMs, error: message, stream: true });
       try {
         if (!res.headersSent) {
           res.writeHead(500, {

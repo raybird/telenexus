@@ -20,6 +20,7 @@ import type { Connector } from '../types/index.js';
 import { inferSummaryMetadata } from './summary-metadata.js';
 import type { MemoriaSyncTurn } from './memoria-sync.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
+import { emitEvent } from '../services/event-bus.js';
 
 const log = createLogger('scheduler');
 
@@ -376,6 +377,7 @@ export class Scheduler {
    * 執行排程任務
    */
   private async executeTask(schedule: Schedule): Promise<void> {
+    emitEvent('schedule_fire', { scheduleId: schedule.id, name: schedule.name });
     try {
       // 1. 檢索長期記憶 (MCP Memory)
       const longTermMemory = await this.retrieveLongTermMemory(schedule.user_id, schedule.prompt);
@@ -406,6 +408,7 @@ export class Scheduler {
         }
       }
       log.info('task.completed', { scheduleId: schedule.id, responseLength: response.length });
+      emitEvent('schedule_done', { scheduleId: schedule.id, name: schedule.name, responseLength: response.length });
 
       // 4. 儲存 AI 回應到記憶
       if (response && !response.startsWith('Error')) {
@@ -428,6 +431,7 @@ export class Scheduler {
         isTimeout ? 'scheduler:task-timeout' : 'scheduler:task-failed',
         error
       );
+      emitEvent('schedule_fail', { scheduleId: schedule.id, name: schedule.name, isTimeout, message });
       const errorMessage = isTimeout
         ? `⏱️ 排程任務 "${schedule.name}" 逾時自動中止（${message}）`
         : `❌ 排程任務 "${schedule.name}" 執行失敗：${error}`;

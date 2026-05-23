@@ -35,6 +35,7 @@ import { recordPromptSessionTrace } from '../services/prompt-session-telemetry.j
 import type { PromptTelemetry } from './message-pipeline-chat.js';
 import { parseMemoryIntent } from './memory-intent.js';
 import { recordMemoryIntentTrace } from '../services/memory-intent-telemetry.js';
+import { emitEvent } from '../services/event-bus.js';
 
 type MessagePipelineOptions = {
   connector: Connector;
@@ -96,6 +97,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       attachments: attachmentCount,
       content: msg.content
     });
+    emitEvent('request_start', { requestId, userId: msg.sender.id, platform: msg.sender.platform });
     const userId = msg.sender.id;
     const targetChatId = msg.chatId || userId;
 
@@ -313,6 +315,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         ...(typeof modelMessageTimestamp === 'number' ? { modelMessageTimestamp } : {})
       });
 
+      emitEvent('request_done', { requestId, userId: msg.sender.id, durationMs: Date.now() - now });
       options.writeContextSnapshots();
     } catch (error) {
       log.error('message.failed', { userId: msg.sender.id, error });
@@ -333,6 +336,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         durationMs: Date.now() - now,
         ok: false
       });
+      emitEvent('request_error', { requestId, userId: msg.sender.id, durationMs: Date.now() - now });
       options.recordRuntimeIssue('message-processing', error);
       options.writeContextSnapshots();
       const errorMsg = 'Sorry, I encountered an error while exercising my powers.';
