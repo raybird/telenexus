@@ -56,7 +56,7 @@ Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per
 ### Message Flow
 
 1. `TelegramConnector` receives message → converts to `UnifiedMessage`
-2. `CommandRouter` checks for built-in commands (`/start`, `/reset`, `/new`, `/add_schedule`, etc.) or passthrough commands (`/compress`, `/compact`, `/clear` — forwarded to CLI)
+2. `CommandRouter` checks for built-in commands (`/start`, `/reset`, `/new`, `/add_schedule`, `/model`, `/models`, `/set_model`, etc.) or passthrough commands (`/compress`, `/compact`, `/clear` — forwarded to CLI)
 3. Non-command messages enter `createMessagePipeline()` which: builds prompt with memory context, routes to appropriate agent (local vs runner), manages thinking-placeholder UX, handles `[[SEND_FILE:]]` directives, and triggers optional summary follow-ups
 4. `DynamicAIAgent` reads `ai-config.yaml` at each call and delegates to `OpencodeAgent`
 5. Responses are stored in `MemoryManager` (SQLite) and optionally synced to Memoria

@@ -257,7 +257,27 @@ export class OpencodeAgent extends CliAgentBase {
     // 3. 移除 opencode 啟動 banner 行 (e.g. "> build · model/name")
     cleaned = cleaned.replace(/^\s*>\s*build\s*·.*$/gim, '');
 
-    return cleaned.trim();
+    // 4. 移除洩漏的工具呼叫 XML 區塊（模型直接輸出 function call 語法）
+    cleaned = cleaned.replace(/<function=[^>]*>[\s\S]*?<\/function>/gi, '');
+    cleaned = cleaned.replace(/<parameter=[^>]*>[\s\S]*?<\/parameter>/gi, '');
+    cleaned = cleaned.replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, '');
+
+    // 5. 移除殘留的孤立結束標籤（如大量重複的 </function>）
+    cleaned = cleaned.replace(/<\/(function|parameter|tool_call)[^>]*>/gi, '');
+
+    // 6. 移除工具呼叫結果行，如 [{"result": "success"}]
+    cleaned = cleaned.replace(/^\[{.*}\]\s*$/gm, '');
+
+    const result = cleaned.trim();
+
+    // 垃圾偵測：原文含大量 </function> 但清洗後幾乎沒內容，改回傳警示
+    const leakCount = (text.match(/<\/function>/gi) ?? []).length;
+    if (leakCount > 5 && result.length < 50) {
+      logger.warn('tool_call_leak_detected', { leakCount, originalLen: text.length });
+      return '（模型輸出了異常的工具呼叫格式，內容已略過）';
+    }
+
+    return result;
   }
 
   protected buildChatArgs(options?: AIAgentOptions, format: 'json' | null = 'json'): string[] {

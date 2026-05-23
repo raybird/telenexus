@@ -1,4 +1,5 @@
 import fs from 'fs';
+import path from 'path';
 import http from 'http';
 import https from 'https';
 import yaml from 'js-yaml';
@@ -6,6 +7,7 @@ import { OpencodeAgent } from './opencode.js';
 import type { AgentEvent, AgentStructuredResult } from './agent-result.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
 import { createLogger } from './logger.js';
+import { resolveProjectDir } from '../utils/paths.js';
 
 const logger = createLogger('DynamicAgent');
 
@@ -528,14 +530,25 @@ export class DynamicAIAgent implements AIAgent {
   private loadProviderConfig(): AIConfig {
     try {
       const fileContent = fs.readFileSync(this.configPath, 'utf8');
-      const config = yaml.load(fileContent) as AIConfig;
+      const base = yaml.load(fileContent) as AIConfig | undefined;
+      const overridePath = this.resolveOverridePath();
+      let overrideModel: string | undefined;
+      if (fs.existsSync(overridePath)) {
+        const overrideContent = fs.readFileSync(overridePath, 'utf8');
+        const override = yaml.load(overrideContent) as AIConfig | undefined;
+        overrideModel = override?.model?.trim() || undefined;
+      }
       return {
-        provider: config?.provider || 'opencode',
-        model: config?.model
+        provider: base?.provider || 'opencode',
+        model: overrideModel ?? base?.model
       };
     } catch {
       return { provider: 'opencode' };
     }
+  }
+
+  resolveOverridePath(): string {
+    return path.resolve(resolveProjectDir(), 'data', 'ai-config.override.yaml');
   }
 
   async chat(prompt: string, options?: AIAgentOptions): Promise<string> {
