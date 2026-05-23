@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-v2.12.0-1f6feb">
+  <img alt="version" src="https://img.shields.io/badge/version-v2.13.0-1f6feb">
   <img alt="stack" src="https://img.shields.io/badge/stack-Telegram%20%2B%20Runner%20%2B%20SAR-0f766e">
   <img alt="memory" src="https://img.shields.io/badge/memory-Summary--Aware%20Retrieval-c2410c">
   <img alt="release" src="https://img.shields.io/badge/release-commit%20%E2%86%92%20tag%20%E2%86%92%20push-6b21a8">
