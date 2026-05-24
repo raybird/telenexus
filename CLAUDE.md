@@ -88,13 +88,13 @@ Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per
 
 - **`ai-config.yaml`**: Runtime AI provider selection (opencode), model override, passthrough command whitelist, chat prompt assembly config
 - **`.env`**: Telegram token, allowed user ID, runner settings, web console settings, Memoria sync options, error alerter / schedule timeout knobs (`ERROR_ALERT_THRESHOLD`, `ERROR_ALERT_WINDOW_MS`, `ERROR_ALERT_COOLDOWN_MS`, `SCHEDULE_TASK_TIMEOUT_MS`)
-- **`skills/`**: Skill definitions synced to workspace on startup via `scripts/sync-skills.mjs`
+- **`skills/`**: Skill definitions synced to workspace on startup via `scripts/sync-skills.mjs`; also generates `workspace/context/skills-summary.md` (one-line-per-skill index injected into full prompts)
 
 ### Prompt Modes
 
 `src/core/prompt-build.ts` selects one of four modes per turn (rather than always sending full context):
 
-- **full** — periodic full prompt + memory context injection
+- **full** — periodic full prompt + memory context injection; also injects live system summary (active schedules, recent error count, memory size) and skills index into the prompt so Opencode sees them without needing to read files
 - **compact** — lightweight follow-up prompt; memory context only injected when the message clearly needs prior rules/decisions/settings
 - **minimal** — short follow-ups, no extra context bloat
 - **passthrough** — slash command forwarded verbatim to the underlying CLI, no TeleNexus wrapping

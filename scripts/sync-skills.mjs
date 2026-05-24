@@ -118,6 +118,42 @@ function generateOpencodeAgentsMd() {
   );
 }
 
+function generateSkillsSummaryMd() {
+  const opencodeSkillsDir = process.env.OPENCODE_SKILLS_DIR || '/app/workspace/.opencode/skills';
+  const projectDir = process.env.APP_PROJECT_DIR || process.cwd();
+  const contextDir = path.join(projectDir, 'workspace', 'context');
+  const summaryPath = path.join(contextDir, 'skills-summary.md');
+
+  if (!fs.existsSync(opencodeSkillsDir)) {
+    console.log('[SkillSync] opencode skills dir not found, skipping skills-summary.md generation');
+    return;
+  }
+
+  const entries = fs.readdirSync(opencodeSkillsDir, { withFileTypes: true });
+  const lines = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const skillMdPath = path.join(opencodeSkillsDir, entry.name, 'SKILL.md');
+    if (!fs.existsSync(skillMdPath)) continue;
+
+    const content = fs.readFileSync(skillMdPath, 'utf-8');
+    const fm = extractFrontmatter(content);
+    const name = fm.name || entry.name;
+    const description = fm.description || '';
+    lines.push(description ? `- ${name}: ${description}` : `- ${name}`);
+  }
+
+  if (lines.length === 0) {
+    console.log('[SkillSync] No skills found, skipping skills-summary.md generation');
+    return;
+  }
+
+  fs.mkdirSync(contextDir, { recursive: true });
+  fs.writeFileSync(summaryPath, lines.join('\n') + '\n', 'utf-8');
+  console.log(`[SkillSync] Generated skills-summary.md with ${lines.length} skills: ${summaryPath}`);
+}
+
 try {
   syncBuiltinSkills();
 } catch (error) {
@@ -130,4 +166,11 @@ try {
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   console.warn(`[SkillSync] AGENTS.md generation failed: ${message}`);
+}
+
+try {
+  generateSkillsSummaryMd();
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  console.warn(`[SkillSync] skills-summary.md generation failed: ${message}`);
 }

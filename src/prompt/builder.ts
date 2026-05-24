@@ -492,7 +492,9 @@ export function buildChatPrompt(
   userMessage: string,
   memoryContext = '',
   mode: 'full' | 'compact' | 'minimal' = 'full',
-  capabilityHint = ''
+  capabilityHint = '',
+  systemSummary = '',
+  skillsHint = ''
 ): string {
   const sections: string[] = [];
 
@@ -534,6 +536,14 @@ export function buildChatPrompt(
   if (!isCompact && config.workspacePolicyEnabled) {
     const lines = config.workspacePolicyLines.map((line) => `- ${line}`).join('\n');
     sections.push(`【工作目錄限制 - 重要】\n${lines}`);
+  }
+
+  if (!isCompact && systemSummary.trim().length > 0) {
+    sections.push(`【系統狀態】\n${systemSummary.trim()}`);
+  }
+
+  if (!isCompact && skillsHint.trim().length > 0) {
+    sections.push(`【可用技能索引】\n${skillsHint.trim()}`);
   }
 
   if (capabilityHint.trim().length > 0) {

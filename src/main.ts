@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import dotenv from 'dotenv';
 import { TelegramConnector } from './connectors/telegram.js';
 import { CommandRouter } from './core/command-router.js';
@@ -11,8 +13,9 @@ import { parseBool, parsePositiveInt, parseNumber } from './utils/env.js';
 import { loadChatPromptConfig, validateAiConfig } from './config/ai-config.js';
 import { shouldSummarize, buildMemoryContextAsync, buildChatPrompt } from './prompt/builder.js';
 import { getMemoriaRecallClient } from './core/memoria-recall.js';
-import { recordRuntimeIssue } from './utils/errors.js';
+import { recordRuntimeIssue, getRecentIssues } from './utils/errors.js';
 import { writeContextSnapshots, writeSchedulerHealth } from './services/context-snapshots.js';
+import { resolveContextDir } from './utils/paths.js';
 import { MemoryBackfillWorker } from './services/memory-backfill-worker.js';
 import { startErrorAlerter } from './services/error-alerter.js';
 import { startIssueStore } from './services/issue-store.js';
@@ -212,13 +215,39 @@ async function bootstrap() {
     const memoriaCapabilityHint = shouldIncludeMemoriaHint
       ? '若本次任務需要跨 session 歷史、長期規則或可重用決策，系統目前有額外長期記憶補強可配合；若不需要，仍以前回合 session 與 TeleNexus 已注入內容為主。若本輪出現值得長期保留的規則或決策，可在回覆最後附上 `[[MEMORY_INTENT:{"level":"rule|decision|long-term-candidate|short-term|none","confidence":"low|medium|high","reason":"...","summary":"..."}]]`；這個區塊只用於系統觀測，不要在正文中解釋它。'
       : '';
+
+    let systemSummary = '';
+    let skillsHint = '';
+    if (mode === 'full') {
+      const activeSchedules = memory.getActiveSchedules();
+      const fifteenMinAgo = Date.now() - 15 * 60 * 1000;
+      const recentIssueCount = getRecentIssues().filter(
+        (issue) => issue.timestamp >= fifteenMinAgo
+      ).length;
+      const msgTotal = memory.getMessagesPage(userId, 0, 1).total;
+      systemSummary = [
+        `- 活躍排程：${activeSchedules.length} 個`,
+        `- 最近 15 分鐘異常：${recentIssueCount} 筆`,
+        `- 記憶庫：${msgTotal} 條訊息`
+      ].join('\n');
+
+      try {
+        const skillsSummaryPath = path.join(resolveContextDir(), 'skills-summary.md');
+        skillsHint = fs.readFileSync(skillsSummaryPath, 'utf-8').trim();
+      } catch {
+        // best-effort: skip if file not yet generated
+      }
+    }
+
     return {
       prompt: buildChatPrompt(
         promptConfig,
         userMessage,
         memoryContext,
         mode,
-        memoriaCapabilityHint
+        memoriaCapabilityHint,
+        systemSummary,
+        skillsHint
       ),
       mode,
       memoryContextLength: memoryContext.length,

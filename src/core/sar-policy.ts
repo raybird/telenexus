@@ -135,10 +135,10 @@ export const SAR_PROMPT_POLICY = {
   summaryImportantTextPattern:
     /[Dd]ecision|決策|SOP|流程|規則|限制|fallback|bootstrap|runner|Opencode/,
   summaryImportantTags: ['release', 'opencode', 'runner'],
-  summaryImportantTagBonus: 2,
+  summaryImportantTagBonus: 1,
   summaryImportantTextBonus: 2,
   summaryModelRoleBonus: 1,
-  summaryQueryTagBonus: 5,
+  summaryQueryTagBonus: 2,
   summaryKeywordBonus: 2
 } as const;
 

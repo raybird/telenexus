@@ -53,6 +53,7 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 - `src/prompt/builder.ts`
   - 建立 full / compact prompt
   - 組 recent history、SAR anchors、semantic summaries
+  - Full mode 時額外注入 `systemSummary`（系統狀態）與 `skillsHint`（技能索引）
 - `src/core/prompt-build.ts`
   - 決定 full / compact / minimal prompt 模式
   - 控制 compact prompt 是否注入 memory context
@@ -128,6 +129,7 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 
 - `full`
   - 週期性注入完整 prompt 與 memory context
+  - 額外注入 `【系統狀態】`（活躍排程數、最近 15 分鐘異常筆數、記憶庫大小）與 `【可用技能索引】`（來自 `workspace/context/skills-summary.md`）
 - `compact`
   - 後續對話的輕量 prompt
   - 只有在問題明顯需要歷史規則、決策、設定時才注入 memory context
