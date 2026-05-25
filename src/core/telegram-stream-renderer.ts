@@ -283,7 +283,8 @@ export class TelegramStreamRenderer {
       await this.connector.sendMessage(this.chatId, resolvedText, {
         retries: 2,
         throwOnError: true,
-        retryOnTimeout: false
+        retryOnTimeout: false,
+        parseMode: 'markdown-v2'
       });
       return;
     }
@@ -292,7 +293,8 @@ export class TelegramStreamRenderer {
       try {
         await this.connector.editMessage(this.chatId, this.placeholderMsgId, resolvedText, {
           retries: 0,
-          suppressFallbackSend: true
+          suppressFallbackSend: true,
+          formatMode: 'markdown-v2'
         });
         log.info('stream.finalized-via-edit', {
           chatId: this.chatId,
@@ -322,7 +324,8 @@ export class TelegramStreamRenderer {
     await this.connector.sendMessage(this.chatId, resolvedText, {
       retries: 2,
       throwOnError: true,
-      retryOnTimeout: false
+      retryOnTimeout: false,
+      parseMode: 'markdown-v2'
     });
     log.info('stream.finalized-via-send', {
       chatId: this.chatId,
