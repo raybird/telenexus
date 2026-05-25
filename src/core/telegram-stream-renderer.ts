@@ -8,6 +8,7 @@ const log = createLogger('telegram-stream');
 const DEFAULT_EDIT_THROTTLE_MS = 1000;
 const DEFAULT_MIN_DELTA_CHARS = 40;
 const DEFAULT_FORCE_FLUSH_MS = 2500;
+const STATUS_MIN_INTERVAL_MS = 600;
 const DEFAULT_EARLY_FLUSH_CHARS = 120;
 const DEFAULT_MAX_EDIT_FAILURES = 3;
 const MAX_SINGLE_MESSAGE_LENGTH = 3900;
@@ -185,7 +186,7 @@ export class TelegramStreamRenderer {
     }
 
     const now = Date.now();
-    if (now - this.lastRenderAt < this.editThrottleMs) {
+    if (now - this.lastRenderAt < STATUS_MIN_INTERVAL_MS) {
       return;
     }
 
