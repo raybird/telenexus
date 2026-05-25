@@ -214,7 +214,25 @@ docker compose logs -f telenexus
 
 ## 最常用操作
 
-### 排程（Docker 內）
+### 基本指令（Telegram）
+
+| 指令 | 說明 |
+|------|------|
+| `/start` | 顯示說明訊息與指令清單 |
+| `/reset` | 清除 AI 短期記憶（Context Window） |
+| `/new` | 下一則訊息強制使用新 CLI session，不接續上一段對話 |
+| `/abort` | 中止當前正在執行的 AI 任務並清空佇列 |
+| `/send_file 路徑 \| 說明` | 把專案目錄內的檔案回傳到 Telegram |
+
+### 排程指令（Telegram）
+
+| 指令 | 說明 |
+|------|------|
+| `/add_schedule 名稱\|Cron\|提示詞` | 新增排程，例如 `/add_schedule 早安\|0 9 * * *\|說早安` |
+| `/list_schedules` | 列出目前所有排程 |
+| `/remove_schedule <ID>` | 刪除指定排程，例如 `/remove_schedule 1` |
+
+### 排程管理（Docker CLI）
 
 ```bash
 docker compose exec telenexus node /app/dist/tools/scheduler-cli.js list
@@ -223,7 +241,7 @@ docker compose exec telenexus node /app/dist/tools/scheduler-cli.js reload
 docker compose exec telenexus node /app/dist/tools/scheduler-cli.js health
 ```
 
-### 模型管理（Telegram 指令）
+### 模型管理（Telegram）
 
 | 指令 | 說明 |
 |------|------|
@@ -232,11 +250,10 @@ docker compose exec telenexus node /app/dist/tools/scheduler-cli.js health
 | `/models opencode` | 篩選特定 provider（如 `opencode`、`nvidia`） |
 | `/set_model <model-id>` | 切換模型，下一則訊息立即生效 |
 | `/reset_model` | 清除 override，恢復 `ai-config.yaml` 的基礎設定 |
-| `/abort` | 中止當前正在執行的 AI 任務並清空佇列 |
 
 模型 override 寫入 `data/ai-config.override.yaml`，`ai-config.yaml` 本身維持唯讀不變動。
 
-### 📌 狀態釘選訊息
+### 狀態釘選訊息
 
 啟動後 TeleNexus 會自動傳送一則「📌 TeleNexus 狀態」訊息並釘選在聊天頂部，顯示：
 
