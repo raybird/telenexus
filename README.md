@@ -232,8 +232,20 @@ docker compose exec telenexus node /app/dist/tools/scheduler-cli.js health
 | `/models opencode` | 篩選特定 provider（如 `opencode`、`nvidia`） |
 | `/set_model <model-id>` | 切換模型，下一則訊息立即生效 |
 | `/reset_model` | 清除 override，恢復 `ai-config.yaml` 的基礎設定 |
+| `/abort` | 中止當前正在執行的 AI 任務並清空佇列 |
 
 模型 override 寫入 `data/ai-config.override.yaml`，`ai-config.yaml` 本身維持唯讀不變動。
+
+### 📌 狀態釘選訊息
+
+啟動後 TeleNexus 會自動傳送一則「📌 TeleNexus 狀態」訊息並釘選在聊天頂部，顯示：
+
+- 目前生效模型
+- 活躍排程數
+- 最近 24h 異常筆數
+- 記憶庫大小
+
+每次 `request_done`、`schedule_fire` 或 `runtime_issue` 事件觸發時自動更新（節流 5s）。若不需要可設定 `PINNED_STATUS_ENABLED=false`。
 
 ### Runner 健康檢查
 
