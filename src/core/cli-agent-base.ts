@@ -128,6 +128,19 @@ export abstract class CliAgentBase implements AIAgent {
     let settled = false;
     let timedOut = false;
     let rateLimited = false;
+    let externallyAborted = false;
+
+    const onAbort = () => {
+      externallyAborted = true;
+      child.kill('SIGTERM');
+    };
+    if (options?.signal) {
+      if (options.signal.aborted) {
+        queueMicrotask(onAbort);
+      } else {
+        options.signal.addEventListener('abort', onAbort, { once: true });
+      }
+    }
     let lastDeltaAt = Date.now();
     let lastStatusAt = 0;
     let lastStatusText = '';
@@ -251,6 +264,7 @@ export abstract class CliAgentBase implements AIAgent {
           settled = true;
           clearTimeout(timer);
           clearInterval(heartbeatInterval);
+          options?.signal?.removeEventListener('abort', onAbort);
 
           if (stdoutBuffer.trim()) {
             const trailing = this.parseStreamLine(stdoutBuffer.trim());
@@ -260,6 +274,16 @@ export abstract class CliAgentBase implements AIAgent {
             if (typeof trailing?.deltaText === 'string' && trailing.deltaText.length > 0) {
               aggregatedText += trailing.deltaText;
             }
+          }
+
+          if (externallyAborted) {
+            const abortedResult = buildTextOnlyStructuredResult(provider, '⏹️ 任務已被使用者中止。');
+            if (!started) {
+              await emitStart();
+            }
+            await onEvent({ type: 'done', text: abortedResult.text });
+            resolve(abortedResult);
+            return;
           }
 
           if (signal || (code && code !== 0)) {

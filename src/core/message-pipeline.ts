@@ -210,7 +210,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         });
       }
 
-      const rawResponse = await executionQueue.enqueue(userId, 'chat', 'high', async () => {
+      const rawResponse = await executionQueue.enqueue(userId, 'chat', 'high', async ({ signal }) => {
         const eventHandler = async (event: AgentEvent): Promise<void> => {
           if (streamResponse) {
             await streamResponse(event);
@@ -220,14 +220,17 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
           }
         };
 
+        const baseOpts = {
+          isPassthroughCommand: context.isPassthroughCommand,
+          forceNewSession: context.forceNewSession,
+          autoRecoveryNotice: true,
+          signal
+        };
+
         if ((streamResponse || telegramStreamRenderer) && context.activeAgent.streamChat) {
           const result = await context.activeAgent.streamChat(
             promptForAgent,
-            {
-              isPassthroughCommand: context.isPassthroughCommand,
-              forceNewSession: context.forceNewSession,
-              autoRecoveryNotice: true
-            },
+            baseOpts,
             eventHandler
           );
           return result.text;

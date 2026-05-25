@@ -16,6 +16,7 @@ export interface AIAgentOptions {
   autoRecoveryNotice?: boolean;
   autoCompressAttempted?: boolean;
   fromScheduler?: boolean;
+  signal?: AbortSignal;
 }
 
 type RunnerTask = 'chat' | 'summarize';
