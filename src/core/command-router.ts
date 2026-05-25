@@ -59,12 +59,24 @@ export class CommandRouter {
 
     // 檢查是否為指令（以 / 開頭）
     const isCommand = content.startsWith('/');
+    const userId = msg.sender.id;
+
+    // 互動進行中時，只允許白名單指令
+    const { interactionGuard } = await import('../services/interaction-guard.js');
+    const guardState = interactionGuard.getState(userId);
+    if (guardState && isCommand && !interactionGuard.isCommandAllowed(userId, content)) {
+      await deps.connector.sendMessage(
+        msg.chatId || userId,
+        `⏳ 你目前正在「${guardState.kind}」流程中，請先完成或輸入 /abort 取消後再試。`
+      );
+      return true;
+    }
 
     for (const command of this.commands) {
       if (command.match(content)) {
         await command.execute({
           msg,
-          userId: msg.sender.id,
+          userId,
           content,
           connector: deps.connector,
           memory: deps.memory,
