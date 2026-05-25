@@ -7,6 +7,8 @@ import type { Connector, UnifiedMessage } from '../types/index.js';
 import { parsePositiveInt } from '../utils/env.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
 import { resolveProjectDir } from '../utils/paths.js';
+import { renderMarkdownV2 } from '../telegram/render/markdown-v2.js';
+import { chunkMarkdownV2 } from '../telegram/render/chunker.js';
 
 const DEFAULT_TELEGRAM_API_TIMEOUT_MS = 15000;
 const DEFAULT_TELEGRAM_API_RETRY_COUNT = 1;
@@ -18,7 +20,7 @@ const TELEGRAM_LAUNCH_READY_TIMEOUT_MS = 5000;
 
 type TelegramParseMode = 'HTML' | 'MarkdownV2';
 
-type TelegramFormatMode = 'auto' | 'plain' | 'html';
+type TelegramFormatMode = 'auto' | 'plain' | 'html' | 'markdown-v2';
 
 type TelegramTableRenderMode = 'auto' | 'card' | 'code';
 
@@ -478,6 +480,47 @@ export class TelegramConnector implements Connector {
     return chunks.length > 0 ? chunks : [text];
   }
 
+  private renderForMarkdownV2(text: string): string {
+    return renderMarkdownV2(this.normalizeMarkdownTables(text));
+  }
+
+  private async sendChunkRaw(
+    chatId: string,
+    chunk: string,
+    chunkIndex: number,
+    totalChunks: number,
+    parseMode: TelegramParseMode | null,
+    retries?: number,
+    retryOnTimeout?: boolean
+  ): Promise<void> {
+    const label = `sendMessage chat=${chatId} chunk=${chunkIndex + 1}/${totalChunks}`;
+    const callOptions =
+      retries !== undefined || retryOnTimeout !== undefined
+        ? {
+            ...(retries !== undefined ? { retries } : {}),
+            ...(retryOnTimeout !== undefined ? { retryOnTimeout } : {})
+          }
+        : undefined;
+
+    if (!parseMode) {
+      await this.callTelegram(label, () => this.bot.telegram.sendMessage(chatId, chunk), callOptions);
+      return;
+    }
+
+    try {
+      await this.callTelegram(
+        label,
+        () => this.bot.telegram.sendMessage(chatId, chunk, { parse_mode: parseMode }),
+        callOptions
+      );
+    } catch (error) {
+      if (!this.isParseModeError(error)) throw error;
+      console.warn(`[Telegram] ${label} parse_mode failed, fallback to plain text.`);
+      recordRuntimeIssue(`${label}:parse-mode-fallback`, error);
+      await this.callTelegram(label, () => this.bot.telegram.sendMessage(chatId, chunk), callOptions);
+    }
+  }
+
   private probeIPv6(): Promise<boolean> {
     return new Promise((resolve) => {
       const socket = createConnection({
@@ -906,22 +949,24 @@ export class TelegramConnector implements Connector {
   async sendMessage(
     chatId: string,
     text: string,
-    options?: { retries?: number; throwOnError?: boolean; retryOnTimeout?: boolean }
+    options?: { retries?: number; throwOnError?: boolean; retryOnTimeout?: boolean; parseMode?: 'auto' | 'plain' | 'markdown-v2' }
   ): Promise<void> {
     try {
-      const chunks = this.splitMessage(text);
-      console.log(`[Telegram] Sending message chat=${chatId} chunks=${chunks.length}`);
-      const allowFormatting = chunks.length === 1;
-      for (let i = 0; i < chunks.length; i += 1) {
-        await this.sendChunk(
-          chatId,
-          chunks[i]!,
-          i,
-          chunks.length,
-          allowFormatting,
-          options?.retries,
-          options?.retryOnTimeout
-        );
+      const useMarkdownV2 = (options?.parseMode ?? 'auto') === 'markdown-v2';
+      if (useMarkdownV2) {
+        const rendered = this.renderForMarkdownV2(text);
+        const chunks = chunkMarkdownV2(rendered, 4096);
+        console.log(`[Telegram] Sending message chat=${chatId} chunks=${chunks.length} mode=markdown-v2`);
+        for (let i = 0; i < chunks.length; i += 1) {
+          await this.sendChunkRaw(chatId, chunks[i]!, i, chunks.length, 'MarkdownV2', options?.retries, options?.retryOnTimeout);
+        }
+      } else {
+        const chunks = this.splitMessage(text);
+        console.log(`[Telegram] Sending message chat=${chatId} chunks=${chunks.length}`);
+        const allowFormatting = chunks.length === 1;
+        for (let i = 0; i < chunks.length; i += 1) {
+          await this.sendChunk(chatId, chunks[i]!, i, chunks.length, allowFormatting, options?.retries, options?.retryOnTimeout);
+        }
       }
     } catch (error) {
       console.error(`[Telegram] Failed to send message to ${chatId}:`, error);
@@ -964,80 +1009,82 @@ export class TelegramConnector implements Connector {
     chatId: string,
     messageId: string,
     newText: string,
-    options?: { retries?: number; suppressFallbackSend?: boolean; formatMode?: 'auto' | 'plain' }
+    options?: { retries?: number; suppressFallbackSend?: boolean; formatMode?: 'auto' | 'plain' | 'markdown-v2' }
   ): Promise<void> {
     try {
-      const chunks = this.splitMessage(newText);
-      const firstChunk = chunks[0] || '';
-      const allowFormatting = chunks.length === 1;
-      const formatted =
-        options?.formatMode === 'plain'
-          ? { text: firstChunk }
-          : allowFormatting
-            ? this.formatChunkForTelegram(firstChunk)
-            : { text: firstChunk };
+      const useMarkdownV2 = options?.formatMode === 'markdown-v2';
       const callOptions = options?.retries !== undefined ? { retries: options.retries } : undefined;
 
-      // 1. Edit the original message (placeholder) with the first chunk
-      try {
-        if (formatted.parseMode) {
-          const parseMode: TelegramParseMode = formatted.parseMode;
+      if (useMarkdownV2) {
+        const rendered = this.renderForMarkdownV2(newText);
+        const chunks = chunkMarkdownV2(rendered, 4096);
+        const firstChunk = chunks[0] || '';
+        try {
           await this.callTelegram(
             `editMessage chat=${chatId} message=${messageId}`,
-            () =>
-              this.bot.telegram.editMessageText(
-                chatId,
-                parseInt(messageId, 10),
-                undefined,
-                formatted.text,
-                {
-                  parse_mode: parseMode
-                }
-              ),
+            () => this.bot.telegram.editMessageText(chatId, parseInt(messageId, 10), undefined, firstChunk, { parse_mode: 'MarkdownV2' }),
             callOptions
           );
-        } else {
+        } catch (error) {
+          if (!this.isParseModeError(error)) throw error;
+          console.warn(`[Telegram] editMessage chat=${chatId} message=${messageId} MarkdownV2 failed, fallback to plain.`);
           await this.callTelegram(
             `editMessage chat=${chatId} message=${messageId}`,
-            () =>
-              this.bot.telegram.editMessageText(
-                chatId,
-                parseInt(messageId, 10),
-                undefined,
-                formatted.text
-              ),
+            () => this.bot.telegram.editMessageText(chatId, parseInt(messageId, 10), undefined, firstChunk),
             callOptions
           );
         }
-      } catch (error) {
-        if (!formatted.parseMode || !this.isParseModeError(error)) {
-          throw error;
+        if (chunks.length > 1) {
+          for (let i = 1; i < chunks.length; i++) {
+            await this.sendChunkRaw(chatId, chunks[i]!, i, chunks.length, 'MarkdownV2');
+          }
         }
-        console.warn(
-          `[Telegram] editMessage chat=${chatId} message=${messageId} parse_mode failed, fallback to plain text.`
-        );
-        await this.callTelegram(
-          `editMessage chat=${chatId} message=${messageId}`,
-          () =>
-            this.bot.telegram.editMessageText(
-              chatId,
-              parseInt(messageId, 10),
-              undefined,
-              firstChunk
-            ),
-          callOptions
-        );
-      }
+      } else {
+        const chunks = this.splitMessage(newText);
+        const firstChunk = chunks[0] || '';
+        const allowFormatting = chunks.length === 1;
+        const formatted =
+          options?.formatMode === 'plain'
+            ? { text: firstChunk }
+            : allowFormatting
+              ? this.formatChunkForTelegram(firstChunk)
+              : { text: firstChunk };
 
-      // 2. Send remaining chunks as new messages
-      if (chunks.length > 1) {
-        for (let i = 1; i < chunks.length; i++) {
-          await this.sendChunk(chatId, chunks[i]!, i, chunks.length, false);
+        try {
+          if (formatted.parseMode) {
+            const parseMode: TelegramParseMode = formatted.parseMode;
+            await this.callTelegram(
+              `editMessage chat=${chatId} message=${messageId}`,
+              () => this.bot.telegram.editMessageText(chatId, parseInt(messageId, 10), undefined, formatted.text, { parse_mode: parseMode }),
+              callOptions
+            );
+          } else {
+            await this.callTelegram(
+              `editMessage chat=${chatId} message=${messageId}`,
+              () => this.bot.telegram.editMessageText(chatId, parseInt(messageId, 10), undefined, formatted.text),
+              callOptions
+            );
+          }
+        } catch (error) {
+          if (!formatted.parseMode || !this.isParseModeError(error)) {
+            throw error;
+          }
+          console.warn(`[Telegram] editMessage chat=${chatId} message=${messageId} parse_mode failed, fallback to plain text.`);
+          await this.callTelegram(
+            `editMessage chat=${chatId} message=${messageId}`,
+            () => this.bot.telegram.editMessageText(chatId, parseInt(messageId, 10), undefined, firstChunk),
+            callOptions
+          );
+        }
+
+        if (chunks.length > 1) {
+          for (let i = 1; i < chunks.length; i++) {
+            await this.sendChunk(chatId, chunks[i]!, i, chunks.length, false);
+          }
         }
       }
     } catch (error) {
       console.error(`[Telegram] Failed to edit message ${messageId}:`, error);
-      // Fallback: try sending as new message(s) if edit fails
       if (!options?.suppressFallbackSend) {
         await this.sendMessage(chatId, newText, {
           throwOnError: true,
@@ -1045,5 +1092,21 @@ export class TelegramConnector implements Connector {
         });
       }
     }
+  }
+
+  async pinMessage(chatId: string, messageId: string): Promise<void> {
+    await this.callTelegram(
+      `pinChatMessage chat=${chatId} message=${messageId}`,
+      () => this.bot.telegram.pinChatMessage(chatId, parseInt(messageId, 10), { disable_notification: true }),
+      { retries: 1 }
+    );
+  }
+
+  async unpinMessage(chatId: string, messageId: string): Promise<void> {
+    await this.callTelegram(
+      `unpinChatMessage chat=${chatId} message=${messageId}`,
+      () => this.bot.telegram.unpinChatMessage(chatId, parseInt(messageId, 10)),
+      { retries: 1 }
+    );
   }
 }
