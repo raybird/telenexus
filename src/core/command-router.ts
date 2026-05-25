@@ -480,6 +480,17 @@ export class CommandRouter {
         }
       }
     });
+
+    this.registerCommand({
+      name: 'abort',
+      match: (content) => /^\/abort(\s|$)/i.test(content),
+      execute: async ({ userId, connector, msg }) => {
+        const { executionQueue } = await import('./execution-queue.js');
+        const ok = executionQueue.cancel(userId);
+        const reply = ok ? '⏹️ 已中止當前任務並清空佇列。' : 'ℹ️ 目前沒有正在執行的任務。';
+        await connector.sendMessage(msg.chatId || userId, reply);
+      }
+    });
   }
 
   private resolveConfigPath(): string {
