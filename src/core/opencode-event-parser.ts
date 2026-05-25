@@ -62,19 +62,25 @@ export function formatToolStatus(tool: string | undefined, input: unknown): stri
 
   switch (tool) {
     case 'grep':
-      return `正在搜尋專案檔案${suffix}...`;
+      return `🔍 搜尋專案${suffix}`;
     case 'glob':
-      return `正在掃描檔案列表${suffix}...`;
+      return `📁 掃描檔案${suffix}`;
     case 'read':
-      return `正在讀取檔案${suffix}...`;
+      return `📖 讀取${suffix}`;
     case 'bash':
-      return `正在執行指令${suffix}...`;
+      return `💻 執行指令${suffix}`;
     case 'skill':
-      return `正在載入技能${suffix}...`;
+      return `🧩 載入技能${suffix}`;
+    case 'edit':
+    case 'write':
+      return `✏️ 編輯${suffix}`;
+    case 'webfetch':
+    case 'fetch':
+      return `🌐 抓取網頁${suffix}`;
     case undefined:
       return null;
     default:
-      return `正在使用工具 ${tool}${suffix}...`;
+      return `⚙️ 使用工具 ${tool}${suffix}`;
   }
 }
 
