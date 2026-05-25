@@ -326,6 +326,7 @@ export class CommandRouter {
       name: 'add_schedule',
       match: (content) => content.startsWith('/add_schedule '),
       execute: async ({ userId, connector, scheduler, content }) => {
+        const { interactionGuard } = await import('../services/interaction-guard.js');
         const raw = content.replace('/add_schedule ', '').trim();
         const parts = raw.split('|').map((part) => part.trim());
         if (parts.length !== 3) {
@@ -336,12 +337,20 @@ export class CommandRouter {
           return;
         }
         const [name, cron, prompt] = parts;
+        interactionGuard.start(userId, {
+          kind: 'add_schedule',
+          expectedInput: 'processing',
+          allowedCommands: ['/abort', '/help'],
+          expiresInMs: 30_000
+        });
         try {
           const id = scheduler.addSchedule(userId, name!, cron!, prompt!);
           await connector.sendMessage(userId, `✅ 成功新增排程 #${id}：${name}`);
         } catch (error) {
           const errMsg = error instanceof Error ? error.message : String(error);
           await connector.sendMessage(userId, `❌ 新增失敗：${errMsg}`);
+        } finally {
+          interactionGuard.clear(userId, 'add_schedule_done');
         }
       }
     });
@@ -498,6 +507,8 @@ export class CommandRouter {
       match: (content) => /^\/abort(\s|$)/i.test(content),
       execute: async ({ userId, connector, msg }) => {
         const { executionQueue } = await import('./execution-queue.js');
+        const { interactionGuard } = await import('../services/interaction-guard.js');
+        interactionGuard.clear(userId, 'abort');
         const ok = executionQueue.cancel(userId);
         const reply = ok ? '⏹️ 已中止當前任務並清空佇列。' : 'ℹ️ 目前沒有正在執行的任務。';
         await connector.sendMessage(msg.chatId || userId, reply);
