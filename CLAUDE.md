@@ -80,6 +80,9 @@ Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per
 | `src/services/event-projector.ts`     | Subscribes to event-bus; triggers immediate context snapshot refresh on key lifecycle events              |
 | `src/services/error-alerter.ts`       | Sliding-window error alerter; pushes Telegram message to `ALLOWED_USER_ID` when a scope crosses threshold |
 | `src/services/issue-store.ts`         | Persists `recordRuntimeIssue` events to SQLite `runtime_issues` table (7-day retention)                   |
+| `src/telegram/render/markdown-v2.ts`  | MarkdownV2 渲染（remark-parse AST→MarkdownV2 entities）；用於 streamer finalize 與 pinned message         |
+| `src/services/interaction-guard.ts`   | 多步驟互動的 per-user in-memory state；`CommandRouter` 在 dispatch 前 consult，`/abort` 自動 clear        |
+| `src/services/pinned-status-manager.ts` | 訂閱 event-bus 即時更新釘選訊息（節流 5s）；`PINNED_STATUS_ENABLED=false` 可停用                        |
 | `src/connectors/telegram.ts`          | Telegraf-based connector implementing `Connector` interface                                               |
 | `src/web/server.ts`                   | Built-in Web Console (HTTP, default port 3030)                                                            |
 | `src/types/index.ts`                  | Shared interfaces: `UnifiedMessage`, `Connector`, `UserProfile`                                           |
@@ -150,7 +153,7 @@ All three cases emit `recordRuntimeIssue('${provider}:empty-output:${reason}', .
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **telenexus** (10891 symbols, 15846 relationships, 298 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **telenexus** (6514 symbols, 10061 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

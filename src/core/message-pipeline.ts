@@ -67,7 +67,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
   const pendingImageTtlMs = parsePendingImageTtlMs(process.env.IMAGE_ATTACHMENT_PENDING_TTL_MS);
   const maxSendFileBytes = 45 * 1024 * 1024;
   const summaryFollowupEnabled = parseBool(process.env.SUMMARY_FOLLOWUP_ENABLED, true);
-  const telegramStreamingEnabled = parseBool(process.env.TELEGRAM_STREAMING_ENABLED, false);
+  const telegramStreamingEnabled = parseBool(process.env.TELEGRAM_STREAMING_ENABLED, true);
   const fullPromptEvery = parsePositiveInt(process.env.CHAT_FULL_PROMPT_EVERY, 6);
   const summaryFollowupMinLength = parsePositiveInt(process.env.SUMMARY_FOLLOWUP_MIN_LENGTH, 500);
   const summaryFollowupMaxLength = parsePositiveInt(process.env.SUMMARY_FOLLOWUP_MAX_LENGTH, 320);
@@ -210,7 +210,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         });
       }
 
-      const rawResponse = await executionQueue.enqueue(userId, 'chat', 'high', async () => {
+      const rawResponse = await executionQueue.enqueue(userId, 'chat', 'high', async ({ signal }) => {
         const eventHandler = async (event: AgentEvent): Promise<void> => {
           if (streamResponse) {
             await streamResponse(event);
@@ -220,14 +220,17 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
           }
         };
 
+        const baseOpts = {
+          isPassthroughCommand: context.isPassthroughCommand,
+          forceNewSession: context.forceNewSession,
+          autoRecoveryNotice: true,
+          signal
+        };
+
         if ((streamResponse || telegramStreamRenderer) && context.activeAgent.streamChat) {
           const result = await context.activeAgent.streamChat(
             promptForAgent,
-            {
-              isPassthroughCommand: context.isPassthroughCommand,
-              forceNewSession: context.forceNewSession,
-              autoRecoveryNotice: true
-            },
+            baseOpts,
             eventHandler
           );
           return result.text;

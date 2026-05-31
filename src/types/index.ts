@@ -36,6 +36,7 @@ export interface Connector {
       retries?: number;
       throwOnError?: boolean;
       retryOnTimeout?: boolean;
+      parseMode?: 'auto' | 'plain' | 'markdown-v2';
     }
   ): Promise<void>;
 
@@ -60,9 +61,12 @@ export interface Connector {
     options?: {
       retries?: number;
       suppressFallbackSend?: boolean;
-      formatMode?: 'auto' | 'plain';
+      formatMode?: 'auto' | 'plain' | 'markdown-v2';
     }
   ): Promise<void>;
+
+  pinMessage?(chatId: string, messageId: string): Promise<void>;
+  unpinMessage?(chatId: string, messageId: string): Promise<void>;
 
   onMessage(handler: (msg: UnifiedMessage) => void): void;
 }

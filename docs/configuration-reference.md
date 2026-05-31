@@ -248,3 +248,9 @@ recordRuntimeIssue(scope, err)
 
 - `gemini:rate-limit` / `opencode:rate-limit` 被合計顯示為 `Rate-limit Issues (24h)`
 - `Past 24h by Scope (persisted)` 區塊跨重啟保留，可看週期性模式
+
+**Pinned 狀態訊息**
+
+- `PINNED_STATUS_ENABLED`（預設 `true`）：啟動時傳送「📌 TeleNexus 狀態」訊息並釘選；設為 `false` 可完全停用
+- 節流間隔固定 5000ms；訂閱 `request_done`、`schedule_fire`、`runtime_issue` 事件觸發更新
+- 顯示欄位：目前模型、活躍排程數、最近 24h 異常筆數、記憶庫大小、最後請求時間

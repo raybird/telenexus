@@ -242,7 +242,8 @@ export class OpencodeAgent extends CliAgentBase {
         pattern: /\b429\b|Too Many Requests|RESOURCE_EXHAUSTED/i,
         code: 'ERATELIMIT',
         message: 'Opencode upstream rate-limited (HTTP 429); aborted before internal backoff retries.'
-      }
+      },
+      ...(options?.signal ? { signal: options.signal } : {})
     });
   }
 
@@ -356,6 +357,10 @@ ${text}
         stdout: isProcessError && error.stdout ? error.stdout.substring(0, 500) : undefined,
         stderr: isProcessError && error.stderr ? error.stderr.substring(0, 500) : undefined
       });
+
+      if (isProcessError && error.code === 'EABORTED') {
+        return buildTextOnlyStructuredResult('opencode', '⏹️ 任務已被使用者中止。');
+      }
 
       if (isProcessError && error.code === 'ERATELIMIT') {
         logger.warn('rate_limit');

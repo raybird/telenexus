@@ -10,7 +10,7 @@ import { createMessagePipeline } from './core/message-pipeline.js';
 import { Scheduler } from './core/scheduler.js';
 import { startWebServer } from './web/server.js';
 import { parseBool, parsePositiveInt, parseNumber } from './utils/env.js';
-import { loadChatPromptConfig, validateAiConfig } from './config/ai-config.js';
+import { loadChatPromptConfig, validateAiConfig, loadProviderStatus } from './config/ai-config.js';
 import { shouldSummarize, buildMemoryContextAsync, buildChatPrompt } from './prompt/builder.js';
 import { getMemoriaRecallClient } from './core/memoria-recall.js';
 import { recordRuntimeIssue, getRecentIssues } from './utils/errors.js';
@@ -20,6 +20,8 @@ import { MemoryBackfillWorker } from './services/memory-backfill-worker.js';
 import { startErrorAlerter } from './services/error-alerter.js';
 import { startIssueStore } from './services/issue-store.js';
 import { initEventProjector } from './services/event-projector.js';
+import { PinnedStatusManager } from './services/pinned-status-manager.js';
+import { addEventHook } from './services/event-bus.js';
 import {
   shouldIncludeMemoryContext,
   type PromptBuildResult,
@@ -351,6 +353,27 @@ async function bootstrap() {
   writeSchedulerHealth('startup:init', memory);
   writeContextSnapshotsFn();
   memoryBackfillWorker.start();
+
+  if (parseBool(process.env.PINNED_STATUS_ENABLED, true)) {
+    const pinned = new PinnedStatusManager(telegram, ALLOWED_USER_ID);
+    await pinned.initialize({
+      model: loadProviderStatus().model,
+      activeSchedules: memory.getActiveSchedules().length,
+      recentErrors: getRecentIssues().length,
+      memorySize: memory.getMessagesPage(ALLOWED_USER_ID, 0, 1).total
+    });
+    addEventHook((type) => {
+      if (['request_done', 'request_error', 'schedule_fire', 'runtime_issue'].includes(type)) {
+        void pinned.update({
+          model: loadProviderStatus().model,
+          activeSchedules: memory.getActiveSchedules().length,
+          recentErrors: getRecentIssues().length,
+          memorySize: memory.getMessagesPage(ALLOWED_USER_ID, 0, 1).total,
+          lastRequestAt: Date.now()
+        });
+      }
+    });
+  }
 
   const contextRefreshMs = getContextRefreshMs();
   contextRefreshTimer = setInterval(() => {

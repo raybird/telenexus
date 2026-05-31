@@ -15,13 +15,18 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 
 - `src/main.ts`
   - 啟動 Telegram connector、MemoryManager、Scheduler、MemoriaSyncBridge、Web server
-  - 建立聊天 prompt builder
-  - 決定 chat / scheduler 是否改走 runner
+  - 建立聊天 prompt builder，決定 chat / scheduler 是否改走 runner
+  - 啟動 `PinnedStatusManager` 並訂閱 event-bus 更新釘選訊息
 - `src/core/message-pipeline.ts`
   - 一般聊天主流程
   - 處理 queue、thinking placeholder、附件合併、prompt 準備、AI 回覆正規化、記憶落盤
+  - 串流回覆透過 `TelegramStreamRenderer`，finalize 輸出 MarkdownV2 格式
 - `src/core/command-router.ts`
-  - 處理 `/new`、排程類指令、檔案回傳等命令流
+  - 處理 `/new`、`/abort`、排程類指令、檔案回傳等命令流
+  - dispatch 前諮詢 `InteractionGuard`，多步驟流程中封鎖非白名單指令
+- `src/core/execution-queue.ts`
+  - Per-user 優先佇列（high / normal / low），確保同一用戶串行執行
+  - `cancel(userId)` 中止當前任務並傳遞 `AbortSignal` 到底層 spawn 子程序
 - `src/core/message-pipeline-preflight.ts`
   - 命令前置處理、queue 提示、active agent 選擇
 
@@ -41,6 +46,10 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
   - 共用 `interpretEvent()` dispatch table；兩條路徑從同一份 schema 取 text / statusText / stats
 - `src/core/cli-agent-base.ts`
   - stream 生命週期基底；偵測空輸出類型（`no_events` / `tool_only` / `text_filtered_out`）並採對應策略
+  - 監聽 `options.signal`（`AbortSignal`），收到 abort 時 kill spawn 子程序並回傳 `⏹️ 任務已被使用者中止`
+- `src/telegram/render/markdown-v2.ts`
+  - 以 `remark-parse` AST walking 將 Markdown 轉成 MarkdownV2 entities
+  - 輸出自動 escape 特殊字元；`chunkMarkdownV2` 於 4096 字元邊界切分，保留 code block 完整
 - `src/runner.ts`
   - `agent-runner` HTTP 服務
   - 接收 `/run` 任務，實際執行 chat / summarize
@@ -95,6 +104,12 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 - `src/services/error-alerter.ts`
   - 滑動視窗統計 per scope 錯誤頻率，超過閾值即推 Telegram 給 `ALLOWED_USER_ID`
   - 環境變數：`ERROR_ALERT_THRESHOLD` / `ERROR_ALERT_WINDOW_MS` / `ERROR_ALERT_COOLDOWN_MS`
+- `src/services/interaction-guard.ts`
+  - Per-user in-memory 多步驟互動狀態；`start / getState / isCommandAllowed / clear`
+  - `CommandRouter` dispatch 前諮詢；`/abort` 自動 clear
+- `src/services/pinned-status-manager.ts`
+  - 訂閱 event-bus，維護一則釘選狀態訊息（model、排程數、異常數、記憶庫大小）
+  - 節流 5s 避免 flood；`PINNED_STATUS_ENABLED=false` 可停用
 
 ## 主要資料流
 
@@ -102,7 +117,7 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 
 1. 使用者從 Telegram 或 Web Console 發送訊息
 2. 訊息被轉成 `UnifiedMessage`
-3. `CommandRouter` 先處理命令型輸入；未命中才進一般聊天
+3. `CommandRouter` 先諮詢 `InteractionGuard`（封鎖多步驟流程中的非白名單指令），再處理命令型輸入；未命中才進一般聊天
 4. `message-pipeline` 寫入 user message，決定 prompt mode
 5. `buildPrompt` 視情況注入 memory context 與 Memoria capability hint
 6. `DynamicAIAgent` 依 `ai-config.yaml` 選 provider，並決定走 runner 或 local
