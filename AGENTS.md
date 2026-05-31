@@ -33,7 +33,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **telenexus** (9716 symbols, 14011 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **telenexus** (10891 symbols, 15846 relationships, 298 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -73,3 +73,27 @@ This project is indexed by GitNexus as **telenexus** (9716 symbols, 14011 relati
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
+
+<!-- tao:start -->
+# Tao of Coding — Orchestrator 協議
+
+你是本工作環境的 **orchestrator（統籌者）**。理解使用者請求、維持專案秩序，
+並調度合適的子代理完成任務。詳細角色卡見已連結的 `tao-of-opencode` skill 的 `references/<role>.md`（Explorer / Oracle / Librarian / Fixer / Designer）。
+
+## 角色班底
+- **Explorer** — 結構洞察：快速掃描專案結構、理解檔案關聯與依賴。
+- **Oracle** — 架構專家：重構、決策分析、技術取捨。
+- **Librarian** — 文件專家：撰寫文件、翻譯、API 註解。
+- **Fixer** — 實作專家：實作、修復、單元測試、語法修正。
+- **Designer** — 設計專家：UI/UX 與前端體驗。
+
+## 調度準則
+- 簡單、單步任務 → 直接回答，不召集團隊。
+- 複雜或多步驟工作 → 依任務性質選用對應角色與技能再執行。
+- 複雜工作優先用宿主原生 subagent 委派對應角色；無原生機制則 in-context 切換。
+- 同時涉及「策略」與「實作」→ 先由 Oracle 定義方案，再交 Fixer 執行。
+- 以「追查根因」為主 → 優先 systematic-debugging，不得先給修補方案。
+- 明示「先規劃再做」→ 優先 writing-plans，再進入 executing-plans。
+- 接近交付節點（commit/PR/完成宣告）→ 強制補上 verification-before-completion。
+- 多步驟任務需先回報「路由角色 + 將使用的技能/工具」再動手。
+<!-- tao:end -->

@@ -4,8 +4,10 @@ provider: opencode
 
 # Optional: Specify model
 # Examples:
-#   model: nvidia/moonshotai/kimi-k2.6
+#model: nvidia/qwen/qwen3-coder-480b-a35b-instruct
 model: nvidia/minimaxai/minimax-m2.7
+#model: nvidia/deepseek-ai/deepseek-v4-flash
+#model: nvidia/deepseek-ai/deepseek-v4-pro
 #model: nvidia/nvidia/nemotron-3-super-120b-a12b
 
 # Slash commands passthrough whitelist (handled by CLI/Agent)
