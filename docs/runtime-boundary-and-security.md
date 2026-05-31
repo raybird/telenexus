@@ -99,6 +99,8 @@
 - [ ] 生產與開發環境的關鍵 volume 權限一致。
 - [ ] `workspace/context/*.md` 可以在不暴露原始碼的前提下提供足夠觀測資訊。
 - [ ] runner token 與 Web auth token 不應硬編碼在 repo 內。
+- [ ] 容器以非 root（UID 1000）執行，不以 root 污染 host bind mount（見 §9）。
+- [ ] opencode 認證/設定走容器內 named volume，不讀寫 host 帳號家目錄（見 §9）。
 
 ## 7) 事件稽核建議
 
@@ -119,3 +121,35 @@
 - 先讓 Agent 看摘要與狀態，再按需增補可讀資訊。
 - 用流程與邊界保護系統，而不是依賴模型自律。
 - 若要人工除錯 session，優先進 `agent-runner`，不要直接在 orchestrator 容器內重建另一條 CLI 脈絡。
+
+## 9) 容器執行身分與帳號隔離（v2.18.0）
+
+目標：讓執行 AI（opencode）的容器**碰不到 host 帳號**、不以 root 污染 host 檔案，並把 runtime 鎖在 workspace。
+
+### 執行身分
+
+- 三個服務（`telenexus` / `agent-runner` / `memoria`）皆以 `node:22-slim` 內建的 **`node` 使用者（UID/GID = 1000）** 執行，刻意對齊 host 的部署帳號（1000）。
+- bind mount（`./data`、`./workspace`、`./workspace/Memoria`）寫出的檔案在 host 上即為部署帳號擁有，**不再產生 root-owned 污染**。
+- `Dockerfile` 結尾 `USER node` + `HOME=/home/node`；`uv` 改裝 `/usr/local/bin` 讓非 root 也能用 `uvx`（MCP 需要）。
+
+### opencode 認證/設定隔離
+
+- 認證：named volume `opencode_auth` 掛 `/home/node/.local/share/opencode`，**不讀 host `~/.local/share/opencode`**。
+- 全域設定：named volume `opencode_config` 掛 `/home/node/.config/opencode`，**持久化**「agent 內部安裝的 skill」與全域設定，重建不消失。
+- builtin skills 由 `scripts/sync-skills.mjs` 依 `OPENCODE_SKILLS_DIRS` 同步到兩處：專案層 `/app/workspace/.opencode/skills`（保證載入）+ 全域層 `/home/node/.config/opencode/skills`（seed 持久化）。
+
+### 其他放行旗標
+
+- `OPENCODE_YOLO` 預設 `1`（全自動放行），可在 `.env` 設 `0` 收緊。
+- 非 root 下 chromium 必須 `--no-sandbox`；專案不直接啟動瀏覽器（走全域 `agent-browser`），透過 `AGENT_BROWSER_ARGS=--no-sandbox,--disable-dev-shm-usage` 套用。
+
+### 首次切換到非 root 的一次性遷移
+
+1. host 既有 root 檔案改 owner：`sudo chown -R 1000:1000 data workspace`。
+2. opencode 認證 volume 改 owner（否則 `auth.json` 600/root → node 讀不到、需重登）：
+   `docker run --rm -v <project>_opencode_auth:/v alpine chown -R 1000:1000 /v`
+
+### dev/prod 模式說明
+
+- `docker-compose.override.yml` 會被預設 `docker compose up` 合併，把 `telenexus`/`agent-runner` 切到 dev（`npm run dev` + tsx watch + 唯讀掛載 `./src`）。
+- 安全硬化（非 root、volume 隔離）在 dev/prod 兩模式**一致生效**，因為共用同一個映像；要測 production 路徑用 `docker compose -f docker-compose.yml ...`。
