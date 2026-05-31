@@ -2,9 +2,18 @@ import fs from 'fs';
 import path from 'path';
 
 const sourceDir = process.env.BUILTIN_SKILLS_DIR || '/app/skills';
-const targetDirs = [
-  process.env.OPENCODE_SKILLS_DIR || '/app/workspace/.opencode/skills'
-];
+// 支援多個同步目標：OPENCODE_SKILLS_DIRS (逗號分隔) 優先，
+// 否則回退到單一 OPENCODE_SKILLS_DIR，最後預設專案層級。
+// 第一個目標視為「主要 (專案層)」，用來產生 AGENTS.md / skills-summary 索引。
+const targetDirs = (
+  process.env.OPENCODE_SKILLS_DIRS ||
+  process.env.OPENCODE_SKILLS_DIR ||
+  '/app/workspace/.opencode/skills'
+)
+  .split(',')
+  .map((dir) => dir.trim())
+  .filter(Boolean);
+const primarySkillsDir = targetDirs[0];
 
 function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
@@ -63,7 +72,7 @@ function extractFrontmatter(content) {
 // 掃描 opencode skills 目錄，自動產生 .opencode/AGENTS.md
 // 讓每個新 session 都能知道有哪些 skills 以及如何使用它們
 function generateOpencodeAgentsMd() {
-  const opencodeSkillsDir = process.env.OPENCODE_SKILLS_DIR || '/app/workspace/.opencode/skills';
+  const opencodeSkillsDir = primarySkillsDir;
   const agentsMdPath = path.join(path.dirname(opencodeSkillsDir), 'AGENTS.md');
 
   if (!fs.existsSync(opencodeSkillsDir)) {
@@ -119,7 +128,7 @@ function generateOpencodeAgentsMd() {
 }
 
 function generateSkillsSummaryMd() {
-  const opencodeSkillsDir = process.env.OPENCODE_SKILLS_DIR || '/app/workspace/.opencode/skills';
+  const opencodeSkillsDir = primarySkillsDir;
   const projectDir = process.env.APP_PROJECT_DIR || process.cwd();
   const contextDir = path.join(projectDir, 'workspace', 'context');
   const summaryPath = path.join(contextDir, 'skills-summary.md');

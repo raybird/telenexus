@@ -40,8 +40,9 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Install uv (確保 uvx 可用，這是 MCP 必需的)
+# 安裝到 /usr/local/bin，讓非 root 的 node 使用者也能取用 (PATH 已含此目錄)
+ENV UV_INSTALL_DIR=/usr/local/bin
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.local/bin:$PATH"
 
 # Install global CLI tools (含 pnpm，Memoria 使用)
 RUN npm install -g pnpm opencode-ai@1.15.10 mcp-memory-libsql agent-browser
@@ -63,5 +64,20 @@ ENV NODE_ENV=production
 ENV APP_PROJECT_DIR=/app
 ENV APP_GIT_SHA=$APP_GIT_SHA
 ENV APP_BUILD_TIME=$APP_BUILD_TIME
+
+# ==========================================
+# 非 root 執行：使用 node 映像內建的 node 使用者 (UID/GID = 1000)
+# 與 host 的 raybird (1000) 對齊，bind mount 寫出的檔案在 host 上即為 raybird:raybird，
+# 不再以 root 污染 host workspace/data。
+# ==========================================
+ENV HOME=/home/node
+# 預先建立 opencode 全域設定與認證目錄並交給 node 持有；
+# 這些路徑掛載 named volume 時會以 node 的 ownership 初始化。
+RUN mkdir -p \
+      /app/data /app/workspace \
+      /home/node/.config/opencode/skills \
+      /home/node/.local/share/opencode \
+  && chown -R node:node /app /home/node
+USER node
 
 CMD ["npm", "start"]

@@ -10,8 +10,10 @@ x-common-config: &common-config
     - ./data:/app/data
     - ./workspace:/app/workspace
     - ./ai-config.yaml:/app/ai-config.yaml:ro
-    # 使用容器內獨立 opencode 認證儲存 (不依賴 host)
-    - opencode_auth:/root/.local/share/opencode
+    # opencode 認證儲存：容器內獨立 named volume，不讀 host ~/.local/share/opencode
+    - opencode_auth:/home/node/.local/share/opencode
+    # opencode 全域設定 (含 agent 內部安裝的 skill)：持久化，重建不消失
+    - opencode_config:/home/node/.config/opencode
     - ./skills:/app/skills:ro
     - ./AGENTS.md:/app/workspace/AGENTS.md:ro
 
@@ -29,7 +31,12 @@ x-common-env: &common-env
   MEMORIA_HOOK_QUEUE_FILE: ${MEMORIA_HOOK_QUEUE_FILE:-/app/data/memoria-hook-queue.jsonl}
   MEMORIA_HOOK_FLUSH_SIGNAL: ${MEMORIA_HOOK_FLUSH_SIGNAL:-/app/data/memoria-hook-flush.signal}
   MEMORIA_HOOK_QUEUE_POLL_MS: ${MEMORIA_HOOK_QUEUE_POLL_MS:-5000}
-  OPENCODE_YOLO: "1"
+  # opencode 全自動放行：預設開 (1)，可在 .env 設 OPENCODE_YOLO=0 收緊
+  OPENCODE_YOLO: ${OPENCODE_YOLO:-1}
+  # builtin skills 同步目標：專案層 (保證載入) + 全域層 (seed 持久化全域設定)
+  OPENCODE_SKILLS_DIRS: ${OPENCODE_SKILLS_DIRS:-/app/workspace/.opencode/skills,/home/node/.config/opencode/skills}
+  # 非 root 執行 chromium 必須 --no-sandbox；agent-browser 讀此 env 套用啟動參數
+  AGENT_BROWSER_ARGS: ${AGENT_BROWSER_ARGS:---no-sandbox,--disable-dev-shm-usage}
 
 services:
   telenexus:
@@ -98,3 +105,4 @@ services:
 
 volumes:
   opencode_auth:
+  opencode_config:
