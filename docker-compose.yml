@@ -4,8 +4,16 @@ x-common-config: &common-config
     args:
       APP_GIT_SHA: ${APP_GIT_SHA:-unknown}
       APP_BUILD_TIME: ${APP_BUILD_TIME:-unknown}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
   env_file: .env
   restart: unless-stopped
+  # 降權:禁止透過 setuid 提權,並丟棄所有 Linux capabilities
+  # (服務只綁高位埠、不需特權;chromium 走 --no-sandbox 也不需要 caps)。
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
   volumes:
     - ./data:/app/data
     - ./workspace:/app/workspace
@@ -23,9 +31,10 @@ x-common-env: &common-env
   DB_DIR: /app/data
   APP_PROJECT_DIR: /app
   RUNNER_SHARED_SECRET: ${RUNNER_SHARED_SECRET:-}
+  # Memoria 已改為遠端 HTTP 服務:telenexus 是純 client,recall 與 sync 都走 MEMORIA_ENDPOINT
+  # (見各 service 的 MEMORIA_ENDPOINT)。不再需要 MEMORIA_HOME / MEMORIA_CLI_PATH。
   MEMORIA_SYNC_ENABLED: ${MEMORIA_SYNC_ENABLED:-auto}
-  MEMORIA_HOME: ${MEMORIA_HOME:-/app/workspace/Memoria}
-  MEMORIA_CLI_PATH: ${MEMORIA_CLI_PATH:-/app/workspace/Memoria/cli}
+  MEMORIA_ENDPOINT: ${MEMORIA_ENDPOINT:-http://memoria:3917}
   MEMORIA_SYNC_TIMEOUT_MS: ${MEMORIA_SYNC_TIMEOUT_MS:-20000}
   MEMORIA_HOOK_QUEUE_ENABLED: ${MEMORIA_HOOK_QUEUE_ENABLED:-true}
   MEMORIA_HOOK_QUEUE_FILE: ${MEMORIA_HOOK_QUEUE_FILE:-/app/data/memoria-hook-queue.jsonl}
@@ -60,7 +69,6 @@ services:
       RUNNER_FAILURE_THRESHOLD: ${RUNNER_FAILURE_THRESHOLD:-3}
       RUNNER_COOLDOWN_MS: ${RUNNER_COOLDOWN_MS:-60000}
       MEMORIA_RECALL_ENABLED: ${MEMORIA_RECALL_ENABLED:-auto}
-      MEMORIA_ENDPOINT: ${MEMORIA_ENDPOINT:-http://memoria:3917}
       MEMORIA_RECALL_TIMEOUT_MS: ${MEMORIA_RECALL_TIMEOUT_MS:-1500}
       MEMORIA_RECALL_TOP_K: ${MEMORIA_RECALL_TOP_K:-5}
     ports:
@@ -88,14 +96,26 @@ services:
 
   memoria:
     build:
-      context: ./workspace/Memoria
+      context: ./docker
+      dockerfile: memoria.Dockerfile
+      args:
+        PUID: ${PUID:-1000}
+        PGID: ${PGID:-1000}
     environment:
-      MEMORIA_HOME: /app/data
+      MEMORIA_HOME: /data
       MEMORIA_PORT: 3917
-    command: ['node', 'dist/cli.mjs', 'serve']
     volumes:
-      - ./workspace/Memoria:/app/data
+      # 記憶資料走 named volume,不再用 source checkout 當資料目錄
+      - memoria_data:/data
     restart: unless-stopped
+    # memoria 的可寫面很小 (只有 /data volume),可上完整 read-only rootfs。
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     healthcheck:
       test: [ 'CMD', 'node', '-e', "fetch('http://127.0.0.1:3917/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
       interval: 30s
@@ -106,3 +126,4 @@ services:
 volumes:
   opencode_auth:
   opencode_config:
+  memoria_data:

@@ -3,19 +3,21 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import http from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { MemoriaSyncBridge } from '../src/core/memoria-sync.js';
 
 function withTempProject<T>(fn: (projectDir: string) => T | Promise<T>): T | Promise<T> {
   const prevProjectDir = process.env.APP_PROJECT_DIR;
-  const prevMemoriaHome = process.env.MEMORIA_HOME;
+  const prevEndpoint = process.env.MEMORIA_ENDPOINT;
   const prevMode = process.env.MEMORIA_SYNC_ENABLED;
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'telenexus-memoria-status-'));
 
   const finalize = () => {
     if (prevProjectDir === undefined) delete process.env.APP_PROJECT_DIR;
     else process.env.APP_PROJECT_DIR = prevProjectDir;
-    if (prevMemoriaHome === undefined) delete process.env.MEMORIA_HOME;
-    else process.env.MEMORIA_HOME = prevMemoriaHome;
+    if (prevEndpoint === undefined) delete process.env.MEMORIA_ENDPOINT;
+    else process.env.MEMORIA_ENDPOINT = prevEndpoint;
     if (prevMode === undefined) delete process.env.MEMORIA_SYNC_ENABLED;
     else process.env.MEMORIA_SYNC_ENABLED = prevMode;
     fs.rmSync(tempDir, { recursive: true, force: true });
@@ -23,7 +25,6 @@ function withTempProject<T>(fn: (projectDir: string) => T | Promise<T>): T | Pro
 
   try {
     process.env.APP_PROJECT_DIR = tempDir;
-    process.env.MEMORIA_HOME = path.join(tempDir, 'workspace', 'Memoria');
     const result = fn(tempDir);
     if (result && typeof (result as Promise<T>).then === 'function') {
       return (result as Promise<T>).finally(finalize);
@@ -35,34 +36,65 @@ function withTempProject<T>(fn: (projectDir: string) => T | Promise<T>): T | Pro
   }
 }
 
-test('MemoriaSyncBridge reports disabled status when auto mode and cli is missing', () => {
+test('MemoriaSyncBridge is available (not disabled) in auto mode with an endpoint', () => {
   withTempProject(() => {
     process.env.MEMORIA_SYNC_ENABLED = 'auto';
+    process.env.MEMORIA_ENDPOINT = 'http://127.0.0.1:59999';
     const bridge = new MemoriaSyncBridge();
     const status = bridge.getStatus();
 
     assert.equal(status.mode, 'auto');
-    assert.equal(status.available, false);
-    assert.equal(status.disabled, true);
-    assert.equal(status.cliDetected, false);
+    assert.equal(status.available, true);
+    assert.equal(status.disabled, false);
+    // 初始尚未 ping 成功;欄位存在且為布林。
+    assert.equal(typeof status.endpointReachable, 'boolean');
     assert.equal(status.recentFailureCount, 0);
     assert.equal(status.lastSyncAt, null);
   });
 });
 
-test('MemoriaSyncBridge notifies status change after successful sync', async () => {
+test('MemoriaSyncBridge is disabled when mode=off', () => {
+  withTempProject(() => {
+    process.env.MEMORIA_SYNC_ENABLED = 'off';
+    const bridge = new MemoriaSyncBridge();
+    const status = bridge.getStatus();
+    assert.equal(status.mode, 'off');
+    assert.equal(status.available, false);
+    assert.equal(status.disabled, true);
+  });
+});
+
+test('MemoriaSyncBridge POSTs to /v1/remember and notifies status change after success', async () => {
   await withTempProject(async (projectDir) => {
-    process.env.MEMORIA_SYNC_ENABLED = 'on';
-    const memoriaHome = path.join(projectDir, 'workspace', 'Memoria');
-    fs.mkdirSync(memoriaHome, { recursive: true });
     fs.mkdirSync(path.join(projectDir, 'workspace', 'temp', 'memoria-sync'), { recursive: true });
-    const cliPath = path.join(memoriaHome, 'cli');
-    fs.writeFileSync(
-      cliPath,
-      '#!/usr/bin/env bash\nif [ "$1" = "sync" ]; then exit 0; fi\nexit 1\n',
-      'utf8'
-    );
-    fs.chmodSync(cliPath, 0o755);
+
+    let rememberCalls = 0;
+    const server = http.createServer((req, res) => {
+      if (req.method === 'GET' && req.url === '/v1/health') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end('{"ok":true}');
+        return;
+      }
+      if (req.method === 'POST' && req.url === '/v1/remember') {
+        let body = '';
+        req.on('data', (c) => (body += c));
+        req.on('end', () => {
+          rememberCalls += 1;
+          const parsed = JSON.parse(body);
+          assert.ok(Array.isArray(parsed.events) && parsed.events.length === 2);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end('{"ok":true,"sessionId":"test"}');
+        });
+        return;
+      }
+      res.writeHead(404);
+      res.end();
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
+    const port = (server.address() as AddressInfo).port;
+    process.env.MEMORIA_ENDPOINT = `http://127.0.0.1:${port}`;
+    process.env.MEMORIA_SYNC_ENABLED = 'on';
 
     let callbackCount = 0;
     let latestAvailable = false;
@@ -86,9 +118,13 @@ test('MemoriaSyncBridge notifies status change after successful sync', async () 
     await bridge.whenIdle();
 
     const status = bridge.getStatus();
+    assert.equal(rememberCalls, 1);
     assert.ok(callbackCount >= 1);
     assert.equal(latestAvailable, true);
+    assert.equal(status.endpointReachable, true);
     assert.ok(typeof status.lastSyncAt === 'number');
     assert.equal(status.recentFailureCount, 0);
+
+    await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 });

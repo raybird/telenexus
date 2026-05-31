@@ -67,8 +67,8 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
   - 決定 full / compact / minimal prompt 模式
   - 控制 compact prompt 是否注入 memory context
 - `src/core/memoria-sync.ts`
-  - 對話成功後背景同步 Memoria CLI
-  - 提供 hook queue 與 hook-free 模式
+  - 對話成功後背景 POST 到 Memoria HTTP 服務 (`/v1/remember` @ `MEMORIA_ENDPOINT`)
+  - hook queue 保留為離線重試緩衝;POST 失敗的 payload 留存待重灌
 - `src/services/memory-backfill-worker.ts`
   - 針對 sessions archive 做 backfill / dry-run 掃描
 

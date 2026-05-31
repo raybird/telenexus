@@ -1,9 +1,9 @@
 import { createHash, randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { spawn } from 'child_process';
 import { parseBool, parsePositiveInt } from '../utils/env.js';
 import { recordRuntimeIssue, toErrorMessage } from '../utils/errors.js';
+import { getMemoriaEndpoint, pingMemoriaEndpoint, rememberViaHttp } from './memoria-recall.js';
 
 export type MemoriaSyncTurn = {
   userId: string;
@@ -27,9 +27,8 @@ export type MemoriaSyncStatus = {
   mode: MemoriaSyncMode;
   available: boolean;
   disabled: boolean;
-  cliDetected: boolean;
-  memoriaHome: string;
-  cliPath: string;
+  endpointReachable: boolean;
+  endpoint: string;
   hookQueueEnabled: boolean;
   hookQueuePollMs: number;
   recentFailureCount: number;
@@ -108,92 +107,12 @@ function buildEvents(turn: MemoriaSyncTurn): SessionEvent[] {
   ];
 }
 
-function runOneSyncCommand(
-  command: string,
-  args: string[],
-  memoriaHome: string,
-  timeoutMs: number
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd: memoriaHome,
-      env: {
-        ...process.env,
-        MEMORIA_HOME: memoriaHome
-      },
-      stdio: ['ignore', 'pipe', 'pipe']
-    });
-
-    let stdout = '';
-    let stderr = '';
-
-    const timer = setTimeout(() => {
-      child.kill('SIGTERM');
-      reject(new Error(`memoria sync timeout after ${timeoutMs}ms`));
-    }, timeoutMs);
-
-    child.stdout.on('data', (chunk) => {
-      stdout += String(chunk);
-    });
-    child.stderr.on('data', (chunk) => {
-      stderr += String(chunk);
-    });
-
-    child.on('error', (error) => {
-      clearTimeout(timer);
-      reject(error);
-    });
-
-    child.on('close', (code) => {
-      clearTimeout(timer);
-      if (code === 0) {
-        resolve();
-        return;
-      }
-      reject(new Error(`exit=${code}: ${stderr || stdout || '(empty)'}`));
-    });
-  });
-}
-
-async function runMemoriaSync(
-  cliPath: string,
-  memoriaHome: string,
-  payloadPath: string,
-  timeoutMs: number
-): Promise<void> {
-  const fallbackTsxCli = path.join(memoriaHome, 'node_modules', 'tsx', 'dist', 'cli.mjs');
-  const attempts: Array<{ command: string; args: string[]; name: string }> = [
-    { command: cliPath, args: ['sync', payloadPath], name: 'cli shim' }
-  ];
-
-  if (fs.existsSync(fallbackTsxCli)) {
-    attempts.push({
-      command: 'node',
-      args: [fallbackTsxCli, 'src/cli.ts', 'sync', payloadPath],
-      name: 'node+tsx fallback'
-    });
-  }
-
-  let lastError: Error | null = null;
-  for (const attempt of attempts) {
-    try {
-      await runOneSyncCommand(attempt.command, attempt.args, memoriaHome, timeoutMs);
-      return;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      lastError = new Error(`${attempt.name} failed: ${message}`);
-    }
-  }
-
-  throw lastError || new Error('memoria sync failed');
-}
 
 export class MemoriaSyncBridge {
   private readonly mode: MemoriaSyncMode;
   private readonly timeoutMs: number;
   private readonly projectDir: string;
-  private readonly memoriaHome: string;
-  private readonly cliPath: string;
+  private readonly endpoint: string;
   private readonly tempDir: string;
   private readonly failedDir: string;
   private readonly hookQueueFile: string;
@@ -204,7 +123,7 @@ export class MemoriaSyncBridge {
   private disabled: boolean;
   private hookPollTimer: NodeJS.Timeout | null;
   private recentTurnHashes: Map<string, number>;
-  private cliDetected: boolean;
+  private endpointReachable: boolean;
   private recentFailureCount: number;
   private lastSyncAt: number | null;
   private lastFailureAt: number | null;
@@ -218,10 +137,7 @@ export class MemoriaSyncBridge {
     this.projectDir = path.resolve(
       options.projectDir || process.env.APP_PROJECT_DIR || process.cwd()
     );
-    this.memoriaHome = path.resolve(
-      process.env.MEMORIA_HOME || path.join(this.projectDir, 'workspace', 'Memoria')
-    );
-    this.cliPath = path.resolve(process.env.MEMORIA_CLI_PATH || path.join(this.memoriaHome, 'cli'));
+    this.endpoint = getMemoriaEndpoint();
     this.tempDir = path.resolve(
       process.env.MEMORIA_SYNC_TEMP_DIR ||
         path.join(this.projectDir, 'workspace', 'temp', 'memoria-sync')
@@ -243,7 +159,7 @@ export class MemoriaSyncBridge {
     this.disabled = false;
     this.hookPollTimer = null;
     this.recentTurnHashes = new Map();
-    this.cliDetected = fs.existsSync(this.cliPath);
+    this.endpointReachable = false;
     this.recentFailureCount = 0;
     this.lastSyncAt = null;
     this.lastFailureAt = null;
@@ -256,24 +172,15 @@ export class MemoriaSyncBridge {
       return;
     }
 
-    if (!this.cliDetected) {
-      const message = `[MemoriaSync] CLI not found: ${this.cliPath}`;
-      if (this.mode === 'on') {
-        console.warn(`${message} (mode=on, will keep retrying queue)`);
-      } else {
-        console.log(`${message} (mode=auto, disabled)`);
-        this.disabled = true;
-      }
-      return;
-    }
-
     try {
       ensureDir(this.tempDir);
       ensureDir(this.failedDir);
       if (this.hookQueueEnabled) {
         ensureDir(path.dirname(this.hookQueueFile));
       }
-      console.log(`[MemoriaSync] Enabled. memoriaHome=${this.memoriaHome}`);
+      console.log(`[MemoriaSync] Enabled. endpoint=${this.endpoint}`);
+      // 背景探測 endpoint 可達性(僅供觀測;不可達不停用,交由 queue 重試)。
+      void this.refreshEndpointReachable();
       if (this.hookQueueEnabled) {
         this.startHookQueuePolling();
       } else {
@@ -282,6 +189,14 @@ export class MemoriaSyncBridge {
     } catch (error) {
       console.warn('[MemoriaSync] Failed to prepare temp dir, disabling:', error);
       this.disabled = true;
+    }
+  }
+
+  private async refreshEndpointReachable(): Promise<void> {
+    const reachable = await pingMemoriaEndpoint({ endpoint: this.endpoint });
+    if (reachable !== this.endpointReachable) {
+      this.endpointReachable = reachable;
+      this.notifyStatusChange();
     }
   }
 
@@ -314,13 +229,15 @@ export class MemoriaSyncBridge {
           events: buildEvents(turn)
         };
 
+        // 先把 payload 落地當離線緩衝;POST 成功才刪,失敗則保留在 failedDir 供查/重灌。
         const payloadPath = path.join(this.tempDir, `${sessionId}.json`);
         fs.writeFileSync(payloadPath, JSON.stringify(payload), 'utf8');
         let synced = false;
 
         try {
-          await runMemoriaSync(this.cliPath, this.memoriaHome, payloadPath, this.timeoutMs);
+          await rememberViaHttp(payload, { endpoint: this.endpoint, timeoutMs: this.timeoutMs });
           synced = true;
+          this.endpointReachable = true;
           this.recentFailureCount = 0;
           this.lastFailureMessage = null;
           this.lastFailureAt = null;
@@ -328,6 +245,7 @@ export class MemoriaSyncBridge {
           this.notifyStatusChange();
           console.log(`[MemoriaSync] Synced session ${sessionId}`);
         } catch (error) {
+          this.endpointReachable = false;
           this.recentFailureCount += 1;
           this.lastFailureAt = Date.now();
           this.lastFailureMessage = toErrorMessage(error);
@@ -476,11 +394,10 @@ export class MemoriaSyncBridge {
   getStatus(): MemoriaSyncStatus {
     return {
       mode: this.mode,
-      available: !this.disabled && this.cliDetected,
+      available: !this.disabled,
       disabled: this.disabled,
-      cliDetected: this.cliDetected,
-      memoriaHome: this.memoriaHome,
-      cliPath: this.cliPath,
+      endpointReachable: this.endpointReachable,
+      endpoint: this.endpoint,
       hookQueueEnabled: this.hookQueueEnabled,
       hookQueuePollMs: this.hookQueuePollMs,
       recentFailureCount: this.recentFailureCount,

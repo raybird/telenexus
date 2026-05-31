@@ -46,7 +46,7 @@ test('toStructuredStatus includes prompt session structured fields', () => {
     error: '- [2026/4/3 上午10:00:00] (message-processing) boom',
     runner: '- Success Rate: 98%\n- Last 5m Success Rate: 100%',
     memory: '- Total Messages: 10',
-    memoria: '- Mode: auto\n- Available: yes\n- CLI Detected: yes\n- Recent Failure Count: 1',
+    memoria: '- Mode: auto\n- Available: yes\n- Endpoint Reachable: yes\n- Recent Failure Count: 1',
     memoryIntent: [
       '- Sample Count: 1',
       '- decision: 1',

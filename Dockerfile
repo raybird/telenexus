@@ -71,6 +71,14 @@ ENV APP_BUILD_TIME=$APP_BUILD_TIME
 # 不再以 root 污染 host workspace/data。
 # ==========================================
 ENV HOME=/home/node
+
+# 可攜性：允許用 PUID/PGID 對齊任意 host 帳號 (預設 1000)。
+# setup.sh 會自動帶入 host 的 id -u / id -g,免手動 chown。
+ARG PUID=1000
+ARG PGID=1000
+RUN if [ "$PGID" != "1000" ]; then groupmod -g "$PGID" node; fi \
+  && if [ "$PUID" != "1000" ]; then usermod -u "$PUID" -g "$PGID" node; fi
+
 # 預先建立 opencode 全域設定與認證目錄並交給 node 持有；
 # 這些路徑掛載 named volume 時會以 node 的 ownership 初始化。
 RUN mkdir -p \

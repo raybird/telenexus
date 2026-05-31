@@ -72,7 +72,7 @@ Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per
 | `src/core/scheduler.ts`               | Cron-based scheduling with silence-timer reflection system                                                |
 | `src/core/memory.ts`                  | `MemoryManager` — SQLite-backed chat history, schedules, and full-text search                             |
 | `src/core/execution-queue.ts`         | Per-user priority queue (high/normal/low) ensuring serial execution per user                              |
-| `src/core/memoria-sync.ts`            | Background sync bridge to external Memoria CLI for long-term knowledge                                    |
+| `src/core/memoria-sync.ts`            | Background sync bridge — POSTs each turn to the Memoria HTTP service (`/v1/remember` at `MEMORIA_ENDPOINT`); hook-queue retained as offline retry buffer. No local CLI spawn. |
 | `src/core/opencode.ts`                | Wraps `opencode run` subprocess calls; fail-fast on upstream 429 via stderr abort pattern                 |
 | `src/core/opencode-event-parser.ts`   | Shared Opencode JSON event schema — `interpretEvent()` used by both stream and non-stream paths           |
 | `src/core/cli-agent-base.ts`          | Base class for CLI agents: stream lifecycle, heartbeat, smart empty-output classification (`no_events` / `tool_only` / `text_filtered_out`) |
@@ -102,7 +102,7 @@ Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per
 - **minimal** — short follow-ups, no extra context bloat
 - **passthrough** — slash command forwarded verbatim to the underlying CLI, no TeleNexus wrapping
 
-Long-term context comes from two sources: the SQLite memory store (with SAR — Summary-Aware Retrieval) and the optional Memoria CLI background sync.
+Long-term context comes from two sources: the SQLite memory store (with SAR — Summary-Aware Retrieval) and the optional Memoria HTTP service (installed via npm `@raybird.chen/memoria`, data in the `memoria_data` volume; recall + sync both over `MEMORIA_ENDPOINT`).
 
 ### Observability
 

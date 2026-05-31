@@ -52,13 +52,19 @@ export function resolveContextDir(): string {
   return path.resolve(projectDir, 'workspace', 'context');
 }
 
+// Memoria 已改為遠端 HTTP 服務,其 sessions.db 落在 memoria 容器自己的 volume,
+// telenexus 預設無法直接讀。僅在明確設定 MEMORIA_ARCHIVE_DB 或 MEMORIA_HOME(指向可讀路徑)
+// 時才回傳實際路徑;否則回傳 data 夾下一個不存在的 sentinel,讓 backfill/health 自動跳過 archive。
 export function resolveMemoriaSessionsDbPath(): string {
-  const projectDir = resolveProjectDir();
-  return path.resolve(
-    process.env.MEMORIA_HOME || path.join(projectDir, 'workspace', 'Memoria'),
-    '.memory',
-    'sessions.db'
-  );
+  const explicit = process.env.MEMORIA_ARCHIVE_DB?.trim();
+  if (explicit) {
+    return path.resolve(explicit);
+  }
+  const home = process.env.MEMORIA_HOME?.trim();
+  if (home) {
+    return path.resolve(home, '.memory', 'sessions.db');
+  }
+  return path.resolve(resolveDataDir(), 'memoria-archive', '.memory', 'sessions.db');
 }
 
 export function resolveMemoryBackfillCheckpointPath(): string {

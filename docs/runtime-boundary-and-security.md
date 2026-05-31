@@ -84,11 +84,13 @@
 ## 5) Memoria 與長期記憶邊界
 
 - TeleNexus 本身的 SQLite memory 是主對話流程的一級依賴。
-- Memoria sync 是背景補強，不可阻塞主聊天。
-- `MEMORIA_SYNC_ENABLED=auto` 時，若 CLI 不存在會自動停用。
+- Memoria 自 v2.19 起改為**獨立 HTTP 服務**：以 npm `@raybird.chen/memoria` 在 image build 期安裝,資料落在 `memoria_data` named volume,telenexus 為純 client。
+- recall 與 sync **都走 HTTP**(`MEMORIA_ENDPOINT`):recall = `POST /v1/recall`、sync = `POST /v1/remember`。telenexus 容器內**不再有 Memoria 原始碼或 CLI**,也不再共享資料目錄,從根本消除過去 recall/sync 兩條路徑的資料 split-brain。
+- sync 是背景補強,不可阻塞主聊天;hook-queue 保留為**離線重試緩衝**,memoria 服務短暫不可達時 payload 留存待重灌,不丟記憶。
+- `MEMORIA_SYNC_ENABLED=auto` 時,只要設了 `MEMORIA_ENDPOINT`(compose 內預設指向 memoria 服務)即啟用;不可達不停用,交由 queue 重試。
 - 問題應分開判讀：
   - `memory.db` / `moltbot.db` 問題：會直接影響主對話與排程
-  - Memoria sync 問題：主要影響跨 session 長期補強，不應拖垮主流程
+  - Memoria 服務問題：主要影響跨 session 長期補強,不應拖垮主流程
 
 ## 6) 安全基準檢查清單
 
@@ -148,6 +150,18 @@
 1. host 既有 root 檔案改 owner：`sudo chown -R 1000:1000 data workspace`。
 2. opencode 認證 volume 改 owner（否則 `auth.json` 600/root → node 讀不到、需重登）：
    `docker run --rm -v <project>_opencode_auth:/v alpine chown -R 1000:1000 /v`
+
+### 可攜性:PUID/PGID（v2.19）
+
+- 三個服務的 Dockerfile 支援 `PUID`/`PGID` build args(預設 1000),啟動前以 `usermod`/`groupmod` 把內建 `node` 使用者對齊任意 host 帳號。
+- `./setup.sh` 會自動以 `id -u` / `id -g` 填入 `.env`,讓非 1000 的 host 帳號也能無痛跑 bind mount,**免手動 chown**。
+- 一般人安裝路徑因此縮為三步:`./setup.sh` → 填 `.env` token → `docker compose up -d --build`;Memoria 由 npm 安裝,不需再 clone 任何子 repo。
+
+### Tier 2 容器硬化（v2.19）
+
+- 三服務皆加 `security_opt: [no-new-privileges:true]` 與 `cap_drop: [ALL]`(只綁高位埠、chromium 走 `--no-sandbox`,均不需 capabilities;已實測 opencode/uvx/chromium/git 在 cap_drop ALL 下正常)。
+- `memoria` 服務可寫面僅 `/data` volume,已上完整 `read_only: true` + `tmpfs: [/tmp]`。
+- `telenexus` / `agent-runner` 的 `read_only` 仍待可寫路徑稽核(opencode/uvx/npm cache、context 快照寫入點等)後再逐一開白名單,目前未啟用。
 
 ### dev/prod 模式說明
 
