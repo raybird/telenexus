@@ -593,6 +593,10 @@ const server = http.createServer(async (req, res) => {
           writeSseEvent(res, 'status', { text: event.text });
           return;
         }
+        if (event.type === 'reasoning') {
+          writeSseEvent(res, 'reasoning', { text: event.text });
+          return;
+        }
         if (event.type === 'delta') {
           writeSseEvent(res, 'delta', { text: event.text });
           return;

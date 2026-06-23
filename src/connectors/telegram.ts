@@ -1094,6 +1094,18 @@ export class TelegramConnector implements Connector {
     }
   }
 
+  async deleteMessage(chatId: string, messageId: string): Promise<void> {
+    try {
+      await this.callTelegram(
+        `deleteMessage chat=${chatId} message=${messageId}`,
+        () => this.bot.telegram.deleteMessage(chatId, parseInt(messageId, 10)),
+        { retries: 1 }
+      );
+    } catch (error) {
+      console.warn(`[Telegram] Failed to delete message ${messageId} in ${chatId}:`, error);
+    }
+  }
+
   async pinMessage(chatId: string, messageId: string): Promise<void> {
     await this.callTelegram(
       `pinChatMessage chat=${chatId} message=${messageId}`,

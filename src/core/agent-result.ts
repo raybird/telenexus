@@ -12,6 +12,7 @@ export type AgentStructuredResult = {
 export type AgentEvent =
   | { type: 'start'; provider: AgentProvider }
   | { type: 'status'; text: string }
+  | { type: 'reasoning'; text: string }
   | { type: 'delta'; text: string }
   | { type: 'usage'; stats: unknown }
   | { type: 'done'; text: string }

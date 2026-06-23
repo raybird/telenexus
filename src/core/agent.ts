@@ -291,6 +291,10 @@ export class DynamicAIAgent implements AIAgent {
                 void onEvent({ type: 'status', text: payload.text });
                 continue;
               }
+              if (eventName === 'reasoning' && typeof payload.text === 'string') {
+                void onEvent({ type: 'reasoning', text: payload.text });
+                continue;
+              }
               if (eventName === 'delta' && typeof payload.text === 'string') {
                 void onEvent({ type: 'delta', text: payload.text });
                 continue;

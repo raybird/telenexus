@@ -35,7 +35,7 @@ test('OpencodeAgent parseStreamLine maps JSON tool events to status updates', ()
     ),
     {
       sessionId: 'ses_1',
-      statusText: '正在讀取檔案：/app/workspace/projects/three-kingdoms-map/README.md...'
+      statusText: '📖 讀取：/app/workspace/projects/three-kingdoms-map/README.md'
     }
   );
 
@@ -59,6 +59,16 @@ test('OpencodeAgent parseStreamLine maps JSON tool events to status updates', ()
     {
       sessionId: 'ses_1',
       deltaText: '完成'
+    }
+  );
+
+  assert.deepEqual(
+    agent.parse(
+      JSON.stringify({ type: 'reasoning', sessionID: 'ses_1', part: { text: '先釐清需求' } })
+    ),
+    {
+      sessionId: 'ses_1',
+      reasoningText: '先釐清需求'
     }
   );
 });

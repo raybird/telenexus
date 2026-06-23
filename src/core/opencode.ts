@@ -116,6 +116,7 @@ export class OpencodeAgent extends CliAgentBase {
     if (interpreted.sessionId) result.sessionId = interpreted.sessionId;
     if (interpreted.emitStart) result.emitStart = true;
     if (interpreted.statusText) result.statusText = interpreted.statusText;
+    if (interpreted.reasoningText !== undefined) result.reasoningText = interpreted.reasoningText;
     if (interpreted.text !== undefined) result.deltaText = interpreted.text;
     if (interpreted.stats) result.stats = interpreted.stats;
     return result;

@@ -15,6 +15,7 @@ import { createLogger } from './logger.js';
 export type CliStreamParse = {
   sessionId?: string;
   deltaText?: string;
+  reasoningText?: string;
   statusText?: string;
   stats?: Record<string, unknown>;
   emitStart?: boolean;
@@ -214,6 +215,12 @@ export abstract class CliAgentBase implements AIAgent {
             }
             if (parsed.statusText) {
               await emitStatus(parsed.statusText);
+            }
+            if (typeof parsed.reasoningText === 'string' && parsed.reasoningText.length > 0) {
+              // 思考片段視為「活動中」，避免心跳誤判為靜默而插入等待提示
+              lastDeltaAt = Date.now();
+              await emitStart();
+              await onEvent({ type: 'reasoning', text: parsed.reasoningText });
             }
             if (typeof parsed.deltaText === 'string' && parsed.deltaText.length > 0) {
               lastDeltaAt = Date.now();

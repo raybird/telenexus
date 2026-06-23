@@ -49,3 +49,16 @@ test('interpretEvent surfaces tool_use status with emoji', () => {
   });
   assert.ok(out.statusText?.startsWith('💻'), `expected 💻, got: ${out.statusText}`);
 });
+
+test('interpretEvent surfaces reasoning text separately from answer text', () => {
+  const out = interpretEvent({ type: 'reasoning', part: { type: 'reasoning', text: '讓我想想' } });
+  assert.equal(out.reasoningText, '讓我想想');
+  assert.equal(out.text, undefined);
+  assert.equal(out.statusText, undefined);
+});
+
+test('interpretEvent keeps answer text out of the reasoning channel', () => {
+  const out = interpretEvent({ type: 'text', part: { type: 'text', text: '答案' } });
+  assert.equal(out.text, '答案');
+  assert.equal(out.reasoningText, undefined);
+});

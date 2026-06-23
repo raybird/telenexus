@@ -26,6 +26,7 @@ function withTempProject<T>(fn: (projectDir: string) => Promise<T> | T): Promise
   const prevDbPath = process.env.DB_PATH;
   const prevProjectDir = process.env.APP_PROJECT_DIR;
   const prevSummaryFollowup = process.env.SUMMARY_FOLLOWUP_ENABLED;
+  const prevStreamingEnabled = process.env.TELEGRAM_STREAMING_ENABLED;
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'telenexus-message-pipeline-'));
   const dbPath = path.join(tempDir, 'test.db');
 
@@ -35,6 +36,8 @@ function withTempProject<T>(fn: (projectDir: string) => Promise<T> | T): Promise
   process.env.DB_PATH = dbPath;
   process.env.APP_PROJECT_DIR = tempDir;
   process.env.SUMMARY_FOLLOWUP_ENABLED = 'false';
+  // 預設走非串流（ThinkingMessenger）路徑；串流測試會自行覆寫為 'true'
+  process.env.TELEGRAM_STREAMING_ENABLED = 'false';
 
   const finalize = () => {
     clearPromptSessionTraces();
@@ -46,6 +49,8 @@ function withTempProject<T>(fn: (projectDir: string) => Promise<T> | T): Promise
     else process.env.APP_PROJECT_DIR = prevProjectDir;
     if (prevSummaryFollowup === undefined) delete process.env.SUMMARY_FOLLOWUP_ENABLED;
     else process.env.SUMMARY_FOLLOWUP_ENABLED = prevSummaryFollowup;
+    if (prevStreamingEnabled === undefined) delete process.env.TELEGRAM_STREAMING_ENABLED;
+    else process.env.TELEGRAM_STREAMING_ENABLED = prevStreamingEnabled;
     fs.rmSync(tempDir, { recursive: true, force: true });
   };
 
@@ -67,6 +72,7 @@ function createConnectorRecorder() {
   const sentFiles: Array<{ chatId: string; filePath: string; caption?: string }> = [];
   const placeholders: Array<{ chatId: string; text: string }> = [];
   const edits: Array<{ chatId: string; messageId: string; text: string }> = [];
+  const deletions: Array<{ chatId: string; messageId: string }> = [];
 
   const connector: Connector = {
     name: 'test-connector',
@@ -84,10 +90,13 @@ function createConnectorRecorder() {
     async editMessage(chatId, messageId, text) {
       edits.push({ chatId, messageId, text });
     },
+    async deleteMessage(chatId, messageId) {
+      deletions.push({ chatId, messageId });
+    },
     onMessage() {}
   };
 
-  return { connector, sentMessages, sentFiles, placeholders, edits };
+  return { connector, sentMessages, sentFiles, placeholders, edits, deletions };
 }
 
 function createAgentStub(overrides: Partial<AIAgent> = {}): AIAgent {
@@ -698,21 +707,28 @@ test('message pipeline uses throttled telegram streaming renderer for telegram c
     const prevMinDeltaChars = process.env.TELEGRAM_STREAM_MIN_DELTA_CHARS;
     const prevForceFlushMs = process.env.TELEGRAM_STREAM_FORCE_FLUSH_MS;
     const prevEarlyFlushChars = process.env.TELEGRAM_STREAM_EARLY_FLUSH_CHARS;
+    const prevReasoningMode = process.env.TELEGRAM_STREAM_REASONING_MODE;
+    const prevFinalizeNewMessage = process.env.TELEGRAM_STREAM_FINALIZE_NEW_MESSAGE;
 
     process.env.TELEGRAM_STREAMING_ENABLED = 'true';
     process.env.TELEGRAM_STREAM_EDIT_THROTTLE_MS = '1';
     process.env.TELEGRAM_STREAM_MIN_DELTA_CHARS = '1';
     process.env.TELEGRAM_STREAM_FORCE_FLUSH_MS = '1';
     process.env.TELEGRAM_STREAM_EARLY_FLUSH_CHARS = '1';
+    // 純 thinking 模式：等待期間只顯示思考，答案最後才整段送出
+    process.env.TELEGRAM_STREAM_REASONING_MODE = 'true';
+    // 完成時刪除占位訊息、改發新的最終答案
+    process.env.TELEGRAM_STREAM_FINALIZE_NEW_MESSAGE = 'true';
 
     try {
-      const { connector, sentMessages, placeholders, edits } = createConnectorRecorder();
+      const { connector, sentMessages, placeholders, edits, deletions } = createConnectorRecorder();
       const memory = new MemoryManager();
       const streamedPrompts: string[] = [];
       const agent = createAgentStub({
         async streamChat(prompt, _options, onEvent) {
           streamedPrompts.push(prompt);
           await onEvent({ type: 'start', provider: 'opencode' });
+          await onEvent({ type: 'reasoning', text: '先想一下要怎麼回答' });
           await onEvent({ type: 'delta', text: 'Hello' });
           await onEvent({ type: 'delta', text: ' world' });
           await onEvent({ type: 'done', text: 'Hello world' });
@@ -748,9 +764,16 @@ test('message pipeline uses throttled telegram streaming renderer for telegram c
       assert.equal(streamedPrompts.length, 1);
       assert.equal(placeholders.length, 1);
       assert.equal(placeholders[0]?.text, '🤔 思考中...');
-      assert.equal(sentMessages.length, 0);
-      assert.ok(edits.some((item) => item.text.includes('✍️ 回覆中...')));
-      assert.equal(edits[edits.length - 1]?.text, 'Hello world');
+      // 思考內容會即時更新到占位訊息
+      assert.ok(
+        edits.some((item) => item.text.includes('💭') && item.text.includes('先想一下要怎麼回答'))
+      );
+      // 純 thinking 模式：答案不在等待期間漸進顯示
+      assert.ok(!edits.some((item) => item.text.includes('✍️ 回覆中...')));
+      // 拿到結果時刪除占位（思考中）訊息，改發一則新的最終答案（帶完成時間戳）
+      assert.ok(deletions.some((d) => d.messageId === 'placeholder-1'));
+      assert.equal(sentMessages.length, 1);
+      assert.equal(sentMessages[0]?.text, 'Hello world');
     } finally {
       if (prevStreamingEnabled === undefined) delete process.env.TELEGRAM_STREAMING_ENABLED;
       else process.env.TELEGRAM_STREAMING_ENABLED = prevStreamingEnabled;
@@ -762,6 +785,11 @@ test('message pipeline uses throttled telegram streaming renderer for telegram c
       else process.env.TELEGRAM_STREAM_FORCE_FLUSH_MS = prevForceFlushMs;
       if (prevEarlyFlushChars === undefined) delete process.env.TELEGRAM_STREAM_EARLY_FLUSH_CHARS;
       else process.env.TELEGRAM_STREAM_EARLY_FLUSH_CHARS = prevEarlyFlushChars;
+      if (prevReasoningMode === undefined) delete process.env.TELEGRAM_STREAM_REASONING_MODE;
+      else process.env.TELEGRAM_STREAM_REASONING_MODE = prevReasoningMode;
+      if (prevFinalizeNewMessage === undefined)
+        delete process.env.TELEGRAM_STREAM_FINALIZE_NEW_MESSAGE;
+      else process.env.TELEGRAM_STREAM_FINALIZE_NEW_MESSAGE = prevFinalizeNewMessage;
     }
   });
 });

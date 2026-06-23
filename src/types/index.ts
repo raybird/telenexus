@@ -65,6 +65,11 @@ export interface Connector {
     }
   ): Promise<void>;
 
+  /**
+   * 刪除已發送的訊息（並非所有連接器都支援；不支援時 renderer 會退回原地編輯）
+   */
+  deleteMessage?(chatId: string, messageId: string): Promise<void>;
+
   pinMessage?(chatId: string, messageId: string): Promise<void>;
   unpinMessage?(chatId: string, messageId: string): Promise<void>;
 

@@ -26,6 +26,8 @@ export type InterpretedEvent = {
   sessionId?: string;
   /** 本行 text 事件帶來的文字片段 */
   text?: string;
+  /** 本行 reasoning 事件帶來的思考（thinking）文字片段 */
+  reasoningText?: string;
   /** UI 狀態提示文字（主要供串流用） */
   statusText?: string;
   /** 是否要 emit start（僅串流用） */
@@ -109,6 +111,10 @@ export function interpretEvent(event: OpencodeEvent): InterpretedEvent {
 
   if (event.type === 'text' && typeof event.part?.text === 'string') {
     out.text = event.part.text;
+  }
+
+  if (event.type === 'reasoning' && typeof event.part?.text === 'string') {
+    out.reasoningText = event.part.text;
   }
 
   if (event.type === 'step_finish' && event.part) {
