@@ -4,16 +4,21 @@ x-common-config: &common-config
     args:
       APP_GIT_SHA: ${APP_GIT_SHA:-unknown}
       APP_BUILD_TIME: ${APP_BUILD_TIME:-unknown}
-      PUID: ${PUID:-1000}
-      PGID: ${PGID:-1000}
   env_file: .env
   restart: unless-stopped
-  # 降權:禁止透過 setuid 提權,並丟棄所有 Linux capabilities
-  # (服務只綁高位埠、不需特權;chromium 走 --no-sandbox 也不需要 caps)。
+  # 降權:禁止透過 setuid 提權,並丟棄所有 Linux capabilities，
+  # 只保留 entrypoint 做 runtime UID 對齊 (usermod/chown) 與 gosu 降權所需的最小集合。
+  # gosu 是「降權」不是提權,與 no-new-privileges 相容。
   security_opt:
     - no-new-privileges:true
   cap_drop:
     - ALL
+  cap_add:
+    - CHOWN
+    - SETUID
+    - SETGID
+    - FOWNER
+    - DAC_OVERRIDE
   volumes:
     - ./data:/app/data
     - ./workspace:/app/workspace
@@ -27,6 +32,9 @@ x-common-config: &common-config
 
 x-common-env: &common-env
   TZ: Asia/Taipei
+  # runtime UID/GID 對齊 (entrypoint 讀取後 remap node 使用者再 gosu 降權)
+  PUID: ${PUID:-1000}
+  PGID: ${PGID:-1000}
   DB_PATH: /app/data/moltbot.db
   DB_DIR: /app/data
   APP_PROJECT_DIR: /app
@@ -98,9 +106,6 @@ services:
     build:
       context: ./docker
       dockerfile: memoria.Dockerfile
-      args:
-        PUID: ${PUID:-1000}
-        PGID: ${PGID:-1000}
     environment:
       MEMORIA_HOME: /data
       MEMORIA_PORT: 3917

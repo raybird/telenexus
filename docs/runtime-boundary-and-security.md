@@ -151,15 +151,15 @@
 2. opencode 認證 volume 改 owner（否則 `auth.json` 600/root → node 讀不到、需重登）：
    `docker run --rm -v <project>_opencode_auth:/v alpine chown -R 1000:1000 /v`
 
-### 可攜性:PUID/PGID（v2.19）
+### 可攜性:PUID/PGID（v2.19 build args → v2.21 runtime entrypoint）
 
-- 三個服務的 Dockerfile 支援 `PUID`/`PGID` build args(預設 1000),啟動前以 `usermod`/`groupmod` 把內建 `node` 使用者對齊任意 host 帳號。
-- `./setup.sh` 會自動以 `id -u` / `id -g` 填入 `.env`,讓非 1000 的 host 帳號也能無痛跑 bind mount,**免手動 chown**。
-- 一般人安裝路徑因此縮為三步:`./setup.sh` → 填 `.env` token → `docker compose up -d --build`;Memoria 由 npm 安裝,不需再 clone 任何子 repo。
+- `PUID`/`PGID` 改為 **runtime 環境變數**(預設 1000):容器以 root 啟動 `scripts/docker-entrypoint.sh`,先 `usermod`/`groupmod` remap 內建 `node` 使用者、修正 bind mount 頂層與 opencode named volume 的擁有權,再以 `gosu` 降權執行。改為 runtime 的原因是 GHCR 預建映像無法在 build 時對齊 host 帳號。
+- `./setup.sh`(原始碼安裝)與 `scripts/install.sh`(一鍵安裝)都會自動以 `id -u` / `id -g` 填入 `.env`,讓非 1000 的 host 帳號也能無痛跑 bind mount,**免手動 chown**。
+- `memoria` 不做 remap:資料只在 named volume,無 host UID 問題,維持 build 時的 `USER node` + `read_only`。
 
 ### Tier 2 容器硬化（v2.19）
 
-- 三服務皆加 `security_opt: [no-new-privileges:true]` 與 `cap_drop: [ALL]`(只綁高位埠、chromium 走 `--no-sandbox`,均不需 capabilities;已實測 opencode/uvx/chromium/git 在 cap_drop ALL 下正常)。
+- 三服務皆加 `security_opt: [no-new-privileges:true]` 與 `cap_drop: [ALL]`;`telenexus`/`agent-runner` 另 `cap_add` entrypoint UID 對齊所需的最小集合(`CHOWN`/`SETUID`/`SETGID`/`FOWNER`/`DAC_OVERRIDE`——`gosu` 是降權不是提權,與 no-new-privileges 相容)。`memoria` 維持 cap_drop ALL 無 cap_add。
 - `memoria` 服務可寫面僅 `/data` volume,已上完整 `read_only: true` + `tmpfs: [/tmp]`。
 - `telenexus` / `agent-runner` 的 `read_only` 仍待可寫路徑稽核(opencode/uvx/npm cache、context 快照寫入點等)後再逐一開白名單,目前未啟用。
 

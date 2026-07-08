@@ -31,6 +31,7 @@ ARG APP_BUILD_TIME=unknown
 RUN apt-get update && apt-get install -y --no-install-recommends \
   python3 python3-venv curl jq bash git unzip \
   make g++ \
+  gosu \
   chromium \
   fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
   && rm -rf /var/lib/apt/lists/*
@@ -66,18 +67,11 @@ ENV APP_GIT_SHA=$APP_GIT_SHA
 ENV APP_BUILD_TIME=$APP_BUILD_TIME
 
 # ==========================================
-# 非 root 執行：使用 node 映像內建的 node 使用者 (UID/GID = 1000)
-# 與 host 的 raybird (1000) 對齊，bind mount 寫出的檔案在 host 上即為 raybird:raybird，
-# 不再以 root 污染 host workspace/data。
+# 非 root 執行：以 root 啟動 entrypoint，runtime 依 PUID/PGID 對齊 node 使用者後
+# gosu 降權執行。預建映像 (GHCR) 因此可在任意 host 帳號下使用，
+# bind mount 寫出的檔案在 host 上即為該帳號所有，不以 root 污染 workspace/data。
 # ==========================================
 ENV HOME=/home/node
-
-# 可攜性：允許用 PUID/PGID 對齊任意 host 帳號 (預設 1000)。
-# setup.sh 會自動帶入 host 的 id -u / id -g,免手動 chown。
-ARG PUID=1000
-ARG PGID=1000
-RUN if [ "$PGID" != "1000" ]; then groupmod -g "$PGID" node; fi \
-  && if [ "$PUID" != "1000" ]; then usermod -u "$PUID" -g "$PGID" node; fi
 
 # 預先建立 opencode 全域設定與認證目錄並交給 node 持有；
 # 這些路徑掛載 named volume 時會以 node 的 ownership 初始化。
@@ -86,6 +80,9 @@ RUN mkdir -p \
       /home/node/.config/opencode/skills \
       /home/node/.local/share/opencode \
   && chown -R node:node /app /home/node
-USER node
 
+COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["npm", "start"]

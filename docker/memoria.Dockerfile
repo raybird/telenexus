@@ -12,13 +12,8 @@ ENV HOME=/home/node \
     MEMORIA_PORT=3917 \
     TZ=Asia/Taipei
 
-# 可攜性:允許用 PUID/PGID 對齊任意 host 帳號 (預設 1000),與主服務一致。
-ARG PUID=1000
-ARG PGID=1000
-RUN if [ "$PGID" != "1000" ]; then groupmod -g "$PGID" node; fi \
-  && if [ "$PUID" != "1000" ]; then usermod -u "$PUID" -g "$PGID" node; fi
-
-# 非 root 執行:沿用 node 映像內建的 node 使用者,與主服務一致。
+# 非 root 執行:沿用 node 映像內建的 node 使用者 (UID 1000),與主服務一致。
+# 資料只在 named volume (/data),沒有 host bind mount,不需要 PUID/PGID 對齊。
 RUN mkdir -p /data && chown -R node:node /data /home/node
 USER node
 
