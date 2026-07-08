@@ -47,7 +47,9 @@ upsert_env() {
 # (背景/CI 環境即使 /dev/tty 存在也可能開不起來,錯誤一律吞掉走預設值)
 ask() {
   local prompt="$1" default="$2" reply=""
-  read -r -p "$prompt" reply < /dev/tty 2>/dev/null || reply=""
+  # 2>/dev/null 必須放在 < /dev/tty 之前:重導向由左至右生效,
+  # 否則 /dev/tty 開啟失敗的錯誤會在 stderr 被導掉前就印出。
+  read -r -p "$prompt" reply 2>/dev/null < /dev/tty || reply=""
   printf '%s' "${reply:-$default}"
 }
 
