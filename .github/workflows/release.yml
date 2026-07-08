@@ -50,7 +50,7 @@ jobs:
           echo "memoria_tags=${MEMORIA_TAGS}" >> "$GITHUB_OUTPUT"
 
       - name: Build & push telenexus image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
@@ -62,7 +62,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build & push memoria image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./docker
           file: ./docker/memoria.Dockerfile
