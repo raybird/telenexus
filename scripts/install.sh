@@ -43,12 +43,11 @@ upsert_env() {
   fi
 }
 
-# curl | bash 時 stdin 是腳本本身,互動詢問改讀 /dev/tty;沒有 tty 就用預設值
+# curl | bash 時 stdin 是腳本本身,互動詢問改讀 /dev/tty;沒有可用 tty 就用預設值
+# (背景/CI 環境即使 /dev/tty 存在也可能開不起來,錯誤一律吞掉走預設值)
 ask() {
   local prompt="$1" default="$2" reply=""
-  if [[ -r /dev/tty ]]; then
-    read -r -p "$prompt" reply < /dev/tty || reply=""
-  fi
+  read -r -p "$prompt" reply < /dev/tty 2>/dev/null || reply=""
   printf '%s' "${reply:-$default}"
 }
 
