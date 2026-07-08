@@ -2,6 +2,14 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.21.1 — 2026-07-08
+
+### Docker image 瘦身
+
+- Runtime image 改用 `npm ci --omit=dev` 安裝 production dependencies，不再複製 builder 的 dev `node_modules`
+- 移除 Debian `chromium`，改由 `agent-browser install` 提供 Chrome，並補齊必要 shared libraries
+- 新增 Dockerfile hygiene test，防止 dev dependencies 或雙瀏覽器重新進入 runtime image
+
 ## 2.21.0 — 2026-07-08
 
 ### 一鍵安裝與 GHCR 發佈機制
