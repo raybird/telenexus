@@ -1,0 +1,97 @@
+name: Release
+
+# tag push (由 npm run release:* 觸發) → 預建映像推 GHCR + 打包 docker bundle 上傳 Release。
+# 使用者端安裝/升級只需 docker compose pull，不需在本機建置。
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  IMAGE_MAIN: ghcr.io/raybird/telenexus
+  IMAGE_MEMORIA: ghcr.io/raybird/telenexus-memoria
+
+jobs:
+  release:
+    name: Build images & publish bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve version metadata
+        id: meta
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          # rc 版不移動 latest tag
+          MAIN_TAGS="${IMAGE_MAIN}:${VERSION}"
+          MEMORIA_TAGS="${IMAGE_MEMORIA}:${VERSION}"
+          if [[ "$VERSION" != *"-rc."* ]]; then
+            MAIN_TAGS="${MAIN_TAGS},${IMAGE_MAIN}:latest"
+            MEMORIA_TAGS="${MEMORIA_TAGS},${IMAGE_MEMORIA}:latest"
+          fi
+          echo "main_tags=${MAIN_TAGS}" >> "$GITHUB_OUTPUT"
+          echo "memoria_tags=${MEMORIA_TAGS}" >> "$GITHUB_OUTPUT"
+
+      - name: Build & push telenexus image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.main_tags }}
+          build-args: |
+            APP_GIT_SHA=${{ steps.meta.outputs.sha }}
+            APP_BUILD_TIME=${{ steps.meta.outputs.build_time }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push memoria image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./docker
+          file: ./docker/memoria.Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.memoria_tags }}
+
+      - name: Package docker bundle
+        shell: bash
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          mkdir -p dist/telenexus-docker/scripts
+          # release compose 範本以 :latest 佔位,打包時釘成本次版本
+          sed -e "s|${IMAGE_MAIN}:latest|${IMAGE_MAIN}:${VERSION}|" \
+              -e "s|${IMAGE_MEMORIA}:latest|${IMAGE_MEMORIA}:${VERSION}|" \
+              docker-compose.release.yml > dist/telenexus-docker/docker-compose.yml
+          cp .env.example dist/telenexus-docker/.env.example
+          cp ai-config.example.yaml dist/telenexus-docker/ai-config.example.yaml
+          cp AGENTS.md dist/telenexus-docker/AGENTS.md
+          cp LICENSE dist/telenexus-docker/LICENSE
+          cp -R skills dist/telenexus-docker/skills
+          cp scripts/install.sh dist/telenexus-docker/scripts/install.sh
+          cd dist
+          tar -czf "telenexus-docker-${VERSION}.tar.gz" telenexus-docker
+          rm -rf telenexus-docker
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          fail_on_unmatched_files: true
+          prerelease: ${{ contains(github.ref_name, '-rc.') }}
+          make_latest: ${{ contains(github.ref_name, '-rc.') && 'false' || 'true' }}
