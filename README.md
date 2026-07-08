@@ -30,7 +30,33 @@
 
 ---
 
-## TL;DR（5 分鐘上手）
+## 一鍵安裝（推薦）
+
+不需要 clone 原始碼。映像由 CI 預建於 GHCR，安裝只下載部署檔並 `docker compose pull`：
+
+```bash
+mkdir telenexus && cd telenexus
+curl -fsSL https://raw.githubusercontent.com/raybird/telenexus/main/scripts/install.sh | bash
+```
+
+安裝後編輯 `.env` 填入 `TELEGRAM_TOKEN` 與 `ALLOWED_USER_ID`，啟動並登入 opencode：
+
+```bash
+docker compose pull && docker compose up -d
+docker compose exec telenexus opencode auth login
+```
+
+升級到新版本（保留 `.env`、`ai-config.yaml`、`data/`、`workspace/`）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/raybird/telenexus/main/scripts/install.sh | bash -s -- --upgrade
+```
+
+詳細說明（指定版本、回滾、離線重跑）見 [docs/installation.md](docs/installation.md)。
+
+---
+
+## 從原始碼安裝（開發，5 分鐘上手）
 
 ### 1) 準備環境變數
 

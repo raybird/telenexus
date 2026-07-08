@@ -27,6 +27,11 @@ npm run docker:up:nocache   # Full no-cache rebuild + force recreate
 docker compose ps           # Check service status
 docker compose logs -f telenexus  # Follow logs
 
+# End-user install / upgrade (GHCR prebuilt images, see docs/installation.md)
+bash scripts/install.sh --dry-run            # Preview install of latest release
+bash scripts/install.sh --upgrade            # Upgrade deployment in current dir
+npm run test:installer                       # Static checks for install.sh
+
 # Memory tooling (require `npm run build` first — these run dist/*)
 npm run memory:health              # Memory health report
 npm run memory:backfill:dry-run    # Scan archive sessions, no writes
