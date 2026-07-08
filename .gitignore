@@ -23,6 +23,9 @@ workspace/.claude/skills/*
 !workspace/.claude/skills/.gitkeep
 workspace/.claude/skills-backups/
 
+workspace/.gemini/
+workspace/GEMINI.md
+
 # Workspace temp files
 workspace/.pnpm-store/
 workspace/temp/
@@ -33,6 +36,9 @@ workspace/scripts/
 workspace/Memoria/
 workspace/projects/*
 !workspace/projects/.gitkeep
+
+# Bot 工作產出（本身是獨立 git repo，不納入本 repo 追蹤）
+workspace/fiscal5eye/
 
 # Local AI tool state
 /.agent/
