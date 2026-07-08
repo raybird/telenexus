@@ -9,6 +9,7 @@
     "dev:runner": "node scripts/sync-skills.mjs && tsx watch --ignore \"workspace/context/**\" src/runner.ts",
     "build": "tsc && node scripts/copy-web-assets.mjs",
     "test": "tsx --test tests/**/*.test.ts",
+    "test:installer": "bash scripts/test-installer-upgrade.sh",
     "start": "node scripts/sync-skills.mjs && node dist/main.js",
     "start:runner": "node scripts/sync-skills.mjs && node dist/runner.js",
     "docker:up": "npm run docker:up:fast",
