@@ -1,11 +1,18 @@
 export type PromptMode = 'full' | 'compact' | 'minimal';
 
+/** Memoria recall 的關聯資訊,供回覆完成後回報 utility outcome(UFL)。 */
+export type MemoriaRecallMeta = {
+  recallId: string;
+  hits: { id: string; snippet: string }[];
+};
+
 export type PromptBuildResult = {
   prompt: string;
   mode: PromptMode;
   memoryContextLength: number;
   usedMemoryContext: boolean;
   memoryContextSectionCount: number;
+  memoriaRecall?: MemoriaRecallMeta;
 };
 
 const COMPACT_MEMORY_KEYWORDS = [

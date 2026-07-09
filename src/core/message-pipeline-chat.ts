@@ -3,7 +3,7 @@ import { createLogger } from './logger.js';
 import type { MemoriaSyncTurn } from './memoria-sync.js';
 import type { MemoryManager } from './memory.js';
 import type { MessagePipelineContext } from './message-pipeline-context.js';
-import type { PromptBuildResult, PromptMode } from './prompt-build.js';
+import type { MemoriaRecallMeta, PromptBuildResult, PromptMode } from './prompt-build.js';
 import { normalizePromptBuildResult, shouldIncludeMemoryContext } from './prompt-build.js';
 import { inferSummaryMetadata } from './summary-metadata.js';
 import { buildAttachmentPrompt, extractFileDirectives } from './message-pipeline-helpers.js';
@@ -122,9 +122,11 @@ export async function persistUserMessage(options: PersistUserMessageOptions): Pr
 export async function preparePromptForAgent(options: PreparePromptOptions): Promise<{
   promptForAgent: string;
   telemetry: PromptTelemetry;
+  memoriaRecall?: MemoriaRecallMeta;
 }> {
   const { context } = options;
   let promptForAgent = context.msg.content.trim();
+  let memoriaRecall: MemoriaRecallMeta | undefined;
   let telemetry: PromptTelemetry = {
     promptMode: 'passthrough',
     promptSelectionReason: 'passthrough-command',
@@ -153,6 +155,7 @@ export async function preparePromptForAgent(options: PreparePromptOptions): Prom
       promptMode
     );
     promptForAgent = promptResult.prompt;
+    memoriaRecall = promptResult.memoriaRecall;
     telemetry = {
       promptMode: promptResult.mode,
       promptSelectionReason: context.forceNewSession
@@ -173,7 +176,7 @@ export async function preparePromptForAgent(options: PreparePromptOptions): Prom
     }
   }
 
-  return { promptForAgent, telemetry };
+  return { promptForAgent, telemetry, ...(memoriaRecall ? { memoriaRecall } : {}) };
 }
 
 export function persistModelResponse(options: PersistModelResponseOptions): number | undefined {

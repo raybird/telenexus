@@ -36,6 +36,7 @@ import type { PromptTelemetry } from './message-pipeline-chat.js';
 import { parseMemoryIntent } from './memory-intent.js';
 import { recordMemoryIntentTrace } from '../services/memory-intent-telemetry.js';
 import { emitEvent } from '../services/event-bus.js';
+import { buildReuseOutcome, reportRecallOutcome } from './memoria-recall.js';
 
 type MessagePipelineOptions = {
   connector: Connector;
@@ -187,7 +188,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         shouldSummarize: options.shouldSummarize
       });
 
-      const { promptForAgent, telemetry } = await preparePromptForAgent({
+      const { promptForAgent, telemetry, memoriaRecall } = await preparePromptForAgent({
         context,
         fullPromptEvery,
         fullPromptCounterByUser,
@@ -289,6 +290,14 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         response: cleanedResponse,
         ...(options.enqueueMemoriaSync ? { enqueueMemoriaSync: options.enqueueMemoriaSync } : {})
       });
+
+      // UFL:回覆完成後以 fire-and-forget 回報本次 recall 的效用(reuse 覆蓋率)。
+      if (memoriaRecall && !cleanedResponse.startsWith('Error')) {
+        void reportRecallOutcome(
+          memoriaRecall.recallId,
+          buildReuseOutcome(memoriaRecall.hits, cleanedResponse)
+        );
+      }
 
       if (telegramStreamRenderer) {
         await telegramStreamRenderer.finalize(cleanedResponse);

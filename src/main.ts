@@ -24,6 +24,7 @@ import { PinnedStatusManager } from './services/pinned-status-manager.js';
 import { addEventHook } from './services/event-bus.js';
 import {
   shouldIncludeMemoryContext,
+  type MemoriaRecallMeta,
   type PromptBuildResult,
   type PromptMode
 } from './core/prompt-build.js';
@@ -202,12 +203,21 @@ async function bootstrap() {
     mode: PromptMode = 'full'
   ): Promise<PromptBuildResult> => {
     const promptConfig = loadChatPromptConfig();
+    let memoriaRecallMeta: MemoriaRecallMeta | undefined;
     const memoryContext = shouldIncludeMemoryContext(mode, userMessage)
       ? await buildMemoryContextAsync(
           memory,
           userId,
           userMessage,
-          memoriaRecallClient ? (q, s) => memoriaRecallClient.recall(q, s) : null
+          memoriaRecallClient
+            ? async (q, s) => {
+                const result = await memoriaRecallClient.recallWithMeta(q, s);
+                if (result.recallId && result.hits.length > 0) {
+                  memoriaRecallMeta = { recallId: result.recallId, hits: result.hits };
+                }
+                return result.snippets;
+              }
+            : null
         )
       : '';
     const memoriaStatus = memoriaSync.getStatus();
@@ -254,7 +264,8 @@ async function bootstrap() {
       mode,
       memoryContextLength: memoryContext.length,
       usedMemoryContext: memoryContext.trim().length > 0,
-      memoryContextSectionCount: (memoryContext.match(/^【/gm) || []).length
+      memoryContextSectionCount: (memoryContext.match(/^【/gm) || []).length,
+      ...(memoriaRecallMeta ? { memoriaRecall: memoriaRecallMeta } : {})
     };
   };
 

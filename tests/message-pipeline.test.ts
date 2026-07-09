@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
+import type { AddressInfo } from 'node:net';
 import { createMessagePipeline } from '../src/core/message-pipeline.js';
 import { MemoryManager } from '../src/core/memory.js';
 import {
@@ -790,6 +792,100 @@ test('message pipeline uses throttled telegram streaming renderer for telegram c
       if (prevFinalizeNewMessage === undefined)
         delete process.env.TELEGRAM_STREAM_FINALIZE_NEW_MESSAGE;
       else process.env.TELEGRAM_STREAM_FINALIZE_NEW_MESSAGE = prevFinalizeNewMessage;
+    }
+  });
+});
+
+test('memoria recall outcome:回覆完成後回報 reuse 覆蓋率到 /v1/recall/:id/outcome', async () => {
+  await withTempProject(async () => {
+    const captured: Array<{ path: string; body: string }> = [];
+    const server = http.createServer((req, res) => {
+      let body = '';
+      req.setEncoding('utf8');
+      req.on('data', (chunk) => {
+        body += chunk;
+      });
+      req.on('end', () => {
+        captured.push({ path: req.url ?? '', body });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, data: { updated: true } }));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const { port } = server.address() as AddressInfo;
+    const prevEndpoint = process.env.MEMORIA_ENDPOINT;
+    process.env.MEMORIA_ENDPOINT = `http://127.0.0.1:${port}`;
+
+    try {
+      const { connector } = createConnectorRecorder();
+      const memory = new MemoryManager();
+      const pipeline = createMessagePipeline({
+        connector,
+        commandRouter: {
+          async handleMessage() {
+            return false;
+          },
+          isPassthroughCommand() {
+            return false;
+          }
+        } as never,
+        memory,
+        scheduler: {
+          resetSilenceTimer() {}
+        } as never,
+        userAgent: createAgentStub({
+          async chat() {
+            return '已依照排程規則調整完成。';
+          }
+        }),
+        chatRunnerAgent: createAgentStub(),
+        useRunnerForChat: false,
+        chatRunnerPercent: 100,
+        chatRunnerOnlyUsers: new Set(),
+        shouldSummarize() {
+          return false;
+        },
+        buildPrompt(userMessage, _userId, mode = 'full') {
+          return {
+            prompt: `PROMPT:${userMessage}`,
+            mode,
+            memoryContextLength: 10,
+            usedMemoryContext: true,
+            memoryContextSectionCount: 1,
+            memoriaRecall: {
+              recallId: 'rt_test_1',
+              hits: [
+                { id: 'hit-used', snippet: '排程規則' },
+                { id: 'hit-unused', snippet: 'unrelated snippet tokens' }
+              ]
+            }
+          };
+        },
+        recordRuntimeIssue() {},
+        writeContextSnapshots() {}
+      });
+
+      await pipeline(createMessage('調整排程'));
+
+      // outcome 回報是 fire-and-forget,輪詢等它抵達
+      const deadline = Date.now() + 2000;
+      while (captured.length === 0 && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+
+      assert.equal(captured.length, 1);
+      assert.equal(captured[0]?.path, '/v1/recall/rt_test_1/outcome');
+      const payload = JSON.parse(captured[0]?.body ?? '{}');
+      assert.equal(payload.signal, 'reuse');
+      assert.equal(payload.utility_score, 1);
+      assert.deepEqual(payload.hits, [
+        { id: 'hit-used', utility_score: 1 },
+        { id: 'hit-unused', utility_score: 0 }
+      ]);
+    } finally {
+      if (prevEndpoint === undefined) delete process.env.MEMORIA_ENDPOINT;
+      else process.env.MEMORIA_ENDPOINT = prevEndpoint;
+      await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
 });
