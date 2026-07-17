@@ -12,6 +12,14 @@ export interface UnifiedAttachment {
   fileSize?: number;
 }
 
+export type TelegramChatType = 'private' | 'group' | 'supergroup' | 'channel';
+
+export interface TelegramMessageContext {
+  updateId: number;
+  chatType: TelegramChatType;
+  messageThreadId?: number;
+}
+
 export interface UnifiedMessage {
   id: string;
   chatId?: string;
@@ -19,6 +27,7 @@ export interface UnifiedMessage {
   attachments?: UnifiedAttachment[];
   sender: UserProfile;
   timestamp: number;
+  telegram?: TelegramMessageContext;
   raw?: unknown; // 原始訊息 payload，保留除錯用
 }
 
@@ -37,6 +46,7 @@ export interface Connector {
       throwOnError?: boolean;
       retryOnTimeout?: boolean;
       parseMode?: 'auto' | 'plain' | 'markdown-v2';
+      messageThreadId?: number;
     }
   ): Promise<void>;
 
@@ -49,7 +59,30 @@ export interface Connector {
    * 發送一個佔位訊息（例如 "Thinking..."），並回傳該訊息的 ID，以便後續編輯
    * @returns messageId
    */
-  sendPlaceholder(chatId: string, text: string): Promise<string>;
+  sendPlaceholder(
+    chatId: string,
+    text: string,
+    options?: { messageThreadId?: number }
+  ): Promise<string>;
+
+  /**
+   * 串流 Telegram 原生暫時草稿；只有支援此能力的連接器需要實作。
+   */
+  sendMessageDraft?(
+    chatId: string,
+    draftId: number,
+    text: string,
+    options?: { messageThreadId?: number; retries?: number }
+  ): Promise<void>;
+
+  /**
+   * 顯示連接器原生的活動狀態（例如 Telegram typing）。
+   */
+  sendChatAction?(
+    chatId: string,
+    action: 'typing',
+    options?: { messageThreadId?: number }
+  ): Promise<void>;
 
   /**
    * 編輯已發送的訊息
@@ -62,6 +95,7 @@ export interface Connector {
       retries?: number;
       suppressFallbackSend?: boolean;
       formatMode?: 'auto' | 'plain' | 'markdown-v2';
+      throwOnError?: boolean;
     }
   ): Promise<void>;
 

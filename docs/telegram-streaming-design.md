@@ -7,6 +7,30 @@
 - 整體策略：`docs/cli-structured-output-streaming-plan.md`
 - 整體 implementation plan：`docs/cli-structured-output-streaming-implementation-plan.md`
 
+## 目前實作（2026-07）
+
+目前顯示模式已對齊 Wukong v0.18.3：
+
+- Telegram 私聊以收到的 `update_id` 作為非零 draft id，透過原生 `sendMessageDraft` 更新同一個暫時草稿
+- reasoning、工具狀態與 liveness 文案共用同一個 progress display；reasoning 尾端與狀態歷史都有長度上限
+- draft 每 `20s` 保活，`typing` chat action 每 `4s` 更新
+- 完成或失敗時以一般 `sendMessage` 送出，draft 由 Telegram 自動消失
+- 群組、頻道、缺少 metadata 或 draft API 失敗時，退回一則可編輯的 placeholder
+- draft 若在中途失敗，只轉換一次為 placeholder，不會持續新增狀態訊息
+- 最終訊息送出成功後才清除 fallback placeholder；若最終傳送失敗，仍保留進度訊息供錯誤復原
+- progress 上限為 `3900` UTF-16 code units，避免超過 Telegram 單訊息限制或切斷 surrogate pair
+
+可調整的新增參數：
+
+```text
+TELEGRAM_STREAM_DRAFT_REFRESH_MS=20000
+TELEGRAM_STREAM_TYPING_REFRESH_MS=4000
+```
+
+## 歷史設計背景
+
+以下段落保留原先 placeholder streaming 的設計背景；目前 private chat 已由原生 draft 取代，placeholder 僅作為 fallback。
+
 ## 目的
 
 在不破壞 Telegram 穩定性的前提下，讓使用者在長回覆期間能更早看到內容，降低等待感。

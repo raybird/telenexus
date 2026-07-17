@@ -21,6 +21,14 @@ import type { Connector, UnifiedMessage } from '../src/types/index.js';
 type SentMessage = {
   chatId: string;
   text: string;
+  messageThreadId?: number;
+};
+
+type DraftMessage = {
+  chatId: string;
+  draftId: number;
+  text: string;
+  messageThreadId?: number;
 };
 
 function withTempProject<T>(fn: (projectDir: string) => Promise<T> | T): Promise<T> | T {
@@ -72,22 +80,45 @@ function withTempProject<T>(fn: (projectDir: string) => Promise<T> | T): Promise
 function createConnectorRecorder() {
   const sentMessages: SentMessage[] = [];
   const sentFiles: Array<{ chatId: string; filePath: string; caption?: string }> = [];
-  const placeholders: Array<{ chatId: string; text: string }> = [];
+  const placeholders: Array<{ chatId: string; text: string; messageThreadId?: number }> = [];
+  const drafts: DraftMessage[] = [];
   const edits: Array<{ chatId: string; messageId: string; text: string }> = [];
   const deletions: Array<{ chatId: string; messageId: string }> = [];
 
   const connector: Connector = {
     name: 'test-connector',
     async initialize() {},
-    async sendMessage(chatId, text) {
-      sentMessages.push({ chatId, text });
+    async sendMessage(chatId, text, options) {
+      sentMessages.push({
+        chatId,
+        text,
+        ...(options?.messageThreadId !== undefined
+          ? { messageThreadId: options.messageThreadId }
+          : {})
+      });
     },
     async sendFile(chatId, filePath, caption) {
       sentFiles.push({ chatId, filePath, ...(caption ? { caption } : {}) });
     },
-    async sendPlaceholder(chatId, text) {
-      placeholders.push({ chatId, text });
+    async sendPlaceholder(chatId, text, options) {
+      placeholders.push({
+        chatId,
+        text,
+        ...(options?.messageThreadId !== undefined
+          ? { messageThreadId: options.messageThreadId }
+          : {})
+      });
       return `placeholder-${placeholders.length}`;
+    },
+    async sendMessageDraft(chatId, draftId, text, options) {
+      drafts.push({
+        chatId,
+        draftId,
+        text,
+        ...(options?.messageThreadId !== undefined
+          ? { messageThreadId: options.messageThreadId }
+          : {})
+      });
     },
     async editMessage(chatId, messageId, text) {
       edits.push({ chatId, messageId, text });
@@ -98,7 +129,7 @@ function createConnectorRecorder() {
     onMessage() {}
   };
 
-  return { connector, sentMessages, sentFiles, placeholders, edits, deletions };
+  return { connector, sentMessages, sentFiles, placeholders, drafts, edits, deletions };
 }
 
 function createAgentStub(overrides: Partial<AIAgent> = {}): AIAgent {
@@ -125,6 +156,7 @@ function createMessage(content: string, overrides: Partial<UnifiedMessage> = {})
     },
     timestamp: overrides.timestamp || Date.now(),
     ...(overrides.attachments ? { attachments: overrides.attachments } : {}),
+    ...(overrides.telegram ? { telegram: overrides.telegram } : {}),
     ...(overrides.raw ? { raw: overrides.raw } : {})
   };
 }
@@ -702,7 +734,7 @@ test('message pipeline refreshes snapshots immediately after successful response
   });
 });
 
-test('message pipeline uses throttled telegram streaming renderer for telegram chats', async () => {
+test('message pipeline uses native Telegram drafts for private chats', async () => {
   await withTempProject(async () => {
     const prevStreamingEnabled = process.env.TELEGRAM_STREAMING_ENABLED;
     const prevThrottleMs = process.env.TELEGRAM_STREAM_EDIT_THROTTLE_MS;
@@ -723,7 +755,8 @@ test('message pipeline uses throttled telegram streaming renderer for telegram c
     process.env.TELEGRAM_STREAM_FINALIZE_NEW_MESSAGE = 'true';
 
     try {
-      const { connector, sentMessages, placeholders, edits, deletions } = createConnectorRecorder();
+      const { connector, sentMessages, placeholders, drafts, edits, deletions } =
+        createConnectorRecorder();
       const memory = new MemoryManager();
       const streamedPrompts: string[] = [];
       const agent = createAgentStub({
@@ -761,21 +794,45 @@ test('message pipeline uses throttled telegram streaming renderer for telegram c
         writeContextSnapshots() {}
       });
 
-      await pipeline(createMessage('請開始串流'));
+      await pipeline(
+        createMessage('請開始串流', {
+          id: 'telegram-private-1',
+          telegram: { updateId: 501, chatType: 'private', messageThreadId: 7 }
+        })
+      );
 
       assert.equal(streamedPrompts.length, 1);
-      assert.equal(placeholders.length, 1);
-      assert.equal(placeholders[0]?.text, '🤔 思考中...');
-      // 思考內容會即時更新到占位訊息
+      assert.equal(placeholders.length, 0);
+      assert.equal(edits.length, 0);
+      assert.equal(deletions.length, 0);
+      assert.ok(drafts.length >= 2);
+      assert.ok(drafts.every((draft) => draft.draftId === 501));
+      assert.ok(drafts.every((draft) => draft.messageThreadId === 7));
       assert.ok(
-        edits.some((item) => item.text.includes('💭') && item.text.includes('先想一下要怎麼回答'))
+        drafts.some(
+          (draft) => draft.text.includes('💭') && draft.text.includes('先想一下要怎麼回答')
+        )
       );
-      // 純 thinking 模式：答案不在等待期間漸進顯示
-      assert.ok(!edits.some((item) => item.text.includes('✍️ 回覆中...')));
-      // 拿到結果時刪除占位（思考中）訊息，改發一則新的最終答案（帶完成時間戳）
-      assert.ok(deletions.some((d) => d.messageId === 'placeholder-1'));
+      assert.ok(!drafts.some((draft) => draft.text.includes('✍️ 回覆中...')));
       assert.equal(sentMessages.length, 1);
       assert.equal(sentMessages[0]?.text, 'Hello world');
+      assert.equal(sentMessages[0]?.messageThreadId, 7);
+
+      const privateDraftCount = drafts.length;
+      await pipeline(
+        createMessage('群組也開始串流', {
+          id: 'telegram-group-1',
+          chatId: 'group-1',
+          telegram: { updateId: 502, chatType: 'supergroup' }
+        })
+      );
+
+      assert.equal(drafts.length, privateDraftCount);
+      assert.equal(placeholders.length, 1);
+      assert.equal(placeholders[0]?.chatId, 'group-1');
+      assert.ok(edits.some((item) => item.text.includes('先想一下要怎麼回答')));
+      assert.ok(deletions.some((item) => item.messageId === 'placeholder-1'));
+      assert.equal(sentMessages[1]?.text, 'Hello world');
     } finally {
       if (prevStreamingEnabled === undefined) delete process.env.TELEGRAM_STREAMING_ENABLED;
       else process.env.TELEGRAM_STREAMING_ENABLED = prevStreamingEnabled;

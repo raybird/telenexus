@@ -179,7 +179,7 @@ MEMORY_BACKFILL_CHECKPOINT_FILE=/app/data/memory-backfill-checkpoint.json
 
 ## Telegram 串流與 thinking 顯示
 
-等待底層 agent（opencode）回覆期間，會先送出一則「思考中」占位訊息並原地更新狀態。
+等待底層 agent（opencode）回覆期間，Telegram 私聊會優先使用原生 `sendMessageDraft` 顯示暫時進度；群組、頻道或 API 不支援時，才使用一則「思考中」占位訊息並原地更新。
 
 - `TELEGRAM_STREAMING_ENABLED`（預設 `true`）：啟用串流渲染器；`false` 改用非串流的 thinking 占位（完成後另送完整回覆）
 - 編輯節流參數（避免過於頻繁 `editMessage`）：
@@ -189,12 +189,14 @@ MEMORY_BACKFILL_CHECKPOINT_FILE=/app/data/memory-backfill-checkpoint.json
   - `TELEGRAM_STREAM_EARLY_FLUSH_CHARS`（預設 `120`）
   - `TELEGRAM_STREAM_MAX_EDIT_FAILURES`（預設 `3`，連續編輯失敗達此值即停用串流）
   - `TELEGRAM_STREAM_THINKING_ROTATE_MS`（預設 `3000`，無 reasoning 時的思考語輪播間隔）
+  - `TELEGRAM_STREAM_DRAFT_REFRESH_MS`（預設 `20000`，以同一個 draft id 重新送出目前進度，避免 Telegram 暫時草稿過期）
+  - `TELEGRAM_STREAM_TYPING_REFRESH_MS`（預設 `4000`，更新 `typing` chat action）
 
 ### 純 thinking 模式（預設）
 
 - `TELEGRAM_STREAM_REASONING_MODE`（預設 `true`）：等待期間只把模型的 reasoning（思考）即時更新到占位訊息（`💭 思考中…`），答案**不**漸進顯示；設 `false` 則回到「答案漸進串流（✍️ 回覆中…）」
 - `TELEGRAM_STREAM_REASONING_THROTTLE_MS`（預設 `1500`）：思考內容更新節流；首次立即顯示，之後依此間隔
-- `TELEGRAM_STREAM_FINALIZE_NEW_MESSAGE`（預設跟隨 `TELEGRAM_STREAM_REASONING_MODE`）：拿到結果時**刪除占位訊息、改發一則全新的最終答案**，讓最終訊息帶「完成當下」時間戳，方便看出整體耗時；設 `false` 維持原地編輯占位訊息。連接器不支援刪除時自動退回原地編輯
+- `TELEGRAM_STREAM_FINALIZE_NEW_MESSAGE`（預設跟隨 `TELEGRAM_STREAM_REASONING_MODE`）：控制 placeholder fallback 的收尾方式。原生 draft 路徑不受此設定影響，完成與失敗時一律用正常 Telegram 訊息送出
 - 模型若未輸出 reasoning，會自動退回思考語輪播當作 liveness，再以最終答案收尾
 
 ## Telegram API 穩定性

@@ -2,6 +2,7 @@ node_modules/
 dist/
 
 moltbot.db**
+/mcp-memory-libsql.db*
 
 # .serena/
 

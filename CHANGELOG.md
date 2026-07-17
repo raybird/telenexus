@@ -2,6 +2,16 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.22.0 — 2026-07-17
+
+### Telegram 原生草稿串流
+
+- Telegram 私聊改用 Bot API `sendMessageDraft`，同一輪 reasoning、工具狀態與 liveness 共用固定 draft ID，完成或失敗時再送出正式訊息
+- 群組、頻道、缺少 Telegram metadata 或 draft API 失敗時，自動退回單一可編輯 placeholder；中途失敗只切換一次，不產生重複狀態訊息
+- 支援 `message_thread_id` 傳遞、20 秒 draft 保活、4 秒 typing 更新，以及 3900 UTF-16 code units 的安全進度上限
+- 最終訊息確認送達後才清除 fallback；若 final 傳送失敗，保留進度訊息供錯誤復原
+- 補齊 private draft、supergroup fallback、長 reasoning、錯誤終止與 final delivery failure 的測試
+
 ## 2.21.1 — 2026-07-08
 
 ### Docker image 瘦身

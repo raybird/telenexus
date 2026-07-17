@@ -12,9 +12,18 @@ const STATUS_MIN_INTERVAL_MS = 600;
 const DEFAULT_EARLY_FLUSH_CHARS = 120;
 const DEFAULT_MAX_EDIT_FAILURES = 3;
 const MAX_SINGLE_MESSAGE_LENGTH = 3900;
+const MAX_PROGRESS_TEXT_LENGTH = 3900;
 const DEFAULT_REASONING_THROTTLE_MS = 1500;
 const REASONING_DISPLAY_MAX_CHARS = 3500;
+const DEFAULT_DRAFT_REFRESH_MS = 20000;
+const DEFAULT_TYPING_REFRESH_MS = 4000;
+const STATUS_HISTORY_LIMIT = 2;
 const REASONING_PREFIX = '💭 思考中…';
+
+type NativeDraftOptions = {
+  draftId: number;
+  messageThreadId?: number;
+};
 
 type TelegramStreamRendererOptions = {
   editThrottleMs?: number;
@@ -27,13 +36,41 @@ type TelegramStreamRendererOptions = {
   reasoningMode?: boolean;
   reasoningThrottleMs?: number;
   finalizeAsNewMessage?: boolean;
+  nativeDraft?: NativeDraftOptions;
+  messageThreadId?: number;
+  draftRefreshMs?: number;
+  typingRefreshMs?: number;
 };
+
+type ProgressDisplay =
+  | { kind: 'idle' }
+  | { kind: 'draft'; draftId: number }
+  | { kind: 'message'; messageId: string }
+  | { kind: 'unavailable' };
+
+type RendererLifecycle = 'active' | 'finalizing' | 'completed' | 'failed';
 
 const DEFAULT_THINKING_ROTATE_MS = 3000;
 
+function takeUtf16Tail(text: string, maxLength: number): string {
+  if (text.length <= maxLength) {
+    return text;
+  }
+  let start = text.length - maxLength;
+  const code = text.charCodeAt(start);
+  if (code >= 0xdc00 && code <= 0xdfff) {
+    start += 1;
+  }
+  return text.slice(start);
+}
+
+function isToolStatus(text: string): boolean {
+  return /^(?:🔍|📁|📖|💻|🧩|✏️|🌐|⚙️)/u.test(text);
+}
+
 export class TelegramStreamRenderer {
-  private placeholderMsgId = '';
-  private placeholderSent = false;
+  private display: ProgressDisplay = { kind: 'idle' };
+  private lifecycle: RendererLifecycle = 'active';
   private buffer = '';
   private lastRenderedBufferLength = 0;
   private lastRenderAt = 0;
@@ -42,17 +79,19 @@ export class TelegramStreamRenderer {
   private finalEventText = '';
   private sawDelta = false;
   private streamingDisabled = false;
-  private completed = false;
   private flushInterval: NodeJS.Timeout | null = null;
-  private flushInFlight: Promise<void> | null = null;
+  private updateChain: Promise<void> = Promise.resolve();
   private consecutiveEditFailures = 0;
   private thinkingRotateInterval: NodeJS.Timeout | null = null;
   private thinkingIndex = 0;
-  private thinkingUpdateInFlight: Promise<void> | null = null;
   private reasoningBuffer = '';
+  private reasoningTruncated = false;
   private sawReasoning = false;
   private reasoningRenderedOnce = false;
   private lastReasoningRenderAt = 0;
+  private statusHistory: string[] = [];
+  private draftRefreshInterval: NodeJS.Timeout | null = null;
+  private typingRefreshInterval: NodeJS.Timeout | null = null;
 
   private readonly editThrottleMs: number;
   private readonly minDeltaChars: number;
@@ -64,6 +103,10 @@ export class TelegramStreamRenderer {
   private readonly reasoningMode: boolean;
   private readonly reasoningThrottleMs: number;
   private readonly finalizeAsNewMessage: boolean;
+  private readonly nativeDraft: NativeDraftOptions | undefined;
+  private readonly messageThreadId: number | undefined;
+  private readonly draftRefreshMs: number;
+  private readonly typingRefreshMs: number;
 
   constructor(
     private readonly connector: Connector,
@@ -101,27 +144,35 @@ export class TelegramStreamRenderer {
         process.env.TELEGRAM_STREAM_REASONING_THROTTLE_MS,
         DEFAULT_REASONING_THROTTLE_MS
       );
-    // 完成時刪除占位訊息、改發新訊息（讓最終訊息帶完成時間戳）；
-    // 預設跟隨 reasoningMode，可用環境變數獨立覆寫
     this.finalizeAsNewMessage =
       options.finalizeAsNewMessage ??
       (process.env.TELEGRAM_STREAM_FINALIZE_NEW_MESSAGE !== undefined
         ? process.env.TELEGRAM_STREAM_FINALIZE_NEW_MESSAGE.trim().toLowerCase() !== 'false'
         : this.reasoningMode);
+    this.nativeDraft = options.nativeDraft;
+    this.messageThreadId = options.nativeDraft?.messageThreadId ?? options.messageThreadId;
+    this.draftRefreshMs =
+      options.draftRefreshMs ??
+      parsePositiveInt(process.env.TELEGRAM_STREAM_DRAFT_REFRESH_MS, DEFAULT_DRAFT_REFRESH_MS);
+    this.typingRefreshMs =
+      options.typingRefreshMs ??
+      parsePositiveInt(process.env.TELEGRAM_STREAM_TYPING_REFRESH_MS, DEFAULT_TYPING_REFRESH_MS);
   }
 
   async start(): Promise<void> {
-    if (this.placeholderSent) {
+    if (this.display.kind !== 'idle') {
       return;
     }
-    const firstThinking = this.thinkingMessages[0]!;
-    this.placeholderMsgId = await this.connector.sendPlaceholder(this.chatId, firstThinking);
-    this.placeholderSent = this.placeholderMsgId.length > 0;
+
+    const firstThinking = this.clampProgressText(this.thinkingMessages[0]!);
+    await this.startProgressDisplay(firstThinking);
     this.lastRenderedText = firstThinking;
     this.lastRenderAt = Date.now();
+    const displayKind = (this.display as ProgressDisplay).kind;
+
     log.info('stream.started', {
       chatId: this.chatId,
-      placeholderSent: this.placeholderSent,
+      display: this.display.kind,
       editThrottleMs: this.editThrottleMs,
       minDeltaChars: this.minDeltaChars,
       forceFlushMs: this.forceFlushMs,
@@ -129,27 +180,138 @@ export class TelegramStreamRenderer {
       maxEditFailures: this.maxEditFailures
     });
 
-    if (this.placeholderSent) {
+    if (displayKind !== 'unavailable') {
       this.flushInterval = setInterval(() => {
         void this.maybeFlush(false);
       }, 250);
+      this.flushInterval.unref?.();
+
       if (this.thinkingMessages.length > 1) {
         this.thinkingRotateInterval = setInterval(() => {
           void this.rotateThinkingMessage();
         }, this.thinkingRotateMs);
+        this.thinkingRotateInterval.unref?.();
+      }
+
+      if (displayKind === 'draft' && this.draftRefreshMs > 0) {
+        this.draftRefreshInterval = setInterval(() => {
+          void this.refreshDraft();
+        }, this.draftRefreshMs);
+        this.draftRefreshInterval.unref?.();
       }
     }
+
+    if (this.connector.sendChatAction && this.typingRefreshMs > 0) {
+      void this.sendTyping();
+      this.typingRefreshInterval = setInterval(() => {
+        void this.sendTyping();
+      }, this.typingRefreshMs);
+      this.typingRefreshInterval.unref?.();
+    }
+  }
+
+  private async startProgressDisplay(text: string): Promise<void> {
+    if (this.nativeDraft && this.connector.sendMessageDraft) {
+      try {
+        await this.connector.sendMessageDraft(this.chatId, this.nativeDraft.draftId, text, {
+          ...(this.messageThreadId !== undefined ? { messageThreadId: this.messageThreadId } : {}),
+          retries: 0
+        });
+        this.display = { kind: 'draft', draftId: this.nativeDraft.draftId };
+        return;
+      } catch (error) {
+        log.warn('draft.start-failed', {
+          chatId: this.chatId,
+          draftId: this.nativeDraft.draftId,
+          error
+        });
+      }
+    }
+
+    const messageId = await this.connector.sendPlaceholder(this.chatId, text, {
+      ...(this.messageThreadId !== undefined ? { messageThreadId: this.messageThreadId } : {})
+    });
+    this.display = messageId ? { kind: 'message', messageId } : { kind: 'unavailable' };
+  }
+
+  private async transitionDraftToFallback(text: string, error: unknown): Promise<void> {
+    this.stopDraftRefreshInterval();
+    log.warn('draft.update-failed-fallback', {
+      chatId: this.chatId,
+      error
+    });
+    const messageId = await this.connector.sendPlaceholder(this.chatId, text, {
+      ...(this.messageThreadId !== undefined ? { messageThreadId: this.messageThreadId } : {})
+    });
+    if (!messageId) {
+      this.display = { kind: 'unavailable' };
+      this.streamingDisabled = true;
+      throw error;
+    }
+    this.display = { kind: 'message', messageId };
+    this.consecutiveEditFailures = 0;
+  }
+
+  private updateProgressDisplay(text: string): Promise<void> {
+    const nextText = this.clampProgressText(text);
+    const task = this.updateChain
+      .catch(() => undefined)
+      .then(async () => {
+        if (this.lifecycle !== 'active' || this.display.kind === 'unavailable') {
+          return;
+        }
+
+        if (this.display.kind === 'draft') {
+          try {
+            await this.connector.sendMessageDraft?.(this.chatId, this.display.draftId, nextText, {
+              ...(this.messageThreadId !== undefined
+                ? { messageThreadId: this.messageThreadId }
+                : {}),
+              retries: 0
+            });
+          } catch (error) {
+            await this.transitionDraftToFallback(nextText, error);
+          }
+          this.lastRenderedText = nextText;
+          this.lastRenderAt = Date.now();
+          return;
+        }
+
+        if (this.display.kind === 'message') {
+          try {
+            await this.connector.editMessage(this.chatId, this.display.messageId, nextText, {
+              retries: 0,
+              suppressFallbackSend: true,
+              formatMode: 'plain',
+              throwOnError: true
+            });
+            this.lastRenderedText = nextText;
+            this.lastRenderAt = Date.now();
+            this.consecutiveEditFailures = 0;
+          } catch (error) {
+            this.consecutiveEditFailures += 1;
+            if (this.consecutiveEditFailures >= this.maxEditFailures) {
+              this.streamingDisabled = true;
+              log.warn('stream.disabled-after-edit-failures', {
+                chatId: this.chatId,
+                consecutiveEditFailures: this.consecutiveEditFailures
+              });
+            }
+            throw error;
+          }
+        }
+      });
+    this.updateChain = task;
+    return task;
   }
 
   private async rotateThinkingMessage(): Promise<void> {
     if (
       this.sawReasoning ||
       (!this.reasoningMode && this.sawDelta) ||
-      this.completed ||
+      this.lifecycle !== 'active' ||
       this.streamingDisabled ||
-      !this.placeholderSent ||
-      !this.placeholderMsgId ||
-      this.thinkingUpdateInFlight
+      this.display.kind === 'unavailable'
     ) {
       this.stopThinkingRotateInterval();
       return;
@@ -161,34 +323,11 @@ export class TelegramStreamRenderer {
       return;
     }
 
-    this.thinkingUpdateInFlight = this.connector
-      .editMessage(this.chatId, this.placeholderMsgId, nextText, {
-        retries: 0,
-        suppressFallbackSend: true
-      })
-      .then(() => {
-        this.lastRenderedText = nextText;
-        this.lastRenderAt = Date.now();
-        this.consecutiveEditFailures = 0;
-      })
-      .catch((error) => {
-        this.consecutiveEditFailures += 1;
-        log.warn('thinking.rotate-failed', {
-          chatId: this.chatId,
-          consecutiveEditFailures: this.consecutiveEditFailures,
-          error
-        });
-        if (this.consecutiveEditFailures >= this.maxEditFailures) {
-          this.streamingDisabled = true;
-          this.stopThinkingRotateInterval();
-          log.warn('thinking.rotate-disabled-after-failures', { chatId: this.chatId });
-        }
-      })
-      .finally(() => {
-        this.thinkingUpdateInFlight = null;
-      });
-
-    await this.thinkingUpdateInFlight;
+    try {
+      await this.updateProgressDisplay(nextText);
+    } catch (error) {
+      log.warn('thinking.rotate-failed', { chatId: this.chatId, error });
+    }
   }
 
   private stopThinkingRotateInterval(): void {
@@ -198,30 +337,66 @@ export class TelegramStreamRenderer {
     }
   }
 
-  private formatReasoning(): string {
-    const trimmed = this.reasoningBuffer.trim();
-    if (!trimmed) {
-      return this.thinkingMessages[0]!;
+  private stopDraftRefreshInterval(): void {
+    if (this.draftRefreshInterval) {
+      clearInterval(this.draftRefreshInterval);
+      this.draftRefreshInterval = null;
     }
-    const tail =
-      trimmed.length > REASONING_DISPLAY_MAX_CHARS
-        ? `…${trimmed.slice(trimmed.length - REASONING_DISPLAY_MAX_CHARS)}`
-        : trimmed;
-    return `${REASONING_PREFIX}\n\n${tail}`;
+  }
+
+  private appendReasoning(chunk: string): void {
+    const combined = this.reasoningBuffer + chunk;
+    if (combined.length > REASONING_DISPLAY_MAX_CHARS) {
+      this.reasoningTruncated = true;
+      this.reasoningBuffer = takeUtf16Tail(combined, REASONING_DISPLAY_MAX_CHARS);
+      return;
+    }
+    this.reasoningBuffer = combined;
+  }
+
+  private rememberStatus(text: string): void {
+    const previous = this.statusHistory[this.statusHistory.length - 1];
+    if (previous === text) {
+      return;
+    }
+    this.statusHistory.push(text);
+    if (this.statusHistory.length > STATUS_HISTORY_LIMIT) {
+      this.statusHistory.splice(0, this.statusHistory.length - STATUS_HISTORY_LIMIT);
+    }
+  }
+
+  private formatProgressText(): string {
+    const blocks = [this.thinkingMessages[0]!];
+    const reasoning = this.reasoningBuffer.trim();
+    if (reasoning) {
+      const prefix = this.reasoningTruncated ? '…' : '';
+      blocks.push(`${REASONING_PREFIX}\n${prefix}${reasoning}`);
+    }
+    for (const status of this.statusHistory) {
+      blocks.push(`▸ ${status}`);
+    }
+    return this.clampProgressText(blocks.join('\n\n'));
+  }
+
+  private clampProgressText(text: string): string {
+    if (text.length <= MAX_PROGRESS_TEXT_LENGTH) {
+      return text;
+    }
+    const firstBreak = text.indexOf('\n');
+    const header = firstBreak >= 0 ? text.slice(0, firstBreak) : this.thinkingMessages[0]!;
+    const tailBudget = Math.max(0, MAX_PROGRESS_TEXT_LENGTH - header.length - 2);
+    return `${header}\n…${takeUtf16Tail(text, tailBudget)}`;
   }
 
   private async renderReasoning(chunk: string): Promise<void> {
-    this.reasoningBuffer += chunk;
+    this.appendReasoning(chunk);
     this.sawReasoning = true;
-    // reasoning 接手後停止罐頭思考語輪播，改顯示真實思考內容
     this.stopThinkingRotateInterval();
 
     if (
-      this.completed ||
+      this.lifecycle !== 'active' ||
       this.streamingDisabled ||
-      !this.placeholderSent ||
-      !this.placeholderMsgId ||
-      this.thinkingUpdateInFlight
+      this.display.kind === 'unavailable'
     ) {
       return;
     }
@@ -233,98 +408,56 @@ export class TelegramStreamRenderer {
       return;
     }
 
-    const nextText = this.formatReasoning();
+    const nextText = this.formatProgressText();
     if (nextText === this.lastRenderedText) {
       return;
     }
 
-    this.thinkingUpdateInFlight = this.connector
-      .editMessage(this.chatId, this.placeholderMsgId, nextText, {
-        retries: 0,
-        suppressFallbackSend: true,
-        formatMode: 'plain'
-      })
-      .then(() => {
-        this.lastRenderedText = nextText;
-        this.lastRenderAt = Date.now();
-        this.reasoningRenderedOnce = true;
-        this.lastReasoningRenderAt = Date.now();
-        this.consecutiveEditFailures = 0;
-      })
-      .catch((error) => {
-        this.consecutiveEditFailures += 1;
-        log.warn('reasoning.update-failed', {
-          chatId: this.chatId,
-          consecutiveEditFailures: this.consecutiveEditFailures,
-          error
-        });
-        if (this.consecutiveEditFailures >= this.maxEditFailures) {
-          this.streamingDisabled = true;
-          log.warn('reasoning.update-disabled-after-failures', { chatId: this.chatId });
-        }
-      })
-      .finally(() => {
-        this.thinkingUpdateInFlight = null;
-      });
-
-    await this.thinkingUpdateInFlight;
+    try {
+      await this.updateProgressDisplay(nextText);
+      this.reasoningRenderedOnce = true;
+      this.lastReasoningRenderAt = Date.now();
+    } catch (error) {
+      log.warn('reasoning.update-failed', { chatId: this.chatId, error });
+    }
   }
 
   private async renderStatus(text: string): Promise<void> {
+    const statusText = text.trim();
+    if (!statusText) {
+      return;
+    }
+    this.rememberStatus(statusText);
+
     if (
-      this.sawDelta ||
-      this.sawReasoning ||
-      this.completed ||
+      this.lifecycle !== 'active' ||
       this.streamingDisabled ||
-      !this.placeholderSent ||
-      !this.placeholderMsgId ||
-      this.thinkingUpdateInFlight
+      this.display.kind === 'unavailable' ||
+      (!this.reasoningMode && this.sawDelta)
     ) {
       return;
     }
 
-    const statusText = text.trim();
-    if (!statusText || statusText === this.lastRenderedText) {
-      return;
-    }
-
     const now = Date.now();
-    if (now - this.lastRenderAt < STATUS_MIN_INTERVAL_MS) {
+    if (!isToolStatus(statusText) && now - this.lastRenderAt < STATUS_MIN_INTERVAL_MS) {
       return;
     }
 
     this.stopThinkingRotateInterval();
-    this.thinkingUpdateInFlight = this.connector
-      .editMessage(this.chatId, this.placeholderMsgId, statusText, {
-        retries: 0,
-        suppressFallbackSend: true
-      })
-      .then(() => {
-        this.lastRenderedText = statusText;
-        this.lastRenderAt = Date.now();
-        this.consecutiveEditFailures = 0;
-      })
-      .catch((error) => {
-        this.consecutiveEditFailures += 1;
-        log.warn('status.update-failed', {
-          chatId: this.chatId,
-          consecutiveEditFailures: this.consecutiveEditFailures,
-          error
-        });
-        if (this.consecutiveEditFailures >= this.maxEditFailures) {
-          this.streamingDisabled = true;
-          log.warn('status.update-disabled-after-failures', { chatId: this.chatId });
-        }
-      })
-      .finally(() => {
-        this.thinkingUpdateInFlight = null;
-      });
+    const nextText = this.formatProgressText();
+    if (nextText === this.lastRenderedText) {
+      return;
+    }
 
-    await this.thinkingUpdateInFlight;
+    try {
+      await this.updateProgressDisplay(nextText);
+    } catch (error) {
+      log.warn('status.update-failed', { chatId: this.chatId, error });
+    }
   }
 
   async handleEvent(event: AgentEvent): Promise<void> {
-    if (this.completed) {
+    if (this.lifecycle !== 'active') {
       return;
     }
 
@@ -334,10 +467,6 @@ export class TelegramStreamRenderer {
     }
 
     if (event.type === 'status') {
-      // 純 thinking 模式只顯示 reasoning / 思考語，不顯示工具或等待狀態
-      if (this.reasoningMode) {
-        return;
-      }
       await this.renderStatus(event.text);
       return;
     }
@@ -346,7 +475,6 @@ export class TelegramStreamRenderer {
       const isFirstDelta = !this.sawDelta;
       this.sawDelta = true;
       this.buffer += event.text;
-      // 純 thinking 模式：答案不漸進顯示，只累積供 finalize 覆蓋使用
       if (this.reasoningMode) {
         return;
       }
@@ -373,206 +501,214 @@ export class TelegramStreamRenderer {
   }
 
   async finalize(finalText: string): Promise<void> {
-    if (this.completed) {
+    if (this.lifecycle !== 'active') {
       return;
     }
-    this.completed = true;
-    this.stopFlushInterval();
-    this.stopThinkingRotateInterval();
-    await this.awaitFlush();
-    await this.awaitThinkingUpdate();
+    this.lifecycle = 'finalizing';
+    this.stopTimers();
+    await this.awaitUpdate();
 
     const resolvedText = finalText.trim() || this.finalEventText.trim() || this.buffer.trim();
     if (!resolvedText) {
+      await this.clearProgressDisplay('✅ 已完成');
+      this.lifecycle = 'completed';
       log.info('stream.finalize-empty', { chatId: this.chatId });
       return;
     }
 
     log.info('stream.finalizing', {
       chatId: this.chatId,
-      placeholderSent: this.placeholderSent,
+      display: this.display.kind,
       textLength: resolvedText.length,
       sawDelta: this.sawDelta,
       streamingDisabled: this.streamingDisabled
     });
 
-    // 刪除占位（思考中）訊息，改發一則全新的最終答案，
-    // 讓最終訊息帶「完成當下」的時間戳，方便看出整體耗時。
-    // 僅在連接器支援刪除時採用，否則退回原地編輯。
-    if (
-      this.finalizeAsNewMessage &&
-      this.placeholderSent &&
-      this.placeholderMsgId &&
-      this.connector.deleteMessage
-    ) {
-      await this.deletePlaceholder();
-      await this.connector.sendMessage(this.chatId, resolvedText, {
-        retries: 2,
-        throwOnError: true,
-        retryOnTimeout: false,
-        parseMode: 'markdown-v2'
-      });
-      log.info('stream.finalized-via-new-message', {
-        chatId: this.chatId,
-        textLength: resolvedText.length
-      });
-      return;
-    }
+    try {
+      const canEditInPlace =
+        !this.finalizeAsNewMessage &&
+        this.display.kind === 'message' &&
+        resolvedText.length <= MAX_SINGLE_MESSAGE_LENGTH;
 
-    if (!this.placeholderSent || !this.placeholderMsgId) {
-      await this.connector.sendMessage(this.chatId, resolvedText, {
-        retries: 2,
-        throwOnError: true,
-        retryOnTimeout: false,
-        parseMode: 'markdown-v2'
-      });
-      return;
-    }
-
-    if (resolvedText.length <= MAX_SINGLE_MESSAGE_LENGTH) {
-      try {
-        await this.connector.editMessage(this.chatId, this.placeholderMsgId, resolvedText, {
+      if (canEditInPlace && this.display.kind === 'message') {
+        await this.connector.editMessage(this.chatId, this.display.messageId, resolvedText, {
           retries: 0,
           suppressFallbackSend: true,
-          formatMode: 'markdown-v2'
+          formatMode: 'markdown-v2',
+          throwOnError: true
         });
+        this.display = { kind: 'unavailable' };
+        this.lifecycle = 'completed';
         log.info('stream.finalized-via-edit', {
           chatId: this.chatId,
           textLength: resolvedText.length
         });
         return;
-      } catch (error) {
-        log.warn('final.edit-failed', { chatId: this.chatId, error });
       }
-    }
 
-    try {
-      await this.connector.editMessage(
-        this.chatId,
-        this.placeholderMsgId,
-        '✅ 已完成，以下分段送出：',
-        {
-          retries: 0,
-          suppressFallbackSend: true,
-          formatMode: 'plain'
-        }
-      );
+      await this.connector.sendMessage(this.chatId, resolvedText, {
+        retries: 2,
+        throwOnError: true,
+        retryOnTimeout: false,
+        parseMode: 'markdown-v2',
+        ...(this.messageThreadId !== undefined ? { messageThreadId: this.messageThreadId } : {})
+      });
+      await this.clearProgressDisplay('✅ 已完成');
+      this.lifecycle = 'completed';
+      log.info('stream.finalized-via-new-message', {
+        chatId: this.chatId,
+        textLength: resolvedText.length
+      });
     } catch (error) {
-      log.warn('final.placeholder-update-failed', { chatId: this.chatId, error });
+      this.lifecycle = 'active';
+      log.warn('stream.finalize-failed', { chatId: this.chatId, error });
+      throw error;
     }
-
-    await this.connector.sendMessage(this.chatId, resolvedText, {
-      retries: 2,
-      throwOnError: true,
-      retryOnTimeout: false,
-      parseMode: 'markdown-v2'
-    });
-    log.info('stream.finalized-via-send', {
-      chatId: this.chatId,
-      textLength: resolvedText.length
-    });
   }
 
   async fail(message: string): Promise<void> {
-    if (this.completed) {
+    if (this.lifecycle === 'completed' || this.lifecycle === 'failed') {
       return;
     }
-    this.completed = true;
-    this.stopFlushInterval();
-    this.stopThinkingRotateInterval();
-    await this.awaitFlush();
-    await this.awaitThinkingUpdate();
+    this.lifecycle = 'finalizing';
+    this.stopTimers();
+    await this.awaitUpdate();
 
     const fallback = message.trim() || this.latestErrorMessage.trim() || '⚠️ 生成中斷';
     log.warn('stream.failed', {
       chatId: this.chatId,
-      placeholderSent: this.placeholderSent,
+      display: this.display.kind,
       fallbackLength: fallback.length,
       sawDelta: this.sawDelta,
       streamingDisabled: this.streamingDisabled
     });
 
-    if (!this.placeholderSent || !this.placeholderMsgId) {
+    try {
       await this.connector.sendMessage(this.chatId, fallback, {
         retries: 1,
-        throwOnError: false,
-        retryOnTimeout: false
+        throwOnError: true,
+        retryOnTimeout: false,
+        ...(this.messageThreadId !== undefined ? { messageThreadId: this.messageThreadId } : {})
       });
+      await this.clearProgressDisplay('⚠️ 已中斷');
+    } catch (error) {
+      log.warn('failure.send-failed', { chatId: this.chatId, error });
+      try {
+        if (this.display.kind === 'message') {
+          await this.connector.editMessage(this.chatId, this.display.messageId, fallback, {
+            retries: 0,
+            suppressFallbackSend: true,
+            formatMode: 'plain'
+          });
+        } else if (this.display.kind === 'draft' && this.connector.sendMessageDraft) {
+          await this.connector.sendMessageDraft(
+            this.chatId,
+            this.display.draftId,
+            this.clampProgressText(fallback),
+            {
+              ...(this.messageThreadId !== undefined
+                ? { messageThreadId: this.messageThreadId }
+                : {}),
+              retries: 0
+            }
+          );
+        }
+      } catch (updateError) {
+        log.warn('failure.progress-update-failed', {
+          chatId: this.chatId,
+          error: updateError
+        });
+      }
+    }
+    this.lifecycle = 'failed';
+  }
+
+  private async clearProgressDisplay(marker: string): Promise<void> {
+    const display = this.display;
+    this.display = { kind: 'unavailable' };
+    if (display.kind !== 'message') {
       return;
     }
 
+    if (this.connector.deleteMessage) {
+      try {
+        await this.connector.deleteMessage(this.chatId, display.messageId);
+        return;
+      } catch (error) {
+        log.warn('progress.delete-failed', { chatId: this.chatId, error });
+      }
+    }
+
     try {
-      await this.connector.editMessage(this.chatId, this.placeholderMsgId, fallback, {
+      await this.connector.editMessage(this.chatId, display.messageId, marker, {
         retries: 0,
         suppressFallbackSend: true,
         formatMode: 'plain'
       });
     } catch (error) {
-      log.warn('failure.edit-failed', { chatId: this.chatId, error });
-      await this.connector.sendMessage(this.chatId, fallback, {
-        retries: 1,
-        throwOnError: false,
-        retryOnTimeout: false
-      });
+      log.warn('progress.marker-update-failed', { chatId: this.chatId, error });
     }
   }
 
-  private stopFlushInterval(): void {
+  private stopTimers(): void {
     if (this.flushInterval) {
       clearInterval(this.flushInterval);
       this.flushInterval = null;
     }
+    this.stopThinkingRotateInterval();
+    this.stopDraftRefreshInterval();
+    if (this.typingRefreshInterval) {
+      clearInterval(this.typingRefreshInterval);
+      this.typingRefreshInterval = null;
+    }
   }
 
-  private async awaitFlush(): Promise<void> {
-    if (!this.flushInFlight) {
-      return;
-    }
+  private async awaitUpdate(): Promise<void> {
     try {
-      await this.flushInFlight;
+      await this.updateChain;
     } catch {
-      // noop
+      // Progress display is best-effort; final delivery still proceeds.
     }
   }
 
-  private async awaitThinkingUpdate(): Promise<void> {
-    if (!this.thinkingUpdateInFlight) {
+  private async refreshDraft(): Promise<void> {
+    if (this.lifecycle !== 'active' || this.display.kind !== 'draft' || !this.lastRenderedText) {
       return;
     }
     try {
-      await this.thinkingUpdateInFlight;
-    } catch {
-      // noop
-    }
-  }
-
-  private async deletePlaceholder(): Promise<void> {
-    if (!this.placeholderMsgId || !this.connector.deleteMessage) {
-      return;
-    }
-    try {
-      await this.connector.deleteMessage(this.chatId, this.placeholderMsgId);
+      await this.updateProgressDisplay(this.lastRenderedText);
     } catch (error) {
-      log.warn('final.placeholder-delete-failed', { chatId: this.chatId, error });
+      log.warn('draft.refresh-failed', { chatId: this.chatId, error });
+    }
+  }
+
+  private async sendTyping(): Promise<void> {
+    if (!this.connector.sendChatAction || this.lifecycle !== 'active') {
+      return;
+    }
+    try {
+      await this.connector.sendChatAction(this.chatId, 'typing', {
+        ...(this.messageThreadId !== undefined ? { messageThreadId: this.messageThreadId } : {})
+      });
+    } catch (error) {
+      log.warn('typing.update-failed', { chatId: this.chatId, error });
     }
   }
 
   private buildStreamingText(): string {
     if (!this.sawDelta) {
-      return '🤔 思考中...';
+      return this.thinkingMessages[0]!;
     }
-    return `✍️ 回覆中...\n\n${this.buffer}`.trimEnd();
+    return this.clampProgressText(`✍️ 回覆中...\n\n${this.buffer}`.trimEnd());
   }
 
   private async maybeFlush(force: boolean): Promise<void> {
     if (
       this.reasoningMode ||
       this.streamingDisabled ||
-      this.completed ||
-      !this.placeholderSent ||
-      !this.placeholderMsgId ||
-      !this.sawDelta ||
-      this.flushInFlight
+      this.lifecycle !== 'active' ||
+      this.display.kind === 'unavailable' ||
+      !this.sawDelta
     ) {
       return;
     }
@@ -605,34 +741,15 @@ export class TelegramStreamRenderer {
       consecutiveEditFailures: this.consecutiveEditFailures
     });
 
-    this.flushInFlight = this.connector
-      .editMessage(this.chatId, this.placeholderMsgId, nextText, {
-        retries: 0,
-        suppressFallbackSend: true,
-        formatMode: 'plain'
-      })
-      .then(() => {
-        this.lastRenderedText = nextText;
-        this.lastRenderAt = Date.now();
-        this.lastRenderedBufferLength = this.buffer.length;
-        this.consecutiveEditFailures = 0;
-      })
-      .catch((error) => {
-        this.consecutiveEditFailures += 1;
-        log.warn('stream.edit-failed', {
-          chatId: this.chatId,
-          consecutiveEditFailures: this.consecutiveEditFailures,
-          error
-        });
-        if (this.consecutiveEditFailures >= this.maxEditFailures) {
-          this.streamingDisabled = true;
-          log.warn('stream.disabled-after-edit-failures', { chatId: this.chatId });
-        }
-      })
-      .finally(() => {
-        this.flushInFlight = null;
+    try {
+      await this.updateProgressDisplay(nextText);
+      this.lastRenderedBufferLength = this.buffer.length;
+    } catch (error) {
+      log.warn('stream.edit-failed', {
+        chatId: this.chatId,
+        consecutiveEditFailures: this.consecutiveEditFailures,
+        error
       });
-
-    await this.flushInFlight;
+    }
   }
 }

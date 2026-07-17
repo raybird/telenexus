@@ -134,12 +134,30 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       MessagePipelineContext,
       'msg' | 'connector' | 'userId' | 'targetChatId' | 'isPassthroughCommand' | 'forceNewSession'
     >;
+    const telegramContext = msg.telegram;
+    const nativeDraft =
+      telegramContext?.chatType === 'private' &&
+      telegramContext.updateId !== 0 &&
+      connector.sendMessageDraft
+        ? {
+            draftId: telegramContext.updateId,
+            ...(telegramContext.messageThreadId !== undefined
+              ? { messageThreadId: telegramContext.messageThreadId }
+              : {})
+          }
+        : undefined;
     const telegramStreamRenderer =
       !streamResponse &&
       telegramStreamingEnabled &&
       msg.sender.platform === 'telegram' &&
       !baseContext.isPassthroughCommand
-        ? new TelegramStreamRenderer(connector, targetChatId, { thinkingMessages })
+        ? new TelegramStreamRenderer(connector, targetChatId, {
+            thinkingMessages,
+            ...(nativeDraft ? { nativeDraft } : {}),
+            ...(telegramContext?.messageThreadId !== undefined
+              ? { messageThreadId: telegramContext.messageThreadId }
+              : {})
+          })
         : null;
 
     await maybeNotifyQueueAhead(baseContext);
