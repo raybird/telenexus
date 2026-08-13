@@ -4,8 +4,10 @@
 # ==========================================================================
 FROM node:22-slim
 
-# 追 1.x minor line;升級主版本需手動改這裡。better-sqlite3 帶 prebuilt binary,免裝編譯器。
-RUN npm install -g @raybird.chen/memoria@^1.11
+# 釘死確切版本:浮動 range 會讓同一個 TeleNexus tag 在不同時間建出不同的 Memoria
+# (v2.22.0 映像實測是 1.20.0,不是當時的 latest),升級一律改這行。
+# better-sqlite3 帶 prebuilt binary,免裝編譯器。
+RUN npm install -g @raybird.chen/memoria@1.25.0
 
 ENV HOME=/home/node \
     MEMORIA_HOME=/data \
