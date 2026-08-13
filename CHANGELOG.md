@@ -2,6 +2,32 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.22.3 — 2026-08-13
+
+### SAR summary 查詢改用部分索引
+
+SAR 每輪對話都會呼叫 `getRecentSummaries`，但生產資料裡只有 2.3% 的訊息帶 summary。既有的 `(user_id, impact_level, timestamp)` 索引無法表達「有 summary」這個條件，SQLite 得把該使用者所有訊息取回逐列判斷 `TRIM(summary) != ''`，再做 TEMP B-TREE 排序。
+
+新增 `idx_messages_summary_lookup`（部分索引，`WHERE summary IS NOT NULL AND TRIM(summary) != ''`）後，以 115K 訊息實測：
+
+| 路徑 | 修復前 | 修復後 |
+| --- | --- | --- |
+| `getRecentSummaries` | 74.05ms | 6.93ms |
+| `searchSummaries` 的 LIKE 後備 | 74.31ms | 5.23ms |
+| `buildMemoryContext`（每輪對話） | 46.63ms | 6.99ms |
+
+索引建置一次 41ms，DB 大小不變。附斷言 query plan 的迴歸測試 — 部分索引的 `WHERE` 必須與查詢完全一致才會被採用，查詢條件一改就會靜默退回整表候選。
+
+### runner-audit.log 補上輪替與保留期
+
+先前是 append-only 且沒有任何清理機制，正式環境實測 6 個月累積 2,096 行 / 424KB 且只會單調成長。它位在 `workspace/context/` 底下 — 也就是 agent 會讀的目錄 — 無上限成長不只是磁碟問題。
+
+- 改為日輪替（`runner-audit-YYYY-MM-DD.log`）+ 7 天保留，與 event-bus 的 `events.jsonl` 同策略
+- 輪替邏輯抽成 `src/services/audit-log.ts`；`runner.ts` 在 module top-level 就 `server.listen()`，邏輯留在裡面就無法在不啟動 HTTP 服務的情況下測試
+- 目錄只在路徑變動時 `mkdir`，不再每寫一行就發一次 syscall
+
+> 這兩項都是成長曲線問題，不是當下的瓶頸：以目前 12.6 則/天的速度，資料量要 2 年才會到 5×。
+
 ## 2.22.2 — 2026-08-13
 
 ### Context snapshot 的整表掃描與事件放大
