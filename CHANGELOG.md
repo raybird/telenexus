@@ -2,6 +2,15 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.22.1 — 2026-08-13
+
+### Memoria 記憶服務升級至 v1.25.0
+
+- `docker/memoria.Dockerfile` 的 `@raybird.chen/memoria` 由浮動 range `^1.11` 改為釘死 `1.25.0`；浮動 range 會讓同一個 TeleNexus tag 在不同時間建出不同的 Memoria（v2.22.0 映像實測帶的是 1.20.0），映像不再可重現
+- 1.20.0 → 1.25.0 對 TeleNexus client 無破壞性影響：`memoria-recall.ts` 只讀 `data[].id` / `data[].snippet` / `meta.recall_id`，未使用 1.25.0 改為可 `null` 的 `meta.confidence`；`mode:'hybrid'` 與 `/v1/recall`、`/v1/remember`、`/v1/recall/:id/outcome`、`/v1/health` 四條路由維持不變
+- 升級後既有 `memoria_data` volume 會自動跑 migration 14/15（長期記憶標記表、重建 `recall_fts` 清除 re-sync 造成的重複索引列）
+- 需一次性維運動作：Memoria 1.24.0 修好「git 促升記憶未進 tree index」，既有 DB 的缺口要在容器內跑一次 `memoria index build` 才會補上
+
 ## 2.22.0 — 2026-07-17
 
 ### Telegram 原生草稿串流
