@@ -10,6 +10,7 @@ import { resolveProjectDir } from './utils/paths.js';
 import { createLogger } from './core/logger.js';
 import { loadAiConfig } from './core/config-loader.js';
 import { emitEvent } from './services/event-bus.js';
+import { createAuditLogWriter } from './services/audit-log.js';
 
 const logger = createLogger('Runner');
 
@@ -109,11 +110,12 @@ function resolveAuditPath(): string {
   return path.resolve(projectDir, 'workspace', 'context', 'runner-audit.log');
 }
 
+// 日輪替 + 7 天保留,與 event-bus 的 events.jsonl 同策略(先前這個檔案完全沒有清理機制)。
+const auditWriter = createAuditLogWriter(resolveAuditPath);
+
 function appendAuditLine(payload: Record<string, unknown>): void {
   try {
-    const auditPath = resolveAuditPath();
-    fs.mkdirSync(path.dirname(auditPath), { recursive: true });
-    fs.appendFileSync(auditPath, `${JSON.stringify(payload)}\n`, 'utf8');
+    auditWriter.append(JSON.stringify(payload));
   } catch (error) {
     logger.warn('audit_write_failed', { err: error instanceof Error ? error.message : String(error) });
   }

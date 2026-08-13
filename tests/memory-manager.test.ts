@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import Database from 'better-sqlite3';
 import { MemoryManager } from '../src/core/memory.js';
 
 function withTempDb<T>(fn: (dbPath: string) => T): T {
@@ -184,6 +185,51 @@ test('MemoryManager searchSummaries keeps high-signal summary matches ahead of n
       assert.equal(results[0]?.impactLevel, 3);
     } finally {
       Date.now = originalNow;
+    }
+  });
+});
+
+test('SAR 的 summary 查詢會採用部分索引', () => {
+  // 部分索引的 WHERE 條件必須與查詢完全一致，planner 才會採用它。查詢條件一改就會靜默
+  // 退回整表候選（實測 115K 列時 74ms vs 7ms），所以這裡直接斷言 query plan。
+  withTempDb((dbPath) => {
+    const memory = new MemoryManager();
+    memory.addMessage('u1', 'user', '有摘要的訊息', { summary: '一個決策', impactLevel: 2 });
+    memory.addMessage('u1', 'model', '沒有摘要的訊息');
+    memory.close?.();
+
+    const db = new Database(dbPath, { readonly: true });
+    try {
+      const indexNames = db
+        .prepare(`SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='messages'`)
+        .all()
+        .map((r: { name: string }) => r.name);
+      assert.ok(
+        indexNames.includes('idx_messages_summary_lookup'),
+        `部分索引不存在，實際有：${indexNames.join(', ')}`
+      );
+
+      // getRecentSummaries 的查詢
+      const recentSql = `
+        SELECT id, role, content, summary, impact_level, tags, timestamp
+        FROM messages
+        WHERE user_id = ?
+          AND summary IS NOT NULL
+          AND TRIM(summary) != ''
+          AND impact_level >= ?
+        ORDER BY timestamp DESC
+        LIMIT ?`;
+      const plan = db
+        .prepare(`EXPLAIN QUERY PLAN ${recentSql}`)
+        .all('u1', 1, 10)
+        .map((r: { detail: string }) => r.detail)
+        .join(' | ');
+      assert.ok(
+        plan.includes('idx_messages_summary_lookup'),
+        `getRecentSummaries 未採用部分索引，plan=${plan}`
+      );
+    } finally {
+      db.close();
     }
   });
 });

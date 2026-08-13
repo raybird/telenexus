@@ -100,6 +100,19 @@ export class MemoryManager {
         `CREATE INDEX IF NOT EXISTS idx_messages_role_timestamp ON messages(role, timestamp)`
       )
       .run();
+    // SAR 每輪對話都會呼叫 getRecentSummaries / searchSummaries,兩者都只看「有 summary」的列——
+    // 但生產資料裡那只佔 2.3%。用上面的 (user_id, impact_level, timestamp) 索引時,SQLite 仍得把
+    // 該使用者「所有」訊息取回逐列判斷 TRIM(summary) != '',實測 115K 列時單次 74ms。
+    // 部分索引把候選列數壓到只剩真正有 summary 的那些:getRecentSummaries 74.05ms → 6.93ms、
+    // searchSummaries 的 LIKE 後備 74.31ms → 5.23ms,而索引本身小到不影響 DB 大小。
+    // WHERE 條件必須與查詢完全一致,planner 才會採用這個部分索引。
+    this.db
+      .prepare(
+        `CREATE INDEX IF NOT EXISTS idx_messages_summary_lookup
+           ON messages(user_id, impact_level, timestamp)
+           WHERE summary IS NOT NULL AND TRIM(summary) != ''`
+      )
+      .run();
 
     // 建立 FTS5 虛擬表格 (全文檢索)
     this.db
