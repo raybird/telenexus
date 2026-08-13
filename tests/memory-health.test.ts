@@ -118,3 +118,49 @@ test('collectMemoryHealthReport reports cross-db consistency drift', () => {
     }
   });
 });
+
+test('一致性稽核以 LIKE 預篩後，結果與逐列 regex 掃描等價', () => {
+  // 稽核每次 context snapshot 都會重算，改成先用 LIKE 篩掉不可能命中的列以免搬運整張表的內容。
+  // LIKE 是 regex 命中的超集（兩者對 ASCII 都不分大小寫），這裡用邊界內容確認結論一致。
+  withHealthEnv(({ dbDir, memoriaHome }) => {
+    const retrievalDb = new Database(path.join(dbDir, 'memory.db'));
+    retrievalDb.exec(`
+      CREATE TABLE entities (id INTEGER PRIMARY KEY);
+      CREATE TABLE relations (id INTEGER PRIMARY KEY);
+      CREATE TABLE observations (id INTEGER PRIMARY KEY, content TEXT);
+    `);
+    const rows: Array<string | null> = [
+      'plain text no marker',
+      'tagged [source_session=abc123] tail',
+      'UPPER [SOURCE_SESSION=Xyz789] tail',
+      'empty marker [source_session=]',
+      'unclosed [source_session=nobracket',
+      'space inside [source_session=has space] tail',
+      'two [source_session=first] and [source_session=second]',
+      null,
+      '',
+      'bracket only [] nothing'
+    ];
+    const insert = retrievalDb.prepare('INSERT INTO observations (content) VALUES (?)');
+    for (const row of rows) insert.run(row);
+    retrievalDb.close();
+
+    // archive 內只放其中一個 session id，讓 orphan 計數不為 0
+    const archiveDb = new Database(path.join(memoriaHome, '.memory', 'sessions.db'));
+    archiveDb.exec(`
+      CREATE TABLE sessions (id TEXT PRIMARY KEY, timestamp TEXT);
+      CREATE TABLE events (id INTEGER PRIMARY KEY);
+      INSERT INTO sessions (id, timestamp) VALUES ('abc123', '2026-08-13T00:00:00.000Z');
+    `);
+    archiveDb.close();
+
+    const report = collectMemoryHealthReport();
+
+    // 命中 regex 的：abc123 / Xyz789 / first（第 7 列只取第一個）
+    assert.equal(report.consistency.sourceSessionTaggedObservations, 3);
+    // 不含標記或標記不完整的其餘 7 列
+    assert.equal(report.consistency.observationsMissingSourceSession, 7);
+    // 三個命中裡只有 abc123 在 archive 內
+    assert.equal(report.consistency.orphanSourceSessionObservations, 2);
+  });
+});

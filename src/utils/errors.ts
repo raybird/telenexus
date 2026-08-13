@@ -63,6 +63,10 @@ export function recordRuntimeIssue(
   const requestId = context.requestId;
   const dedupeKey = `${scope}\u0000${message}`;
 
+  // 反向掃描能提前 break,前提是 recentIssues 依 timestamp 遞增排列。命中 dedupe 時會就地把
+  // timestamp 改寫成現在,若該筆留在原位陣列就不再有序:它後方可能有更舊的項目,下一次掃描會
+  // 在那裡誤判「已超出視窗」而 break,掃不到其實仍在視窗內的同類項,於是重複發出 runtime_issue
+  // 事件——而每一個這種事件都會再觸發一輪完整的 context snapshot。
   for (let i = recentIssues.length - 1; i >= 0; i -= 1) {
     const issue = recentIssues[i]!;
     if (timestamp - issue.timestamp > ISSUE_DEDUPE_WINDOW_MS) {
@@ -74,6 +78,11 @@ export function recordRuntimeIssue(
       issue.count += 1;
       if (requestId) {
         issue.requestId = requestId;
+      }
+      // 命中後把該筆移到尾端,維持「陣列依 timestamp 遞增」的不變式(見上方註解)。
+      if (i !== recentIssues.length - 1) {
+        recentIssues.splice(i, 1);
+        recentIssues.push(issue);
       }
       return;
     }

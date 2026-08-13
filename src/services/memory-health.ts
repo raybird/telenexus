@@ -174,10 +174,23 @@ function collectConsistencyReport(
   if (fs.existsSync(retrievalDb)) {
     const db = new Database(retrievalDb, { readonly: true, fileMustExist: true });
     try {
-      const rows = db.prepare(`SELECT content FROM observations`).all() as Array<{
-        content?: string;
-      }>;
-      for (const row of rows) {
+      // 這份報告每次 context snapshot 都會重算,先前是 `SELECT content FROM observations` 把整張表
+      // 的內容拉進記憶體再逐列跑 regex。extractSourceSessionId 的 pattern 必然含 `[source_session=`
+      // 這段字面值,而 SQLite 的 LIKE 對 ASCII 預設不分大小寫,和 regex 的 /i 一致——所以不含該
+      // 子字串的列不可能命中,可以只用 COUNT 算掉、完全不搬運內容(實測生產資料 100% 屬於此類)。
+      // 命中 LIKE 的列仍照舊跑原本的 regex,語意與先前逐列掃描完全相同。
+      const MARKER_LIKE = '%[source_session=%';
+      const missingRow = db
+        .prepare(
+          `SELECT COUNT(*) as count FROM observations WHERE content IS NULL OR content NOT LIKE ?`
+        )
+        .get(MARKER_LIKE) as { count?: number } | undefined;
+      empty.observationsMissingSourceSession = missingRow?.count || 0;
+
+      const candidates = db
+        .prepare(`SELECT content FROM observations WHERE content LIKE ?`)
+        .all(MARKER_LIKE) as Array<{ content?: string }>;
+      for (const row of candidates) {
         const sessionId = extractSourceSessionId(row.content);
         if (!sessionId) {
           empty.observationsMissingSourceSession += 1;
