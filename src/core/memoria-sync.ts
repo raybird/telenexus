@@ -69,8 +69,42 @@ function ensureDir(targetDir: string): void {
   fs.mkdirSync(targetDir, { recursive: true });
 }
 
-function buildEvents(turn: MemoriaSyncTurn): SessionEvent[] {
+/** summary 每一邊的字數上限:要夠長才搜得到,又不必把整輪對話塞進索引。 */
+const SUMMARY_SIDE_CHAR_LIMIT = 240;
+
+function collapseWhitespace(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+function truncateForSummary(text: string): string {
+  const collapsed = collapseWhitespace(text);
+  return collapsed.length <= SUMMARY_SIDE_CHAR_LIMIT
+    ? collapsed
+    : `${collapsed.slice(0, SUMMARY_SIDE_CHAR_LIMIT - 1)}…`;
+}
+
+/**
+ * Memoria 的關鍵字召回語料只有 sessions.summary + DecisionMade/SkillLearned 事件,
+ * 而我們只送 UserMessage/ModelMessage —— summary 是唯一搜得到的欄位。
+ * 先前這裡放的是 `user=… platform=…` 這種 metadata,等於整個語料沒有內容可搜;
+ * 診斷欄位改放在每個事件的 metadata 裡,不佔用這條唯一的檢索路徑。
+ */
+function buildSummary(turn: MemoriaSyncTurn): string {
+  const user = truncateForSummary(turn.userMessage);
+  const model = truncateForSummary(turn.modelMessage);
+  return model ? `${user} → ${model}` : user;
+}
+
+function buildEvents(turn: MemoriaSyncTurn, source: 'pipeline' | 'hook'): SessionEvent[] {
   const now = new Date().toISOString();
+  const metadata = {
+    source: 'telenexus',
+    sync_source: source,
+    user_id: turn.userId,
+    platform: turn.platform || 'telegram',
+    is_passthrough_command: turn.isPassthroughCommand,
+    force_new_session: turn.forceNewSession
+  };
   return [
     {
       id: randomUUID(),
@@ -80,13 +114,7 @@ function buildEvents(turn: MemoriaSyncTurn): SessionEvent[] {
         role: 'user',
         text: turn.userMessage
       },
-      metadata: {
-        source: 'telenexus',
-        user_id: turn.userId,
-        platform: turn.platform || 'telegram',
-        is_passthrough_command: turn.isPassthroughCommand,
-        force_new_session: turn.forceNewSession
-      }
+      metadata
     },
     {
       id: randomUUID(),
@@ -96,13 +124,7 @@ function buildEvents(turn: MemoriaSyncTurn): SessionEvent[] {
         role: 'model',
         text: turn.modelMessage
       },
-      metadata: {
-        source: 'telenexus',
-        user_id: turn.userId,
-        platform: turn.platform || 'telegram',
-        is_passthrough_command: turn.isPassthroughCommand,
-        force_new_session: turn.forceNewSession
-      }
+      metadata
     }
   ];
 }
@@ -225,8 +247,11 @@ export class MemoriaSyncBridge {
           id: sessionId,
           timestamp: new Date(timestamp).toISOString(),
           project: 'TeleNexus',
-          summary: `user=${turn.userId} platform=${turn.platform || 'telegram'} source=${source} passthrough=${turn.isPassthroughCommand}`,
-          events: buildEvents(turn)
+          // 召回端傳的是 `user:<id>`(prompt/builder.ts),而 Memoria 的 scope 是等值比對;
+          // 先前沒帶 scope 會被預設成 project:TeleNexus,於是每次召回都必定 0 筆。
+          scope: `user:${turn.userId}`,
+          summary: buildSummary(turn),
+          events: buildEvents(turn, source)
         };
 
         // 先把 payload 落地當離線緩衝;POST 成功才刪,失敗則保留在 failedDir 供查/重灌。
