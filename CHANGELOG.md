@@ -2,6 +2,32 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.24.0 — 2026-08-14
+
+### 記憶意圖寫成 DecisionMade / SkillLearned 事件
+
+Memoria 的關鍵字召回語料只有 `sessions.summary` 與 `event_type` 為 `DecisionMade` / `SkillLearned` 的事件（FTS trigger 的 DDL 寫死 `WHEN new.event_type IN (...)`），逐輪對話事件永遠不進索引 —— 那是刻意的設計：它索引的是蒸餾過的記憶，不是 transcript。v2.23.0 修好了 `summary` 這一半，但我們一種萃取型事件都不產。
+
+模型本來就會在回覆末尾附上 `[[MEMORY_INTENT:…]]`，只是那個回報以前只進了記憶體內的遙測、沒有接到同步端。現在接上，並新增 `skill` 層級對應 `SkillLearned`。
+
+三道閘門，寧可不寫也不要污染語料：
+
+- `level` 限 `rule` / `decision` / `skill`（`long-term-candidate` 這種「可能有用」不算）
+- `confidence` 不可為 `low`（模型自己都不確定的事不值得長期保留）
+- `summary` 必須非空 —— 那是唯一會被搜尋到的文字，沒有它寫進去也召不回
+
+`content` 送物件而非字串：Memoria 用 `parseDecisionEvent(...).decision` 與 `parseSkillEvent(...).skill_name` 取標題，送純字串會變成 `Untitled Decision`。
+
+**夠格的意圖同時接在 `summary` 後面**，因為 `recallTree` 的 snippet 固定取 `session.summary`，萃取型事件的文字只參與比對、不會被顯示。不接的話會出現「配到了但看不到」：模型因為某句規則召回了這筆記憶，收到的卻是「這樣處理可以嗎 → 可以，我照你說的辦」，而真正有價值的那句規則不在裡面。
+
+端對端實測（拋棄式 Memoria 1.27.0）：查「稽核 軌跡」—— 這四個字只存在於決策 summary、對話本文完全沒有 —— 命中 1 筆，且 snippet 含該規則全文。
+
+### 記憶意圖的採用率變成可量測
+
+這個功能完全依賴模型主動回報，而那件事**從來沒有被測量過**：既有的意圖遙測是記憶體內的 50 筆滾動，重啟即歸零，而意圖區塊在存入前就被 `parseMemoryIntent` 剝掉，所以 Memoria 與本地記憶庫都沒留下痕跡。
+
+新增 `memory_intent` 事件寫入 `events.jsonl`（保留 7 天），欄位為三個決定閘門（`level` / `confidence` / `has_summary`）。「模型到底會不會回報」與「報了但被哪一道閘門擋掉」因此可查，而不是又一個做了卻不知道有沒有作用的東西。
+
 ## 2.23.0 — 2026-08-14
 
 ### Memoria 長期記憶一直召不回任何東西
