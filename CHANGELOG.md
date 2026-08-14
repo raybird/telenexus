@@ -2,6 +2,45 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.23.0 — 2026-08-14
+
+### Memoria 長期記憶一直召不回任何東西
+
+正式環境從 2026-06-01 起同步了 905 個 session、1810 筆對話事件，每次 `remember` 都回 `ok:true`，而**任何查詢的召回結果都是 0 筆**。三個各自獨立、都足以致命的原因疊在一起：
+
+- **`summary` 送的是 metadata**。Memoria 的關鍵字召回語料只有 `sessions.summary` 加上 `DecisionMade` / `SkillLearned` 事件（FTS trigger 的 DDL 寫死 `WHEN new.event_type IN (...)`），而我們只產 `UserMessage` / `ModelMessage` —— 所以 `summary` 是唯一搜得到的欄位，裡面卻裝著 `user=… platform=… source=…`。`recall_fts` 的 905 列 body 全是這串字。改放使用者訊息與回覆（各截 240 字），診斷欄位移到事件的 `metadata`。
+- **payload 沒帶 `scope`**，被預設成 `project:TeleNexus`，但召回端傳的是 `user:<id>`，而 Memoria 的 scope 是**等值比對** —— 就算語料正常也必定 0 筆。
+- **整句中文送去查詢**。Memoria 的查詢 tokenizer 把 CJK 連續字串視為單一 token，`recall_fts` 雖然是 trigram 索引、有能力配連續中文子字串，但整句餵進去會讓匹配退化成「整串必須連續出現」。同一份語料實測：「幫我看一下排程設定」0 筆、「排程 設定」2 筆。查詢送出前改切成重疊 2-gram（先用停用詞斷句，避免「一下」+「排程」黏成「下排」這種跨語意的假相鄰）。
+
+| 情境 | 修復前 | 修復後 |
+| --- | --- | --- |
+| 對照查詢（拋棄式 Memoria 1.27.0） | 0/7 命中 | 4/7 |
+| 完整鏈路（真實中文訊息 → 注入） | 1/3 | 3/3 |
+| route / basis | `hybrid_fallback` / `no_hits` | `hybrid_tree` / `lexical_coverage` |
+
+三個都是 fail-open 的靜默失效：寫入回 `ok:true`、召回回 `ok:true` 加空陣列，沒有任何一層會出聲。已寫入的舊記憶原始對話完整保留在 `events` 裡，可另行回填。
+
+已知取捨：2-gram 必然帶噪音（「排程設定」會產生「程設」），而 Memoria 的 `relevance` 是「命中 token 數 / 查詢 token 數」。分母對同一次查詢的所有候選是常數，**排序不受影響**，但回報的 `confidence` 會系統性偏低 —— 遙測與 UFL 校準的數字都要照這個折扣讀。另外 2 字詞低於 `FTS_MIN_TERM_LEN=3`，實際走的是 tree route 而非 bm25。
+
+### 排程產出寫進獨立的 `scheduler` 分區
+
+修好 `summary` 之後浮現的第二個問題：正式資料 905 筆記憶裡 **752 筆是排程任務，且只有 5 種**，光 Crypto Monitor 就 548 筆（六成）。讓這些近乎逐字重複的自動報告進入聊天召回語料，任何與市場或技術相關的查詢都會被它們塞滿，真人對話（15 次）被 5:1 稀釋 —— 而且每天新增約 7 筆，會持續惡化。
+
+利用 scope 是等值比對這點，排程輪次改寫入 `scheduler:<id>`，聊天召回只查 `user:<id>`。**內容完整保留、換個 scope 就查得到**，但不佔用真人對話的召回名額。端對端實測（8 份排程報告 + 2 次真人對話）：「市場 行情 分析」在聊天分區回的是「市場回覆要附資料來源」那條規則、排程外洩 0 筆，同一查詢在排程分區回 3 筆報告。
+
+`console` 與 `telegram` 都算真人對話，一律走 `user:<id>`。
+
+### Memoria 召回遙測
+
+`/v1/recall` 回應 `meta` 的 `route_mode` / `fallback_used` / `confidence` / `confidence_basis` 原本整包丟棄，對召回品質形同全盲 —— 上面那個 0 筆問題正是加了這個之後才浮出來的。
+
+- `memoria-status.md` 新增 `## Recall Telemetry` 區塊（原內容收進 `## Sync Bridge`），滾動 50 筆：路由分布、信心基準分布、平均延遲與命中數
+- 每次召回 emit `memoria_recall` 事件到 `events.jsonl`
+- `route_mode` 為 `vector_unavailable` / `vector_timeout` 時（語意索引服務不了、實際端出字面結果）發 `recordRuntimeIssue`，不讓它靜默降級
+- 平均 confidence 只採計 `lexical_coverage` 樣本並印出 `n`：`confidence` 為 `null` 代表該路由無法判斷，當成 0 計算會製造假數字
+
+Memoria 釘選同時升到 1.27.0（已實際建映像驗證 `memoria --version`）。
+
 ## 2.22.3 — 2026-08-13
 
 ### SAR summary 查詢改用部分索引
