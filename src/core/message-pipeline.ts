@@ -281,6 +281,16 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
           promptMode: promptTelemetry.promptMode,
           intent: memoryIntent
         });
+        // 耐久紀錄:上面那份是記憶體內的 50 筆滾動,重啟就歸零,回答不了
+        // 「模型到底會不會回報意圖」。DecisionMade/SkillLearned 完全依賴這個回報,
+        // 所以把三個決定閘門的欄位寫進 events.jsonl(保留 7 天),讓採用率可被量測。
+        emitEvent('memory_intent', {
+          requestId,
+          userId: context.userId,
+          level: memoryIntent.level,
+          confidence: memoryIntent.confidence,
+          has_summary: Boolean(memoryIntent.summary?.trim())
+        });
       }
 
       recordPromptSessionTrace({
@@ -306,6 +316,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         memory: options.memory,
         context,
         response: cleanedResponse,
+        ...(memoryIntent ? { memoryIntent } : {}),
         ...(options.enqueueMemoriaSync ? { enqueueMemoriaSync: options.enqueueMemoriaSync } : {})
       });
 

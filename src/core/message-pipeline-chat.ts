@@ -1,6 +1,7 @@
 import { executionQueue } from './execution-queue.js';
 import { createLogger } from './logger.js';
 import type { MemoriaSyncTurn } from './memoria-sync.js';
+import type { MemoryIntent } from './memory-intent.js';
 import type { MemoryManager } from './memory.js';
 import type { MessagePipelineContext } from './message-pipeline-context.js';
 import type { MemoriaRecallMeta, PromptBuildResult, PromptMode } from './prompt-build.js';
@@ -68,6 +69,8 @@ type PersistModelResponseOptions = {
   enqueueMemoriaSync?: (turn: MemoriaSyncTurn) => void;
   context: MessagePipelineContext;
   response: string;
+  /** 模型本輪回報的記憶意圖;夠格時 memoria-sync 會多送一個萃取型事件。 */
+  memoryIntent?: MemoryIntent;
 };
 
 type FollowupSummaryOptions = {
@@ -197,7 +200,8 @@ export function persistModelResponse(options: PersistModelResponseOptions): numb
     modelMessage: options.response,
     platform: context.msg.sender.platform,
     isPassthroughCommand: context.isPassthroughCommand,
-    forceNewSession: context.forceNewSession
+    forceNewSession: context.forceNewSession,
+    ...(options.memoryIntent ? { memoryIntent: options.memoryIntent } : {})
   });
 
   return modelMessageTimestamp;

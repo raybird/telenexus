@@ -4,6 +4,7 @@ import path from 'path';
 import { parseBool, parsePositiveInt } from '../utils/env.js';
 import { recordRuntimeIssue, toErrorMessage } from '../utils/errors.js';
 import { getMemoriaEndpoint, pingMemoriaEndpoint, rememberViaHttp } from './memoria-recall.js';
+import type { MemoryIntent } from './memory-intent.js';
 
 export type MemoriaSyncTurn = {
   userId: string;
@@ -12,6 +13,8 @@ export type MemoriaSyncTurn = {
   platform?: string;
   isPassthroughCommand: boolean;
   forceNewSession: boolean;
+  /** 模型本輪回報的 [[MEMORY_INTENT:…]];夠格時會多送一個 DecisionMade/SkillLearned 事件。 */
+  memoryIntent?: MemoryIntent;
 };
 
 type MemoriaSyncMode = 'on' | 'off' | 'auto';
@@ -92,7 +95,16 @@ function truncateForSummary(text: string): string {
 function buildSummary(turn: MemoriaSyncTurn): string {
   const user = truncateForSummary(turn.userMessage);
   const model = truncateForSummary(turn.modelMessage);
-  return model ? `${user} → ${model}` : user;
+  const base = model ? `${user} → ${model}` : user;
+
+  // 決策/規則/技巧也接在 summary 後面,是因為 Memoria 的 snippet 固定取
+  // session.summary(db/recall.ts recallTree),萃取型事件的文字只參與比對、
+  // 永遠不會被顯示。不接的話會出現「配到了但看不到」:模型收到的是
+  // 「這樣處理可以嗎 → 可以,我照你說的辦」,而真正有價值的那句規則不在裡面。
+  const intent = qualifyingIntent(turn);
+  if (!intent) return base;
+  const label = intent.level === 'skill' ? '技巧' : intent.level === 'rule' ? '規則' : '決策';
+  return `${base} ｜【${label}】${truncateForSummary(intent.summary ?? '')}`;
 }
 
 /**
@@ -109,6 +121,77 @@ function buildScope(turn: MemoriaSyncTurn): string {
   return turn.platform === 'scheduler' ? `scheduler:${turn.userId}` : `user:${turn.userId}`;
 }
 
+/**
+ * 把模型回報的記憶意圖轉成 Memoria 的萃取型事件。
+ *
+ * Memoria 的關鍵字召回語料只有 sessions.summary 與 event_type 為 DecisionMade /
+ * SkillLearned 的事件(FTS trigger 的 DDL 寫死),逐輪對話事件永遠不進索引 —— 那是
+ * 刻意的:它索引的是蒸餾過的記憶,不是 transcript。summary 讓「這場對話」可被搜到,
+ * 這裡則讓「這場對話產出的規則/決策/技巧」單獨可被搜到。
+ *
+ * content 必須是**物件**:Memoria 用 parseDecisionEvent(...).decision 與
+ * parseSkillEvent(...).skill_name 取標題(core/extract.ts),送純字串會變成
+ * 'Untitled Decision'。JSON 鍵名會進 FTS body 是 Memoria 自己的設計,每列都一樣,
+ * 不影響鑑別度。
+ *
+ * 三道閘門,寧可不寫也不要污染語料(這是 548 份重複排程報告教的):
+ *   - level 必須是 rule / decision / skill,long-term-candidate 這種「可能有用」不算
+ *   - confidence 必須 medium 以上,low 是模型自己也不確定
+ *   - summary 必須非空 —— 那是唯一會被搜到的文字,沒有它寫進去也召不回
+ */
+function qualifyingIntent(turn: MemoriaSyncTurn): MemoryIntent | null {
+  const intent = turn.memoryIntent;
+  if (!intent) return null;
+  if (intent.level !== 'rule' && intent.level !== 'decision' && intent.level !== 'skill') {
+    return null;
+  }
+  if (intent.confidence === 'low') return null;
+  if (!(intent.summary || '').trim()) return null;
+  return intent;
+}
+
+function buildMemoryEvent(turn: MemoriaSyncTurn, now: string): SessionEvent | null {
+  const intent = qualifyingIntent(turn);
+  if (!intent) return null;
+  const summary = (intent.summary || '').trim();
+
+  const metadata = {
+    source: 'telenexus',
+    user_id: turn.userId,
+    platform: turn.platform || 'telegram',
+    intent_level: intent.level,
+    intent_confidence: intent.confidence
+  };
+
+  if (intent.level === 'skill') {
+    return {
+      id: randomUUID(),
+      timestamp: now,
+      type: 'SkillLearned',
+      content: {
+        skill_name: summary,
+        category: 'telenexus',
+        pattern: intent.reason,
+        success_rate: 0
+      },
+      metadata
+    };
+  }
+
+  return {
+    id: randomUUID(),
+    timestamp: now,
+    type: 'DecisionMade',
+    content: {
+      decision: summary,
+      rationale: intent.reason,
+      // rule 是長期約束,比一次性決策更該被留住;confidence 只分 high/medium。
+      impact_level: intent.level === 'rule' || intent.confidence === 'high' ? 'high' : 'medium'
+    },
+    metadata
+  };
+}
+
 function buildEvents(turn: MemoriaSyncTurn, source: 'pipeline' | 'hook'): SessionEvent[] {
   const now = new Date().toISOString();
   const metadata = {
@@ -119,7 +202,7 @@ function buildEvents(turn: MemoriaSyncTurn, source: 'pipeline' | 'hook'): Sessio
     is_passthrough_command: turn.isPassthroughCommand,
     force_new_session: turn.forceNewSession
   };
-  return [
+  const events: SessionEvent[] = [
     {
       id: randomUUID(),
       timestamp: now,
@@ -141,6 +224,10 @@ function buildEvents(turn: MemoriaSyncTurn, source: 'pipeline' | 'hook'): Sessio
       metadata
     }
   ];
+
+  const memoryEvent = buildMemoryEvent(turn, now);
+  if (memoryEvent) events.push(memoryEvent);
+  return events;
 }
 
 

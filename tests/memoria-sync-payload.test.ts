@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { AddressInfo } from 'node:net';
+import type { MemoriaSyncTurn } from '../src/core/memoria-sync.js';
 
 /**
  * remember payload 的形狀迴歸測試。
@@ -14,14 +15,7 @@ import type { AddressInfo } from 'node:net';
  * 905 個 session 同步成功卻永遠召回 0 筆。這兩個欄位一退化就會靜默失效,所以釘住。
  */
 async function withCapturedPayload(
-  turn: {
-    userId: string;
-    userMessage: string;
-    modelMessage: string;
-    platform?: string;
-    isPassthroughCommand: boolean;
-    forceNewSession: boolean;
-  },
+  turn: MemoriaSyncTurn,
   assertPayload: (payload: Record<string, unknown>) => void
 ): Promise<void> {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'telenexus-sync-test-'));
@@ -163,6 +157,169 @@ test('診斷用的 metadata 移到事件層,沒有隨 summary 一起消失', asy
         assert.equal(event.metadata.force_new_session, true);
         assert.equal(event.metadata.sync_source, 'pipeline');
       }
+    }
+  );
+});
+
+test('decision 意圖會多送一個 DecisionMade 事件', async () => {
+  await withCapturedPayload(
+    {
+      userId: '42',
+      userMessage: '以後市場相關的回覆都要附上資料來源',
+      modelMessage: '了解，之後一律附上來源連結。',
+      isPassthroughCommand: false,
+      forceNewSession: false,
+      memoryIntent: {
+        level: 'decision',
+        confidence: 'high',
+        reason: '使用者明確要求改變回覆格式',
+        summary: '市場相關回覆一律附上資料來源連結'
+      }
+    },
+    (payload) => {
+      const events = payload.events as Array<{ type: string; content: Record<string, unknown> }>;
+      assert.equal(events.length, 3);
+      const decision = events.find((e) => e.type === 'DecisionMade');
+      assert.ok(decision, ' 應產生 DecisionMade 事件');
+      // Memoria 用 parseDecisionEvent(...).decision 當標題,欄位名不能改
+      assert.equal(decision.content.decision, '市場相關回覆一律附上資料來源連結');
+      assert.equal(decision.content.rationale, '使用者明確要求改變回覆格式');
+      assert.equal(decision.content.impact_level, 'high');
+    }
+  );
+});
+
+test('rule 也走 DecisionMade,且 impact_level 為 high', async () => {
+  await withCapturedPayload(
+    {
+      userId: '42',
+      userMessage: '以後都用繁體中文',
+      modelMessage: '好的。',
+      isPassthroughCommand: false,
+      forceNewSession: false,
+      memoryIntent: {
+        level: 'rule',
+        confidence: 'medium',
+        reason: '語言偏好是長期約束',
+        summary: '一律使用台灣用語的繁體中文回覆'
+      }
+    },
+    (payload) => {
+      const events = payload.events as Array<{ type: string; content: Record<string, unknown> }>;
+      const decision = events.find((e) => e.type === 'DecisionMade');
+      assert.ok(decision);
+      // rule 是長期約束,即使 confidence 只有 medium 也算 high impact
+      assert.equal(decision.content.impact_level, 'high');
+    }
+  );
+});
+
+test('skill 意圖走 SkillLearned,欄位名符合 Memoria 的 parseSkillEvent', async () => {
+  await withCapturedPayload(
+    {
+      userId: '42',
+      userMessage: '這個 bug 怎麼查的',
+      modelMessage: '先看 recall_fts 的 body 是不是 metadata。',
+      isPassthroughCommand: false,
+      forceNewSession: false,
+      memoryIntent: {
+        level: 'skill',
+        confidence: 'high',
+        reason: '這個判斷法可重複使用',
+        summary: '判斷 Memoria 召回是否健康：看 recall_fts 的 body 是散文還是 metadata'
+      }
+    },
+    (payload) => {
+      const events = payload.events as Array<{ type: string; content: Record<string, unknown> }>;
+      const skill = events.find((e) => e.type === 'SkillLearned');
+      assert.ok(skill, ' 應產生 SkillLearned 事件');
+      assert.match(String(skill.content.skill_name), /recall_fts/);
+      assert.equal(skill.content.pattern, '這個判斷法可重複使用');
+      assert.equal(skill.content.category, 'telenexus');
+    }
+  );
+});
+
+test('不夠格的意圖不寫入,寧可少也不要污染語料', async () => {
+  const cases = [
+    { name: 'long-term-candidate 不算', intent: { level: 'long-term-candidate' as const, confidence: 'high' as const, reason: 'r', summary: 's' } },
+    { name: 'low confidence 不算', intent: { level: 'decision' as const, confidence: 'low' as const, reason: 'r', summary: 's' } },
+    { name: '沒有 summary 不算', intent: { level: 'decision' as const, confidence: 'high' as const, reason: 'r' } },
+    { name: 'summary 只有空白不算', intent: { level: 'rule' as const, confidence: 'high' as const, reason: 'r', summary: '   ' } }
+  ];
+
+  for (const c of cases) {
+    await withCapturedPayload(
+      {
+        userId: '42',
+        userMessage: 'hello',
+        modelMessage: 'hi',
+        isPassthroughCommand: false,
+        forceNewSession: false,
+        memoryIntent: c.intent
+      },
+      (payload) => {
+        const events = payload.events as Array<{ type: string }>;
+        assert.equal(events.length, 2, `${c.name}：應維持只有兩個對話事件`);
+        assert.ok(!events.some((e) => e.type === 'DecisionMade' || e.type === 'SkillLearned'), c.name);
+      }
+    );
+  }
+});
+
+test('夠格的意圖也接進 summary —— Memoria 的 snippet 只取 summary,不接就會配到卻看不到', async () => {
+  await withCapturedPayload(
+    {
+      userId: '42',
+      userMessage: '這樣處理可以嗎',
+      modelMessage: '可以，我照你說的辦。',
+      isPassthroughCommand: false,
+      forceNewSession: false,
+      memoryIntent: {
+        level: 'decision',
+        confidence: 'high',
+        reason: '使用者拍板',
+        summary: '所有對外請求都要留下稽核軌跡'
+      }
+    },
+    (payload) => {
+      const summary = String(payload.summary);
+      assert.match(summary, /【決策】/);
+      assert.match(summary, /所有對外請求都要留下稽核軌跡/);
+      // 對話本文仍在,決策是附加而非取代
+      assert.match(summary, /這樣處理可以嗎/);
+    }
+  );
+});
+
+test('不夠格的意圖不會污染 summary', async () => {
+  await withCapturedPayload(
+    {
+      userId: '42',
+      userMessage: 'hello',
+      modelMessage: 'hi',
+      isPassthroughCommand: false,
+      forceNewSession: false,
+      memoryIntent: { level: 'decision', confidence: 'low', reason: 'r', summary: '不該出現' }
+    },
+    (payload) => {
+      assert.doesNotMatch(String(payload.summary), /不該出現|【決策】/);
+    }
+  );
+});
+
+test('沒有意圖時維持原本的兩個事件', async () => {
+  await withCapturedPayload(
+    {
+      userId: '42',
+      userMessage: 'hello',
+      modelMessage: 'hi',
+      isPassthroughCommand: false,
+      forceNewSession: false
+    },
+    (payload) => {
+      const events = payload.events as Array<{ type: string }>;
+      assert.deepEqual(events.map((e) => e.type), ['UserMessage', 'ModelMessage']);
     }
   );
 });

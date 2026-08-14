@@ -1,4 +1,15 @@
-export type MemoryIntentLevel = 'none' | 'short-term' | 'long-term-candidate' | 'rule' | 'decision';
+/**
+ * 前三個是「值得保留的程度」階梯,後三個是「保留成什麼」的種類。
+ * rule / decision / skill 會被寫成 Memoria 的 DecisionMade / SkillLearned 事件
+ * (見 memoria-sync.ts buildMemoryEvent) —— 那是 Memoria 關鍵字召回語料的唯二事件型別。
+ */
+export type MemoryIntentLevel =
+  | 'none'
+  | 'short-term'
+  | 'long-term-candidate'
+  | 'rule'
+  | 'decision'
+  | 'skill';
 
 export type MemoryIntentConfidence = 'low' | 'medium' | 'high';
 
@@ -22,7 +33,8 @@ function isValidLevel(value: unknown): value is MemoryIntentLevel {
     value === 'short-term' ||
     value === 'long-term-candidate' ||
     value === 'rule' ||
-    value === 'decision'
+    value === 'decision' ||
+    value === 'skill'
   );
 }
 
