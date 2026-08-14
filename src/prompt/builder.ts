@@ -81,6 +81,15 @@ const MEMORIA_QUERY_TOKEN_LIMIT = 12;
  * 再對每段做重疊 2-gram。英數 token 沿用既有的關鍵字抽取。
  *
  * 只影響送往 Memoria 的查詢;本地 SAR 評分仍用原本的 keywords,行為不變。
+ *
+ * 單邊切就夠,是因為 Memoria 的比對是子字串包含(`haystack.includes(token)`,
+ * db/recall.ts scoreNode)而不是 FTS token 等值 —— 2-gram 配得進文件裡那顆
+ * 未切分的 CJK 大 token。走 FTS token 等值的系統則必須寫入側也切,否則對不上。
+ *
+ * 已知代價:Memoria 的 relevance = 命中 token 數 / 查詢 token 數,而 2-gram 必然
+ * 帶噪音(「排程設定」會產生「程設」)。分母對同一次查詢的所有候選是常數,所以
+ * 「排序不受影響」,但回報的 confidence 會系統性偏低 —— memoria-status.md 的
+ * Avg Confidence 與 Memoria UFL 校準吃的 top_confidence 都要照這個折扣讀。
  */
 function buildMemoriaRecallQuery(userMessage: string, keywords: string[]): string {
   const tokens: string[] = [];
