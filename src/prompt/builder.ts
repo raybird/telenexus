@@ -17,10 +17,9 @@ export function shouldSummarize(content: string): boolean {
   return false;
 }
 
-function extractQueryKeywords(text: string): string[] {
-  const stopwords = new Set([
-    '請',
-    '幫我',
+const QUERY_STOPWORDS = new Set([
+  '請',
+  '幫我',
     '一下',
     '這個',
     '那個',
@@ -43,16 +42,17 @@ function extractQueryKeywords(text: string): string[] {
     'would',
     'should',
     'could',
-    'please',
-    'help'
-  ]);
+  'please',
+  'help'
+]);
 
+function extractQueryKeywords(text: string): string[] {
   const tokens = text
     .toLowerCase()
     .replace(/[^\p{L}\p{N}_-]+/gu, ' ')
     .split(/\s+/)
     .map((item) => item.trim())
-    .filter((item) => item.length >= 2 && !stopwords.has(item));
+    .filter((item) => item.length >= 2 && !QUERY_STOPWORDS.has(item));
 
   const unique: string[] = [];
   for (const token of tokens) {
@@ -66,6 +66,51 @@ function extractQueryKeywords(text: string): string[] {
 
 function applyKeywordAliases(text: string, baseKeywords: string[]): string[] {
   return expandSarKeywords(text, baseKeywords);
+}
+
+const CJK_RUN_PATTERN = /[㐀-䶿一-鿿]{2,}/gu;
+const MEMORIA_QUERY_TOKEN_LIMIT = 12;
+
+/**
+ * 組出送給 Memoria 的查詢字串。
+ *
+ * Memoria 的 tokenizer 把 CJK 連續字串視為單一 token(與我們的 tokenCoverage 同語意),
+ * 所以整句中文送過去必須逐字命中才算匹配 —— 實測「幫我看一下排程設定」對同一份語料 0 筆,
+ * 換成「排程 設定」是 2 筆。這裡把中文段落切成 2-gram 讓它有東西可比對:
+ * 先用停用詞把句子斷開(避免跨語意的假相鄰,例如「一下」+「排程」黏成「下排」),
+ * 再對每段做重疊 2-gram。英數 token 沿用既有的關鍵字抽取。
+ *
+ * 只影響送往 Memoria 的查詢;本地 SAR 評分仍用原本的 keywords,行為不變。
+ */
+function buildMemoriaRecallQuery(userMessage: string, keywords: string[]): string {
+  const tokens: string[] = [];
+  const push = (token: string): void => {
+    if (token.length >= 2 && !QUERY_STOPWORDS.has(token) && !tokens.includes(token)) {
+      tokens.push(token);
+    }
+  };
+
+  for (const keyword of keywords) {
+    if (!CJK_RUN_PATTERN.test(keyword)) push(keyword);
+    CJK_RUN_PATTERN.lastIndex = 0;
+  }
+
+  for (const run of userMessage.toLowerCase().match(CJK_RUN_PATTERN) ?? []) {
+    const segments = Array.from(QUERY_STOPWORDS)
+      .filter((word) => word.length >= 2)
+      .reduce<string[]>(
+        (parts, word) => parts.flatMap((part) => part.split(word)),
+        [run]
+      );
+    for (const segment of segments) {
+      for (let i = 0; i + 2 <= segment.length; i += 1) {
+        push(segment.slice(i, i + 2));
+      }
+    }
+  }
+
+  const query = tokens.slice(0, MEMORIA_QUERY_TOKEN_LIMIT).join(' ');
+  return query || userMessage;
 }
 
 function truncateInline(text: string, maxLength: number): string {
@@ -442,9 +487,11 @@ export async function buildMemoryContextAsync(
   const anchorCandidates = getAnchorCandidates(memory, userId);
   const anchors = selectCausalAnchors(anchorCandidates, queryTags, keywords);
 
+  const recallQuery = buildMemoriaRecallQuery(userMessage, keywords);
+
   let semanticLines: string[];
   try {
-    const snippets = await recallFn(userMessage, `user:${userId}`);
+    const snippets = await recallFn(recallQuery, `user:${userId}`);
     if (snippets.length > 0) {
       semanticLines = snippets
         .slice(0, SAR_PROMPT_POLICY.semanticLimit)

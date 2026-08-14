@@ -421,3 +421,56 @@ test('buildMemoryContext resolves alias query normalization for opencode compres
     assert.match(context, /compress/);
   });
 });
+
+/**
+ * 送往 Memoria 的召回查詢:CJK 連續字串必須切成 2-gram。
+ *
+ * Memoria 的 tokenizer 與我們的 tokenCoverage 一樣把 CJK 連續字串當單一 token,
+ * 整句中文送過去要逐字命中才算匹配 —— 實測同一份語料,「幫我看一下排程設定」0 筆,
+ * 「排程 設定」2 筆。這裡釘住實際送出的查詢字串。
+ */
+async function captureRecallQuery(userMessage: string): Promise<string> {
+  const prevDbPath = process.env.DB_PATH;
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'telenexus-recall-query-'));
+  process.env.DB_PATH = path.join(tempDir, 'test.db');
+  try {
+    const { buildMemoryContextAsync } = await import('../src/prompt/builder.js');
+    const memory = new MemoryManager();
+    let sent = '';
+    await buildMemoryContextAsync(memory, 'user-a', userMessage, async (query) => {
+      sent = query;
+      return [];
+    });
+    return sent;
+  } finally {
+    if (prevDbPath === undefined) delete process.env.DB_PATH;
+    else process.env.DB_PATH = prevDbPath;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+test('Memoria 召回查詢把中文切成 2-gram,不整句送出', async () => {
+  const query = await captureRecallQuery('幫我看一下排程設定');
+  const tokens = query.split(' ');
+
+  assert.ok(tokens.includes('排程'), `應含「排程」,實際:${query}`);
+  assert.ok(tokens.includes('設定'), `應含「設定」,實際:${query}`);
+  // 整句不可以原樣送出 —— 那正是造成 0 筆的形狀
+  assert.ok(!tokens.includes('幫我看一下排程設定'), `不該整句送出:${query}`);
+  // 停用詞會把句子斷開,避免「一下」+「排程」黏成假的相鄰詞
+  assert.ok(!tokens.includes('下排'), `停用詞應斷開句子,實際:${query}`);
+});
+
+test('Memoria 召回查詢保留英數 token', async () => {
+  const query = await captureRecallQuery('docker 升級之後 bot 沒回應怎麼辦');
+  const tokens = query.split(' ');
+
+  assert.ok(tokens.includes('docker'), `應保留 docker,實際:${query}`);
+  assert.ok(tokens.includes('bot'), `應保留 bot,實際:${query}`);
+  assert.ok(tokens.includes('升級'), `應含「升級」,實際:${query}`);
+});
+
+test('Memoria 召回查詢切不出東西時退回原句', async () => {
+  const query = await captureRecallQuery('嗨');
+  assert.equal(query, '嗨');
+});
