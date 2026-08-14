@@ -107,6 +107,42 @@ test('remember payload 的 scope 與召回端一致(user:<id>)', async () => {
   );
 });
 
+test('排程輪次寫進 scheduler 分區,不與真人對話同一個 scope', async () => {
+  await withCapturedPayload(
+    {
+      userId: '915354960',
+      userMessage: '[排程任務] Crypto Monitor: 請抓取行情',
+      modelMessage: '## 加密貨幣監控報告…',
+      platform: 'scheduler',
+      isPassthroughCommand: false,
+      forceNewSession: false
+    },
+    (payload) => {
+      // 聊天召回只查 user:<id>,排程分到另一區才不會擠掉真人對話的召回名額
+      assert.equal(payload.scope, 'scheduler:915354960');
+      // 內容仍然完整保留 —— 分區是隔離,不是丟棄
+      assert.match(String(payload.summary), /Crypto Monitor/);
+      assert.match(String(payload.summary), /加密貨幣監控報告/);
+    }
+  );
+});
+
+test('web console 的對話算真人對話,仍走 user 分區', async () => {
+  await withCapturedPayload(
+    {
+      userId: '42',
+      userMessage: 'hello',
+      modelMessage: 'hi',
+      platform: 'console',
+      isPassthroughCommand: false,
+      forceNewSession: false
+    },
+    (payload) => {
+      assert.equal(payload.scope, 'user:42');
+    }
+  );
+});
+
 test('診斷用的 metadata 移到事件層,沒有隨 summary 一起消失', async () => {
   await withCapturedPayload(
     {

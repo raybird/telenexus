@@ -95,6 +95,20 @@ function buildSummary(turn: MemoriaSyncTurn): string {
   return model ? `${user} → ${model}` : user;
 }
 
+/**
+ * 排程產出寫進獨立分區。
+ *
+ * Memoria 的 scope 是等值比對,而聊天召回只查 `user:<id>`(prompt/builder.ts) ——
+ * 把週期性的排程報告分到 `scheduler:<id>`,它們就永遠不會擠掉真人對話的召回名額,
+ * 內容卻完整保留、之後想查換個 scope 就有。實測正式資料:905 筆記憶裡 752 筆是排程,
+ * 且只有 5 種任務(光 Crypto Monitor 就 548 筆),不分區的話真人對話會被 5:1 稀釋。
+ *
+ * 只有 scheduler 走另一區;console / telegram 都是真人對話,一律 `user:<id>`。
+ */
+function buildScope(turn: MemoriaSyncTurn): string {
+  return turn.platform === 'scheduler' ? `scheduler:${turn.userId}` : `user:${turn.userId}`;
+}
+
 function buildEvents(turn: MemoriaSyncTurn, source: 'pipeline' | 'hook'): SessionEvent[] {
   const now = new Date().toISOString();
   const metadata = {
@@ -247,9 +261,9 @@ export class MemoriaSyncBridge {
           id: sessionId,
           timestamp: new Date(timestamp).toISOString(),
           project: 'TeleNexus',
-          // 召回端傳的是 `user:<id>`(prompt/builder.ts),而 Memoria 的 scope 是等值比對;
-          // 先前沒帶 scope 會被預設成 project:TeleNexus,於是每次召回都必定 0 筆。
-          scope: `user:${turn.userId}`,
+          // 先前沒帶 scope 會被預設成 project:TeleNexus,而召回端傳 `user:<id>`,
+          // 於是每次召回都必定 0 筆。分區規則見 buildScope。
+          scope: buildScope(turn),
           summary: buildSummary(turn),
           events: buildEvents(turn, source)
         };
