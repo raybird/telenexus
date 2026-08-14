@@ -225,6 +225,19 @@ function collectConsistencyReport(
   return empty;
 }
 
+/**
+ * ⚠ 不要在這裡加 `PRAGMA quick_check` / `integrity_check`。
+ *
+ * better-sqlite3 的長生命週期連線,只要 DB 裡有 FTS5 虛擬表(memory.db 有兩張:
+ * messages_fts / messages_summary_fts)、又被**另一個行程**寫過,完整性檢查就會回
+ * `malformed inverted index for FTS5 table …` —— 資料其實完好,壞的只是那條連線上
+ * 的 FTS5 快取狀態。重新 prepare 清不掉,只有關閉重開連線有效;read-write 連線同樣
+ * 會中,不是唯讀專屬。而 memory:cli / memory:health / memory:backfill 都是獨立行程,
+ * 跑過任何一個就滿足觸發條件。
+ *
+ * 上游 Memoria 的 /v1/health 就是這樣長期謊報損壞(2026-08-14 三方各自重現確認,
+ * 見其 issue-14)。真要做完整性檢查,得用一條當場開、用完就關的專屬連線。
+ */
 export function collectMemoryHealthReport(): MemoryHealthReport {
   const operationalDb = resolveDbPath();
   const retrievalDb = resolveMemoryDbPath();
