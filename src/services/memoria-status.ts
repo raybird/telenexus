@@ -1,8 +1,11 @@
 import type { MemoriaSyncStatus } from '../core/memoria-sync.js';
+import { formatMemoriaRecallTelemetryMarkdown } from './memoria-recall-telemetry.js';
 
 export function formatMemoriaStatusMarkdown(status: MemoriaSyncStatus): string {
   return [
     '# Memoria Status',
+    '',
+    '## Sync Bridge',
     '',
     `- Mode: ${status.mode}`,
     `- Available: ${status.available ? 'yes' : 'no'}`,
@@ -14,6 +17,8 @@ export function formatMemoriaStatusMarkdown(status: MemoriaSyncStatus): string {
     `- Recent Failure Count: ${status.recentFailureCount}`,
     `- Last Sync At: ${status.lastSyncAt ? new Date(status.lastSyncAt).toLocaleString('zh-TW') : '(none)'}`,
     `- Last Failure At: ${status.lastFailureAt ? new Date(status.lastFailureAt).toLocaleString('zh-TW') : '(none)'}`,
-    `- Last Failure Message: ${status.lastFailureMessage || '(none)'}`
+    `- Last Failure Message: ${status.lastFailureMessage || '(none)'}`,
+    '',
+    formatMemoriaRecallTelemetryMarkdown()
   ].join('\n');
 }

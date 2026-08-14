@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import type { AddressInfo } from 'node:net';
 import {
   MemoriaRecallClient,
@@ -8,6 +11,15 @@ import {
   reportRecallOutcome,
   tokenCoverage
 } from '../src/core/memoria-recall.js';
+import {
+  clearMemoriaRecallTraces,
+  formatMemoriaRecallTelemetryMarkdown,
+  getRecentMemoriaRecallTraces
+} from '../src/services/memoria-recall-telemetry.js';
+
+// recall 會 emitEvent 到 <APP_PROJECT_DIR>/workspace/context/events.jsonl;
+// 導到 tmp 目錄,避免測試污染 repo 內的實際 workspace。
+process.env.APP_PROJECT_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'telenexus-recall-test-'));
 
 type CapturedRequest = { method: string; path: string; body: string };
 
@@ -173,4 +185,111 @@ test('buildReuseOutcome 空 hits 時 utility_score 為 0', () => {
   const outcome = buildReuseOutcome([], 'any reply');
   assert.equal(outcome.utility_score, 0);
   assert.deepEqual(outcome.hits, []);
+});
+
+test('recallWithMeta 讀出 route_mode / confidence_basis 並記進遙測', async () => {
+  clearMemoriaRecallTraces();
+  await withServer(
+    (_req, res) =>
+      jsonResponse(res, 200, {
+        ok: true,
+        data: [{ id: 'h1', snippet: '部署規則' }],
+        meta: {
+          recall_id: 'rt_1',
+          route_mode: 'hybrid_fallback',
+          fallback_used: true,
+          confidence: 0.75,
+          confidence_basis: 'lexical_coverage'
+        }
+      }),
+    async (endpoint) => {
+      const client = new MemoriaRecallClient({ endpoint, timeoutMs: 2000 });
+      const result = await client.recallWithMeta('部署');
+
+      assert.deepEqual(result.meta, {
+        routeMode: 'hybrid_fallback',
+        fallbackUsed: true,
+        confidence: 0.75,
+        confidenceBasis: 'lexical_coverage'
+      });
+
+      const [trace] = getRecentMemoriaRecallTraces(1);
+      assert.equal(trace?.ok, true);
+      assert.equal(trace?.routeMode, 'hybrid_fallback');
+      assert.equal(trace?.confidenceBasis, 'lexical_coverage');
+      assert.equal(trace?.hitCount, 1);
+    }
+  );
+});
+
+test('confidence=null(無法判斷)不會被當成 0 塞進平均', async () => {
+  clearMemoriaRecallTraces();
+  await withServer(
+    (_req, res) =>
+      jsonResponse(res, 200, {
+        ok: true,
+        data: [{ id: 'h1', snippet: '語意命中' }],
+        meta: { route_mode: 'vector', confidence: null, confidence_basis: 'unavailable' }
+      }),
+    async (endpoint) => {
+      const client = new MemoriaRecallClient({ endpoint, timeoutMs: 2000 });
+      const result = await client.recallWithMeta('query');
+
+      assert.equal(result.meta?.confidence, null);
+      assert.equal(result.meta?.confidenceBasis, 'unavailable');
+      // 平均只採計可跨次比較的 lexical_coverage,此時沒有樣本
+      const markdown = formatMemoriaRecallTelemetryMarkdown();
+      assert.match(markdown, /Avg Confidence \(僅 lexical_coverage，n=0\): \(n\/a\)/);
+    }
+  );
+});
+
+test('語意索引退回字面召回時標記 DEGRADED', async () => {
+  clearMemoriaRecallTraces();
+  await withServer(
+    (_req, res) =>
+      jsonResponse(res, 200, {
+        ok: true,
+        data: [{ id: 'h1', snippet: '字面結果' }],
+        meta: { route_mode: 'vector_unavailable', fallback_used: true, confidence: 0.4 }
+      }),
+    async (endpoint) => {
+      const client = new MemoriaRecallClient({ endpoint, timeoutMs: 2000 });
+      await client.recallWithMeta('query');
+
+      const markdown = formatMemoriaRecallTelemetryMarkdown();
+      assert.match(markdown, /Degraded \(語意索引退回字面\): 1/);
+      assert.match(markdown, /route=vector_unavailable .* DEGRADED/);
+    }
+  );
+});
+
+test('舊版沒有 meta 時退回 unknown,而不是假裝路由正常', async () => {
+  clearMemoriaRecallTraces();
+  await withServer(
+    (_req, res) => jsonResponse(res, 200, { hits: [{ id: 'legacy-1', snippet: 'legacy' }] }),
+    async (endpoint) => {
+      const client = new MemoriaRecallClient({ endpoint, timeoutMs: 2000 });
+      const result = await client.recallWithMeta('query');
+
+      assert.deepEqual(result.meta, {
+        routeMode: 'unknown',
+        fallbackUsed: false,
+        confidence: null,
+        confidenceBasis: 'unknown'
+      });
+    }
+  );
+});
+
+test('recall 失敗也留下軌跡(route=error),不會靜靜消失', async () => {
+  clearMemoriaRecallTraces();
+  const client = new MemoriaRecallClient({ endpoint: 'http://127.0.0.1:1', timeoutMs: 500 });
+  const result = await client.recallWithMeta('query');
+
+  assert.equal(result.meta, undefined);
+  const [trace] = getRecentMemoriaRecallTraces(1);
+  assert.equal(trace?.ok, false);
+  assert.equal(trace?.routeMode, 'error');
+  assert.match(formatMemoriaRecallTelemetryMarkdown(), /Success \/ Failed: 0 \/ 1/);
 });

@@ -2,6 +2,11 @@ import http from 'http';
 import https from 'https';
 import { parsePositiveInt } from '../utils/env.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
+import { emitEvent } from '../services/event-bus.js';
+import {
+  isDegradedRoute,
+  recordMemoriaRecallTrace
+} from '../services/memoria-recall-telemetry.js';
 import { createLogger } from './logger.js';
 
 const logger = createLogger('MemoriaRecall');
@@ -17,17 +22,46 @@ type RecallResponse = {
   data?: RecallHit[];
   /** 舊版相容:早期實作預期的頂層 hits 欄位。 */
   hits?: RecallHit[];
-  meta?: { recall_id?: string };
+  meta?: {
+    recall_id?: string;
+    /** 實際走到的召回路由:hybrid_tree / hybrid_fallback / vector_unavailable … */
+    route_mode?: string;
+    fallback_used?: boolean;
+    /** null = 該路由無法判斷匹配品質,與 0(判斷過、很差)是不同的意思。 */
+    confidence?: number | null;
+    /** lexical_coverage / unavailable / no_hits(Memoria issue-9)。 */
+    confidence_basis?: string;
+  };
 };
 
 export type MemoriaRecallHit = { id: string; snippet: string };
+
+/** Memoria 回應 meta 的召回品質資訊,欄位缺席時以 'unknown' 補齊而非省略。 */
+export type MemoriaRecallMetaInfo = {
+  routeMode: string;
+  fallbackUsed: boolean;
+  confidence: number | null;
+  confidenceBasis: string;
+};
 
 export type MemoriaRecallResult = {
   snippets: string[];
   /** UFL 關聯 id,回覆完成後可用 reportRecallOutcome 回報效用。 */
   recallId?: string;
   hits: MemoriaRecallHit[];
+  /** 召回路由與信心基準;請求失敗時不帶此欄位。 */
+  meta?: MemoriaRecallMetaInfo;
 };
+
+/** 把 envelope 的 meta 正規化;舊版 Memoria 沒有這些欄位時退回 'unknown'。 */
+function interpretRecallMeta(meta: RecallResponse['meta']): MemoriaRecallMetaInfo {
+  return {
+    routeMode: meta?.route_mode ?? 'unknown',
+    fallbackUsed: meta?.fallback_used === true,
+    confidence: typeof meta?.confidence === 'number' ? meta.confidence : null,
+    confidenceBasis: meta?.confidence_basis ?? 'unknown'
+  };
+}
 
 function getRecallEnabled(): boolean {
   const raw = process.env.MEMORIA_RECALL_ENABLED?.trim().toLowerCase();
@@ -86,6 +120,7 @@ export class MemoriaRecallClient {
       mode: 'hybrid'
     };
 
+    const startedAt = Date.now();
     try {
       const { status, body } = await memoriaHttpRequest(
         this.endpoint,
@@ -105,11 +140,56 @@ export class MemoriaRecallClient {
         h.id && h.snippet && h.snippet.trim().length > 0 ? [{ id: h.id, snippet: h.snippet }] : []
       );
       const recallId = parsed.meta?.recall_id;
-      return { snippets, hits, ...(recallId ? { recallId } : {}) };
+      const meta = interpretRecallMeta(parsed.meta);
+      const latencyMs = Date.now() - startedAt;
+
+      recordMemoriaRecallTrace({
+        timestamp: startedAt,
+        ok: true,
+        hitCount: rawHits.length,
+        latencyMs,
+        ...meta
+      });
+      emitEvent('memoria_recall', {
+        ok: true,
+        route_mode: meta.routeMode,
+        fallback_used: meta.fallbackUsed,
+        confidence: meta.confidence,
+        confidence_basis: meta.confidenceBasis,
+        hit_count: rawHits.length,
+        latency_ms: latencyMs
+      });
+      // 語意索引服務不了、實際端出字面結果時要出聲——這種降級不講就是靜默降級。
+      if (isDegradedRoute(meta.routeMode)) {
+        logger.warn('recall_degraded', { routeMode: meta.routeMode, hits: rawHits.length });
+        recordRuntimeIssue(
+          `memoria:recall-degraded:${meta.routeMode}`,
+          new Error(`Memoria 語意召回不可用,已退回字面召回 (route_mode=${meta.routeMode})`)
+        );
+      }
+
+      return { snippets, hits, meta, ...(recallId ? { recallId } : {}) };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
+      const latencyMs = Date.now() - startedAt;
       logger.warn('recall_failed', { err: msg });
       recordRuntimeIssue('memoria:recall', error);
+      recordMemoriaRecallTrace({
+        timestamp: startedAt,
+        ok: false,
+        routeMode: 'error',
+        fallbackUsed: false,
+        confidence: null,
+        confidenceBasis: 'unknown',
+        hitCount: 0,
+        latencyMs
+      });
+      emitEvent('memoria_recall', {
+        ok: false,
+        route_mode: 'error',
+        latency_ms: latencyMs,
+        error: msg
+      });
       return { snippets: [], hits: [] };
     }
   }
