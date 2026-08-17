@@ -161,3 +161,83 @@ RunTelenexus 約 2.5 GiB，主要為 workspace/Memoria 約 1.1 GiB、state
 - timeout 後的 descendant 是否全部退出
 - runner audit 的真實 success/timeout/error 分布
 - scheduler 與 runner 的狀態是否一致
+
+## 追補：2026-08-17 回覆失敗與 runner process 調查
+
+本次追查仍為唯讀，沒有重啟容器、修改設定或刪除資料。
+
+### 回覆失敗的直接根因
+
+四個失敗任務的 OpenCode 持久化 log 都記錄 provider HTTP 429：
+`FreeUsageLimitError` / `Rate limit exceeded`。失敗時段為
+`2026-08-16T15:30Z`、`16:00Z`、`22:00Z`、`22:30Z`；Telegram sendMessage
+本身都能快速成功。
+
+排程放大了問題：`withScheduleTimeout()` 在任務入 queue 時就開始 30 分鐘計時，
+但 timeout 不會取消底層 queue task；同一 user 的 serial queue 因此可能出現：
+
+    task A 執行中
+      -> task B 已在 queue 等候並先達到上層 timeout
+      -> task B 仍被 queue 取出並繼續執行
+      -> provider quota 被背景重試與重複工作進一步消耗
+
+此外，`OpencodeAgent` 將 `ETIMEDOUT` 轉成一般文字回覆，runner 因而把 timeout
+記成 `ok=true`。現有 success rate 不能代表模型任務真的完成。
+
+### `PIDs=193/195` 的正確解讀
+
+Docker stats 的 PIDs 欄位是 cgroup task 數，包含 threads，不是獨立 process 數。
+2026-08-17 07:51 左右的即時檢查結果為：
+
+- cgroup `pids.current=195`，`pids.max=35819`，沒有 PID 上限壓力。
+- `/proc` 實際約 16 個服務 process：runner Node、agent-browser wrapper、12 個
+  Chrome process、2 個 Chrome crashpad process。
+- 這棵 browser tree 約 14 個 Chrome/crashpad process，但合計約 180 多個 threads，
+  所以 cgroup task 數看起來接近 195。
+- runner Docker memory 約 268 MiB；cgroup `memory.current` 取樣約 385 MiB，
+  差異來自 cache/accounting，均沒有 `high`、`max`、`oom` 或 `oom_kill` 事件。
+
+browser wrapper 與 Chrome tree 已存活約 13 小時，時間上對應前一個排程開始後仍未
+被關閉；這表示成功完成或 timeout 後都可能缺少 browser session cleanup。真正要修的
+不是把 PID limit 調大，而是讓 browser 與其 descendants 具有明確生命週期。
+
+目前最符合證據的機制是 agent-browser 透過 CLI 啟動 wrapper/Chrome，但 CLI invocation
+或上層 opencode timeout 結束後沒有明確執行 close；觀察時 agent-browser 已被 container
+PID 1（runner Node）收養。這與 `runProcess()` 只終止直接 child、沒有終止 process
+group 的行為一致；仍應補上 close telemetry，以區分刻意持久化的 browser session 與 leak。
+
+### zombie 的正確解讀
+
+`workspace/context/runner-status.md` 的 07:00 快照曾記錄 `Zombie Processes: 1`，
+但該檔案只在 request 完成時由 `markRunnerResult()` 更新，不是即時監控。07:51 的
+直接 `/proc` 檢查為 0 zombie，因此目前沒有持續存在的 zombie 證據；較可能是 timeout
+收尾期間的短暫狀態，或狀態檔尚未刷新。runner 的 zombie warning threshold 是 8，
+所以單一瞬時 zombie 也不會標成 warning。
+
+若未來再次出現，應同時記錄 zombie 的 PID、PPID、command 與持續時間；只有在跨越
+多次取樣仍存在時，才視為 parent 沒有 wait/reap 的實際 leak。
+
+### 可行修復方案
+
+P0：修正 browser/process lifecycle
+
+1. 在成功、provider error、timeout、abort 四條路徑共用 `finally` cleanup，明確關閉
+   agent-browser session。
+2. `runProcess()` 不要只對直接 child 呼叫 `child.kill('SIGTERM')`；應以 process group
+   管理 OpenCode，timeout/abort 時先終止整個 group，必要時再對殘留 descendants 做
+   SIGKILL，並等待 close/reap 完成。
+3. scheduler timeout 要傳入 `ExecutionQueue` 的 AbortSignal，讓 queue、OpenCode、
+   browser cleanup 使用同一條取消鏈。
+
+P1：修正觀測與安全邊界
+
+- runner status 改成定期刷新，分開顯示 process count、thread/task count 與 zombie count。
+- 保留 browser session lease/idle TTL，避免 default session 無限期常駐。
+- 加入 runner 的 memory、CPU、PID guardrail；這只能限制失控範圍，不能替代 cleanup。
+
+相關程式位置：
+
+- `src/core/process-runner.ts:38`：目前只終止直接 child。
+- `src/core/opencode.ts:236`：OpenCode timeout 與 provider error handling。
+- `src/runner.ts:134`：zombie 掃描；`markRunnerResult()` 才刷新狀態檔。
+- `docker-compose.yml:91`：agent-runner 目前尚未設定資源上限。
