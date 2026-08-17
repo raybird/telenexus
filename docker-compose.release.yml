@@ -97,6 +97,15 @@ services:
       RUNNER_MODE: standalone
       RUNNER_PORT: 8787
     command: [ 'node', 'dist/runner.js' ]
+    # 失控時的安全邊界,不是 browser cleanup 的替代品 —— cleanup 修在
+    # process-runner.ts / cli-agent-base.ts 的 process group 終止。
+    # 上限抓在實測 peak (1.48GB) 之上而非貼齊,留給正常的 Chrome 尖峰;
+    # 太貼近 peak 會把正常互動變成 OOMKilled。
+    mem_limit: 2g
+    mem_reservation: 512m
+    # 一棵 Chrome tree 約 180+ threads,cgroup pids 是 task 數(含 threads)。
+    # 實測 idle 221、工作中更高,384 會太緊,先給 1024 再依實測收斂。
+    pids_limit: 1024
     healthcheck:
       test: [ 'CMD', 'node', '-e', "fetch('http://127.0.0.1:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
       interval: 30s
