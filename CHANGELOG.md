@@ -2,6 +2,14 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.25.1 — 2026-08-17
+
+### release bundle 的 compose 補上 agent-runner 資源上限
+
+v2.25.0 加資源上限時只改了開發版 `docker-compose.yml`，而 release bundle 用的是 `docker-compose.release.yml` —— 兩份獨立維護的檔案。結果是發版流程全綠、映像正確，但 **bundle 交付了一份沒有 `mem_limit` / `pids_limit` 的 compose**。用 `install.sh --upgrade` 升級的部署因此拿不到那層安全網。
+
+release 檔開頭本來就寫著「與開發版的唯一差異是 `build:` → `image:`」，只是沒有任何東西在守這句話。新增 `tests/docker/compose-parity.test.ts`：把兩邊的 `build:` 區塊與 `image:` 行正規化成同一個標記後逐行比對，任何其他差異都會讓 CI 紅燈，不需要有人記得同步。已對缺資源上限的狀態驗證會紅，訊息直接指出缺的是哪一行。
+
 ## 2.25.0 — 2026-08-17
 
 ### 子程序改以 process group 終止，排程逾時真的會取消底層工作
