@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { runProcess, ProcessError } from '../src/core/process-runner.js';
+import { runProcess, ProcessError, terminateAllChildren } from '../src/core/process-runner.js';
 
 /**
  * pid 是否還「活著」。
@@ -112,6 +112,34 @@ test('abortOnStderr kills descendants (429 fail-fast path)', async () => {
     await waitForExit(grandchild, 3000),
     `descendant ${grandchild} survived the 429 abort`
   );
+});
+
+// —— shutdown 清理 ——
+// detached 讓子程序脫離父行程的 process group,終端機 Ctrl-C 的 SIGINT 不再傳得到它。
+// 這條補償路徑由各服務的關閉流程呼叫,漏掉就會在本機 dev 留下 opencode 與 Chrome。
+
+test('terminateAllChildren kills tracked descendants at shutdown', async () => {
+  let grandchild = 0;
+  // 不 await:讓它跑著,模擬「關閉時仍有工作在進行」。
+  const running = runProcess('sh', ['-c', 'sleep 30 & echo $!; sleep 30']);
+  const failure = assert.rejects(running, (err: unknown) => {
+    grandchild = pidFromStdout(err);
+    return err instanceof ProcessError;
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(terminateAllChildren(), 1, 'the running child should be tracked');
+  await failure;
+
+  assert.ok(
+    await waitForExit(grandchild, 3000),
+    `descendant ${grandchild} survived shutdown cleanup`
+  );
+});
+
+test('finished children are untracked (no stale kills, no leak)', async () => {
+  await runProcess('echo', ['done']);
+  assert.equal(terminateAllChildren(), 0, 'a completed child must not stay in the registry');
 });
 
 test('SIGTERM-ignoring child is escalated to SIGKILL', async () => {

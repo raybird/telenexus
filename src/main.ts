@@ -3,6 +3,7 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { TelegramConnector } from './connectors/telegram.js';
 import { CommandRouter } from './core/command-router.js';
+import { terminateAllChildren } from './core/process-runner.js';
 import { DynamicAIAgent } from './core/agent.js';
 import { MemoryManager } from './core/memory.js';
 import { MemoriaSyncBridge } from './core/memoria-sync.js';
@@ -327,6 +328,11 @@ async function bootstrap() {
     stopContextRefresh();
     memoryBackfillWorker.shutdown();
     scheduler.shutdown();
+    // 子程序是 detached 的,不會跟著終端機的 Ctrl-C 一起收到 SIGINT,要明確收掉。
+    const terminated = terminateAllChildren();
+    if (terminated > 0) {
+      console.log(`[System] Terminated ${terminated} child process tree(s)`);
+    }
     void webServer.close().finally(() => process.exit(0));
   });
 
@@ -335,6 +341,11 @@ async function bootstrap() {
     stopContextRefresh();
     memoryBackfillWorker.shutdown();
     scheduler.shutdown();
+    // 子程序是 detached 的,不會跟著終端機的 Ctrl-C 一起收到 SIGINT,要明確收掉。
+    const terminated = terminateAllChildren();
+    if (terminated > 0) {
+      console.log(`[System] Terminated ${terminated} child process tree(s)`);
+    }
     void webServer.close().finally(() => process.exit(0));
   });
 

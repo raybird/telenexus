@@ -2,7 +2,7 @@ import { spawn } from 'child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { AIAgent, AIAgentOptions } from './agent.js';
-import { terminateProcessTree } from './process-runner.js';
+import { terminateProcessTree, trackChildProcess } from './process-runner.js';
 import {
   buildTextOnlyStructuredResult,
   type AgentEvent,
@@ -122,6 +122,7 @@ export abstract class CliAgentBase implements AIAgent {
       // 不自成 process group 就只殺得到直接 child。這條是串流(互動聊天)路徑。
       detached: process.platform !== 'win32'
     });
+    trackChildProcess(child);
 
     let stdoutBuffer = '';
     let stderr = '';

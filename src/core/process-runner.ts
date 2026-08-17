@@ -88,6 +88,55 @@ export class ProcessError extends Error {
   }
 }
 
+/** 目前存活的子程序。detached 之後它們不再隨父行程的 group 收訊,必須自己記帳。 */
+const liveChildren = new Set<ChildProcess>();
+
+/**
+ * 把 child 納入 shutdown 清理範圍。spawn 之後就要呼叫。
+ *
+ * detached 帶來的副作用:子程序脫離父行程的 process group,終端機的 Ctrl-C(SIGINT 送給
+ * 整個前景 group)不再傳得到它。Docker 不受影響(docker stop 只送 SIGTERM 給 PID 1,
+ * 本來就不靠 group),但本機 `npm run dev` 按 Ctrl-C 會留下 opencode 與 Chrome ——
+ * 正好是這批修正要消滅的那種殘留。這張登記表就是補回那條路徑。
+ */
+export function trackChildProcess(child: ChildProcess): void {
+  liveChildren.add(child);
+  const forget = (): void => {
+    liveChildren.delete(child);
+  };
+  child.once('close', forget);
+  child.once('error', forget);
+}
+
+/**
+ * 終止所有仍存活的子程序 group,回傳處理筆數。
+ *
+ * 由各服務**既有的**關閉流程呼叫(main.ts 的 SIGINT/SIGTERM handler、runner.ts 的
+ * shutdown)。刻意不在這裡自己註冊 signal listener:main.ts 已經有一組會 process.exit(0)
+ * 的 handler,再加一個會依註冊順序搶在優雅關閉之前退出 —— 而本模組被 import 得更早。
+ */
+export function terminateAllChildren(): number {
+  const children = [...liveChildren];
+  for (const child of children) terminateProcessTree(child);
+  return children.length;
+}
+
+// 最後一道網:走到 exit 時已經沒有機會等待或升級,所以直接 SIGKILL。
+// 正常路徑上 terminateAllChildren() 已經先送過 SIGTERM,這裡收的是漏網的。
+// 只能做同步工作 —— 訊號送出是同步的,setTimeout 在這個階段不會再跑。
+process.on('exit', () => {
+  for (const child of liveChildren) {
+    const pid = child.pid;
+    if (typeof pid !== 'number' || !Number.isInteger(pid) || pid <= 0) continue;
+    try {
+      if (GROUP_KILL_SUPPORTED) process.kill(-pid, 'SIGKILL');
+      else child.kill('SIGKILL');
+    } catch {
+      // 已經不在了。
+    }
+  }
+});
+
 export function runProcess(
   command: string,
   args: string[],
@@ -103,6 +152,7 @@ export function runProcess(
       // 我們仍要等這個 child 的 close 事件,detached 只影響訊號分群,不影響 await。
       detached: GROUP_KILL_SUPPORTED
     });
+    trackChildProcess(child);
 
     let stdout = '';
     let stderr = '';

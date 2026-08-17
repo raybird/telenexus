@@ -4,6 +4,7 @@ import http from 'http';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { OpencodeAgent } from './core/opencode.js';
+import { terminateAllChildren } from './core/process-runner.js';
 import type { AgentEvent, AgentStructuredResult } from './core/agent-result.js';
 import { safeCompare } from './utils/crypto.js';
 import { resolveProjectDir } from './utils/paths.js';
@@ -701,3 +702,17 @@ server.listen(port, '0.0.0.0', () => {
   writeRunnerStatus();
   logger.info('listening', { port });
 });
+
+// runner 先前完全沒有 signal handler,靠 Node 的預設行為終止 —— 而預設終止不會觸發
+// 'exit' handler,子程序因此無人收拾。容器內因為 node 就是 PID 1、行程一死容器就死,
+// 看不出問題;本機 `npm run dev:runner` 按 Ctrl-C 則會留下 opencode 與整棵 Chrome。
+// 註冊 listener 會關掉預設終止,所以這裡必須自己 exit。
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(signal, () => {
+    const terminated = terminateAllChildren();
+    logger.info('shutdown', { signal, terminatedChildren: terminated });
+    server.close(() => process.exit(0));
+    // 有 keep-alive 連線時 server.close() 可能等不到;給一個上限就走。
+    setTimeout(() => process.exit(0), 3000).unref?.();
+  });
+}
