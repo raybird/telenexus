@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { createMessagePipeline } from '../src/core/message-pipeline.js';
+import type { MemoriaSyncTurn } from '../src/core/memoria-sync.js';
 import { MemoryManager } from '../src/core/memory.js';
 import {
   clearPromptSessionTraces,
@@ -678,6 +679,83 @@ test('message pipeline observes memory intent and strips marker from delivered r
     assert.equal(intents[0]?.intent.level, 'decision');
     assert.ok(sentMessages.some((item) => item.text === '這是正文。'));
     assert.ok(!sentMessages.some((item) => /MEMORY_INTENT/.test(item.text)));
+  });
+});
+
+/**
+ * 接縫測試:pipeline 解析出的 intent 要真的交給 Memoria 同步。
+ *
+ * 這條路徑的兩端本來各有測試 —— parseMemoryIntent(memory-intent.test.ts)與
+ * intent → DecisionMade/SkillLearned 事件(memoria-sync-payload.test.ts)—— 但中間這一段
+ * 沒有。上面那個測試只驗到「解析成功 + 標記從使用者可見訊息移除」,不驗它有沒有往下傳。
+ *
+ * 為什麼值得補:v2.24.0 上線至 2026-08-17,正式環境的 DecisionMade / SkillLearned 事件是
+ * **0 筆**。查下來原因是零流量(最後一次真人聊天在 2026-07-17,比功能上線早一個月),不是
+ * bug —— 但也代表整條鏈從未在真實環境跑過,只能靠測試釘住。
+ *
+ * 同時釘住 modelMessage 是**清理過**的內容:若把原始回覆送出去,`[[MEMORY_INTENT:…]]`
+ * 會被寫進長期記憶的可搜尋文字裡。
+ */
+test('memory intent 會隨 Memoria 同步一起送出,且不夾帶原始標記', async () => {
+  await withTempProject(async () => {
+    const { connector } = createConnectorRecorder();
+    const memory = new MemoryManager();
+    const syncedTurns: MemoriaSyncTurn[] = [];
+
+    const pipeline = createMessagePipeline({
+      connector,
+      commandRouter: {
+        async handleMessage() {
+          return false;
+        },
+        isPassthroughCommand() {
+          return false;
+        }
+      } as never,
+      memory,
+      scheduler: {
+        resetSilenceTimer() {}
+      } as never,
+      userAgent: createAgentStub({
+        async chat() {
+          return '這是正文。\n\n[[MEMORY_INTENT:{"level":"skill","confidence":"high","reason":"可重用手法","summary":"用 process group 終止子程序樹"}]]';
+        }
+      }),
+      chatRunnerAgent: createAgentStub(),
+      useRunnerForChat: false,
+      chatRunnerPercent: 0,
+      chatRunnerOnlyUsers: new Set(),
+      shouldSummarize() {
+        return false;
+      },
+      buildPrompt(userMessage, _userId, mode = 'full') {
+        return {
+          prompt: userMessage,
+          mode,
+          memoryContextLength: 0,
+          usedMemoryContext: false,
+          memoryContextSectionCount: 0
+        };
+      },
+      enqueueMemoriaSync(turn) {
+        syncedTurns.push(turn);
+      },
+      recordRuntimeIssue() {},
+      writeContextSnapshots() {}
+    });
+
+    await pipeline(createMessage('這個做法記下來', { id: 'mi-seam' }));
+
+    assert.equal(syncedTurns.length, 1, 'pipeline 應該送出一筆 Memoria 同步');
+    const turn = syncedTurns[0]!;
+    assert.equal(
+      turn.memoryIntent?.level,
+      'skill',
+      'intent 沒有傳到同步端 —— 兩端各自正常但接縫斷掉,DecisionMade/SkillLearned 就永遠是 0 筆'
+    );
+    assert.equal(turn.memoryIntent?.confidence, 'high');
+    assert.ok(!/MEMORY_INTENT/.test(turn.modelMessage), '同步的內容不該夾帶原始標記');
+    assert.equal(turn.modelMessage, '這是正文。');
   });
 });
 
