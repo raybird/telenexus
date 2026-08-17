@@ -90,9 +90,24 @@ const MEMORIA_QUERY_TOKEN_LIMIT = 12;
  *
  * 只影響送往 Memoria 的查詢;本地 SAR 評分仍用原本的 keywords,行為不變。
  *
- * 單邊切就夠,是因為 Memoria 的比對是子字串包含(`haystack.includes(token)`,
+ * 單邊切之所以有效,是因為 tree route 的比對是子字串包含(`haystack.includes(token)`,
  * db/recall.ts scoreNode)而不是 FTS token 等值 —— 2-gram 配得進文件裡那顆
  * 未切分的 CJK 大 token。走 FTS token 等值的系統則必須寫入側也切,否則對不上。
+ *
+ * ⚠️ 更正(2026-08-17):原本這裡寫「單邊切就夠」,那句話只對 hybrid 的一半成立。
+ * 讀 Memoria `core/memoria.ts:483-488` 與 `:539`:hybrid 模式下 treeRaw 與 keywordRaw
+ * 是**無條件都執行再 merge**(該處註解寫的 "merge keyword fallback if needed" 是
+ * 未實作的意圖,`fallbackUsed` 只是事後判斷),而 keyword 那半邊走 `buildFtsMatch`
+ * 對 trigram 索引要求 minLength=3 —— 我們送的 2 字 token 會被長度過濾掉,MATCH 變空、
+ * 跳過 FTS,退回 `%原始查詢%` 的逐字 LIKE,而那個字串裡還帶著我們插入的空白。
+ *
+ * 也就是說這一層是「tree 那半邊賺得比 keyword 那半邊賠得多」,不是純賺。淨效果實測仍為
+ * 正(0/7 → 4/7、整鏈 1/3 → 3/3),但 keyword 半邊的損失是**依原始碼推得、未實測**。
+ *
+ * Memoria v1.28.0 已把 CJK 切詞做進去,且 n 由呼叫端的 minLength 決定(FTS 3 / tree 2),
+ * 也就是它能各給各半邊正確的窗格,而我們這層做不到。所以升上 1.28.0 時應該**拿掉這一層**,
+ * 而不是兩層疊著 —— 疊著會讓 keyword 半邊維持現在的損失。動之前先跑 A/B
+ * (本層 on/off × 1.27.1/1.28.0,891 筆有標籤語料),不要靠推論換掉一個實測有效的東西。
  *
  * 已知代價:Memoria 的 relevance = 命中 token 數 / 查詢 token 數,而 2-gram 必然
  * 帶噪音(「排程設定」會產生「程設」)。分母對同一次查詢的所有候選是常數,所以
