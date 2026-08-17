@@ -423,11 +423,17 @@ test('buildMemoryContext resolves alias query normalization for opencode compres
 });
 
 /**
- * 送往 Memoria 的召回查詢:CJK 連續字串必須切成 2-gram。
+ * 送往 Memoria 的召回查詢:**原句原樣送出,呼叫端不做任何切詞**。
  *
- * Memoria 的 tokenizer 與我們的 tokenCoverage 一樣把 CJK 連續字串當單一 token,
- * 整句中文送過去要逐字命中才算匹配 —— 實測同一份語料,「幫我看一下排程設定」0 筆,
- * 「排程 設定」2 筆。這裡釘住實際送出的查詢字串。
+ * 切詞的所有權在 Memoria(v1.28.0 起)。它按呼叫端的 minLength 決定 n —— FTS 用 3 對上
+ * trigram 索引、tokenCoverage 與 tree 用 2 —— 能各給各半邊正確的窗格,那是在外面切做不到的。
+ *
+ * v2.23.0–v2.25.x 這裡曾經自己切成重疊 2-gram,當時的斷言與現在完全相反。實測(正式環境
+ * 快照,8 題措辭不同的中文問句)顯示 1.28.0 上「原句」與「我們切詞」逐題命中完全相同,
+ * 所以那層是 no-op,已移除。
+ *
+ * ⚠️ 這組測試與 docker/memoria.Dockerfile 的釘選綁在一起:降版回 1.27.x 而不還原切詞層,
+ * 中文召回會回到 0/8。要動釘選就要先看這裡。
  */
 async function captureRecallQuery(userMessage: string): Promise<string> {
   const prevDbPath = process.env.DB_PATH;
@@ -449,28 +455,27 @@ async function captureRecallQuery(userMessage: string): Promise<string> {
   }
 }
 
-test('Memoria 召回查詢把中文切成 2-gram,不整句送出', async () => {
-  const query = await captureRecallQuery('幫我看一下排程設定');
-  const tokens = query.split(' ');
+test('中文原句原樣送出,呼叫端不切詞', async () => {
+  const message = '幫我看一下排程設定';
+  const query = await captureRecallQuery(message);
 
-  assert.ok(tokens.includes('排程'), `應含「排程」,實際:${query}`);
-  assert.ok(tokens.includes('設定'), `應含「設定」,實際:${query}`);
-  // 整句不可以原樣送出 —— 那正是造成 0 筆的形狀
-  assert.ok(!tokens.includes('幫我看一下排程設定'), `不該整句送出:${query}`);
-  // 停用詞會把句子斷開,避免「一下」+「排程」黏成假的相鄰詞
-  assert.ok(!tokens.includes('下排'), `停用詞應斷開句子,實際:${query}`);
+  assert.equal(query, message);
+  // 釘住舊行為不會偷偷回來:切詞層會把句子變成空白分隔的 2 字 token 列表,
+  // 而那些空白會讓 1.28.0 的 FTS 半邊(minLength=3)把 2 字 token 長度過濾掉。
+  // 本例輸入不含空白,所以「有無空白」剛好是新舊行為的判別式。
+  // (不能用 query.includes('下排') 之類的子字串檢查 —— 連續中文句子本身就含有自己的
+  //  每個 2 字子串,「一下排程」裡就有「下排」,那種斷言對原句永遠為真。)
+  assert.ok(!query.includes(' '), `不該插入空白:${query}`);
 });
 
-test('Memoria 召回查詢保留英數 token', async () => {
-  const query = await captureRecallQuery('docker 升級之後 bot 沒回應怎麼辦');
-  const tokens = query.split(' ');
+test('中英數混排也原樣送出,不做關鍵字抽取替換', async () => {
+  const message = 'docker 升級之後 bot 沒回應怎麼辦';
+  const query = await captureRecallQuery(message);
 
-  assert.ok(tokens.includes('docker'), `應保留 docker,實際:${query}`);
-  assert.ok(tokens.includes('bot'), `應保留 bot,實際:${query}`);
-  assert.ok(tokens.includes('升級'), `應含「升級」,實際:${query}`);
+  // 原句本身就含空白,所以這裡不能斷言「無空白」,要斷言逐字相同。
+  assert.equal(query, message);
 });
 
-test('Memoria 召回查詢切不出東西時退回原句', async () => {
-  const query = await captureRecallQuery('嗨');
-  assert.equal(query, '嗨');
+test('極短輸入同樣原樣送出', async () => {
+  assert.equal(await captureRecallQuery('嗨'), '嗨');
 });

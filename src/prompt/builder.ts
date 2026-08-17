@@ -68,83 +68,6 @@ function applyKeywordAliases(text: string, baseKeywords: string[]): string[] {
   return expandSarKeywords(text, baseKeywords);
 }
 
-const CJK_RUN_PATTERN = /[㐀-䶿一-鿿]{2,}/gu;
-const MEMORIA_QUERY_TOKEN_LIMIT = 12;
-
-/**
- * 組出送給 Memoria 的查詢字串。
- *
- * Memoria 的 tokenizer 把 CJK 連續字串視為單一 token(與我們的 tokenCoverage 同語意),
- * 所以整句中文送過去必須逐字命中才算匹配 —— 實測「幫我看一下排程設定」對同一份語料 0 筆,
- * 換成「排程 設定」是 2 筆。這裡把中文段落切成 2-gram 讓它有東西可比對:
- * 先用停用詞把句子斷開,再對每段做重疊 2-gram。英數 token 沿用既有的關鍵字抽取。
- *
- * 消融實測(5 輪語料 / 5 個中文查詢)—— 不要高估停用詞那一步:
- *   原句不切        2/5 命中,平均 conf 0.300
- *   2-gram 不斷句   5/5 命中,平均 conf 0.605
- *   2-gram 有斷句   5/5 命中,平均 conf 0.650   ← 召回一模一樣,只差 conf 0.045
- *   3-gram          3/5 命中 —— 更 specific 反而丟召回,且仍未走到 FTS
- * 斷句對「找不找得到」沒有貢獻,只是把噪音 token 移出 relevance 的分母讓報數誠實一點。
- * 之所以保留,是因為那份停用詞表本來就存在(extractQueryKeywords 在用),不是新的維護
- * 負擔;哪天那份表要砍,直接拿掉這一步即可,召回不受影響。
- *
- * 只影響送往 Memoria 的查詢;本地 SAR 評分仍用原本的 keywords,行為不變。
- *
- * 單邊切之所以有效,是因為 tree route 的比對是子字串包含(`haystack.includes(token)`,
- * db/recall.ts scoreNode)而不是 FTS token 等值 —— 2-gram 配得進文件裡那顆
- * 未切分的 CJK 大 token。走 FTS token 等值的系統則必須寫入側也切,否則對不上。
- *
- * ⚠️ 更正(2026-08-17):原本這裡寫「單邊切就夠」,那句話只對 hybrid 的一半成立。
- * 讀 Memoria `core/memoria.ts:483-488` 與 `:539`:hybrid 模式下 treeRaw 與 keywordRaw
- * 是**無條件都執行再 merge**(該處註解寫的 "merge keyword fallback if needed" 是
- * 未實作的意圖,`fallbackUsed` 只是事後判斷),而 keyword 那半邊走 `buildFtsMatch`
- * 對 trigram 索引要求 minLength=3 —— 我們送的 2 字 token 會被長度過濾掉,MATCH 變空、
- * 跳過 FTS,退回 `%原始查詢%` 的逐字 LIKE,而那個字串裡還帶著我們插入的空白。
- *
- * 也就是說這一層是「tree 那半邊賺得比 keyword 那半邊賠得多」,不是純賺。淨效果實測仍為
- * 正(0/7 → 4/7、整鏈 1/3 → 3/3),但 keyword 半邊的損失是**依原始碼推得、未實測**。
- *
- * Memoria v1.28.0 已把 CJK 切詞做進去,且 n 由呼叫端的 minLength 決定(FTS 3 / tree 2),
- * 也就是它能各給各半邊正確的窗格,而我們這層做不到。所以升上 1.28.0 時應該**拿掉這一層**,
- * 而不是兩層疊著 —— 疊著會讓 keyword 半邊維持現在的損失。動之前先跑 A/B
- * (本層 on/off × 1.27.1/1.28.0,891 筆有標籤語料),不要靠推論換掉一個實測有效的東西。
- *
- * 已知代價:Memoria 的 relevance = 命中 token 數 / 查詢 token 數,而 2-gram 必然
- * 帶噪音(「排程設定」會產生「程設」)。分母對同一次查詢的所有候選是常數,所以
- * 「排序不受影響」,但回報的 confidence 會系統性偏低 —— memoria-status.md 的
- * Avg Confidence 與 Memoria UFL 校準吃的 top_confidence 都要照這個折扣讀。
- */
-function buildMemoriaRecallQuery(userMessage: string, keywords: string[]): string {
-  const tokens: string[] = [];
-  const push = (token: string): void => {
-    if (token.length >= 2 && !QUERY_STOPWORDS.has(token) && !tokens.includes(token)) {
-      tokens.push(token);
-    }
-  };
-
-  for (const keyword of keywords) {
-    if (!CJK_RUN_PATTERN.test(keyword)) push(keyword);
-    CJK_RUN_PATTERN.lastIndex = 0;
-  }
-
-  for (const run of userMessage.toLowerCase().match(CJK_RUN_PATTERN) ?? []) {
-    const segments = Array.from(QUERY_STOPWORDS)
-      .filter((word) => word.length >= 2)
-      .reduce<string[]>(
-        (parts, word) => parts.flatMap((part) => part.split(word)),
-        [run]
-      );
-    for (const segment of segments) {
-      for (let i = 0; i + 2 <= segment.length; i += 1) {
-        push(segment.slice(i, i + 2));
-      }
-    }
-  }
-
-  const query = tokens.slice(0, MEMORIA_QUERY_TOKEN_LIMIT).join(' ');
-  return query || userMessage;
-}
-
 function truncateInline(text: string, maxLength: number): string {
   const normalized = text.replace(/\s+/g, ' ').trim();
   if (normalized.length <= maxLength) {
@@ -519,11 +442,25 @@ export async function buildMemoryContextAsync(
   const anchorCandidates = getAnchorCandidates(memory, userId);
   const anchors = selectCausalAnchors(anchorCandidates, queryTags, keywords);
 
-  const recallQuery = buildMemoriaRecallQuery(userMessage, keywords);
-
+  // 原句直接送 Memoria。
+  //
+  // v2.23.0–v2.25.x 這裡曾在呼叫端把中文切成重疊 2-gram,因為當時的 Memoria 把一整句 CJK
+  // 當單一 token、要求逐字命中。Memoria v1.28.0 把 CJK 切詞做進去了,而且 n 由呼叫端的
+  // minLength 決定(FTS 用 3 對上 trigram 索引 / tokenCoverage 與 tree 用 2)—— 它能各給各半邊
+  // 正確的窗格,我們在外面切做不到那件事。
+  //
+  // 實測(正式環境快照 957 筆、scope user: 的 15 筆、8 題措辭不同的中文問句,凍結後才跑):
+  //   1.27.1 + 原句     0/8 命中,回傳 0 筆,basis=no_hits   ← 我們當初做那層的理由
+  //   1.27.1 + 我們切詞  8/8 命中,31 筆,精確度 0.323
+  //   1.28.0 + 原句     8/8 命中,32 筆,精確度 0.313
+  //   1.28.0 + 我們切詞  8/8 命中,31 筆,精確度 0.323
+  // 1.28.0 上兩者**逐題命中的 session 完全相同**,所以那層在 1.28.0 是 no-op,移除不損失召回。
+  //
+  // ⚠️ 這一行與 docker/memoria.Dockerfile 的釘選是綁在一起的:降版回 1.27.x 而不還原切詞層,
+  // 中文召回會直接回到 0/8(上表第一列)。
   let semanticLines: string[];
   try {
-    const snippets = await recallFn(recallQuery, `user:${userId}`);
+    const snippets = await recallFn(userMessage, `user:${userId}`);
     if (snippets.length > 0) {
       semanticLines = snippets
         .slice(0, SAR_PROMPT_POLICY.semanticLimit)
