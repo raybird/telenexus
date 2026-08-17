@@ -36,10 +36,30 @@ function readScheduleTaskTimeoutMs(): number {
   return parsed;
 }
 
-function withScheduleTimeout<T>(label: string, scheduleId: number, fn: () => Promise<T>): Promise<T> {
+/**
+ * 排程層 timeout,並在逾時當下真的把底層工作取消掉。
+ *
+ * ⚠️ 修正前這裡只 reject 上層 Promise:queue task 沒被通知、Opencode 子程序繼續跑到自然結束、
+ * agent-browser 與 Chrome 整棵樹留著,同一個 user 的序列 queue 也被繼續佔住。實務後果是
+ * 逾時的工作與它的重試同時在吃 provider 配額,429 因此連環出現。
+ *
+ * 傳給 `fn` 的 signal 有兩個作用,缺一不可:
+ *   - 工作**執行中**逾時 → abort 一路傳到 `runProcess`,終止整個 process group
+ *   - 工作**還在排隊**時逾時 → 輪到它時呼叫端看到 aborted 就直接放棄,不會再送一次進 Opencode
+ *
+ * 刻意不用 `executionQueue.cancel(userId)`:那會連同該 user 排隊中的互動訊息一起清掉,
+ * 排程逾時不該波及使用者當下的對話。
+ */
+function withScheduleTimeout<T>(
+  label: string,
+  scheduleId: number,
+  fn: (timeoutSignal: AbortSignal) => Promise<T>
+): Promise<T> {
   const timeoutMs = readScheduleTaskTimeoutMs();
+  const ac = new AbortController();
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
+      ac.abort();
       reject(
         new Error(
           `Schedule task '${label}' (id=${scheduleId}) exceeded ${timeoutMs}ms timeout`
@@ -47,7 +67,7 @@ function withScheduleTimeout<T>(label: string, scheduleId: number, fn: () => Pro
       );
     }, timeoutMs);
     timer.unref?.();
-    fn().then(
+    fn(ac.signal).then(
       (value) => {
         clearTimeout(timer);
         resolve(value);
@@ -374,6 +394,31 @@ export class Scheduler {
   }
 
   /**
+   * 排程輪次實際送進 Opencode 的那一步,把兩個取消來源合成一條鏈。
+   *
+   * `timeoutSignal` 來自 withScheduleTimeout(排程層逾時),`queueSignal` 來自 ExecutionQueue
+   * (使用者 /abort 或佇列取消)。任一觸發都要能終止底層 CLI 與它長出來的 browser tree。
+   *
+   * 開頭的 aborted 檢查處理的是「排隊期間就已逾時」:序列佇列前面還有工作時,後面這筆可能
+   * 在還沒開始執行就先撞到上層 timeout。少了這道檢查,它仍會被 drain 取出照跑一遍 ——
+   * 上層早已 reject、沒有人在等它的結果,但配額照吃。
+   */
+  private async runScheduledChat(
+    prompt: string,
+    timeoutSignal: AbortSignal,
+    queueSignal: AbortSignal
+  ): Promise<string> {
+    if (timeoutSignal.aborted) {
+      throw new Error('Scheduled task aborted before execution (timed out while queued)');
+    }
+    return this.taskAgent.chat(prompt, {
+      forceNewSession: true,
+      fromScheduler: true,
+      signal: AbortSignal.any([timeoutSignal, queueSignal])
+    });
+  }
+
+  /**
    * 執行排程任務
    */
   private async executeTask(schedule: Schedule): Promise<void> {
@@ -386,18 +431,18 @@ export class Scheduler {
       const fullPrompt = buildScheduledTaskPrompt(schedule.name, schedule.prompt, longTermMemory);
 
       // 3. 呼叫 Opencode CLI（套用 schedule-level timeout 防止下游卡死）
-      let response = await withScheduleTimeout(schedule.name, schedule.id, () =>
-        executionQueue.enqueue(schedule.user_id, 'scheduler-task', 'low', () =>
-          this.taskAgent.chat(fullPrompt, { forceNewSession: true, fromScheduler: true })
+      let response = await withScheduleTimeout(schedule.name, schedule.id, (timeoutSignal) =>
+        executionQueue.enqueue(schedule.user_id, 'scheduler-task', 'low', ({ signal }) =>
+          this.runScheduledChat(fullPrompt, timeoutSignal, signal)
         )
       );
       const firstAssessment = assessAiResponse(response);
       if (firstAssessment.shouldRetry) {
         log.warn('task.retrying', { scheduleId: schedule.id, reason: firstAssessment.reason });
         await new Promise((resolve) => setTimeout(resolve, 2500));
-        response = await withScheduleTimeout(schedule.name, schedule.id, () =>
-          executionQueue.enqueue(schedule.user_id, 'scheduler-task-retry', 'low', () =>
-            this.taskAgent.chat(fullPrompt, { forceNewSession: true, fromScheduler: true })
+        response = await withScheduleTimeout(schedule.name, schedule.id, (timeoutSignal) =>
+          executionQueue.enqueue(schedule.user_id, 'scheduler-task-retry', 'low', ({ signal }) =>
+            this.runScheduledChat(fullPrompt, timeoutSignal, signal)
           )
         );
         const secondAssessment = assessAiResponse(response);

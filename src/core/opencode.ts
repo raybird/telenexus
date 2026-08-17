@@ -70,7 +70,18 @@ export function parseOpencodeJsonOutput(stdout: string): AgentStructuredResult |
 const OPENCODE_RATE_LIMIT_PATTERN = /\b429\b|Too Many Requests|RESOURCE_EXHAUSTED/i;
 const OPENCODE_RATE_LIMIT_MESSAGE =
   '⏳ Opencode 上游配額已達上限 (HTTP 429)，本次任務已快速中止以避免長時間退避重試。請稍後再試或錯開排程時間。';
-const OPENCODE_TIMEOUT_MESSAGE = '✨ 10分鐘內未完成';
+/**
+ * 逾時訊息的分鐘數要跟實際 timeout 一致。
+ *
+ * 原本寫死「10分鐘」,但 `OPENCODE_TASK_TIMEOUT_MS` 預設是 1800000ms = 30 分鐘,
+ * 正式環境也沒有覆寫 —— 使用者等滿 30 分鐘,卻被告知 10 分鐘沒完成。
+ *
+ * 改成動態不會弄壞排程重試偵測:`scheduler-helpers.ts` 比對的是
+ * `/^✨\s*\d+\s*分鐘內未完成/`,`\d+` 容得下任何分鐘數。
+ */
+function buildTimeoutMessage(): string {
+  return `✨ ${Math.round(getOpencodeTaskTimeoutMs() / 60_000)}分鐘內未完成`;
+}
 
 export class OpencodeAgent extends CliAgentBase {
   protected readonly config: CliAgentConfig = {
@@ -78,7 +89,7 @@ export class OpencodeAgent extends CliAgentBase {
     binary: 'opencode',
     rateLimitPattern: OPENCODE_RATE_LIMIT_PATTERN,
     rateLimitMessage: OPENCODE_RATE_LIMIT_MESSAGE,
-    timeoutMessage: OPENCODE_TIMEOUT_MESSAGE,
+    timeoutMessage: buildTimeoutMessage(),
     streamTimeoutMs: getOpencodeTaskTimeoutMs()
   };
 
@@ -373,7 +384,7 @@ ${text}
       }
 
       if (isProcessError && (error.code === 'ETIMEDOUT' || error.signal === 'SIGTERM')) {
-        return buildTextOnlyStructuredResult('opencode', '✨ 10分鐘內未完成');
+        return buildTextOnlyStructuredResult('opencode', buildTimeoutMessage());
       }
 
       const fields: { code?: string | number; signal?: string; stderr?: string; stdout?: string } =

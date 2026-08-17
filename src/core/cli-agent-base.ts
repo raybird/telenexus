@@ -2,6 +2,7 @@ import { spawn } from 'child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { AIAgent, AIAgentOptions } from './agent.js';
+import { terminateProcessTree } from './process-runner.js';
 import {
   buildTextOnlyStructuredResult,
   type AgentEvent,
@@ -116,7 +117,10 @@ export abstract class CliAgentBase implements AIAgent {
     const child = spawn(this.config.binary, [...args, prompt], {
       cwd: this.getCwd(),
       env: this.getEnv(),
-      stdio: ['ignore', 'pipe', 'pipe']
+      stdio: ['ignore', 'pipe', 'pipe'],
+      // 與 process-runner 同理:CLI 會再長出 agent-browser 與整棵 Chrome,
+      // 不自成 process group 就只殺得到直接 child。這條是串流(互動聊天)路徑。
+      detached: process.platform !== 'win32'
     });
 
     let stdoutBuffer = '';
@@ -133,7 +137,7 @@ export abstract class CliAgentBase implements AIAgent {
 
     const onAbort = () => {
       externallyAborted = true;
-      child.kill('SIGTERM');
+      terminateProcessTree(child);
     };
     if (options?.signal) {
       if (options.signal.aborted) {
@@ -149,7 +153,7 @@ export abstract class CliAgentBase implements AIAgent {
     const heartbeatMs = getStreamHeartbeatMs();
     const timer = setTimeout(() => {
       timedOut = true;
-      child.kill('SIGTERM');
+      terminateProcessTree(child);
     }, streamTimeoutMs);
 
     const emitStart = async (): Promise<void> => {
@@ -249,7 +253,7 @@ export abstract class CliAgentBase implements AIAgent {
           rateLimited = true;
           clearTimeout(timer);
           clearInterval(heartbeatInterval);
-          child.kill('SIGTERM');
+          terminateProcessTree(child);
         }
       });
 

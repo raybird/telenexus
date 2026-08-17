@@ -1,7 +1,60 @@
 /**
  * 共用子程序執行器
  */
-import { spawn } from 'child_process';
+import { spawn, type ChildProcess } from 'child_process';
+
+/**
+ * SIGTERM 之後等多久仍未退場就升級成 SIGKILL。
+ * Opencode 收到 SIGTERM 需要一點時間收尾,但 headless Chrome 整棵樹經常賴著不走
+ * (實測 agent-browser + 12 個 chrome + 2 個 crashpad 在無工作狀態存活 2 小時以上)。
+ */
+const KILL_ESCALATION_MS = 5000;
+
+/** Windows 沒有 POSIX process group 語意,只有這裡是 true 時才會用負數 PID。 */
+const GROUP_KILL_SUPPORTED = process.platform !== 'win32';
+
+/**
+ * 終止整個 process group,而不是只終止直接 child。
+ *
+ * ⚠️ 負數 PID 是本函式的核心,也是整個檔案最大的地雷:`process.kill(-pid, sig)` 送的是
+ * 「process group」,只有在 spawn 帶 `detached: true` 讓 child 成為 group leader 時,那一群
+ * 才會是它自己的子孫。若 detached 沒生效,-pid 可能命中本行程所在的 group —— 也就是把
+ * runner 自己連同所有進行中的工作一起殺掉。下面三道防護一道都不能拿掉:
+ *
+ *   1. pid 必須是正整數(spawn 失敗時 `child.pid` 是 undefined,`-undefined` 會變成 NaN)
+ *   2. 只有 `GROUP_KILL_SUPPORTED` 才走負數;否則退回只殺直接 child
+ *   3. 全程 try/catch —— 程序已結束時的 ESRCH 是正常情況,不是錯誤
+ *
+ * 升級不檢查 `child.exitCode`:直接 child 先退場、descendants 仍存活正是我們要修的情境,
+ * 用 exitCode 當閘門會剛好在該殺的時候跳過。代價是 group 已清空時多送一次必然 ESRCH 的
+ * 訊號(無害),以及 5 秒內 PID 被重用的理論風險(遠小於放著整棵 Chrome 不管)。
+ */
+export function terminateProcessTree(child: ChildProcess): void {
+  const pid = child.pid;
+  if (typeof pid !== 'number' || !Number.isInteger(pid) || pid <= 0) return;
+
+  const send = (sig: NodeJS.Signals): void => {
+    if (GROUP_KILL_SUPPORTED) {
+      try {
+        process.kill(-pid, sig);
+        return;
+      } catch {
+        // group 不存在或不是 group leader —— 退回只殺直接 child。
+      }
+    }
+    try {
+      child.kill(sig);
+    } catch {
+      // 程序已經不在了。
+    }
+  };
+
+  send('SIGTERM');
+
+  const escalation = setTimeout(() => send('SIGKILL'), KILL_ESCALATION_MS);
+  // 不能讓這個 timer 拖住 event loop:主程式該退出時就該退出。
+  escalation.unref?.();
+}
 
 export type RunOptions = {
   cwd?: string;
@@ -44,7 +97,11 @@ export function runProcess(
     const child = spawn(command, args, {
       cwd: options.cwd,
       env: options.env,
-      stdio: [options.stdin ? 'pipe' : 'ignore', 'pipe', 'pipe']
+      stdio: [options.stdin ? 'pipe' : 'ignore', 'pipe', 'pipe'],
+      // 讓 child 自成 process group leader,terminateProcessTree() 才殺得到它的子孫
+      // (Opencode 會再長出 agent-browser 與整棵 Chrome)。這裡刻意不 unref():
+      // 我們仍要等這個 child 的 close 事件,detached 只影響訊號分群,不影響 await。
+      detached: GROUP_KILL_SUPPORTED
     });
 
     let stdout = '';
@@ -61,13 +118,13 @@ export function runProcess(
 
     const timer = options.timeoutMs
       ? setTimeout(() => {
-          child.kill('SIGTERM');
+          terminateProcessTree(child);
           settle(() => reject(new ProcessError('Process timed out', { code: 'ETIMEDOUT', stdout, stderr })));
         }, options.timeoutMs)
       : null;
 
     const onAbort = () => {
-      child.kill('SIGTERM');
+      terminateProcessTree(child);
       settle(() => reject(new ProcessError('Process aborted by signal', { code: 'EABORTED', stdout, stderr })));
     };
 
@@ -83,7 +140,7 @@ export function runProcess(
     child.stderr?.on('data', (chunk) => {
       stderr += chunk.toString();
       if (!settled && options.abortOnStderr && options.abortOnStderr.pattern.test(stderr)) {
-        child.kill('SIGTERM');
+        terminateProcessTree(child);
         settle(() => reject(new ProcessError(options.abortOnStderr!.message, { code: options.abortOnStderr!.code, stdout, stderr })));
       }
     });
