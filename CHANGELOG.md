@@ -2,6 +2,35 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.25.2 — 2026-08-17
+
+### 排程輪次結束後關掉 agent-browser 的常駐 session
+
+**這一版才真正修掉「Active Lanes=0 但 Chrome 存活 2 小時」的頭號症狀。** v2.25.0 的 process group 終止修好的是別的東西（見下方更正）。
+
+`agent-browser` 是 **daemon，不是普通子程序**。它的每個指令（`open` / `snapshot` / `click`）都是獨立 invocation，卻操作同一個跨 invocation 存活的瀏覽器 —— 要做到這件事，它必須自己 `setsid` 出去。用同一個映像的拋棄式容器實測：
+
+```
+呼叫方（模擬 opencode）  PGID 289
+agent-browser-l   PID 28 | PPID 1  | PGID 28
+chrome            PID 42 | PPID 28 | PGID 42
+chrome_crashpad   PID 44 | PPID 1  | PGID 43
+```
+
+⚠️ **更正 v2.25.0 的說法**：該版說 process group 終止覆蓋了 browser cleanup，因此不需要明確呼叫 `agent-browser close`。**那是錯的。** browser tree 的 PGID 與呼叫方不同，`process.kill(-pid)` 打不到它 —— 而那是 agent-browser 的設計，不是它的 bug。v2.25.0 確實修好的是另外三件真實問題（SIGTERM 後不等待也不升級 SIGKILL、排程逾時不取消底層工作、逾時訊息的分鐘數），但頭號症狀當時仍在。
+
+實測 `agent-browser close` 能完整收掉整棵樹（剩下的全是等待 reap 的 zombie，`session list` 回報 `No active sessions`）。
+
+新增 `CliAgentBase.onRunFinished()` 收尾鉤子，成功／失敗／逾時／中止四條路徑都會走到；`OpencodeAgent` 覆寫它，在排程輪次結束時執行 `agent-browser close --all`。**放在 agent 層而非 scheduler 層是刻意的** —— 清理必須發生在瀏覽器所在的容器，而排程可能被路由到 runner 執行。
+
+**只在排程路徑收**：互動聊天可能跨輪操作同一個瀏覽器（第一則開網頁、第二則接著點），每輪都 close 會弄壞那個工作流；排程是一次性的，沒有這個顧慮。用 `--all` 是因為排程可能開過具名 session，逐一列舉會漏。實測無 session 時 exit code 為 0，不會每輪製造噪音。收尾失敗記 `recordRuntimeIssue` 而非只在 console 留痕。
+
+### runner 的 lane 從未傳給 agent
+
+runner 一直收得到 `lane: 'scheduled'`，卻**從來沒有把它轉成 `fromScheduler`** —— CLI 端因此無從得知這輪是不是排程。少了這條，走 runner 的排程（`CHAT_USE_RUNNER_PERCENT > 0`）拿不到旗標、永遠不會被清理，而且完全沒有錯誤訊息：與原本的洩漏是同一種病。
+
+映射邏輯抽到 `src/core/runner-agent-options.ts`（原本是兩處完全相同的巢狀三元式），順便讓它可被測試 —— `runner.ts` 有 top-level `server.listen()`，測試不能 import 它。
+
 ## 2.25.1 — 2026-08-17
 
 ### release bundle 的 compose 補上 agent-runner 資源上限
