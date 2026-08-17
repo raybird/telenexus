@@ -92,7 +92,30 @@ export abstract class CliAgentBase implements AIAgent {
     return result.text;
   }
 
+  /**
+   * 一輪 CLI 執行結束後的收尾,成功/失敗/逾時/中止四條路徑都會走到。預設 no-op。
+   *
+   * 存在的理由:CLI 可能長出**不在我們 process group 裡**的常駐程序(agent-browser 就是,
+   * 實測它 setsid 出去、PPID=1、PGID 與呼叫方不同),terminateProcessTree() 打不到,
+   * 只能由知道該工具契約的子類明確收掉。
+   */
+  protected async onRunFinished(_options?: AIAgentOptions): Promise<void> {
+    // 預設不做事。
+  }
+
   async streamChat(
+    prompt: string,
+    options: AIAgentOptions | undefined,
+    onEvent: (event: AgentEvent) => Promise<void> | void
+  ): Promise<AgentStructuredResult> {
+    try {
+      return await this.runStreamChat(prompt, options, onEvent);
+    } finally {
+      await this.onRunFinished(options);
+    }
+  }
+
+  protected async runStreamChat(
     prompt: string,
     options: AIAgentOptions | undefined,
     onEvent: (event: AgentEvent) => Promise<void> | void

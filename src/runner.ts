@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 import { OpencodeAgent } from './core/opencode.js';
 import { terminateAllChildren } from './core/process-runner.js';
 import type { AgentEvent, AgentStructuredResult } from './core/agent-result.js';
+import { buildAgentOptions } from './core/runner-agent-options.js';
 import { safeCompare } from './utils/crypto.js';
 import { resolveProjectDir } from './utils/paths.js';
 import { createLogger } from './core/logger.js';
@@ -332,28 +333,7 @@ function isRunnerAuthorized(req: http.IncomingMessage): boolean {
 async function executeTask(
   request: RunnerRequest
 ): Promise<{ provider: Provider; output: string; structured?: AgentStructuredResult }> {
-  const { model: configModel } = loadProviderConfig();
-  const model = request.model || configModel;
-  const options = model
-    ? {
-        model,
-        ...(request.isPassthroughCommand ? { isPassthroughCommand: true } : {}),
-        ...(request.forceNewSession ? { forceNewSession: true } : {}),
-        ...(request.autoRecoveryNotice ? { autoRecoveryNotice: true } : {})
-      }
-    : request.isPassthroughCommand
-      ? {
-          isPassthroughCommand: true,
-          ...(request.autoRecoveryNotice ? { autoRecoveryNotice: true } : {})
-        }
-      : request.forceNewSession
-        ? {
-            forceNewSession: true,
-            ...(request.autoRecoveryNotice ? { autoRecoveryNotice: true } : {})
-          }
-        : request.autoRecoveryNotice
-          ? { autoRecoveryNotice: true }
-          : undefined;
+  const options = buildAgentOptions(request, loadProviderConfig().model);
 
   if (!request.input || !request.task) {
     throw new Error('Invalid request: task and input are required.');
@@ -371,29 +351,8 @@ async function executeTaskStream(
   request: RunnerRequest,
   onEvent: (event: AgentEvent) => Promise<void> | void
 ): Promise<{ provider: Provider; output: string; structured?: AgentStructuredResult }> {
-  const { model: configModel } = loadProviderConfig();
   const provider: Provider = 'opencode';
-  const model = request.model || configModel;
-  const options = model
-    ? {
-        model,
-        ...(request.isPassthroughCommand ? { isPassthroughCommand: true } : {}),
-        ...(request.forceNewSession ? { forceNewSession: true } : {}),
-        ...(request.autoRecoveryNotice ? { autoRecoveryNotice: true } : {})
-      }
-    : request.isPassthroughCommand
-      ? {
-          isPassthroughCommand: true,
-          ...(request.autoRecoveryNotice ? { autoRecoveryNotice: true } : {})
-        }
-      : request.forceNewSession
-        ? {
-            forceNewSession: true,
-            ...(request.autoRecoveryNotice ? { autoRecoveryNotice: true } : {})
-          }
-        : request.autoRecoveryNotice
-          ? { autoRecoveryNotice: true }
-          : undefined;
+  const options = buildAgentOptions(request, loadProviderConfig().model);
 
   if (!request.input || request.task !== 'chat') {
     throw new Error('Invalid stream request: chat task and input are required.');

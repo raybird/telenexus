@@ -79,6 +79,9 @@ const OPENCODE_RATE_LIMIT_MESSAGE =
  * 改成動態不會弄壞排程重試偵測:`scheduler-helpers.ts` 比對的是
  * `/^✨\s*\d+\s*分鐘內未完成/`,`\d+` 容得下任何分鐘數。
  */
+/** browser 收尾的上限。它只是送個關閉指令,拖久了寧可放棄也不要卡住任務收尾。 */
+const BROWSER_CLEANUP_TIMEOUT_MS = 15_000;
+
 function buildTimeoutMessage(): string {
   return `✨ ${Math.round(getOpencodeTaskTimeoutMs() / 60_000)}分鐘內未完成`;
 }
@@ -92,6 +95,40 @@ export class OpencodeAgent extends CliAgentBase {
     timeoutMessage: buildTimeoutMessage(),
     streamTimeoutMs: getOpencodeTaskTimeoutMs()
   };
+
+  /**
+   * 排程輪次結束後關掉 agent-browser 的常駐 session。
+   *
+   * agent-browser 是 **daemon**:每個 CLI 指令(`open` / `snapshot` / `click`)都是獨立
+   * invocation,操作同一個跨 invocation 存活的瀏覽器 —— 所以它必須自己 setsid 出去。
+   * 實測:`agent-browser` PPID=1、PGID 與呼叫方不同,chrome 與 crashpad 各自又是別的 group。
+   * 也就是說 `terminateProcessTree()` 的整群終止**打不到它**,那是它的設計而非 bug。
+   * 正式環境觀察到的「Active Lanes=0 但 Chrome 存活 2 小時」就是這個機制的後果。
+   *
+   * 只在排程路徑收,理由是互動聊天可能跨輪操作同一個瀏覽器(第一則開網頁、第二則接著點),
+   * 每輪都 close 會弄壞那個工作流。排程是一次性的,沒有這個顧慮。
+   *
+   * 用 `close --all`:排程任務可能開過具名 session,逐一列舉會漏。
+   * 全程 best-effort —— 收尾失敗不該讓已經完成的任務變成失敗,但要留下紀錄而非只在 console。
+   */
+  protected override async onRunFinished(options?: AIAgentOptions): Promise<void> {
+    if (!options?.fromScheduler) return;
+
+    try {
+      await runProcess('agent-browser', ['close', '--all'], {
+        cwd: this.getCwd(),
+        env: this.getEnv(),
+        timeoutMs: BROWSER_CLEANUP_TIMEOUT_MS
+      });
+      logger.info('browser.cleanup');
+    } catch (error) {
+      // 沒裝 agent-browser、或本來就沒有 session,都會走到這裡,不是異常狀況。
+      logger.warn('browser.cleanup-failed', {
+        reason: error instanceof Error ? error.message : String(error)
+      });
+      recordRuntimeIssue('opencode:browser-cleanup', error);
+    }
+  }
 
   protected override getCwd(): string {
     return this.getWorkspacePath();
@@ -340,6 +377,17 @@ ${text}
   }
 
   async chatStructured(prompt: string, options?: AIAgentOptions): Promise<AgentStructuredResult> {
+    try {
+      return await this.runChatStructured(prompt, options);
+    } finally {
+      await this.onRunFinished(options);
+    }
+  }
+
+  private async runChatStructured(
+    prompt: string,
+    options?: AIAgentOptions
+  ): Promise<AgentStructuredResult> {
     try {
       const { stdout, stderr } = await this.executeChatProcess(prompt, options);
       this.writeVerboseStdout(stdout);
