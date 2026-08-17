@@ -2,6 +2,43 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.25.0 — 2026-08-17
+
+### 子程序改以 process group 終止，排程逾時真的會取消底層工作
+
+排程結束後 `agent-browser` 與整棵 Chrome（12 個 chrome + 2 個 crashpad）在 `Active Lanes=0` 的狀態下存活 2 小時以上，runner 的 cgroup task 數停在 221。重啟容器後復發，所以不是一次性事故，是每次工作結束的固定行為。
+
+成因是兩個，不是一個：
+
+1. **kill 只送給直接 child。** CLI 會再長出 `agent-browser` 與 Chrome，孫程序不在收訊範圍內。改為 `detached` spawn 讓 child 自成 process group leader，再以負數 PID 終止整群。
+2. **送出 SIGTERM 後從不等待、也從不升級。** `process-runner.ts` 三個 kill 點都在 SIGTERM 之後立刻 `settle()` reject，`close` handler 因 `settled=true` 空轉 —— 所以連直接 child 只要不理 SIGTERM 就永遠活著。補上 5 秒後整群 SIGKILL。
+
+`cli-agent-base.ts` 的串流路徑（互動聊天走這條）有一模一樣的缺陷，共用同一個 `terminateProcessTree`，不另寫一份。新增的 4 個測試已對修正前的程式碼驗證會紅。
+
+**排程取消鏈**：`withScheduleTimeout` 原本只 reject 上層 Promise，queue task 沒被通知、Opencode 繼續跑到自然結束、序列 queue 被佔住 —— 逾時的工作與它的重試同時吃 provider 配額。現在逾時會 abort 一路傳到 `runProcess`。刻意**不用** `executionQueue.cancel(userId)`：那會連同該使用者排隊中的互動訊息一起清掉，排程逾時不該波及當下的對話。另補上「排隊期間就逾時」的檢查，避免輪到它時再送一次進 Opencode。
+
+**逾時訊息的分鐘數**改為從 `OPENCODE_TASK_TIMEOUT_MS` 計算。原本寫死「10分鐘」，實際預設是 30 分鐘 —— 使用者等滿 30 分鐘卻被告知 10 分鐘。`scheduler-helpers` 的重試比對用的是 `\d+`，不受影響。
+
+### ⚠ detached 的副作用與補償
+
+`detached` 讓子程序脫離父行程的 process group，**終端機的 Ctrl-C 不再傳得到它**（SIGINT 是送給整個前景 group）。實測對照確認：不清理時孫程序在 group SIGINT 之後仍然存活。Docker 不受影響（`docker stop` 只送 SIGTERM 給 PID 1，本來就不靠 group），會踩到的是本機 `npm run dev` / `dev:runner`。
+
+補償分兩層：登記表 + `terminateAllChildren()` 由各服務**既有的**關閉流程呼叫，加上 `process.on('exit')` 的 SIGKILL 兜底。刻意不在 `process-runner` 自己註冊 signal listener —— `main.ts` 已經有一組會 `process.exit(0)` 的 handler，再加一個會依註冊順序搶在優雅關閉之前退出，而該模組被 import 得更早。
+
+`runner.ts` 先前**完全沒有** signal handler，靠 Node 預設行為終止，而預設終止不會觸發 `exit` handler。本版補上 SIGINT/SIGTERM 並自行退出（註冊 listener 會關掉預設終止）。
+
+### agent-runner 資源上限
+
+`docker-compose.yml` 為 agent-runner 加上 `mem_limit: 2g` / `mem_reservation: 512m` / `pids_limit: 1024`。這是失控時的安全邊界，**不是 browser cleanup 的替代品**。
+
+上限抓在實測 peak（1.48GB）之上而非貼齊，貼近 peak 會把正常的 Chrome 尖峰變成 OOMKilled。`pids_limit` 給 1024 而非慣例的 384/512：cgroup 的 pids 是 task 數（含 threads），一棵 Chrome tree 約 180+ threads，實測 idle 就已經 221。**CPU limit 不設** —— 沒有一個完整互動與排程週期的 latency 實測基準，硬設等於瞎猜。
+
+### Memoria 釘選升到 1.27.1
+
+修掉先前回報的 `/v1/health` 誤報：完整性檢查改用每次重開的專屬連線，不再因為外部行程寫過 DB 就永久謊報 FTS5 索引損壞。以在 1.25.0 / 1.27.0 上必然觸發誤報的重現腳本獨立驗證，三次連打都是 `db_integrity pass`。
+
+順帶一提，1.27.1 之前 `health` 的 `db` 欄位不可信（連線失敗時會先記 pass 再補 fail，而 `health()` 取第一筆）。TeleNexus 的 `pingMemoriaEndpoint` 與 compose healthcheck 都只看 HTTP status，未受影響。
+
 ## 2.24.0 — 2026-08-14
 
 ### 記憶意圖寫成 DecisionMade / SkillLearned 事件
