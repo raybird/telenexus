@@ -5,7 +5,10 @@
 provider: opencode
 
 # Optional: Specify model
-# model: nvidia/minimaxai/minimax-m2.7
+# 上游會下架模型，且 `opencode models` 仍會列出已 EOL 的名稱。
+# 套用前務必實測：opencode run --model <名稱> "ping"
+# 留白則交由 opencode 自行選用預設模型。
+# model: nvidia/minimaxai/minimax-m3
 
 # Slash commands to passthrough directly to CLI/Agent
 # Defaults are shown explicitly here for clarity
