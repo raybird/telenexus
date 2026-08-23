@@ -2,6 +2,48 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.26.2 — 2026-08-23
+
+### 上游下架模型會讓整台 Bot 靜默全滅
+
+正式環境 2026-08-21 09:00 起完全不能回話約 47 小時，根因是 `opencode/deepseek-v4-flash-free` 被上游下架。前一分鐘的排程還 `run_done durationMs=59905` 正常，下一輪就開始 `Process exited with code 1` —— 中間沒有任何部署或設定改動。
+
+排查時發現兩個不直觀的地方，值得記在這裡：
+
+**1. `opencode models` 會列出已 EOL 的模型名稱。** 清單裡看得到，實際呼叫才回 `HTTP 410 Gone … has reached its end of life`。只看清單會誤判為可用。唯一可靠的檢查是實際打一次：
+
+```bash
+opencode run --model <名稱> "ping"
+```
+
+排查當下 `ai-config.yaml` 裡列的 NVIDIA 候選幾乎全滅 —— `minimax-m2.7`（EOL 2026-07-27）、`deepseek-v4-flash` 與 `deepseek-v4-pro`（皆 EOL 2026-08-07）、`mistral-large-3-675b`（EOL 2026-07-23）。
+
+**2. runner 與 local fallback 共用同一個 model 設定。** circuit breaker 開啟後 fallback 到本地執行，用的還是同一個死模型，三層防護一起失效。日誌形狀是 `circuit_open → fallback → 同樣 exit 1` 不斷重複，`durationMs≈1000` 的 fail-fast。這代表 fallback 機制對「模型失效」這一類故障完全沒有救援能力 —— 它擋的是 runner 進程掛掉，不是模型消失。本版未改動此行為，僅先記錄。
+
+判斷指令：
+
+```bash
+docker logs <runner 容器> --since 24h 2>&1 | grep -m1 "Model not found\|Gone:"
+```
+
+### 本版實際改了什麼
+
+- `ai-config.example.yaml` 的範例模型改為實測可用的 `nvidia/minimaxai/minimax-m3`，並註明「上游會下架模型、`opencode models` 仍會列出已 EOL 名稱、套用前先實測」。
+- `ai-config.yaml` 取消版控追蹤。該檔早已列在 `.gitignore`，但因先被 commit 而仍受追蹤，會把本機模型偏好帶進版控。範本以 `ai-config.example.yaml` 為準，`install.sh` 本來就是從範本複製產生此檔。
+
+⚠️ **升級不會修好已經壞掉的部署。** `install.sh` 永不覆蓋使用者的 `.env`、`ai-config.yaml`、`data/`、`workspace/`，所以 bundle 只會帶去更新後的 `ai-config.example.yaml`。若你的 `ai-config.yaml`（或 `/set_model` 寫出的 `data/ai-config.override.yaml`）指向已下架的模型，**必須自己改**：
+
+```bash
+# 先確認目前生效值：override 存在時會蓋掉 ai-config.yaml
+grep '^model:' ai-config.yaml
+cat data/ai-config.override.yaml 2>/dev/null
+
+# 實測候選可用後再套用
+docker compose exec agent-runner opencode run --model <名稱> "ping"
+```
+
+`config-loader` 每次呼叫都重讀設定，**改完不必重啟容器**。
+
 ## 2.26.1 — 2026-08-17
 
 ### Memoria 釘選升到 1.28.1（對我們實測零影響）
