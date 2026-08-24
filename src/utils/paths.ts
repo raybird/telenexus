@@ -33,6 +33,15 @@ export function resolveMemoryDbPath(): string {
   return path.resolve(resolveDataDir(), 'memory.db');
 }
 
+/**
+ * 模型健康狀態檔。telenexus 與 agent-runner 共用同一個 data/ volume,
+ * 因此必須各自持有狀態檔,否則兩邊會互相覆寫對方的狀態機。
+ */
+export function resolveModelHealthStatePath(scope = 'main'): string {
+  const suffix = scope === 'main' ? '' : `.${scope}`;
+  return path.join(resolveDataDir(), `model-health-state${suffix}.json`);
+}
+
 export function resolveSchedulerHealthPath(): string {
   const explicitPath = process.env.DB_PATH?.trim();
   if (explicitPath) {

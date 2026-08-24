@@ -3,7 +3,12 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { resolveContextDir, resolveSchedulerHealthPath } from '../utils/paths.js';
+import {
+  resolveContextDir,
+  resolveSchedulerHealthPath,
+  resolveModelHealthStatePath
+} from '../utils/paths.js';
+import { readHealthState } from './model-health-check.js';
 import { loadProviderStatus } from '../config/ai-config.js';
 import { getRecentIssues } from '../utils/errors.js';
 import type { MemoryManager } from '../core/memory.js';
@@ -44,12 +49,21 @@ export function writeContextSnapshots(
       `- APP_PROJECT_DIR: ${process.env.APP_PROJECT_DIR || process.cwd()}`
     ].join('\n');
 
+    const health = readHealthState(resolveModelHealthStatePath());
+    const healthLine = health
+      ? `${health.status === 'healthy' ? '✅ healthy' : '🚨 failing'}` +
+        (health.status === 'failing'
+          ? ` (since ${new Date(health.since).toLocaleString('zh-TW')})`
+          : '')
+      : '(尚未檢查)';
+
     const providerStatus = [
       '# Provider Status',
       '',
       `- Updated: ${now.toLocaleString('zh-TW')}`,
       `- Provider: ${provider.provider}`,
       `- Model: ${provider.model}`,
+      `- Model Health: ${healthLine}`,
       `- Timezone: ${provider.timezone}`
     ].join('\n');
 

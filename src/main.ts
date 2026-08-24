@@ -16,7 +16,9 @@ import { shouldSummarize, buildMemoryContextAsync, buildChatPrompt } from './pro
 import { getMemoriaRecallClient } from './core/memoria-recall.js';
 import { recordRuntimeIssue, getRecentIssues } from './utils/errors.js';
 import { writeContextSnapshots, writeSchedulerHealth } from './services/context-snapshots.js';
-import { resolveContextDir } from './utils/paths.js';
+import { resolveContextDir, resolveModelHealthStatePath } from './utils/paths.js';
+import { startModelHealthCheck } from './services/model-health-check.js';
+import { loadAiConfig } from './core/config-loader.js';
 import { MemoryBackfillWorker } from './services/memory-backfill-worker.js';
 import { startErrorAlerter } from './services/error-alerter.js';
 import { startIssueStore } from './services/issue-store.js';
@@ -128,7 +130,9 @@ async function bootstrap() {
   const runnerToken = process.env.RUNNER_SHARED_SECRET?.trim();
 
   if (runnerEndpoint && !runnerToken) {
-    console.warn('[Security] RUNNER_ENDPOINT 已設定但 RUNNER_SHARED_SECRET 為空,Runner 通訊未受保護。');
+    console.warn(
+      '[Security] RUNNER_ENDPOINT 已設定但 RUNNER_SHARED_SECRET 為空,Runner 通訊未受保護。'
+    );
   }
   const runnerFailureThreshold = getRunnerFailureThreshold();
   const runnerCooldownMs = getRunnerCooldownMs();
@@ -183,6 +187,7 @@ async function bootstrap() {
   initEventProjector(writeContextSnapshotsFn);
   const commandRouter = new CommandRouter();
   let contextRefreshTimer: NodeJS.Timeout | null = null;
+  let modelHealthCheck: { stop: () => void } | null = null;
   const webEnabled = getWebEnabled();
   const webHost = getWebBindHost();
   const webPort = getWebPort();
@@ -326,6 +331,7 @@ async function bootstrap() {
   process.on('SIGINT', () => {
     console.log('\n[System] Shutting down gracefully...');
     stopContextRefresh();
+    modelHealthCheck?.stop();
     memoryBackfillWorker.shutdown();
     scheduler.shutdown();
     // 子程序是 detached 的,不會跟著終端機的 Ctrl-C 一起收到 SIGINT,要明確收掉。
@@ -339,6 +345,7 @@ async function bootstrap() {
   process.on('SIGTERM', () => {
     console.log('\n[System] Shutting down gracefully...');
     stopContextRefresh();
+    modelHealthCheck?.stop();
     memoryBackfillWorker.shutdown();
     scheduler.shutdown();
     // 子程序是 detached 的,不會跟著終端機的 Ctrl-C 一起收到 SIGINT,要明確收掉。
@@ -369,6 +376,30 @@ async function bootstrap() {
 
   // 啟動連接器 (確保 bot instance 存在)
   await telegram.initialize();
+
+  // 模型健康檢查:必須在 connector 就緒後才啟動,否則告警無處可去。
+  // 非阻塞 —— startModelHealthCheck 內部自行排程,不 await 首次探測。
+  {
+    let lastOpencodeSuccessAt: number | null = null;
+    addEventHook((type) => {
+      // opencode_done 只在進程 exit 0 時 emit(src/core/opencode.ts),失敗會 throw 進 catch。
+      if (type === 'opencode_done') {
+        lastOpencodeSuccessAt = Date.now();
+      }
+    });
+
+    modelHealthCheck = startModelHealthCheck({
+      connector: telegram,
+      adminUserId: ALLOWED_USER_ID,
+      resolveModel: () => loadAiConfig().model,
+      statePath: resolveModelHealthStatePath(),
+      enabled: parseBool(process.env.MODEL_HEALTH_CHECK_ENABLED, true),
+      intervalMs: parsePositiveInt(process.env.MODEL_HEALTH_CHECK_INTERVAL_MS, 60 * 60 * 1000),
+      timeoutMs: parsePositiveInt(process.env.MODEL_HEALTH_CHECK_TIMEOUT_MS, 120 * 1000),
+      remindMs: parsePositiveInt(process.env.MODEL_HEALTH_REMIND_MS, 6 * 60 * 60 * 1000),
+      lastSuccessAt: () => lastOpencodeSuccessAt
+    });
+  }
 
   // 啟動排程器 (可能需要發送歡迎訊息)
   await scheduler.init();

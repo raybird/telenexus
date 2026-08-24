@@ -2,9 +2,9 @@
 
 建立日期：2026-08-24
 
-這份文件是 roadmap，不是現況說明 —— 文件建立時 **尚未實作任何一項**。
+**狀態：已於 2026-08-24 實作完成**（`src/services/model-health-check.ts`，20 個測試）。本文件保留為設計依據與實測紀錄。
 
-它要解決的問題只有一個：**設定的模型被上游下架時，系統目前不會告訴任何人。**
+它要解決的問題只有一個：**設定的模型被上游下架時，系統原本不會告訴任何人。**
 
 ## 背景：v2.26.2 的 47 小時靜默故障
 
@@ -51,8 +51,10 @@ if (timestamp - window.lastAlertedAt < cooldownMs) return;
 對**當下生效的模型**發出一次最小請求，以實際結果判定：
 
 ```
-opencode run --model <生效模型> "ping"
+opencode run --model <生效模型> "Reply with exactly: OK"
 ```
+
+prompt 必須是明確的最小指令 —— 用 `ping` 會讓 agent 當成任務去執行而遲遲不結束，見下方實測紀錄。
 
 生效模型的解析必須走 `loadAiConfig()`（`src/core/config-loader.ts`），因為 `data/ai-config.override.yaml` 會覆蓋 `ai-config.yaml`，只讀後者會檢查到錯的目標。
 
@@ -111,11 +113,12 @@ runner 沒有 Telegram connector，因此：
 
 | 檔案 | 動作 |
 |---|---|
-| `src/services/model-health-check.ts` | 新增。匯出 `startModelHealthCheck(opts)`，含判定邏輯、失效樣式比對、狀態機與流量豁免 |
+| `src/services/model-health-check.ts` | 新增。匯出 `startModelHealthCheck`、純函式 `classifyFailure` / `failureSignature` / `decideAlert`、`defaultProbe` 與 `readHealthState` |
+| `src/utils/paths.ts` | 新增 `resolveModelHealthStatePath(scope)`。telenexus 與 runner 共用 `data/` volume，狀態檔必須分開否則互相覆寫 |
 | `src/main.ts` | `bootstrap()` 尾段（`telegram.initialize()` 之後）啟動；shutdown handler 清除 timer |
 | `src/runner.ts` | `server.listen()` callback 後啟動；SIGINT/SIGTERM handler 清除 timer；僅記錄不推播 |
 | `src/services/context-snapshots.ts` | `provider-status.md` 增加「模型健康狀態」與「最近一次檢查時間」欄位 |
-| `.env.example` | 新增 `MODEL_HEALTH_CHECK_ENABLED`（true）、`MODEL_HEALTH_CHECK_INTERVAL_MS`（3600000）、`MODEL_HEALTH_CHECK_TIMEOUT_MS`（30000）、`MODEL_HEALTH_REMIND_MS`（21600000） |
+| `.env.example` | 新增 `MODEL_HEALTH_CHECK_ENABLED`（true）、`MODEL_HEALTH_CHECK_INTERVAL_MS`（3600000）、`MODEL_HEALTH_CHECK_TIMEOUT_MS`（120000）、`MODEL_HEALTH_REMIND_MS`（21600000） |
 | `data/model-health-state.json` | 新增。健康狀態機（目前狀態、失敗簽章、故障起始時間、最後推播時間），跨重啟存活。屬使用者狀態，`install.sh` 不覆蓋 |
 
 **不可觸及**：`error-alerter.ts` 的視窗邏輯、既有 `recordRuntimeIssue` 的 scope 命名慣例、circuit breaker 行為、`Scheduler`。
@@ -143,6 +146,42 @@ runner 沒有 Telegram connector，因此：
   - 檢查方式：寫入失敗狀態的 `data/model-health-state.json` 後啟動檢查並注入相同失敗，斷言 `sendMessage` 未被呼叫。
 - **AC-11**：週期內有 `opencode_done` 事件時跳過 ping。
   - 檢查方式：發出 `opencode_done` 後觸發檢查，斷言未產生 opencode 子程序呼叫且狀態記為健康。
+
+## 實作後的實測紀錄（2026-08-24）
+
+單元測試全部注入假 probe，真正打 opencode 的那段只能靠實測驗證。以下兩項是實測才發現、且會讓功能一上線就出錯的問題：
+
+### 探針 prompt 的選擇會決定成敗
+
+同一個健康模型（`nvidia/minimaxai/minimax-m3`），只換 prompt：
+
+| prompt | 耗時 |
+|---|---|
+| `ping` | **超過 180 秒未結束** |
+| `回覆 OK 兩個字即可` | 70 秒 |
+| `Reply with exactly: OK` | **10.9 秒** |
+
+`ping` 之所以最慢，是因為 agent 會把它當成一個待執行的任務去跑（可能真的去做網路操作），而不是當成要回覆的訊息。**探針 prompt 必須是明確的最小指令。**
+
+規劃初稿寫的正是 `ping`，逾時預設 30 秒 —— 若照著實作，每次檢查都會把健康的模型誤報成故障。現行值：prompt 為 `Reply with exactly: OK`，逾時 120 秒（約 11 倍餘裕）。
+
+### 失效分類是 best-effort，不保證歸因
+
+以事故當事的 `opencode/deepseek-v4-flash-free` 實測，本機 opencode 的輸出**完全不含** `Model not found`，只有：
+
+```
+Error: { "name": "UnknownError", "data": { "message": "Unexpected server error..." } }
+```
+
+同一個模型在正式環境容器內卻會吐出 `Model not found: … Did you mean: …`。推測與 opencode 的模型清單快取狀態有關 —— 清單裡還有這個模型時就送到伺服器端、拿回泛用錯誤；清單已更新時才在客戶端擋下並給出明確訊息。
+
+結果是**同一個故障在不同環境會被歸到不同類別**。這不影響「是否告警」（unknown 一樣會推播），只影響訊息能否指出原因。三個模型的實測結果：
+
+| 模型 | 判定 | 耗時 |
+|---|---|---|
+| `opencode/deepseek-v4-flash-free`（已下架） | `unknown` → 告警但不歸因 | 1.3s |
+| `nvidia/minimaxai/minimax-m2.7`（EOL 410） | `model-invalid` → 告警並歸因 | 4.7s |
+| `nvidia/minimaxai/minimax-m3`（可用） | `ok` → 不告警 | 7.1s |
 
 ## 風險與取捨
 

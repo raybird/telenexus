@@ -8,10 +8,12 @@ import { terminateAllChildren } from './core/process-runner.js';
 import type { AgentEvent, AgentStructuredResult } from './core/agent-result.js';
 import { buildAgentOptions } from './core/runner-agent-options.js';
 import { safeCompare } from './utils/crypto.js';
-import { resolveProjectDir } from './utils/paths.js';
+import { resolveProjectDir, resolveModelHealthStatePath } from './utils/paths.js';
 import { createLogger } from './core/logger.js';
 import { loadAiConfig } from './core/config-loader.js';
-import { emitEvent } from './services/event-bus.js';
+import { emitEvent, addEventHook } from './services/event-bus.js';
+import { startModelHealthCheck } from './services/model-health-check.js';
+import { parseBool, parsePositiveInt } from './utils/env.js';
 import { createAuditLogWriter } from './services/audit-log.js';
 
 const logger = createLogger('Runner');
@@ -657,6 +659,25 @@ const server = http.createServer(async (req, res) => {
   sendJson(res, 404, { ok: false, error: 'Not found' });
 });
 
+// runner 沒有 Telegram connector,因此只記錄不推播 —— 推播統一由 telenexus 端負責。
+// 狀態檔帶 runner scope:兩個服務共用同一個 data/ volume,共用檔案會互相覆寫狀態機。
+let lastOpencodeSuccessAt: number | null = null;
+addEventHook((type) => {
+  if (type === 'opencode_done') {
+    lastOpencodeSuccessAt = Date.now();
+  }
+});
+
+const modelHealthCheck = startModelHealthCheck({
+  resolveModel: () => loadProviderConfig().model,
+  statePath: resolveModelHealthStatePath('runner'),
+  enabled: parseBool(process.env.MODEL_HEALTH_CHECK_ENABLED, true),
+  intervalMs: parsePositiveInt(process.env.MODEL_HEALTH_CHECK_INTERVAL_MS, 60 * 60 * 1000),
+  timeoutMs: parsePositiveInt(process.env.MODEL_HEALTH_CHECK_TIMEOUT_MS, 120 * 1000),
+  remindMs: parsePositiveInt(process.env.MODEL_HEALTH_REMIND_MS, 6 * 60 * 60 * 1000),
+  lastSuccessAt: () => lastOpencodeSuccessAt
+});
+
 server.listen(port, '0.0.0.0', () => {
   writeRunnerStatus();
   logger.info('listening', { port });
@@ -668,6 +689,7 @@ server.listen(port, '0.0.0.0', () => {
 // 註冊 listener 會關掉預設終止,所以這裡必須自己 exit。
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {
+    modelHealthCheck.stop();
     const terminated = terminateAllChildren();
     logger.info('shutdown', { signal, terminatedChildren: terminated });
     server.close(() => process.exit(0));
