@@ -2,6 +2,66 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.27.0 — 2026-08-24
+
+### 模型健康檢查：不再需要等排程一輪輪失敗才發現模型死了
+
+v2.26.2 記錄的 47 小時靜默故障，缺的不是錯誤記錄（四個可觀測面都如實記下了），而是**推播**——沒有任何機制在故障發生的當下說「你設定的模型不存在」。本版補上這個缺口。
+
+週期性（預設 1 小時）對當下生效的模型發出一次最小請求。生效模型走 `loadAiConfig()` 解析，因此 `data/ai-config.override.yaml` 的覆蓋也算數。
+
+**告警採狀態轉換，不是每次失敗都推**：
+
+| 轉換 | 行為 |
+|---|---|
+| 健康 → 失敗 | 立刻推播 |
+| 失敗 → 失敗（相同簽章） | 不推，每 6 小時一則「仍未恢復」 |
+| 失敗 → 失敗（**不同**簽章） | 立刻推——錯誤性質變了就是新資訊 |
+| 失敗 → 健康 | 推恢復通知，含故障持續時間 |
+
+被壓抑的只有「同一故障的第 2..N 次重複偵測」。任何失敗都會告警，包含無法歸因的網路與認證錯誤——那些同樣會讓 Bot 全滅，只是訊息措辭改為「無法確認模型可用性」，不猜成模型下架。
+
+**流量豁免**：週期內若已有真實請求成功（`opencode_done` 事件），跳過這次 ping。真實流量已經證明模型可用，高流量時幾乎零額外配額消耗；低流量時——正是最容易長期沒發現故障的情境——才真的去打。
+
+### 刻意不接 ErrorAlerter
+
+最初的構想是複用既有的 `error-alerter`。**那樣做永遠不會告警**：它的門檻是「同 scope 在 `ERROR_ALERT_WINDOW_MS`（預設 10 分鐘）內累積 `ERROR_ALERT_THRESHOLD`（預設 3）次」，而本檢查週期以小時計，同一 scope 不可能在 10 分鐘內湊滿 3 次。
+
+若照原構想實作，結果是「看起來有守護、實際永遠不告警」——比沒有更危險，因為它會製造安全感。因此本檢查走獨立推播路徑，同時仍照常 `recordRuntimeIssue('model-health:*', ...)` 讓四個可觀測面都留紀錄。
+
+### 實測修正了兩處會讓功能一上線就出錯的設計
+
+單元測試全部注入假 probe，真正打 opencode 的那段只能靠實測驗證。實測抓到：
+
+**探針 prompt 的選擇決定成敗。** 同一個健康模型（`nvidia/minimaxai/minimax-m3`），只換 prompt：
+
+| prompt | 耗時 |
+|---|---|
+| `ping`（規劃初稿） | **超過 180 秒未結束** |
+| `回覆 OK 兩個字即可` | 70 秒 |
+| `Reply with exactly: OK` | **10.9 秒** |
+
+`ping` 最慢是因為 agent 會把它當成待執行的任務去跑，而不是當成要回覆的訊息。規劃初稿寫的正是 `ping` 加 30 秒逾時——照著實作的話，每次檢查都會把健康的模型誤報成故障。現行值為明確指令加 120 秒逾時（約 11 倍餘裕）。
+
+**失效分類是 best-effort，不保證歸因。** 以事故當事的 `opencode/deepseek-v4-flash-free` 實測，本機 opencode 輸出完全不含 `Model not found`，只有泛用的 `UnknownError`；同一模型在正式環境容器內卻會吐出 `Model not found: … Did you mean: …`。推測與 opencode 模型清單的快取狀態有關。這不影響是否告警（`unknown` 一樣推播），只影響訊息能否指出原因。
+
+三個模型的實測判定：`deepseek-v4-flash-free`（已下架）→ `unknown` 1.3s、`minimax-m2.7`（EOL 410）→ `model-invalid` 4.7s、`minimax-m3`（可用）→ `ok` 7.1s。
+
+### 新增設定
+
+```bash
+MODEL_HEALTH_CHECK_ENABLED=true
+MODEL_HEALTH_CHECK_INTERVAL_MS=3600000    # 1 小時
+MODEL_HEALTH_CHECK_TIMEOUT_MS=120000      # 2 分鐘
+MODEL_HEALTH_REMIND_MS=21600000           # 6 小時
+```
+
+`provider-status.md` 增加 `Model Health` 欄位；狀態機持久化於 `data/model-health-state.json`（runner 端為 `.runner.json`——兩個服務共用同一個 `data/` volume，共用檔案會互相覆寫）。runner 端只記錄不推播，推播統一由 telenexus 負責。
+
+設計依據與完整實測紀錄見 `docs/model-health-check-plan.md`。
+
+⚠️ **這不會自動修好已經壞掉的模型設定**，它只負責告訴你。切換模型仍需自己改 `ai-config.yaml` 或用 `/set_model`，且**換之前務必實測**——`opencode models` 清單會列出已 EOL 的模型。
+
 ## 2.26.2 — 2026-08-23
 
 ### 上游下架模型會讓整台 Bot 靜默全滅
