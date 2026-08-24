@@ -51,6 +51,7 @@
 - 環境變數與 runner/session 設定：`docs/configuration-reference.md`
 - Runtime 邊界與安全模型：`docs/runtime-boundary-and-security.md`
 - 目前聊天 prompt 組裝：`docs/current-chat-prompt.md`
+- 模型健康檢查規劃（尚未實作）：`docs/model-health-check-plan.md`
 - 發版 SOP 指令流：`npm run release:minor -- -m "<commit message>"`
 - 記憶健康檢查：`npm run memory:health`
 - Sessions archive dry-run 回填：`npm run memory:backfill:dry-run`
