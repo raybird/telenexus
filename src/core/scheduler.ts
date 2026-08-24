@@ -61,9 +61,7 @@ function withScheduleTimeout<T>(
     const timer = setTimeout(() => {
       ac.abort();
       reject(
-        new Error(
-          `Schedule task '${label}' (id=${scheduleId}) exceeded ${timeoutMs}ms timeout`
-        )
+        new Error(`Schedule task '${label}' (id=${scheduleId}) exceeded ${timeoutMs}ms timeout`)
       );
     }, timeoutMs);
     timer.unref?.();
@@ -453,7 +451,11 @@ export class Scheduler {
         }
       }
       log.info('task.completed', { scheduleId: schedule.id, responseLength: response.length });
-      emitEvent('schedule_done', { scheduleId: schedule.id, name: schedule.name, responseLength: response.length });
+      emitEvent('schedule_done', {
+        scheduleId: schedule.id,
+        name: schedule.name,
+        responseLength: response.length
+      });
 
       // 4. 儲存 AI 回應到記憶
       if (response && !response.startsWith('Error')) {
@@ -472,11 +474,13 @@ export class Scheduler {
       log.error('task.failed', { scheduleId: schedule.id, name: schedule.name, error });
       const message = error instanceof Error ? error.message : String(error);
       const isTimeout = /exceeded\s+\d+ms\s+timeout/.test(message);
-      recordRuntimeIssue(
-        isTimeout ? 'scheduler:task-timeout' : 'scheduler:task-failed',
-        error
-      );
-      emitEvent('schedule_fail', { scheduleId: schedule.id, name: schedule.name, isTimeout, message });
+      recordRuntimeIssue(isTimeout ? 'scheduler:task-timeout' : 'scheduler:task-failed', error);
+      emitEvent('schedule_fail', {
+        scheduleId: schedule.id,
+        name: schedule.name,
+        isTimeout,
+        message
+      });
       const errorMessage = isTimeout
         ? `⏱️ 排程任務 "${schedule.name}" 逾時自動中止（${message}）`
         : `❌ 排程任務 "${schedule.name}" 執行失敗：${error}`;

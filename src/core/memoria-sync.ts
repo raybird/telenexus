@@ -230,7 +230,6 @@ function buildEvents(turn: MemoriaSyncTurn, source: 'pipeline' | 'hook'): Sessio
   return events;
 }
 
-
 export class MemoriaSyncBridge {
   private readonly mode: MemoriaSyncMode;
   private readonly timeoutMs: number;

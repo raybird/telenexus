@@ -15,7 +15,10 @@ export const SAR_TAG_RULES: Array<{ tag: string; patterns: RegExp[] }> = [
     ]
   },
   { tag: 'scheduler', patterns: [/scheduler/i, /cron/i, /排程/] },
-  { tag: 'opencode', patterns: [/opencode/i, /compress/i, /compact/i, /invalid_argument/i, /resource_exhausted/i] },
+  {
+    tag: 'opencode',
+    patterns: [/opencode/i, /compress/i, /compact/i, /invalid_argument/i, /resource_exhausted/i]
+  },
   { tag: 'runner', patterns: [/runner/i, /agent-runner/i] },
   { tag: 'memory', patterns: [/memory/i, /summary-aware retrieval/i, /sar/i, /記憶/, /摘要/] },
   { tag: 'infra', patterns: [/docker/i, /bootstrap/i, /git/i, /git identity/i, /部署/, /infra/i] }

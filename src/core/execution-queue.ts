@@ -123,8 +123,14 @@ export class ExecutionQueue {
         const onAbort = () => reject(new Error(`Task aborted (source=${task.source})`));
         ac.signal.addEventListener('abort', onAbort, { once: true });
         task.run({ signal: ac.signal }).then(
-          (v) => { ac.signal.removeEventListener('abort', onAbort); resolve(v); },
-          (e: unknown) => { ac.signal.removeEventListener('abort', onAbort); reject(e); }
+          (v) => {
+            ac.signal.removeEventListener('abort', onAbort);
+            resolve(v);
+          },
+          (e: unknown) => {
+            ac.signal.removeEventListener('abort', onAbort);
+            reject(e);
+          }
         );
       });
       task.resolve(result);

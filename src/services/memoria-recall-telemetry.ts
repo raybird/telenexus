@@ -74,9 +74,7 @@ export function formatMemoriaRecallTelemetryMarkdown(limit: number = 10): string
   );
   const avgConfidence =
     comparable.length > 0
-      ? (
-          comparable.reduce((sum, t) => sum + (t.confidence ?? 0), 0) / comparable.length
-        ).toFixed(3)
+      ? (comparable.reduce((sum, t) => sum + (t.confidence ?? 0), 0) / comparable.length).toFixed(3)
       : '(n/a)';
 
   const recentLines = items

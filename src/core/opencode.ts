@@ -1,10 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { AIAgentOptions } from './agent.js';
-import {
-  buildTextOnlyStructuredResult,
-  type AgentStructuredResult
-} from './agent-result.js';
+import { buildTextOnlyStructuredResult, type AgentStructuredResult } from './agent-result.js';
 import { ProcessError, runProcess } from './process-runner.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
 import { CliAgentBase, type CliAgentConfig, type CliStreamParse } from './cli-agent-base.js';
@@ -200,7 +197,11 @@ export class OpencodeAgent extends CliAgentBase {
       return;
     }
 
-    logger.info('stderr_summary', { scope, summary: this.summarizeStderr(stderr), len: stderr.length });
+    logger.info('stderr_summary', {
+      scope,
+      summary: this.summarizeStderr(stderr),
+      len: stderr.length
+    });
   }
 
   /**
@@ -260,9 +261,7 @@ export class OpencodeAgent extends CliAgentBase {
   }
 
   private getWorkspacePath(): string {
-    return process.env.APP_PROJECT_DIR
-      ? `${process.env.APP_PROJECT_DIR}/workspace`
-      : 'workspace';
+    return process.env.APP_PROJECT_DIR ? `${process.env.APP_PROJECT_DIR}/workspace` : 'workspace';
   }
 
   private async executeChatProcess(
@@ -290,7 +289,8 @@ export class OpencodeAgent extends CliAgentBase {
       abortOnStderr: {
         pattern: /\b429\b|Too Many Requests|RESOURCE_EXHAUSTED/i,
         code: 'ERATELIMIT',
-        message: 'Opencode upstream rate-limited (HTTP 429); aborted before internal backoff retries.'
+        message:
+          'Opencode upstream rate-limited (HTTP 429); aborted before internal backoff retries.'
       },
       ...(options?.signal ? { signal: options.signal } : {})
     });
@@ -445,5 +445,4 @@ ${text}
       throw new ProcessError(`Error calling Opencode: ${message}`, fields);
     }
   }
-
 }

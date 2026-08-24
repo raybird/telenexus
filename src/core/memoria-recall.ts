@@ -3,10 +3,7 @@ import https from 'https';
 import { parsePositiveInt } from '../utils/env.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
 import { emitEvent } from '../services/event-bus.js';
-import {
-  isDegradedRoute,
-  recordMemoriaRecallTrace
-} from '../services/memoria-recall-telemetry.js';
+import { isDegradedRoute, recordMemoriaRecallTrace } from '../services/memoria-recall-telemetry.js';
 import { createLogger } from './logger.js';
 
 const logger = createLogger('MemoriaRecall');
@@ -239,12 +236,25 @@ function memoriaHttpRequest(
 
 /** 寫入一段對話記憶到 Memoria(POST /v1/remember)。失敗會 throw,讓呼叫端決定重試。 */
 export async function rememberViaHttp(
-  data: { id?: string; timestamp?: string; project?: string; scope?: string; summary?: string; events: unknown[] },
+  data: {
+    id?: string;
+    timestamp?: string;
+    project?: string;
+    scope?: string;
+    summary?: string;
+    events: unknown[];
+  },
   options?: { endpoint?: string; timeoutMs?: number }
 ): Promise<void> {
   const endpoint = options?.endpoint ?? getMemoriaEndpoint();
   const timeoutMs = options?.timeoutMs ?? 20000;
-  const { status, body } = await memoriaHttpRequest(endpoint, '/v1/remember', 'POST', timeoutMs, data);
+  const { status, body } = await memoriaHttpRequest(
+    endpoint,
+    '/v1/remember',
+    'POST',
+    timeoutMs,
+    data
+  );
   if (status < 200 || status >= 300) {
     throw new Error(`remember failed: HTTP ${status} ${body.slice(0, 200)}`);
   }

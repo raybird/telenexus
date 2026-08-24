@@ -229,38 +229,43 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         });
       }
 
-      const rawResponse = await executionQueue.enqueue(userId, 'chat', 'high', async ({ signal }) => {
-        const eventHandler = async (event: AgentEvent): Promise<void> => {
-          if (streamResponse) {
-            await streamResponse(event);
-          }
-          if (telegramStreamRenderer) {
-            await telegramStreamRenderer.handleEvent(event);
-          }
-        };
+      const rawResponse = await executionQueue.enqueue(
+        userId,
+        'chat',
+        'high',
+        async ({ signal }) => {
+          const eventHandler = async (event: AgentEvent): Promise<void> => {
+            if (streamResponse) {
+              await streamResponse(event);
+            }
+            if (telegramStreamRenderer) {
+              await telegramStreamRenderer.handleEvent(event);
+            }
+          };
 
-        const baseOpts = {
-          isPassthroughCommand: context.isPassthroughCommand,
-          forceNewSession: context.forceNewSession,
-          autoRecoveryNotice: true,
-          signal
-        };
+          const baseOpts = {
+            isPassthroughCommand: context.isPassthroughCommand,
+            forceNewSession: context.forceNewSession,
+            autoRecoveryNotice: true,
+            signal
+          };
 
-        if ((streamResponse || telegramStreamRenderer) && context.activeAgent.streamChat) {
-          const result = await context.activeAgent.streamChat(
-            promptForAgent,
-            baseOpts,
-            eventHandler
-          );
-          return result.text;
+          if ((streamResponse || telegramStreamRenderer) && context.activeAgent.streamChat) {
+            const result = await context.activeAgent.streamChat(
+              promptForAgent,
+              baseOpts,
+              eventHandler
+            );
+            return result.text;
+          }
+
+          return context.activeAgent.chat(promptForAgent, {
+            isPassthroughCommand: context.isPassthroughCommand,
+            forceNewSession: context.forceNewSession,
+            autoRecoveryNotice: true
+          });
         }
-
-        return context.activeAgent.chat(promptForAgent, {
-          isPassthroughCommand: context.isPassthroughCommand,
-          forceNewSession: context.forceNewSession,
-          autoRecoveryNotice: true
-        });
-      });
+      );
 
       const { response, directives } = normalizeAgentResponse(rawResponse);
       const { cleanedResponse, intent: memoryIntent } = parseMemoryIntent(response);
@@ -377,7 +382,11 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         durationMs: Date.now() - now,
         ok: false
       });
-      emitEvent('request_error', { requestId, userId: msg.sender.id, durationMs: Date.now() - now });
+      emitEvent('request_error', {
+        requestId,
+        userId: msg.sender.id,
+        durationMs: Date.now() - now
+      });
       options.recordRuntimeIssue('message-processing', error);
       options.writeContextSnapshots();
       const errorMsg = 'Sorry, I encountered an error while exercising my powers.';

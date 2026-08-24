@@ -20,28 +20,28 @@ export function shouldSummarize(content: string): boolean {
 const QUERY_STOPWORDS = new Set([
   '請',
   '幫我',
-    '一下',
-    '這個',
-    '那個',
-    '今天',
-    '現在',
-    '可以',
-    '是否',
-    '如何',
-    '什麼',
-    '哪裡',
-    'then',
-    'that',
-    'this',
-    'with',
-    'from',
-    'what',
-    'when',
-    'where',
-    'which',
-    'would',
-    'should',
-    'could',
+  '一下',
+  '這個',
+  '那個',
+  '今天',
+  '現在',
+  '可以',
+  '是否',
+  '如何',
+  '什麼',
+  '哪裡',
+  'then',
+  'that',
+  'this',
+  'with',
+  'from',
+  'what',
+  'when',
+  'where',
+  'which',
+  'would',
+  'should',
+  'could',
   'please',
   'help'
 ]);
@@ -466,7 +466,13 @@ export async function buildMemoryContextAsync(
         .slice(0, SAR_PROMPT_POLICY.semanticLimit)
         .map((s) => `- ${truncateInline(s, SAR_PROMPT_POLICY.summaryItemCharBudget)}`);
     } else {
-      semanticLines = buildLocalSemanticLines(memory, userId, userMessage, anchorCandidates, anchors);
+      semanticLines = buildLocalSemanticLines(
+        memory,
+        userId,
+        userMessage,
+        anchorCandidates,
+        anchors
+      );
     }
   } catch {
     semanticLines = buildLocalSemanticLines(memory, userId, userMessage, anchorCandidates, anchors);
@@ -478,7 +484,10 @@ export async function buildMemoryContextAsync(
       { title: '【相關歷史摘要】', lines: semanticLines },
       { title: '【近期對話】', lines: formatRecentMessages(recent) }
     ],
-    Math.max(200, SAR_PROMPT_POLICY.totalCharBudget - `${SAR_PROMPT_POLICY.memoryContextTitle}\n`.length)
+    Math.max(
+      200,
+      SAR_PROMPT_POLICY.totalCharBudget - `${SAR_PROMPT_POLICY.memoryContextTitle}\n`.length
+    )
   );
 
   if (!context.trim()) return '';

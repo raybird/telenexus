@@ -192,9 +192,7 @@ export class MemoryManager {
       .get(fingerprint, dedupeSince) as { id: number } | undefined;
     if (existing) return;
     this.db
-      .prepare(
-        `INSERT INTO runtime_issues (ts, scope, message, fingerprint) VALUES (?, ?, ?, ?)`
-      )
+      .prepare(`INSERT INTO runtime_issues (ts, scope, message, fingerprint) VALUES (?, ?, ?, ?)`)
       .run(timestamp, scope, message, fingerprint);
   }
 
@@ -206,7 +204,10 @@ export class MemoryManager {
       .all(sinceMs) as Array<{ scope: string; count: number }>;
   }
 
-  recentRuntimeIssues(limit: number, sinceMs: number): Array<{
+  recentRuntimeIssues(
+    limit: number,
+    sinceMs: number
+  ): Array<{
     ts: number;
     scope: string;
     message: string;

@@ -169,13 +169,17 @@ export function runProcess(
     const timer = options.timeoutMs
       ? setTimeout(() => {
           terminateProcessTree(child);
-          settle(() => reject(new ProcessError('Process timed out', { code: 'ETIMEDOUT', stdout, stderr })));
+          settle(() =>
+            reject(new ProcessError('Process timed out', { code: 'ETIMEDOUT', stdout, stderr }))
+          );
         }, options.timeoutMs)
       : null;
 
     const onAbort = () => {
       terminateProcessTree(child);
-      settle(() => reject(new ProcessError('Process aborted by signal', { code: 'EABORTED', stdout, stderr })));
+      settle(() =>
+        reject(new ProcessError('Process aborted by signal', { code: 'EABORTED', stdout, stderr }))
+      );
     };
 
     if (options.signal) {
@@ -186,12 +190,22 @@ export function runProcess(
       }
     }
 
-    child.stdout?.on('data', (chunk) => { stdout += chunk.toString(); });
+    child.stdout?.on('data', (chunk) => {
+      stdout += chunk.toString();
+    });
     child.stderr?.on('data', (chunk) => {
       stderr += chunk.toString();
       if (!settled && options.abortOnStderr && options.abortOnStderr.pattern.test(stderr)) {
         terminateProcessTree(child);
-        settle(() => reject(new ProcessError(options.abortOnStderr!.message, { code: options.abortOnStderr!.code, stdout, stderr })));
+        settle(() =>
+          reject(
+            new ProcessError(options.abortOnStderr!.message, {
+              code: options.abortOnStderr!.code,
+              stdout,
+              stderr
+            })
+          )
+        );
       }
     });
 
@@ -202,7 +216,9 @@ export function runProcess(
     child.on('close', (code, signal) => {
       settle(() => {
         if (signal) {
-          reject(new ProcessError(`Process terminated with signal ${signal}`, { signal, stdout, stderr }));
+          reject(
+            new ProcessError(`Process terminated with signal ${signal}`, { signal, stdout, stderr })
+          );
           return;
         }
         if (code && code !== 0) {

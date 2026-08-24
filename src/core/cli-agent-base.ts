@@ -52,10 +52,7 @@ export abstract class CliAgentBase implements AIAgent {
   protected abstract parseStreamLine(line: string): CliStreamParse | null;
   protected abstract cleanOutput(text: string): string;
 
-  abstract chatStructured(
-    prompt: string,
-    options?: AIAgentOptions
-  ): Promise<AgentStructuredResult>;
+  abstract chatStructured(prompt: string, options?: AIAgentOptions): Promise<AgentStructuredResult>;
   abstract summarize(text: string, options?: AIAgentOptions): Promise<string>;
 
   protected getCwd(): string {
@@ -203,17 +200,20 @@ export abstract class CliAgentBase implements AIAgent {
       await onEvent({ type: 'status', text: normalized });
     };
 
-    const heartbeatInterval = setInterval(() => {
-      if (settled || heartbeatMs <= 0) {
-        return;
-      }
-      const now = Date.now();
-      if (now - lastDeltaAt >= heartbeatMs && now - lastStatusAt >= heartbeatMs) {
-        void emitStatus('仍在等待模型輸出...').catch(() => {
-          // Status updates are best-effort; model output should continue even if UI updates fail.
-        });
-      }
-    }, Math.max(1000, Math.min(heartbeatMs, 5000)));
+    const heartbeatInterval = setInterval(
+      () => {
+        if (settled || heartbeatMs <= 0) {
+          return;
+        }
+        const now = Date.now();
+        if (now - lastDeltaAt >= heartbeatMs && now - lastStatusAt >= heartbeatMs) {
+          void emitStatus('仍在等待模型輸出...').catch(() => {
+            // Status updates are best-effort; model output should continue even if UI updates fail.
+          });
+        }
+      },
+      Math.max(1000, Math.min(heartbeatMs, 5000))
+    );
 
     return new Promise<AgentStructuredResult>((resolve, reject) => {
       child.stdout?.on('data', (chunk) => {
@@ -312,7 +312,10 @@ export abstract class CliAgentBase implements AIAgent {
           }
 
           if (externallyAborted) {
-            const abortedResult = buildTextOnlyStructuredResult(provider, '⏹️ 任務已被使用者中止。');
+            const abortedResult = buildTextOnlyStructuredResult(
+              provider,
+              '⏹️ 任務已被使用者中止。'
+            );
             if (!started) {
               await emitStart();
             }
@@ -324,10 +327,7 @@ export abstract class CliAgentBase implements AIAgent {
           if (signal || (code && code !== 0)) {
             if (rateLimited) {
               console.warn(`[${provider}] streamChat fail-fast on upstream 429.`);
-              recordRuntimeIssue(
-                `${provider}:rate-limit`,
-                new Error('streamChat upstream 429')
-              );
+              recordRuntimeIssue(`${provider}:rate-limit`, new Error('streamChat upstream 429'));
               const rlResult = buildTextOnlyStructuredResult(
                 provider,
                 this.config.rateLimitMessage
@@ -376,9 +376,7 @@ export abstract class CliAgentBase implements AIAgent {
             if (signal) {
               fields.signal = signal;
             }
-            reject(
-              new ProcessError(`Error calling ${provider}: exit=${code || 0}`, fields)
-            );
+            reject(new ProcessError(`Error calling ${provider}: exit=${code || 0}`, fields));
             return;
           }
 

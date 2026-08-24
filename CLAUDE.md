@@ -68,29 +68,29 @@ Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per
 
 ### Key Modules
 
-| Path                            | Responsibility                                                                                            |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `src/core/agent.ts`                    | `AIAgent` interface, `DynamicAIAgent` proxy with runner support and circuit breaker                       |
-| `src/core/config-loader.ts`            | Unified AI config reader — merges `ai-config.yaml` + `data/ai-config.override.yaml`; single source of truth for both services |
-| `src/core/message-pipeline.ts`         | Main chat pipeline: prompt assembly, execution queue, file directives, image attachment bundling          |
-| `src/core/command-router.ts`           | Slash command registry with passthrough whitelist from `ai-config.yaml`                                   |
-| `src/core/scheduler.ts`               | Cron-based scheduling with silence-timer reflection system                                                |
-| `src/core/memory.ts`                  | `MemoryManager` — SQLite-backed chat history, schedules, and full-text search                             |
-| `src/core/execution-queue.ts`         | Per-user priority queue (high/normal/low) ensuring serial execution per user                              |
-| `src/core/memoria-sync.ts`            | Background sync bridge — POSTs each turn to the Memoria HTTP service (`/v1/remember` at `MEMORIA_ENDPOINT`); hook-queue retained as offline retry buffer. No local CLI spawn. |
-| `src/core/opencode.ts`                | Wraps `opencode run` subprocess calls; fail-fast on upstream 429 via stderr abort pattern                 |
-| `src/core/opencode-event-parser.ts`   | Shared Opencode JSON event schema — `interpretEvent()` used by both stream and non-stream paths           |
-| `src/core/cli-agent-base.ts`          | Base class for CLI agents: stream lifecycle, heartbeat, smart empty-output classification (`no_events` / `tool_only` / `text_filtered_out`) |
-| `src/services/event-bus.ts`           | `emitEvent(type, payload)` — append-only NDJSON to `workspace/context/events.jsonl`; daily rotate + 7-day purge; in-process pub/sub hooks |
-| `src/services/event-projector.ts`     | Subscribes to event-bus; triggers immediate context snapshot refresh on key lifecycle events              |
-| `src/services/error-alerter.ts`       | Sliding-window error alerter; pushes Telegram message to `ALLOWED_USER_ID` when a scope crosses threshold |
-| `src/services/issue-store.ts`         | Persists `recordRuntimeIssue` events to SQLite `runtime_issues` table (7-day retention)                   |
-| `src/telegram/render/markdown-v2.ts`  | MarkdownV2 渲染（remark-parse AST→MarkdownV2 entities）；用於 streamer finalize 與 pinned message         |
-| `src/services/interaction-guard.ts`   | 多步驟互動的 per-user in-memory state；`CommandRouter` 在 dispatch 前 consult，`/abort` 自動 clear        |
-| `src/services/pinned-status-manager.ts` | 訂閱 event-bus 即時更新釘選訊息（節流 5s）；`PINNED_STATUS_ENABLED=false` 可停用                        |
-| `src/connectors/telegram.ts`          | Telegraf-based connector implementing `Connector` interface                                               |
-| `src/web/server.ts`                   | Built-in Web Console (HTTP, default port 3030)                                                            |
-| `src/types/index.ts`                  | Shared interfaces: `UnifiedMessage`, `Connector`, `UserProfile`                                           |
+| Path                                    | Responsibility                                                                                                                                                                |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/core/agent.ts`                     | `AIAgent` interface, `DynamicAIAgent` proxy with runner support and circuit breaker                                                                                           |
+| `src/core/config-loader.ts`             | Unified AI config reader — merges `ai-config.yaml` + `data/ai-config.override.yaml`; single source of truth for both services                                                 |
+| `src/core/message-pipeline.ts`          | Main chat pipeline: prompt assembly, execution queue, file directives, image attachment bundling                                                                              |
+| `src/core/command-router.ts`            | Slash command registry with passthrough whitelist from `ai-config.yaml`                                                                                                       |
+| `src/core/scheduler.ts`                 | Cron-based scheduling with silence-timer reflection system                                                                                                                    |
+| `src/core/memory.ts`                    | `MemoryManager` — SQLite-backed chat history, schedules, and full-text search                                                                                                 |
+| `src/core/execution-queue.ts`           | Per-user priority queue (high/normal/low) ensuring serial execution per user                                                                                                  |
+| `src/core/memoria-sync.ts`              | Background sync bridge — POSTs each turn to the Memoria HTTP service (`/v1/remember` at `MEMORIA_ENDPOINT`); hook-queue retained as offline retry buffer. No local CLI spawn. |
+| `src/core/opencode.ts`                  | Wraps `opencode run` subprocess calls; fail-fast on upstream 429 via stderr abort pattern                                                                                     |
+| `src/core/opencode-event-parser.ts`     | Shared Opencode JSON event schema — `interpretEvent()` used by both stream and non-stream paths                                                                               |
+| `src/core/cli-agent-base.ts`            | Base class for CLI agents: stream lifecycle, heartbeat, smart empty-output classification (`no_events` / `tool_only` / `text_filtered_out`)                                   |
+| `src/services/event-bus.ts`             | `emitEvent(type, payload)` — append-only NDJSON to `workspace/context/events.jsonl`; daily rotate + 7-day purge; in-process pub/sub hooks                                     |
+| `src/services/event-projector.ts`       | Subscribes to event-bus; triggers immediate context snapshot refresh on key lifecycle events                                                                                  |
+| `src/services/error-alerter.ts`         | Sliding-window error alerter; pushes Telegram message to `ALLOWED_USER_ID` when a scope crosses threshold                                                                     |
+| `src/services/issue-store.ts`           | Persists `recordRuntimeIssue` events to SQLite `runtime_issues` table (7-day retention)                                                                                       |
+| `src/telegram/render/markdown-v2.ts`    | MarkdownV2 渲染（remark-parse AST→MarkdownV2 entities）；用於 streamer finalize 與 pinned message                                                                             |
+| `src/services/interaction-guard.ts`     | 多步驟互動的 per-user in-memory state；`CommandRouter` 在 dispatch 前 consult，`/abort` 自動 clear                                                                            |
+| `src/services/pinned-status-manager.ts` | 訂閱 event-bus 即時更新釘選訊息（節流 5s）；`PINNED_STATUS_ENABLED=false` 可停用                                                                                              |
+| `src/connectors/telegram.ts`            | Telegraf-based connector implementing `Connector` interface                                                                                                                   |
+| `src/web/server.ts`                     | Built-in Web Console (HTTP, default port 3030)                                                                                                                                |
+| `src/types/index.ts`                    | Shared interfaces: `UnifiedMessage`, `Connector`, `UserProfile`                                                                                                               |
 
 ### Configuration
 
@@ -131,6 +131,7 @@ Context snapshots are auto-written to `workspace/context/` as markdown — `runt
 When adding new error handling, always emit `recordRuntimeIssue('<subsystem>:<reason>', err)` rather than only `console.error`, so it lands in all four observability surfaces.
 
 **Empty output handling** — `cli-agent-base.ts` classifies empty stream output into three cases instead of blindly re-running:
+
 - `no_events`: no JSON parsed at all → returns "Opencode 沒有任何輸出，請重試。"
 - `tool_only`: tool calls ran but no text reply → sends follow-up in same session
 - `text_filtered_out`: text was stripped by `cleanOutput` → returns warning, raw content in verbose log
@@ -156,6 +157,7 @@ All three cases emit `recordRuntimeIssue('${provider}:empty-output:${reason}', .
 - Primary language for UI strings and comments: Traditional Chinese (Taiwan)
 
 <!-- gitnexus:start -->
+
 # GitNexus — Code Intelligence
 
 This project is indexed by GitNexus as **telenexus** (5933 symbols, 9553 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
@@ -179,33 +181,35 @@ This project is indexed by GitNexus as **telenexus** (5933 symbols, 9553 relatio
 
 ## Resources
 
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/telenexus/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/telenexus/clusters` | All functional areas |
-| `gitnexus://repo/telenexus/processes` | All execution flows |
-| `gitnexus://repo/telenexus/process/{name}` | Step-by-step execution trace |
+| Resource                                   | Use for                                  |
+| ------------------------------------------ | ---------------------------------------- |
+| `gitnexus://repo/telenexus/context`        | Codebase overview, check index freshness |
+| `gitnexus://repo/telenexus/clusters`       | All functional areas                     |
+| `gitnexus://repo/telenexus/processes`      | All execution flows                      |
+| `gitnexus://repo/telenexus/process/{name}` | Step-by-step execution trace             |
 
 ## CLI
 
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+| Task                                         | Read this skill file                                        |
+| -------------------------------------------- | ----------------------------------------------------------- |
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md`       |
+| Blast radius / "What breaks if I change X?"  | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?"             | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md`       |
+| Rename / extract / split / refactor          | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md`     |
+| Tools, resources, schema reference           | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md`           |
+| Index, status, clean, wiki CLI commands      | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md`             |
 
 <!-- gitnexus:end -->
 
 <!-- tao:start -->
+
 # Tao of Coding — Orchestrator 協議
 
 你是本工作環境的 **orchestrator（統籌者）**。理解使用者請求、維持專案秩序，
 並調度合適的子代理完成任務。詳細角色卡見已連結的 `tao-of-opencode` skill 的 `references/<role>.md`（Explorer / Oracle / Librarian / Fixer / Designer）。
 
 ## 角色班底
+
 - **Explorer** — 結構洞察：快速掃描專案結構、理解檔案關聯與依賴。
 - **Oracle** — 架構專家：重構、決策分析、技術取捨。
 - **Librarian** — 文件專家：撰寫文件、翻譯、API 註解。
@@ -213,6 +217,7 @@ This project is indexed by GitNexus as **telenexus** (5933 symbols, 9553 relatio
 - **Designer** — 設計專家：UI/UX 與前端體驗。
 
 ## 調度準則
+
 - 簡單、單步任務 → 直接回答，不召集團隊。
 - 複雜或多步驟工作 → 依任務性質選用對應角色與技能再執行。
 - 複雜工作優先用宿主原生 subagent 委派對應角色；無原生機制則 in-context 切換。

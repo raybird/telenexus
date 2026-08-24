@@ -26,9 +26,7 @@ function renderBlock(node: Content): string {
       return '```' + lang + '\n' + safe + '\n```';
     }
     case 'list':
-      return node.children
-        .map((item) => renderListItem(item as ListItem))
-        .join('\n');
+      return node.children.map((item) => renderListItem(item as ListItem)).join('\n');
     case 'blockquote':
       return node.children
         .map((c) => {
@@ -47,12 +45,13 @@ function renderBlock(node: Content): string {
 }
 
 function renderListItem(item: ListItem): string {
-  return '• ' + item.children
-    .map((child) =>
-      child.type === 'paragraph' ? renderInlineChildren(child.children) : ''
-    )
-    .filter(Boolean)
-    .join('\n');
+  return (
+    '• ' +
+    item.children
+      .map((child) => (child.type === 'paragraph' ? renderInlineChildren(child.children) : ''))
+      .filter(Boolean)
+      .join('\n')
+  );
 }
 
 function renderInlineChildren(children: PhrasingContent[]): string {

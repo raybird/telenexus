@@ -46,7 +46,9 @@ const activeLaneCounts: Record<Lane, number> = { interactive: 0, scheduled: 0 };
 function withLane<T>(lane: Lane, fn: () => Promise<T>): Promise<T> {
   const prev = laneQueues[lane];
   let settle!: () => void;
-  laneQueues[lane] = new Promise<void>((r) => { settle = r; });
+  laneQueues[lane] = new Promise<void>((r) => {
+    settle = r;
+  });
   return prev
     .then(() => {
       activeLaneCounts[lane] += 1;
@@ -121,7 +123,9 @@ function appendAuditLine(payload: Record<string, unknown>): void {
   try {
     auditWriter.append(JSON.stringify(payload));
   } catch (error) {
-    logger.warn('audit_write_failed', { err: error instanceof Error ? error.message : String(error) });
+    logger.warn('audit_write_failed', {
+      err: error instanceof Error ? error.message : String(error)
+    });
   }
 }
 
@@ -221,7 +225,9 @@ function writeRunnerStatus(): void {
 
     fs.writeFileSync(statusPath, lines.join('\n'), 'utf8');
   } catch (error) {
-    logger.warn('status_write_failed', { err: error instanceof Error ? error.message : String(error) });
+    logger.warn('status_write_failed', {
+      err: error instanceof Error ? error.message : String(error)
+    });
   }
 }
 
@@ -410,7 +416,8 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'POST' && req.url === '/run') {
-    const callerRequestId = typeof req.headers['x-request-id'] === 'string' ? req.headers['x-request-id'].trim() : '';
+    const callerRequestId =
+      typeof req.headers['x-request-id'] === 'string' ? req.headers['x-request-id'].trim() : '';
     const requestId = callerRequestId || randomUUID();
     const startedAt = Date.now();
 
@@ -472,7 +479,13 @@ const server = http.createServer(async (req, res) => {
       }
       markRunnerResult(successResult);
       logger.info('run_done', { requestId, durationMs, provider: result.provider, lane });
-      emitEvent('runner_request_done', { requestId, durationMs, provider: result.provider, stream: false, lane });
+      emitEvent('runner_request_done', {
+        requestId,
+        durationMs,
+        provider: result.provider,
+        stream: false,
+        lane
+      });
 
       sendJson(res, 200, {
         ok: true,
@@ -509,7 +522,8 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'POST' && req.url === '/run/stream') {
-    const callerRequestId = typeof req.headers['x-request-id'] === 'string' ? req.headers['x-request-id'].trim() : '';
+    const callerRequestId =
+      typeof req.headers['x-request-id'] === 'string' ? req.headers['x-request-id'].trim() : '';
     const requestId = callerRequestId || randomUUID();
     const startedAt = Date.now();
 
@@ -548,35 +562,37 @@ const server = http.createServer(async (req, res) => {
         Connection: 'keep-alive'
       });
 
-      const result = await withLane(lane, () => executeTaskStream(parsed, async (event) => {
-        if (event.type === 'start') {
-          writeSseEvent(res, 'start', { provider: event.provider });
-          return;
-        }
-        if (event.type === 'status') {
-          writeSseEvent(res, 'status', { text: event.text });
-          return;
-        }
-        if (event.type === 'reasoning') {
-          writeSseEvent(res, 'reasoning', { text: event.text });
-          return;
-        }
-        if (event.type === 'delta') {
-          writeSseEvent(res, 'delta', { text: event.text });
-          return;
-        }
-        if (event.type === 'usage') {
-          writeSseEvent(res, 'usage', { stats: event.stats });
-          return;
-        }
-        if (event.type === 'error') {
-          writeSseEvent(res, 'error', { message: event.message });
-          return;
-        }
-        if (event.type === 'done') {
-          writeSseEvent(res, 'done', { text: event.text });
-        }
-      }));
+      const result = await withLane(lane, () =>
+        executeTaskStream(parsed, async (event) => {
+          if (event.type === 'start') {
+            writeSseEvent(res, 'start', { provider: event.provider });
+            return;
+          }
+          if (event.type === 'status') {
+            writeSseEvent(res, 'status', { text: event.text });
+            return;
+          }
+          if (event.type === 'reasoning') {
+            writeSseEvent(res, 'reasoning', { text: event.text });
+            return;
+          }
+          if (event.type === 'delta') {
+            writeSseEvent(res, 'delta', { text: event.text });
+            return;
+          }
+          if (event.type === 'usage') {
+            writeSseEvent(res, 'usage', { stats: event.stats });
+            return;
+          }
+          if (event.type === 'error') {
+            writeSseEvent(res, 'error', { message: event.message });
+            return;
+          }
+          if (event.type === 'done') {
+            writeSseEvent(res, 'done', { text: event.text });
+          }
+        })
+      );
 
       const durationMs = Date.now() - startedAt;
       appendAuditLine({
@@ -607,8 +623,20 @@ const server = http.createServer(async (req, res) => {
         successResult.task = parsed.task;
       }
       markRunnerResult(successResult);
-      logger.info('run_done', { requestId, durationMs, provider: result.provider, stream: true, lane });
-      emitEvent('runner_request_done', { requestId, durationMs, provider: result.provider, stream: true, lane });
+      logger.info('run_done', {
+        requestId,
+        durationMs,
+        provider: result.provider,
+        stream: true,
+        lane
+      });
+      emitEvent('runner_request_done', {
+        requestId,
+        durationMs,
+        provider: result.provider,
+        stream: true,
+        lane
+      });
       writeSseEvent(res, 'result', {
         ok: true,
         requestId,

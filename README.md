@@ -91,21 +91,21 @@ docker compose logs -f telenexus
 
 ### 基本指令
 
-| 指令 | 說明 |
-|------|------|
-| `/start` | 顯示說明訊息與指令清單 |
-| `/reset` | 清除 AI 短期記憶（Context Window） |
-| `/new` | 下一則訊息強制使用新 CLI session，不接續上一段對話 |
-| `/abort` | 中止當前正在執行的 AI 任務並清空佇列 |
-| `/send_file 路徑 \| 說明` | 把專案目錄內的檔案回傳到 Telegram |
+| 指令                      | 說明                                               |
+| ------------------------- | -------------------------------------------------- |
+| `/start`                  | 顯示說明訊息與指令清單                             |
+| `/reset`                  | 清除 AI 短期記憶（Context Window）                 |
+| `/new`                    | 下一則訊息強制使用新 CLI session，不接續上一段對話 |
+| `/abort`                  | 中止當前正在執行的 AI 任務並清空佇列               |
+| `/send_file 路徑 \| 說明` | 把專案目錄內的檔案回傳到 Telegram                  |
 
 ### 排程指令
 
-| 指令 | 說明 |
-|------|------|
+| 指令                               | 說明                                                   |
+| ---------------------------------- | ------------------------------------------------------ |
 | `/add_schedule 名稱\|Cron\|提示詞` | 新增排程，例如 `/add_schedule 早安\|0 9 * * *\|說早安` |
-| `/list_schedules` | 列出目前所有排程 |
-| `/remove_schedule <ID>` | 刪除指定排程，例如 `/remove_schedule 1` |
+| `/list_schedules`                  | 列出目前所有排程                                       |
+| `/remove_schedule <ID>`            | 刪除指定排程，例如 `/remove_schedule 1`                |
 
 ### 排程管理（Docker CLI）
 
@@ -117,12 +117,12 @@ docker compose exec telenexus node /app/dist/tools/scheduler-cli.js health
 
 ### 模型管理
 
-| 指令 | 說明 |
-|------|------|
-| `/model` | 顯示目前生效的模型及來源 |
-| `/models [provider]` | 列出可用模型，可篩選 provider |
-| `/set_model <model-id>` | 切換模型，下一則訊息立即生效 |
-| `/reset_model` | 清除 override，恢復 `ai-config.yaml` 基礎設定 |
+| 指令                    | 說明                                          |
+| ----------------------- | --------------------------------------------- |
+| `/model`                | 顯示目前生效的模型及來源                      |
+| `/models [provider]`    | 列出可用模型，可篩選 provider                 |
+| `/set_model <model-id>` | 切換模型，下一則訊息立即生效                  |
+| `/reset_model`          | 清除 override，恢復 `ai-config.yaml` 基礎設定 |
 
 模型 override 寫入 `data/ai-config.override.yaml`，`ai-config.yaml` 維持唯讀不變動。
 
@@ -130,15 +130,15 @@ docker compose exec telenexus node /app/dist/tools/scheduler-cli.js health
 
 ## 文件導覽
 
-| 文件 | 內容 |
-|------|------|
-| `docs/README.md` | 架構設計、維護規則、深入說明 |
-| `docs/configuration-reference.md` | 所有環境變數與 runner 設定 |
-| `docs/web-console-reference.md` | Web Console API 與頁面說明 |
-| `docs/summary-aware-retrieval-plan.md` | 長對話記憶 SAR 設計 |
-| `docs/scheduler-operation-runbook.md` | 排程維運 runbook |
-| `docs/runtime-boundary-and-security.md` | 邊界與安全說明 |
-| `docs/deployment-cutover-checklist.md` | 部署 checklist |
+| 文件                                    | 內容                         |
+| --------------------------------------- | ---------------------------- |
+| `docs/README.md`                        | 架構設計、維護規則、深入說明 |
+| `docs/configuration-reference.md`       | 所有環境變數與 runner 設定   |
+| `docs/web-console-reference.md`         | Web Console API 與頁面說明   |
+| `docs/summary-aware-retrieval-plan.md`  | 長對話記憶 SAR 設計          |
+| `docs/scheduler-operation-runbook.md`   | 排程維運 runbook             |
+| `docs/runtime-boundary-and-security.md` | 邊界與安全說明               |
+| `docs/deployment-cutover-checklist.md`  | 部署 checklist               |
 
 ---
 

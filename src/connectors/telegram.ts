@@ -1017,7 +1017,9 @@ export class TelegramConnector implements Connector {
       if (useMarkdownV2) {
         const rendered = this.renderForMarkdownV2(text);
         const chunks = chunkMarkdownV2(rendered, 4096);
-        console.log(`[Telegram] Sending message chat=${chatId} chunks=${chunks.length} mode=markdown-v2`);
+        console.log(
+          `[Telegram] Sending message chat=${chatId} chunks=${chunks.length} mode=markdown-v2`
+        );
         for (let i = 0; i < chunks.length; i += 1) {
           await this.sendChunkRaw(
             chatId,
@@ -1140,7 +1142,12 @@ export class TelegramConnector implements Connector {
     chatId: string,
     messageId: string,
     newText: string,
-    options?: { retries?: number; suppressFallbackSend?: boolean; formatMode?: 'auto' | 'plain' | 'markdown-v2'; throwOnError?: boolean }
+    options?: {
+      retries?: number;
+      suppressFallbackSend?: boolean;
+      formatMode?: 'auto' | 'plain' | 'markdown-v2';
+      throwOnError?: boolean;
+    }
   ): Promise<void> {
     try {
       const useMarkdownV2 = options?.formatMode === 'markdown-v2';
@@ -1153,15 +1160,30 @@ export class TelegramConnector implements Connector {
         try {
           await this.callTelegram(
             `editMessage chat=${chatId} message=${messageId}`,
-            () => this.bot.telegram.editMessageText(chatId, parseInt(messageId, 10), undefined, firstChunk, { parse_mode: 'MarkdownV2' }),
+            () =>
+              this.bot.telegram.editMessageText(
+                chatId,
+                parseInt(messageId, 10),
+                undefined,
+                firstChunk,
+                { parse_mode: 'MarkdownV2' }
+              ),
             callOptions
           );
         } catch (error) {
           if (!this.isParseModeError(error)) throw error;
-          console.warn(`[Telegram] editMessage chat=${chatId} message=${messageId} MarkdownV2 failed, fallback to plain.`);
+          console.warn(
+            `[Telegram] editMessage chat=${chatId} message=${messageId} MarkdownV2 failed, fallback to plain.`
+          );
           await this.callTelegram(
             `editMessage chat=${chatId} message=${messageId}`,
-            () => this.bot.telegram.editMessageText(chatId, parseInt(messageId, 10), undefined, firstChunk),
+            () =>
+              this.bot.telegram.editMessageText(
+                chatId,
+                parseInt(messageId, 10),
+                undefined,
+                firstChunk
+              ),
             callOptions
           );
         }
@@ -1186,13 +1208,26 @@ export class TelegramConnector implements Connector {
             const parseMode: TelegramParseMode = formatted.parseMode;
             await this.callTelegram(
               `editMessage chat=${chatId} message=${messageId}`,
-              () => this.bot.telegram.editMessageText(chatId, parseInt(messageId, 10), undefined, formatted.text, { parse_mode: parseMode }),
+              () =>
+                this.bot.telegram.editMessageText(
+                  chatId,
+                  parseInt(messageId, 10),
+                  undefined,
+                  formatted.text,
+                  { parse_mode: parseMode }
+                ),
               callOptions
             );
           } else {
             await this.callTelegram(
               `editMessage chat=${chatId} message=${messageId}`,
-              () => this.bot.telegram.editMessageText(chatId, parseInt(messageId, 10), undefined, formatted.text),
+              () =>
+                this.bot.telegram.editMessageText(
+                  chatId,
+                  parseInt(messageId, 10),
+                  undefined,
+                  formatted.text
+                ),
               callOptions
             );
           }
@@ -1200,10 +1235,18 @@ export class TelegramConnector implements Connector {
           if (!formatted.parseMode || !this.isParseModeError(error)) {
             throw error;
           }
-          console.warn(`[Telegram] editMessage chat=${chatId} message=${messageId} parse_mode failed, fallback to plain text.`);
+          console.warn(
+            `[Telegram] editMessage chat=${chatId} message=${messageId} parse_mode failed, fallback to plain text.`
+          );
           await this.callTelegram(
             `editMessage chat=${chatId} message=${messageId}`,
-            () => this.bot.telegram.editMessageText(chatId, parseInt(messageId, 10), undefined, firstChunk),
+            () =>
+              this.bot.telegram.editMessageText(
+                chatId,
+                parseInt(messageId, 10),
+                undefined,
+                firstChunk
+              ),
             callOptions
           );
         }
@@ -1243,7 +1286,10 @@ export class TelegramConnector implements Connector {
   async pinMessage(chatId: string, messageId: string): Promise<void> {
     await this.callTelegram(
       `pinChatMessage chat=${chatId} message=${messageId}`,
-      () => this.bot.telegram.pinChatMessage(chatId, parseInt(messageId, 10), { disable_notification: true }),
+      () =>
+        this.bot.telegram.pinChatMessage(chatId, parseInt(messageId, 10), {
+          disable_notification: true
+        }),
       { retries: 1 }
     );
   }

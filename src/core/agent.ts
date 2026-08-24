@@ -118,7 +118,11 @@ export class DynamicAIAgent implements AIAgent {
         'runner:circuit-open',
         `opened for ${this.runnerCooldownMs}ms after ${this.runnerFailureThreshold} failures`
       );
-      logger.warn('circuit_open', { cooldownMs: this.runnerCooldownMs, failures: this.consecutiveRunnerFailures, lastErr: errorMessage });
+      logger.warn('circuit_open', {
+        cooldownMs: this.runnerCooldownMs,
+        failures: this.consecutiveRunnerFailures,
+        lastErr: errorMessage
+      });
       this.consecutiveRunnerFailures = 0;
     }
   }
@@ -454,7 +458,11 @@ export class DynamicAIAgent implements AIAgent {
       logger.info('passthrough_detected');
     }
 
-    logger.info('execute', { provider, model: model || 'default', preferRunner: this.preferRunner });
+    logger.info('execute', {
+      provider,
+      model: model || 'default',
+      preferRunner: this.preferRunner
+    });
 
     if (this.preferRunner && this.runnerEndpoint) {
       if (this.isRunnerCircuitOpen()) {
@@ -508,10 +516,7 @@ export class DynamicAIAgent implements AIAgent {
     return this.executeLocal(task, normalizedInput, mergedOptions);
   }
 
-  private normalizePassthroughInput(
-    input: string,
-    isPassthrough: boolean
-  ): string {
+  private normalizePassthroughInput(input: string, isPassthrough: boolean): string {
     if (!isPassthrough) {
       return input;
     }

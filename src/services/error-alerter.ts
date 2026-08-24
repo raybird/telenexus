@@ -32,7 +32,8 @@ function readNumberEnv(key: string, fallback: number, min = 1): number {
 
 export function startErrorAlerter(options: ErrorAlerterOptions): { stop: () => void } {
   const threshold = options.threshold ?? readNumberEnv('ERROR_ALERT_THRESHOLD', DEFAULT_THRESHOLD);
-  const windowMs = options.windowMs ?? readNumberEnv('ERROR_ALERT_WINDOW_MS', DEFAULT_WINDOW_MS, 1000);
+  const windowMs =
+    options.windowMs ?? readNumberEnv('ERROR_ALERT_WINDOW_MS', DEFAULT_WINDOW_MS, 1000);
   const cooldownMs =
     options.cooldownMs ?? readNumberEnv('ERROR_ALERT_COOLDOWN_MS', DEFAULT_COOLDOWN_MS, 1000);
 

@@ -380,12 +380,16 @@ export class CommandRouter {
         try {
           const configPath = this.resolveConfigPath();
           const overridePath = this.resolveOverridePath();
-          const base = yaml.load(fs.readFileSync(configPath, 'utf8')) as { model?: string } | undefined;
+          const base = yaml.load(fs.readFileSync(configPath, 'utf8')) as
+            | { model?: string }
+            | undefined;
           const baseModel = base?.model?.trim();
 
           let overrideModel: string | undefined;
           if (fs.existsSync(overridePath)) {
-            const ov = yaml.load(fs.readFileSync(overridePath, 'utf8')) as { model?: string } | undefined;
+            const ov = yaml.load(fs.readFileSync(overridePath, 'utf8')) as
+              | { model?: string }
+              | undefined;
             overrideModel = ov?.model?.trim() || undefined;
           }
 
@@ -462,7 +466,9 @@ export class CommandRouter {
           const overridePath = this.resolveOverridePath();
           let oldModel: string | undefined;
           if (fs.existsSync(overridePath)) {
-            const ov = yaml.load(fs.readFileSync(overridePath, 'utf8')) as { model?: string } | undefined;
+            const ov = yaml.load(fs.readFileSync(overridePath, 'utf8')) as
+              | { model?: string }
+              | undefined;
             oldModel = ov?.model?.trim() || undefined;
           }
           fs.writeFileSync(overridePath, `model: ${modelId}\n`, 'utf8');
@@ -485,10 +491,15 @@ export class CommandRouter {
         try {
           const overridePath = this.resolveOverridePath();
           if (!fs.existsSync(overridePath)) {
-            await connector.sendMessage(userId, 'ℹ️ 目前沒有 override，已使用 base config 的模型設定。');
+            await connector.sendMessage(
+              userId,
+              'ℹ️ 目前沒有 override，已使用 base config 的模型設定。'
+            );
             return;
           }
-          const ov = yaml.load(fs.readFileSync(overridePath, 'utf8')) as { model?: string } | undefined;
+          const ov = yaml.load(fs.readFileSync(overridePath, 'utf8')) as
+            | { model?: string }
+            | undefined;
           const oldModel = ov?.model?.trim();
           fs.unlinkSync(overridePath);
           await connector.sendMessage(
