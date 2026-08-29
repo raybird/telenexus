@@ -39,6 +39,12 @@ npm run memory:backfill:write      # Apply backfill
 npm run memory:cli -- search "..." # Search / forget / inspect memory
 npm run memory:seed-sar-anchors    # Seed SAR retrieval anchors
 
+# Model availability probing (no build needed — plain .mjs, ships in the image)
+npm run models:probe             # Probe the model currently set in ai-config.yaml
+npm run models:probe:all         # Probe every chat model `opencode models` lists, 2 rounds each
+npm run models:probe -- --models a,b --rounds 3   # Probe specific models
+docker compose exec agent-runner node scripts/probe-models.mjs --all  # From a release deployment
+
 # Reports & release
 npm run report:compare           # Execution-comparison report
 npm run report:compare:24h       # Last 24h window
@@ -137,6 +143,12 @@ When adding new error handling, always emit `recordRuntimeIssue('<subsystem>:<re
 - `text_filtered_out`: text was stripped by `cleanOutput` → returns warning, raw content in verbose log
 
 All three cases emit `recordRuntimeIssue('${provider}:empty-output:${reason}', ...)` for tracking.
+
+**Degraded results** — timeouts and upstream rate limits are converted into friendly text and resolve _normally_, so to a caller they look identical to success. `AgentStructuredResult.failure` (`{ kind: 'timeout' | 'rate-limit' }`) is the only thing distinguishing them; `deriveRunOutcome()` (`src/core/run-outcome.ts`) turns it into the `ok` flag the runner writes to `runner-audit.log` and `runner-status.md`. It deliberately does **not** feed `DynamicAIAgent`'s circuit breaker — that breaker means "the runner is broken, run locally instead", but an upstream 429 hits local execution just as hard.
+
+**Upstream 429 fail-fast** — opencode writes upstream errors only to `~/.local/share/opencode/log/*.log`; with `--format json` nothing reaches stdout or stderr while it is stuck. Every opencode invocation therefore passes `--print-logs --log-level ERROR`, which is what makes `abortOnStderr` able to see a 429 at all (~1s instead of burning the full `OPENCODE_TASK_TIMEOUT_MS`). The matcher lives in `src/core/rate-limit.ts` (`UPSTREAM_RATE_LIMIT_PATTERN`) and is deliberately stricter than the stream-output one: `--print-logs` echoes the whole request body, so a loose `\b429\b` would abort healthy runs whose market data happens to contain "429". `scripts/probe-models.mjs` keeps an intentional copy of that regex — it must run in a release image with no source and no build, so it cannot import the TypeScript; change both together.
+
+**Model health check** — `defaultProbe` (`src/services/model-health-check.ts`) also passes `--print-logs`, and a run that exits 0 is still reported as `rate-limited` when it needed `RATE_LIMIT_DEGRADED_THRESHOLD` or more retries. Exit code alone is not health: a model that needs five 429 retries to answer "Reply with exactly: OK" will hit the timeout on a real scheduled task. Use `npm run models:probe` to evaluate replacements — never a bare `ping`, since 429 is metered on token volume and a minimal prompt can pass on a model that fails under a full prompt + tool definitions.
 
 ### Further Reading
 
