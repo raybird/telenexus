@@ -7,6 +7,7 @@ import { OpencodeAgent } from './core/opencode.js';
 import { terminateAllChildren } from './core/process-runner.js';
 import type { AgentEvent, AgentStructuredResult } from './core/agent-result.js';
 import { buildAgentOptions } from './core/runner-agent-options.js';
+import { deriveRunOutcome } from './core/run-outcome.js';
 import { safeCompare } from './utils/crypto.js';
 import { resolveProjectDir, resolveModelHealthStatePath } from './utils/paths.js';
 import { createLogger } from './core/logger.js';
@@ -451,11 +452,13 @@ const server = http.createServer(async (req, res) => {
       const result = await withLane(lane, () => executeTask(parsed));
       const durationMs = Date.now() - startedAt;
 
+      const outcome = deriveRunOutcome(result.structured);
       appendAuditLine({
         requestId,
         timestamp: startedAt,
         durationMs,
-        ok: true,
+        ok: outcome.ok,
+        ...(outcome.failureKind ? { failureKind: outcome.failureKind } : {}),
         task: parsed.task,
         provider: result.provider,
         model: parsed.model || '(default)',
@@ -468,17 +471,25 @@ const server = http.createServer(async (req, res) => {
         ok: boolean;
         task?: RunnerTask;
         provider?: Provider;
+        error?: string;
       } = {
         requestId,
         durationMs,
-        ok: true,
-        provider: result.provider
+        ok: outcome.ok,
+        provider: result.provider,
+        ...(outcome.error ? { error: outcome.error } : {})
       };
       if (parsed.task) {
         successResult.task = parsed.task;
       }
       markRunnerResult(successResult);
-      logger.info('run_done', { requestId, durationMs, provider: result.provider, lane });
+      logger.info('run_done', {
+        requestId,
+        durationMs,
+        provider: result.provider,
+        lane,
+        ...(outcome.failureKind ? { degraded: outcome.failureKind } : {})
+      });
       emitEvent('runner_request_done', {
         requestId,
         durationMs,
@@ -595,11 +606,13 @@ const server = http.createServer(async (req, res) => {
       );
 
       const durationMs = Date.now() - startedAt;
+      const outcome = deriveRunOutcome(result.structured);
       appendAuditLine({
         requestId,
         timestamp: startedAt,
         durationMs,
-        ok: true,
+        ok: outcome.ok,
+        ...(outcome.failureKind ? { failureKind: outcome.failureKind } : {}),
         task: parsed.task,
         provider: result.provider,
         model: parsed.model || '(default)',
@@ -613,11 +626,13 @@ const server = http.createServer(async (req, res) => {
         ok: boolean;
         task?: RunnerTask;
         provider?: Provider;
+        error?: string;
       } = {
         requestId,
         durationMs,
-        ok: true,
-        provider: result.provider
+        ok: outcome.ok,
+        provider: result.provider,
+        ...(outcome.error ? { error: outcome.error } : {})
       };
       if (parsed.task) {
         successResult.task = parsed.task;
@@ -628,7 +643,8 @@ const server = http.createServer(async (req, res) => {
         durationMs,
         provider: result.provider,
         stream: true,
-        lane
+        lane,
+        ...(outcome.failureKind ? { degraded: outcome.failureKind } : {})
       });
       emitEvent('runner_request_done', {
         requestId,

@@ -330,7 +330,8 @@ export abstract class CliAgentBase implements AIAgent {
               recordRuntimeIssue(`${provider}:rate-limit`, new Error('streamChat upstream 429'));
               const rlResult = buildTextOnlyStructuredResult(
                 provider,
-                this.config.rateLimitMessage
+                this.config.rateLimitMessage,
+                { failure: { kind: 'rate-limit', message: 'streamChat upstream 429' } }
               );
               if (!started) {
                 await emitStart();
@@ -342,7 +343,8 @@ export abstract class CliAgentBase implements AIAgent {
             if (timedOut || signal === 'SIGTERM') {
               const timeoutResult = buildTextOnlyStructuredResult(
                 provider,
-                this.config.timeoutMessage
+                this.config.timeoutMessage,
+                { failure: { kind: 'timeout', message: `streamChat ${signal || 'timeout'}` } }
               );
               await onEvent({ type: 'error', message: timeoutResult.text });
               resolve(timeoutResult);

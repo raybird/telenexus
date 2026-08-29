@@ -12,8 +12,9 @@ import { spawn } from 'node:child_process';
 import type { Connector } from '../types/index.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
 import { trackChildProcess, terminateProcessTree } from '../core/process-runner.js';
+import { countUpstreamRateLimitHits } from '../core/rate-limit.js';
 
-export type FailureCategory = 'model-invalid' | 'unknown';
+export type FailureCategory = 'model-invalid' | 'rate-limited' | 'unknown';
 
 export type HealthCheckOutcome =
   | { ok: true }
@@ -50,6 +51,18 @@ export const DEFAULT_TIMEOUT_MS = 120 * 1000;
 
 /** 探針 prompt。務必是明確的最小指令:模糊的 prompt 會讓 agent 當成任務去跑,遲遲不結束。 */
 export const PROBE_PROMPT = 'Reply with exactly: OK';
+
+/**
+ * 探測期間容許幾次上游限流。
+ *
+ * 健康的模型回答這句 prompt 只需要一次 model call —— 出現 429 就代表有重試。
+ * 但只看 exit code 會漏掉「重試很多次但最後成功」這種降級狀態:2026-08-29 實測,
+ * nvidia/moonshotai/kimi-k3 回答「1+1」重試了 5 次 429 仍 exit 0,舊版探針會判它健康,
+ * 而同一顆模型跑真實排程任務時直接 429 到逾時。次數本身就是訊號。
+ *
+ * 取 2 而不是 1:容忍單次瞬斷,但抓得到持續性節流。
+ */
+export const RATE_LIMIT_DEGRADED_THRESHOLD = 2;
 export const DEFAULT_REMIND_MS = 6 * 60 * 60 * 1000;
 
 /**
@@ -57,6 +70,8 @@ export const DEFAULT_REMIND_MS = 6 * 60 * 60 * 1000;
  * 也不要把認證失敗誤報成模型下架。
  */
 export function classifyFailure(output: string): FailureCategory {
+  // 先看限流:被節流時上游根本沒機會回下架訊息,兩者不會同時出現。
+  if (countUpstreamRateLimitHits(output) > 0) return 'rate-limited';
   return MODEL_INVALID_PATTERNS.some((p) => p.test(output)) ? 'model-invalid' : 'unknown';
 }
 
@@ -186,6 +201,17 @@ function buildAlertText(
     );
   }
 
+  if (!outcome.ok && outcome.category === 'rate-limited') {
+    return (
+      `${header}\n` +
+      `模型：${model}\n` +
+      `原因：上游配額限流 (HTTP 429)\n` +
+      `狀況：${snippet}\n\n` +
+      `模型本身沒下架，是配額或流量被擋。可換模型或錯開排程時間；\n` +
+      `用 npm run models:probe -- --models <名稱> 可實測其他候選。`
+    );
+  }
+
   // 無法歸因時措辭必須誠實,不猜成模型下架。
   return `${header}\n` + `模型：${model}\n` + `原因：無法確認模型可用性\n` + `錯誤：${snippet}`;
 }
@@ -193,10 +219,16 @@ function buildAlertText(
 /** 預設探針：實際打一次 opencode,因為靜態比對模型清單無效（已 EOL 的仍會列出）。 */
 export async function defaultProbe(model: string, timeoutMs: number): Promise<HealthCheckOutcome> {
   return new Promise<HealthCheckOutcome>((resolve) => {
-    const child = spawn('opencode', ['run', '--model', model, PROBE_PROMPT], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      detached: process.platform !== 'win32'
-    });
+    // --print-logs 不可省:少了它,上游的 429 只會進 opencode 自己的 log 檔,
+    // 探針看到的就只有「跑很久然後沒輸出」,分不出限流、下架還是網路問題。
+    const child = spawn(
+      'opencode',
+      ['run', '--print-logs', '--log-level', 'ERROR', '--model', model, PROBE_PROMPT],
+      {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        detached: process.platform !== 'win32'
+      }
+    );
     trackChildProcess(child);
 
     let output = '';
@@ -229,6 +261,16 @@ export async function defaultProbe(model: string, timeoutMs: number): Promise<He
     });
     child.on('close', (code) => {
       if (code === 0) {
+        // exit 0 不等於健康:重試很多次才成功的模型,跑真實排程任務時就會 429 到逾時。
+        const hits = countUpstreamRateLimitHits(output);
+        if (hits >= RATE_LIMIT_DEGRADED_THRESHOLD) {
+          finish({
+            ok: false,
+            category: 'rate-limited',
+            message: `模型仍能回應，但這次探測被上游限流 ${hits} 次 (HTTP 429)。`
+          });
+          return;
+        }
         finish({ ok: true });
         return;
       }

@@ -47,7 +47,10 @@ const AUTH_FAIL: HealthCheckOutcome = {
 // ── 失效分類（判定邏輯） ───────────────────────────────────────────────
 
 test('classifyFailure 認得下架與 EOL 兩種樣式', () => {
-  assert.equal(classifyFailure('Model not found: opencode/foo. Did you mean: bar?'), 'model-invalid');
+  assert.equal(
+    classifyFailure('Model not found: opencode/foo. Did you mean: bar?'),
+    'model-invalid'
+  );
   assert.equal(
     classifyFailure(`Gone: {"status":410,"detail":"The model 'x' has reached its end of life"}`),
     'model-invalid'
@@ -57,6 +60,51 @@ test('classifyFailure 認得下架與 EOL 兩種樣式', () => {
 test('classifyFailure 對無法歸因的錯誤回 unknown,不猜成模型下架', () => {
   assert.equal(classifyFailure('Error: connect ETIMEDOUT'), 'unknown');
   assert.equal(classifyFailure('Error: 401 Unauthorized'), 'unknown');
+});
+
+test('classifyFailure 認得上游限流，不歸到 unknown', () => {
+  assert.equal(
+    classifyFailure('ERROR service=llm error={"name":"AI_APICallError","statusCode":429}'),
+    'rate-limited'
+  );
+  assert.equal(classifyFailure('code=RESOURCE_EXHAUSTED'), 'rate-limited');
+});
+
+test('classifyFailure 不被輸出裡的數字 429 誤判成限流', () => {
+  // 探針帶 --print-logs 後，錯誤行會回吐整包 request body。
+  assert.equal(classifyFailure('Error: 比特幣成交量 429 億美元，connect ETIMEDOUT'), 'unknown');
+});
+
+test('探測「重試多次但最終成功」要判成降級，不能算健康', async () => {
+  const statePath = tempStatePath();
+  const outcomes: HealthCheckOutcome[] = [];
+
+  // 模擬 exit 0 但過程被限流 —— 舊版探針只看 exit code，會把這種模型判成健康，
+  // 而它跑真實排程任務時會 429 到逾時（2026-08-29 的 kimi-k3 實測）。
+  const handle = startModelHealthCheck({
+    resolveModel: () => 'nvidia/moonshotai/kimi-k3',
+    statePath,
+    enabled: true,
+    intervalMs: 0,
+    remindMs: 60_000,
+    probe: async () => {
+      const outcome: HealthCheckOutcome = {
+        ok: false,
+        category: 'rate-limited',
+        message: '模型仍能回應，但這次探測被上游限流 5 次 (HTTP 429)。'
+      };
+      outcomes.push(outcome);
+      return outcome;
+    }
+  });
+
+  await handle.runOnce();
+  handle.stop();
+
+  assert.equal(outcomes.length, 1);
+  const state = JSON.parse(fs.readFileSync(statePath, 'utf8')) as HealthState;
+  assert.equal(state.status, 'failing', '限流狀態必須進入 failing，才會推播與提醒');
+  assert.ok(state.signature?.startsWith('rate-limited:'));
 });
 
 // ── 狀態機（AC-7 / AC-8 / AC-9） ──────────────────────────────────────

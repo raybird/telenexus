@@ -6,6 +6,7 @@ import { ProcessError, runProcess } from './process-runner.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
 import { CliAgentBase, type CliAgentConfig, type CliStreamParse } from './cli-agent-base.js';
 import { getOpencodeTaskTimeoutMs } from '../config/timeouts.js';
+import { UPSTREAM_RATE_LIMIT_PATTERN } from './rate-limit.js';
 import { resolveProjectDir } from '../utils/paths.js';
 import { createLogger } from './logger.js';
 import { emitEvent } from '../services/event-bus.js';
@@ -65,6 +66,34 @@ export function parseOpencodeJsonOutput(stdout: string): AgentStructuredResult |
 }
 
 const OPENCODE_RATE_LIMIT_PATTERN = /\b429\b|Too Many Requests|RESOURCE_EXHAUSTED/i;
+
+/**
+ * 讓 opencode 把內部錯誤吐到 stderr —— 這是 429 fail-fast 能不能生效的前提。
+ *
+ * opencode 預設只把上游錯誤寫進 `~/.local/share/opencode/log/*.log`,stderr 全程一個字
+ * 都沒有;而 `--format json` 又是跑完才吐 stdout,所以卡住時 stdout 也是 0 bytes。
+ * 於是 `abortOnStderr` 永遠比對不到東西,遇到 429 就一路指數退避(8s→16s→…→512s)
+ * 直到撞上 OPENCODE_TASK_TIMEOUT_MS。
+ *
+ * 2026-08-25 正式環境正是如此:上游持續 429,每一發排程都燒滿 30 分鐘才失敗,連燒四天,
+ * 而 fail-fast 機制其實 v2.12.0 就在了。加上這兩個旗標後實測 1.1 秒即可攔下。
+ *
+ * `--log-level ERROR` 是必要的節流:預設 INFO 會把每次 bus publish 都印到 stderr。
+ */
+const OPENCODE_LOG_ARGS = ['--print-logs', '--log-level', 'ERROR'] as const;
+
+/**
+ * 429 快速中止設定。抽成共用常數是因為它先前被寫死在 executeChatProcess 裡,
+ * 而 summarize 自己組 args、自己呼叫 runProcess,於是整條路徑既沒有 fail-fast
+ * 也沒有 timeout —— runProcess 的 timeoutMs 是 optional,不給就真的不設計時器,
+ * 一次上游限流就能讓摘要子行程無限期掛著。共用一份才不會再度漂移。
+ */
+const OPENCODE_RATE_LIMIT_ABORT = {
+  pattern: UPSTREAM_RATE_LIMIT_PATTERN,
+  code: 'ERATELIMIT',
+  message: 'Opencode upstream rate-limited (HTTP 429); aborted before internal backoff retries.'
+};
+
 const OPENCODE_RATE_LIMIT_MESSAGE =
   '⏳ Opencode 上游配額已達上限 (HTTP 429)，本次任務已快速中止以避免長時間退避重試。請稍後再試或錯開排程時間。';
 /**
@@ -257,6 +286,8 @@ export class OpencodeAgent extends CliAgentBase {
     if (options?.model) {
       args.push('--model', options.model);
     }
+    // 一律加上:passthrough 指令同樣可能撞到上游 429,而 stderr 不參與輸出解析。
+    args.push(...OPENCODE_LOG_ARGS);
     return args;
   }
 
@@ -286,12 +317,7 @@ export class OpencodeAgent extends CliAgentBase {
       env: {
         ...process.env
       },
-      abortOnStderr: {
-        pattern: /\b429\b|Too Many Requests|RESOURCE_EXHAUSTED/i,
-        code: 'ERATELIMIT',
-        message:
-          'Opencode upstream rate-limited (HTTP 429); aborted before internal backoff retries.'
-      },
+      abortOnStderr: OPENCODE_RATE_LIMIT_ABORT,
       ...(options?.signal ? { signal: options.signal } : {})
     });
   }
@@ -355,9 +381,15 @@ ${text}
       if (options?.model) {
         args.push('--model', options.model);
       }
+      args.push(...OPENCODE_LOG_ARGS);
 
       logger.info('summarize_start');
-      const { stdout, stderr } = await runProcess('opencode', [...args, prompt]);
+      // timeoutMs / abortOnStderr 缺一不可：runProcess 不給 timeoutMs 就不設計時器，
+      // 摘要會在上游 429 時無限期掛著（chat 路徑至少還有 30 分鐘的保險絲）。
+      const { stdout, stderr } = await runProcess('opencode', [...args, prompt], {
+        timeoutMs: getOpencodeTaskTimeoutMs(),
+        abortOnStderr: OPENCODE_RATE_LIMIT_ABORT
+      });
 
       this.logStderr('Summarize', stderr);
 
@@ -425,14 +457,15 @@ ${text}
       if (isProcessError && error.code === 'ERATELIMIT') {
         logger.warn('rate_limit');
         recordRuntimeIssue('opencode:rate-limit', error);
-        return buildTextOnlyStructuredResult(
-          'opencode',
-          '⏳ Opencode 上游配額已達上限 (HTTP 429)，本次任務已快速中止以避免長時間退避重試。請稍後再試或錯開排程時間。'
-        );
+        return buildTextOnlyStructuredResult('opencode', OPENCODE_RATE_LIMIT_MESSAGE, {
+          failure: { kind: 'rate-limit', message }
+        });
       }
 
       if (isProcessError && (error.code === 'ETIMEDOUT' || error.signal === 'SIGTERM')) {
-        return buildTextOnlyStructuredResult('opencode', buildTimeoutMessage());
+        return buildTextOnlyStructuredResult('opencode', buildTimeoutMessage(), {
+          failure: { kind: 'timeout', message }
+        });
       }
 
       const fields: { code?: string | number; signal?: string; stderr?: string; stdout?: string } =
