@@ -2,6 +2,74 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.27.1 — 2026-08-29
+
+### 上游 429 會讓每一發排程燒滿 30 分鐘才失敗，連燒四天沒人發現
+
+2026-08-25 08:00 起，正式環境所有排程任務開始逐一逾時。前一發（06:00）還是 `durationMs=81877` 正常完成，中間沒有任何部署或設定改動。往後四天逐日逾時率：12/15、13/16、14/16、13/16。
+
+根因是上游 NVIDIA 對 `minimaxai/minimax-m3` 回 HTTP 429。真正的問題不是 429 本身，而是**沒有任何一層察覺得到它**：
+
+opencode 收到 429 後自己做指數退避重試（8s → 16s → 32s → … → 512s），約 11 次剛好把 `OPENCODE_TASK_TIMEOUT_MS`（30 分鐘）用完。而 v2.12.0 就存在的 429 fail-fast 機制全程沒有作用——它監聽子行程 stderr，但 **opencode 預設只把上游錯誤寫進 `~/.local/share/opencode/log/*.log`**，stderr 一個字都沒有；`--format json` 又是跑完才吐 stdout，所以卡住時 stdout 也是 0 bytes。兩條路都攔不到。
+
+### 修法：讓 opencode 把錯誤講出來
+
+所有 opencode 呼叫加上 `--print-logs --log-level ERROR`。實測 **1.1 秒**就能攔下 429，而不是燒滿 30 分鐘。`--log-level ERROR` 不可省——預設 INFO 會把每次 bus publish 都灌進 stderr。
+
+**但直接加旗標會引進一個新 bug。** `--print-logs` 的 ERROR 行會把整包 request body（含 prompt、工具定義與先前的工具輸出）原樣印出來，而原本的比對式是寬鬆的 `\b429\b`。本專案的排程任務在跑加密貨幣與股市分析，內容出現「成交量 429 億美元」完全正常——那會砍掉一個本來會成功的任務。
+
+因此 429 判定抽到 `src/core/rate-limit.ts`，只認結構化的 HTTP 欄位（`"statusCode":429` 等）。用該次事故真實的 410KB stderr 驗證：命中 12 次，且對三組市場數據字串零誤觸。
+
+### 順帶抓到一條更糟的路徑
+
+`summarize()` 先前自己組 args、自己呼叫 `runProcess`，**既沒有 fail-fast 也沒有傳 `timeoutMs`**。而 `runProcess` 的 `timeoutMs` 是 optional，不給就真的不設計時器——摘要子行程遇到 429 會**無限期**掛著，連 chat 路徑那 30 分鐘的保險絲都沒有。已補上，並把中止設定抽成共用常數避免再度漂移。
+
+### 逾時被記成成功，所以監控全綠
+
+逾時與限流會被 agent 轉成給使用者看的友善句子後**正常 resolve**，對呼叫端來說跟成功長得一模一樣。於是 `runner-audit.log` 四天來全部記 `ok:true`，`runner-status.md` 顯示 **Success Rate 100.0%**，`WEB_ALERT_RUNNER_SUCCESS_WARN_THRESHOLD`（80%）永遠不觸發。唯一露出來的只有 `scheduler:task-timeout`。
+
+新增 `AgentStructuredResult.failure`（`timeout` / `rate-limit`），由 `deriveRunOutcome()` 轉成 runner 寫入 audit 與統計的 `ok`。
+
+**刻意不接斷路器。** `DynamicAIAgent` 的斷路器語意是「runner 壞了就改跑本地」，但上游 429 對本地執行一樣會發生，切過去只是原地再撞一次牆還多耗一份資源。HTTP 回應的 `ok` 也維持 `true`——傳輸層確實成功了。
+
+### 健康檢查的 exit code 盲點
+
+v2.27.0 的模型健康檢查探針同樣沒帶 `--print-logs`，而且**只看 exit code**。實測 `moonshotai/kimi-k3` 回答「1+1」時重試了 5 次 429 仍 `exit 0`，舊探針會判它健康；同一顆模型跑真實排程任務時直接 429 到逾時。
+
+修法不是把每小時的檢查換成昂貴的真實任務（那會自己燒配額），而是**把重試次數本身當訊號**：健康的模型答一句話只需要一次 model call。新增 `rate-limited` 類別，`exit 0` 但限流達 `RATE_LIMIT_DEGRADED_THRESHOLD`（2）次即判定降級。門檻取 2 是容忍單次瞬斷、抓得到持續節流。告警文案也分開——「配額限流」與「模型下架」的處置完全不同。
+
+### 新增 `npm run models:probe`
+
+換模型前的實測工具。**用 `ping` 探測會漏判**：429 按 token 流量計費而非請求數，`kimi-k3` 對一句 `hi` 回 200 且工具呼叫正常，但放進 opencode 的完整 system prompt 與全套工具定義就 429 到逾時。這正是 2026-08-25 沒被及早發現的原因之一。
+
+```bash
+npm run models:probe                              # 測 ai-config.yaml 目前那顆
+npm run models:probe:all                          # 全清單，每顆 2 輪
+npm run models:probe -- --models a,b --rounds 3
+docker compose exec agent-runner node scripts/probe-models.mjs --all   # 正式環境
+```
+
+設計要點：預設用會動用網路工具的真實任務 prompt；帶 `--print-logs` 才分得出 429、EOL、模型不存在與空輸出；**逐一執行不並行**（並行會自己製造 429，把健康模型冤枉成限流）；多輪取最差結果。寫成 `scripts/*.mjs` 而非 `dist/tools/*`，因為 `scripts/` 有進 GHCR 映像，正式部署無原始碼、無建置也能直接跑。
+
+以 108 個模型實測（2026-08-29），可用的只有 8 顆：
+
+| 模型                                                   | 延遲   | context | 備註               |
+| ------------------------------------------------------ | ------ | ------- | ------------------ |
+| `nvidia/openai/gpt-oss-120b`                           | 5–7s   | 128K    | 最快、輸出最完整   |
+| `nvidia/nvidia/nemotron-3-super-120b-a12b`             | 11–20s | 262K    | 長報告用這顆       |
+| `nvidia/nvidia/nemotron-3.5-lightning-30b-a3b`         | 5–7s   | 262K    | 輸出偏簡略         |
+| `nvidia/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` | 9–19s  | 256K    | 輸出偏簡略         |
+| `opencode/big-pickle`                                  | 7s     | —       | 跨 provider 備援   |
+| `opencode/hy3-free`                                    | 12s    | —       |                    |
+| `opencode/nemotron-3.5-lightning-free`                 | 14s    | —       |                    |
+| `opencode/mimo-v2.5-free`                              | 13s    | —       | 引用舊資料，斟酌用 |
+
+其餘：38 顆 HTTP 410 已 EOL、9 顆 404 非 chat 端點、`minimax-m3` 與 `kimi-k3` 429、`laguna-xs-2.1` 503 容量耗盡、數顆空輸出或吐出殘破 tool call 語法。
+
+注意 NVIDIA 自家模型的 opencode ID 是**雙層前綴** `nvidia/nvidia/...`，少一層會 `ProviderModelNotFoundError`。
+
+⚠️ 本版只讓故障**立刻可見**，不會自動換模型。上游限流時仍需自己改 `ai-config.yaml`。
+
 ## 2.27.0 — 2026-08-24
 
 ### 模型健康檢查：不再需要等排程一輪輪失敗才發現模型死了
