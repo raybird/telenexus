@@ -177,15 +177,19 @@ echo ""
 #   所以要獨立成明顯的區塊並講清楚後果,而不是埋在「下一步」清單後面。
 #   全新安裝則相反:.env 還沒填 token,這時啟動本來就不急。
 if $UPGRADE; then
+  # 使用者打了 --upgrade,意圖已經明確 —— 預設就是繼續,直接 Enter 即可完成升級。
+  # 無 tty 時 ask() 走預設值,對「腳本化的 --upgrade」而言自動套用同樣是對的行為。
   printf '%s\n' "$(bold '═══════════════════════════════════════')"
-  printf '  %s %s\n' "$(red '⚠')" "$(bold '升級尚未生效')"
+  printf '  %s\n' "$(bold "最後一步：套用 ${VERSION}")"
   printf '%s\n' "$(bold '═══════════════════════════════════════')"
   echo ""
-  echo "  部署檔已更新到 ${VERSION}，但容器還跑著舊版映像。"
-  echo "  必須拉取新映像並重建容器，這次升級才算完成。"
+  echo "  部署檔已更新，但容器還跑著舊版映像。"
+  echo "  接著會拉取新映像並重建容器，期間服務會短暫中斷。"
   echo ""
-  START_PROMPT="$(bold '現在拉取映像並重建容器？') $(green '請按 y') $(dim '(直接 Enter = 否)')$(bold ' [y/N]: ')"
+  START_PROMPT="$(bold '繼續？') $(green '直接 Enter 即可') $(dim '(輸入 n 略過)')$(bold ' [Y/n]: ')"
+  START_DEFAULT="y"
 else
+  # 全新安裝相反:.env 還沒填 token,這時啟動只會得到一個起不來的 Bot,預設不啟動。
   echo "下一步："
   echo "  1. 視需求編輯 .env（首次安裝至少填 TELEGRAM_TOKEN、ALLOWED_USER_ID）"
   echo "  2. 執行 docker compose pull"
@@ -193,9 +197,10 @@ else
   echo "  4. 首次使用需登入 opencode： docker compose exec telenexus opencode auth login"
   echo ""
   START_PROMPT="$(bold '是否現在拉取映像並啟動服務？') $(green '請按 y') $(dim '(直接 Enter = 否)')$(bold ' [y/N]: ')"
+  START_DEFAULT="n"
 fi
 
-START_NOW="$(ask "$START_PROMPT" "n")"
+START_NOW="$(ask "$START_PROMPT" "$START_DEFAULT")"
 case "$(printf '%s' "$START_NOW" | tr '[:upper:]' '[:lower:]')" in
   y|yes)
     docker compose pull

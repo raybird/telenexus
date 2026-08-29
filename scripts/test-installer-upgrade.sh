@@ -37,13 +37,23 @@ if ! grep -q 'cp .env.example .env' scripts/install.sh; then
   exit 1
 fi
 
-if ! grep -q "請按 y" scripts/install.sh; then
-  echo "FAIL: 啟動問句必須明說要按 y（預設是否，答錯等於白升級）" >&2
+if ! grep -q 'START_DEFAULT="y"' scripts/install.sh; then
+  echo "FAIL: --upgrade 的預設應為 y —— 使用者打了 --upgrade 就是要升級" >&2
   exit 1
 fi
 
-if ! grep -q "升級尚未生效" scripts/install.sh; then
-  echo "FAIL: 升級模式必須在問句前警告『容器還跑著舊映像』" >&2
+if ! grep -q 'START_DEFAULT="n"' scripts/install.sh; then
+  echo "FAIL: 全新安裝的預設應為 n —— 此時 .env 尚未填入 token" >&2
+  exit 1
+fi
+
+if ! grep -q "容器還跑著舊版映像" scripts/install.sh; then
+  echo "FAIL: 升級模式必須在問句前說明容器仍是舊版" >&2
+  exit 1
+fi
+
+if ! grep -q "服務會短暫中斷" scripts/install.sh; then
+  echo "FAIL: 預設為 y 就必須事先告知會重建容器、服務中斷" >&2
   exit 1
 fi
 
