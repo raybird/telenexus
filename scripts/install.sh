@@ -171,21 +171,44 @@ info "data/ 與 workspace/ 目錄就緒"
 # --- start services -----------------------------------------------------------
 
 echo ""
-echo "下一步："
-echo "  1. 視需求編輯 .env（首次安裝至少填 TELEGRAM_TOKEN、ALLOWED_USER_ID）"
-echo "  2. 執行 docker compose pull"
-echo "  3. 執行 docker compose up -d --force-recreate"
-echo "  4. 首次使用需登入 opencode： docker compose exec telenexus opencode auth login"
-echo ""
 
-START_NOW="$(ask "是否現在拉取映像並啟動服務？(y/N): " "n")"
+# 升級與全新安裝的處境不同,問句也要不同:
+#   升級時只解壓部署檔等於什麼都沒做 —— 容器還跑著舊映像。這個問句答錯就是白升級,
+#   所以要獨立成明顯的區塊並講清楚後果,而不是埋在「下一步」清單後面。
+#   全新安裝則相反:.env 還沒填 token,這時啟動本來就不急。
+if $UPGRADE; then
+  printf '%s\n' "$(bold '═══════════════════════════════════════')"
+  printf '  %s %s\n' "$(red '⚠')" "$(bold '升級尚未生效')"
+  printf '%s\n' "$(bold '═══════════════════════════════════════')"
+  echo ""
+  echo "  部署檔已更新到 ${VERSION}，但容器還跑著舊版映像。"
+  echo "  必須拉取新映像並重建容器，這次升級才算完成。"
+  echo ""
+  START_PROMPT="$(bold '現在拉取映像並重建容器？') $(green '請按 y') $(dim '(直接 Enter = 否)')$(bold ' [y/N]: ')"
+else
+  echo "下一步："
+  echo "  1. 視需求編輯 .env（首次安裝至少填 TELEGRAM_TOKEN、ALLOWED_USER_ID）"
+  echo "  2. 執行 docker compose pull"
+  echo "  3. 執行 docker compose up -d --force-recreate"
+  echo "  4. 首次使用需登入 opencode： docker compose exec telenexus opencode auth login"
+  echo ""
+  START_PROMPT="$(bold '是否現在拉取映像並啟動服務？') $(green '請按 y') $(dim '(直接 Enter = 否)')$(bold ' [y/N]: ')"
+fi
+
+START_NOW="$(ask "$START_PROMPT" "n")"
 case "$(printf '%s' "$START_NOW" | tr '[:upper:]' '[:lower:]')" in
   y|yes)
     docker compose pull
     docker compose up -d --force-recreate
     ;;
   *)
-    info "略過啟動，可稍後執行 docker compose pull && docker compose up -d --force-recreate"
+    if $UPGRADE; then
+      # 沉默地略過會讓人以為升級完成了 —— 這裡必須講到刺眼。
+      printf '\n%s %s\n' "$(red '✗')" "$(bold "已略過 —— ${VERSION} 尚未套用，容器仍是舊版")"
+      printf '  %s %s\n' "$(bold '請執行：')" "$(dim 'docker compose pull && docker compose up -d --force-recreate')"
+    else
+      info "略過啟動，可稍後執行 docker compose pull && docker compose up -d --force-recreate"
+    fi
     ;;
 esac
 

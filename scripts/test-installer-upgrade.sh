@@ -37,4 +37,19 @@ if ! grep -q 'cp .env.example .env' scripts/install.sh; then
   exit 1
 fi
 
+if ! grep -q "請按 y" scripts/install.sh; then
+  echo "FAIL: 啟動問句必須明說要按 y（預設是否，答錯等於白升級）" >&2
+  exit 1
+fi
+
+if ! grep -q "升級尚未生效" scripts/install.sh; then
+  echo "FAIL: 升級模式必須在問句前警告『容器還跑著舊映像』" >&2
+  exit 1
+fi
+
+if ! grep -q "尚未套用，容器仍是舊版" scripts/install.sh; then
+  echo "FAIL: 升級時選擇略過，必須明說升級沒生效,不能靜默帶過" >&2
+  exit 1
+fi
+
 echo "installer upgrade checks passed"
