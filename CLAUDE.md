@@ -169,6 +169,7 @@ All three cases emit `recordRuntimeIssue('${provider}:empty-output:${reason}', .
 - Primary language for UI strings and comments: Traditional Chinese (Taiwan)
 
 <!-- gitnexus:start -->
+
 # GitNexus — Code Intelligence
 
 This project is indexed by GitNexus as **telenexus** (6441 symbols, 10375 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
@@ -192,23 +193,23 @@ This project is indexed by GitNexus as **telenexus** (6441 symbols, 10375 relati
 
 ## Resources
 
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/telenexus/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/telenexus/clusters` | All functional areas |
-| `gitnexus://repo/telenexus/processes` | All execution flows |
-| `gitnexus://repo/telenexus/process/{name}` | Step-by-step execution trace |
+| Resource                                   | Use for                                  |
+| ------------------------------------------ | ---------------------------------------- |
+| `gitnexus://repo/telenexus/context`        | Codebase overview, check index freshness |
+| `gitnexus://repo/telenexus/clusters`       | All functional areas                     |
+| `gitnexus://repo/telenexus/processes`      | All execution flows                      |
+| `gitnexus://repo/telenexus/process/{name}` | Step-by-step execution trace             |
 
 ## CLI
 
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+| Task                                         | Read this skill file                                        |
+| -------------------------------------------- | ----------------------------------------------------------- |
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md`       |
+| Blast radius / "What breaks if I change X?"  | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?"             | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md`       |
+| Rename / extract / split / refactor          | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md`     |
+| Tools, resources, schema reference           | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md`           |
+| Index, status, clean, wiki CLI commands      | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md`             |
 
 <!-- gitnexus:end -->
 
