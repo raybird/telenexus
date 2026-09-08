@@ -7,6 +7,8 @@ import {
   classifyFailure,
   decideAlert,
   failureSignature,
+  interpretProbeOutput,
+  isRealSuccessEvent,
   startModelHealthCheck,
   type HealthCheckOutcome,
   type HealthState
@@ -427,4 +429,87 @@ test('resolveModel 拋錯不得讓檢查逸出例外(避免 bootstrap 內的 unh
   });
   await handle.runOnce();
   handle.stop();
+});
+
+// ── 2026-09-08 下架事故:三層漏判的迴歸測試 ──────────────────────────────
+//
+// nvidia/openai/gpt-oss-120b 下架後,opencode 吞掉 AI_APICallError、吐出降級文字
+// 並以 exit 0 收場。三層防護各自獨立地漏掉它,共 9 天零告警。以下一層一個測試。
+
+/** 真實 stderr 的形狀:--print-logs 會把整包 request body 也印出來。 */
+const EOL_STDERR =
+  'ERROR service=llm providerID=nvidia modelID=openai/gpt-oss-120b ' +
+  'error={"error":{"name":"AI_APICallError","url":"https://integrate.api.nvidia.com/v1/chat/completions",' +
+  '"statusCode":410,"message":"The model has reached its end of life"}}';
+
+test('第 1 層:帶 upstreamInvalid 的 opencode_done 不算真實成功流量', () => {
+  assert.equal(
+    isRealSuccessEvent('opencode_done', { outputLen: 815, upstreamInvalid: true }),
+    false,
+    '模型下架時 opencode 仍 exit 0;若採信這種假成功,流量豁免會讓探針永遠不跑'
+  );
+  assert.equal(isRealSuccessEvent('opencode_done', { outputLen: 815 }), true);
+  assert.equal(isRealSuccessEvent('opencode_start', {}), false);
+});
+
+test('第 2 層:exit 0 但 stderr 有下架訊號,必須判成 model-invalid', () => {
+  const outcome = interpretProbeOutput(0, EOL_STDERR);
+  assert.equal(outcome.ok, false, 'exit code 不是健康的證據 —— 這正是舊版漏判的原因');
+  assert.equal(outcome.ok === false && outcome.category, 'model-invalid');
+});
+
+test('第 3 層:classifyFailure 認得結構化的 statusCode 410', () => {
+  assert.equal(classifyFailure(EOL_STDERR), 'model-invalid');
+});
+
+test('乾淨的 exit 0 仍然判健康(不得因為修 bug 而全面誤報)', () => {
+  assert.deepEqual(interpretProbeOutput(0, 'OK'), { ok: true });
+});
+
+test('限流優先於下架判定:被節流時上游沒機會回下架訊息', () => {
+  const outcome = interpretProbeOutput(0, '"statusCode":429 "statusCode":429');
+  assert.equal(outcome.ok === false && outcome.category, 'rate-limited');
+});
+
+test('市場數據裡的 410 不得被誤判成模型下架', () => {
+  // --print-logs 會回吐整包 request body,排程任務內容常出現這種數字。
+  const outcome = interpretProbeOutput(0, '比特幣 24 小時成交量 410 億美元,以太幣 410 億');
+  assert.deepEqual(outcome, { ok: true }, '寬鬆比對會把健康的模型誤砍');
+});
+
+test('非 0 exit 且無結構化訊號時,仍誠實回 unknown', () => {
+  const outcome = interpretProbeOutput(1, 'Error: 401 Unauthorized');
+  assert.equal(outcome.ok === false && outcome.category, 'unknown');
+});
+
+test('端到端:假成功不更新豁免視窗,探針因此仍會執行', async () => {
+  const statePath = tempStatePath();
+  let probeCalls = 0;
+  let lastSuccess: number | null = null;
+
+  // 模擬 main.ts / runner.ts 的 hook:餵進一筆下架造成的假成功。
+  if (isRealSuccessEvent('opencode_done', { upstreamInvalid: true })) {
+    lastSuccess = Date.now();
+  }
+
+  const handle = startModelHealthCheck({
+    resolveModel: () => 'nvidia/openai/gpt-oss-120b',
+    statePath,
+    enabled: true,
+    intervalMs: 0,
+    exemptionWindowMs: 60 * 60 * 1000,
+    lastSuccessAt: () => lastSuccess,
+    probe: async () => {
+      probeCalls += 1;
+      return interpretProbeOutput(0, EOL_STDERR);
+    }
+  });
+
+  await handle.runOnce();
+  handle.stop();
+
+  assert.equal(probeCalls, 1, '假成功不得讓探針被豁免跳過');
+  const state = JSON.parse(fs.readFileSync(statePath, 'utf8')) as HealthState;
+  assert.equal(state.status, 'failing', '下架必須進入 failing 才會推播');
+  assert.ok(state.signature?.startsWith('model-invalid:'));
 });

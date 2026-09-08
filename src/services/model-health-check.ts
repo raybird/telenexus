@@ -12,7 +12,7 @@ import { spawn } from 'node:child_process';
 import type { Connector } from '../types/index.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
 import { trackChildProcess, terminateProcessTree } from '../core/process-runner.js';
-import { countUpstreamRateLimitHits } from '../core/rate-limit.js';
+import { countUpstreamRateLimitHits, hasUpstreamModelInvalid } from '../core/rate-limit.js';
 
 export type FailureCategory = 'model-invalid' | 'rate-limited' | 'unknown';
 
@@ -36,8 +36,9 @@ export type AlertDecision = {
   outageMs?: number;
 };
 
-/** 上游下架與 EOL 的錯誤樣式。措辭若變動,改這裡就好。 */
-const MODEL_INVALID_PATTERNS = [/Model not found/i, /\bGone:/i, /end of life/i];
+// 下架/EOL 的樣式改由 core/rate-limit.ts 統一提供 —— 這裡原本自帶一份較窄的清單
+// (缺 `"statusCode":410`),與 scripts/probe-models.mjs 的判定分岔,是 2026-09-08
+// 漏判的第三層原因。單一來源才不會再次各自演化。
 
 const SIGNATURE_PREFIX_LENGTH = 120;
 
@@ -72,7 +73,7 @@ export const DEFAULT_REMIND_MS = 6 * 60 * 60 * 1000;
 export function classifyFailure(output: string): FailureCategory {
   // 先看限流:被節流時上游根本沒機會回下架訊息,兩者不會同時出現。
   if (countUpstreamRateLimitHits(output) > 0) return 'rate-limited';
-  return MODEL_INVALID_PATTERNS.some((p) => p.test(output)) ? 'model-invalid' : 'unknown';
+  return hasUpstreamModelInvalid(output) ? 'model-invalid' : 'unknown';
 }
 
 /** 失敗簽章：類別 + 訊息前段。用來區分「同一個故障」與「新的故障」。 */
@@ -216,6 +217,46 @@ function buildAlertText(
   return `${header}\n` + `模型：${model}\n` + `原因：無法確認模型可用性\n` + `錯誤：${snippet}`;
 }
 
+/**
+ * 探針輸出的判定（純函式,與 spawn 解耦以便測試）。
+ *
+ * 順序即是這個函式的全部重點:結構化的 HTTP 訊號必須先於 exit code。
+ * 2026-09-08 `nvidia/openai/gpt-oss-120b` 下架後,opencode 吞掉 AI_APICallError、
+ * 吐出降級文字後以 exit 0 收場;舊版先看 `code === 0` 的順序讓探針連續 9 天回報
+ * 健康,一次告警都沒發。scripts/probe-models.mjs 的 classify() 一直是對的順序,
+ * 同一天用它一次就抓到了 —— 兩邊的差異就是這個 bug 本身。
+ */
+export function interpretProbeOutput(code: number | null, output: string): HealthCheckOutcome {
+  const hits = countUpstreamRateLimitHits(output);
+  if (hits >= RATE_LIMIT_DEGRADED_THRESHOLD) {
+    // exit 0 不等於健康:重試很多次才成功的模型,跑真實排程任務時就會 429 到逾時。
+    return {
+      ok: false,
+      category: 'rate-limited',
+      message: `模型仍能回應，但這次探測被上游限流 ${hits} 次 (HTTP 429)。`
+    };
+  }
+
+  if (hasUpstreamModelInvalid(output)) {
+    return { ok: false, category: 'model-invalid', message: output.trim().slice(0, 2000) };
+  }
+
+  if (code === 0) return { ok: true };
+
+  return { ok: false, category: classifyFailure(output), message: output.trim().slice(0, 2000) };
+}
+
+/**
+ * 事件是否代表「上游真的服務了這次請求」—— 流量豁免只能採信這種成功。
+ *
+ * `opencode_done` 只在進程 exit 0 時 emit,但模型下架時 opencode 照樣 exit 0。
+ * 2026-09-08 就是這種假成功持續餵養豁免視窗,讓探針 9 天沒跑過一次。
+ * main.ts 與 runner.ts 兩處 hook 共用這裡,避免判斷再次分岔。
+ */
+export function isRealSuccessEvent(type: string, payload: Record<string, unknown>): boolean {
+  return type === 'opencode_done' && payload['upstreamInvalid'] !== true;
+}
+
 /** 預設探針：實際打一次 opencode,因為靜態比對模型清單無效（已 EOL 的仍會列出）。 */
 export async function defaultProbe(model: string, timeoutMs: number): Promise<HealthCheckOutcome> {
   return new Promise<HealthCheckOutcome>((resolve) => {
@@ -260,25 +301,7 @@ export async function defaultProbe(model: string, timeoutMs: number): Promise<He
       finish({ ok: false, category: 'unknown', message: (error as Error).message });
     });
     child.on('close', (code) => {
-      if (code === 0) {
-        // exit 0 不等於健康:重試很多次才成功的模型,跑真實排程任務時就會 429 到逾時。
-        const hits = countUpstreamRateLimitHits(output);
-        if (hits >= RATE_LIMIT_DEGRADED_THRESHOLD) {
-          finish({
-            ok: false,
-            category: 'rate-limited',
-            message: `模型仍能回應，但這次探測被上游限流 ${hits} 次 (HTTP 429)。`
-          });
-          return;
-        }
-        finish({ ok: true });
-        return;
-      }
-      finish({
-        ok: false,
-        category: classifyFailure(output),
-        message: output.trim().slice(0, 2000)
-      });
+      finish(interpretProbeOutput(code, output));
     });
   });
 }

@@ -17,7 +17,7 @@ import { getMemoriaRecallClient } from './core/memoria-recall.js';
 import { recordRuntimeIssue, getRecentIssues } from './utils/errors.js';
 import { writeContextSnapshots, writeSchedulerHealth } from './services/context-snapshots.js';
 import { resolveContextDir, resolveModelHealthStatePath } from './utils/paths.js';
-import { startModelHealthCheck } from './services/model-health-check.js';
+import { startModelHealthCheck, isRealSuccessEvent } from './services/model-health-check.js';
 import { loadAiConfig } from './core/config-loader.js';
 import { MemoryBackfillWorker } from './services/memory-backfill-worker.js';
 import { startErrorAlerter } from './services/error-alerter.js';
@@ -381,9 +381,8 @@ async function bootstrap() {
   // 非阻塞 —— startModelHealthCheck 內部自行排程,不 await 首次探測。
   {
     let lastOpencodeSuccessAt: number | null = null;
-    addEventHook((type) => {
-      // opencode_done 只在進程 exit 0 時 emit(src/core/opencode.ts),失敗會 throw 進 catch。
-      if (type === 'opencode_done') {
+    addEventHook((type, payload) => {
+      if (isRealSuccessEvent(type, payload)) {
         lastOpencodeSuccessAt = Date.now();
       }
     });

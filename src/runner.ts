@@ -13,7 +13,7 @@ import { resolveProjectDir, resolveModelHealthStatePath } from './utils/paths.js
 import { createLogger } from './core/logger.js';
 import { loadAiConfig } from './core/config-loader.js';
 import { emitEvent, addEventHook } from './services/event-bus.js';
-import { startModelHealthCheck } from './services/model-health-check.js';
+import { startModelHealthCheck, isRealSuccessEvent } from './services/model-health-check.js';
 import { parseBool, parsePositiveInt } from './utils/env.js';
 import { createAuditLogWriter } from './services/audit-log.js';
 
@@ -706,8 +706,8 @@ const server = http.createServer(async (req, res) => {
 // runner 沒有 Telegram connector,因此只記錄不推播 —— 推播統一由 telenexus 端負責。
 // 狀態檔帶 runner scope:兩個服務共用同一個 data/ volume,共用檔案會互相覆寫狀態機。
 let lastOpencodeSuccessAt: number | null = null;
-addEventHook((type) => {
-  if (type === 'opencode_done') {
+addEventHook((type, payload) => {
+  if (isRealSuccessEvent(type, payload)) {
     lastOpencodeSuccessAt = Date.now();
   }
 });

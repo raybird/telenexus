@@ -6,7 +6,7 @@ import { ProcessError, runProcess } from './process-runner.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
 import { CliAgentBase, type CliAgentConfig, type CliStreamParse } from './cli-agent-base.js';
 import { getOpencodeTaskTimeoutMs } from '../config/timeouts.js';
-import { UPSTREAM_RATE_LIMIT_PATTERN } from './rate-limit.js';
+import { UPSTREAM_RATE_LIMIT_PATTERN, hasUpstreamModelInvalid } from './rate-limit.js';
 import { resolveProjectDir } from '../utils/paths.js';
 import { createLogger } from './logger.js';
 import { emitEvent } from '../services/event-bus.js';
@@ -424,8 +424,13 @@ ${text}
       const { stdout, stderr } = await this.executeChatProcess(prompt, options);
       this.writeVerboseStdout(stdout);
 
+      // exit 0 不代表上游真的服務了這次請求:模型下架時 opencode 會吞掉
+      // AI_APICallError、吐出降級文字後正常收場。把這個訊號帶進事件裡,
+      // 訂閱端(模型健康檢查的流量豁免)才不會把假成功當成「模型顯然活著」。
+      const upstreamInvalid = hasUpstreamModelInvalid(stderr);
+
       logger.info('done', { outputLen: stdout.length });
-      emitEvent('opencode_done', { outputLen: stdout.length });
+      emitEvent('opencode_done', { outputLen: stdout.length, upstreamInvalid });
       this.logStderr('Chat', stderr);
 
       const structured = this.toStructuredResult(stdout, options);

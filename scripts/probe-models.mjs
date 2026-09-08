@@ -186,6 +186,9 @@ const RATE_LIMIT_PATTERN =
 
 function classify({ code, stdout, stderr, timedOut }) {
   // 先看結構化的 HTTP 訊號 —— 它比 exit code 精確。
+  // 這個順序是對的,但 src/services/model-health-check.ts 的探針原本是反過來的
+  // (先看 exit code),導致 2026-09-08 的下架連續 9 天沒被自動偵測到。
+  // 兩邊的判定語意要一起維護:下架樣式的來源是 src/core/rate-limit.ts。
   if (RATE_LIMIT_PATTERN.test(stderr)) return 'rate-limited';
   if (/"status(?:Code)?"\s*:\s*410\b|end of life|\bGone\b/i.test(stderr)) return 'eol';
   if (/ProviderModelNotFoundError|Model not found/i.test(stderr)) return 'not-found';
