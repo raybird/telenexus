@@ -2,6 +2,83 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.27.3 — 2026-09-08
+
+### 修 429 誤判的那份樣式，自己帶了一個更寬的 `Gone`
+
+v2.27.2 的 CHANGELOG 花了一整段說明「不要用寬鬆的 `\b429\b`」,因為 `--print-logs`
+會回吐整包 request body,市場數據裡的「成交量 429 億美元」會誤觸。同一份樣式表裡
+卻放了 `\bGone\b`。
+
+`gone` 是英文常用字,誤觸機率比 429 更高。實測 v2.27.2 的樣式:
+
+| 句子                               | v2.27.2 | 修正後 |
+| ---------------------------------- | ------- | ------ |
+| the opportunity is gone            | ⛔ 誤觸 | ✓ 安全 |
+| Gone are the days of cheap compute | ⛔ 誤觸 | ✓ 安全 |
+| BTC 的漲勢 gone，但 ETH 還在       | ⛔ 誤觸 | ✓ 安全 |
+
+移除裸 `Gone` 後,真實下架 stderr 仍然判得出來 —— `"statusCode":410` 命中 3 次、
+`end of life` 3 次,兩者都不依賴 `Gone`。純改善,沒有損失偵測能力。
+
+判 410 就去比對結構化的 `statusCode`,不要認散文裡的字。
+
+### `outputLen=815` 的真身
+
+v2.27.2 把那個固定指紋描述成「降級文字」,不精確。實際對已下架模型跑
+`--format json`:
+
+```
+EXIT=0   stdout=815 bytes   事件 type 分布: {"error":1}
+```
+
+那 815 bytes **就是 error 事件本身**,stdout 裡只有它、沒有任何 text 事件:
+
+```json
+{
+  "type": "error",
+  "sessionID": "...",
+  "error": {
+    "name": "APIError",
+    "data": {
+      "message": "Gone: {\"title\":\"Gone\",\"status\":410,\"detail\":\"...has reached its end of life...\"}",
+      "statusCode": 410,
+      "isRetryable": false
+    }
+  }
+}
+```
+
+於是缺口的描述變得更精確:`interpretEvent()`（`opencode-event-parser.ts`,stream 與
+non-stream 兩條路徑共用）處理 `step_start` / `tool_use` / `text` / `reasoning` /
+`step_finish` —— **就是沒有 `error`**。error 事件被忽略 → 沒有 text → 走 `no_output`
+→ 產生那 37 字元訊息 → 正常 resolve。
+
+真實 payload 的 message 裡同時有 `"title":"Gone"` 與 `"status":410`：**裸 `Gone` 誤觸的
+那一刻,正確的結構化欄位就躺在旁邊。** 這組並排對照已寫成測試。
+
+### 刻意暫不做結構化 error 解析
+
+`error.data.statusCode` 是 integer 欄位,比對它是型別安全的整數比較,結構上不可能被
+市場數據誤觸 —— 這比 regex 更根本。但它要動 `interpretEvent()`,而那是 stream 與
+non-stream 兩條主要執行路徑共用的解析器,屬於另一個完整的修改週期。
+
+樣式收緊後已無已知誤觸案例,風險降到可接受,因此這次只收樣式。留作後續:讓
+`interpretEvent()` 認得 error 事件並回報「這回合失敗了」（而不是新增一種可渲染的
+事件型別 —— 上游錯誤是回合的控制流結果,不是可渲染的內容）,regex 降級為純文字探針
+路徑的第二道。
+
+### 來源
+
+這兩個發現來自把 v2.27.2 的事故經驗交接給 Wukong 專案（Rust,同樣呼叫 opencode）時
+的雙向驗證。對方讀完交接文件後指出裸 `Gone` 的問題,並校正了一項事實:
+`ProviderModelNotFoundError` / `Model not found` 在目前的 opencode 版本是 **exit=1**,
+本來就攔得住,真正靜默的只有「模型仍在目錄裡、呼叫時上游回 410」那一種。已在
+TeleNexus 環境獨立複驗（EXIT=1,含 `Model not found`,不含 410）。
+
+這條界線對測試設計有意義:拿 `Model not found` 當下架的代表 fixture,會測到一條
+本來就會紅的路,然後誤以為覆蓋到了靜默路徑。
+
 ## 2.27.2 — 2026-09-08
 
 ### 模型下架九天，儀表板全綠
