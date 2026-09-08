@@ -2,6 +2,52 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.27.2 — 2026-09-08
+
+### 模型下架九天，儀表板全綠
+
+2026-09-08 例行檢查正式環境，容器三個全 `healthy`、`error-summary.md` 的 runtime issues 是 0、`runner-status.md` 寫 **Success Rate 100.0%**、`runner-audit.log` 每一筆 `ok:true`、`provider-status.md` 寫 **Model Health: ✅ healthy**。
+
+實際上 `nvidia/openai/gpt-oss-120b` 已經被上游下架，五個排程數小時來持續推送同一段 37 字元的空殼回覆。`data/model-health-state.json` 的 `since` 停在 2026-08-30 07:01（容器建立那刻）、`lastAlertAt` 是 **0** —— 九天，零告警。
+
+拆穿它的不是任何一層告警，是 `events.jsonl` 的固定指紋：
+
+```
+durationMs≈1300  outputLen=815  responseLength=37   ← 每一發排程都完全相同
+```
+
+「早安市場分析」不可能 1.3 秒跑完，而三個數字跨多次執行一模一樣，只可能是同一段降級文字。
+
+### 為什麼三層防護一起漏
+
+根因是 opencode 的行為：模型下架後它**吞掉 `AI_APICallError`、吐出降級文字，然後以 `exit 0` 收場**。實測真實下架執行：`exit=0`，stderr 45,692 bytes，內含 `"statusCode":410` ×2、`end of life` ×3。訊號一直都在，只是每一層都在看別的東西。
+
+**第一層，流量豁免讓探針根本沒跑。** 健康檢查有個省配額的設計：週期內若有真實成功流量就跳過 ping。而 `lastOpencodeSuccessAt` 的來源 `opencode_done` 只在進程 `exit 0` 時 emit —— 於是假成功持續填滿豁免視窗，每小時的探針九天一次都沒執行。這是根因，其餘兩層是它的備援，而備援也壞了。
+
+**第二層，探針先看 exit code。** 即使跑了，`defaultProbe` 的判定順序是 `if (code === 0) return { ok: true }`，只在非 0 時才去分類錯誤。
+
+**第三層，樣式表比對不到。** `MODEL_INVALID_PATTERNS` 只有 `Model not found` / `Gone:` / `end of life`，缺結構化的 `"statusCode":410`；而且這行只在第二層放行後才有機會執行。
+
+v2.27.1 才修過健康檢查的 exit code 盲點，但那次只補了 429 那一面：`exit 0` 時去數限流次數。下架走的是同一個盲點的另一面 —— `exit 0` 且完全沒有 429。
+
+諷刺的是 `scripts/probe-models.mjs` 三個問題都沒有，同一天用它一次就抓到 `⛔ 已下架`。它的 `classify()` 一開頭就寫著「先看結構化的 HTTP 訊號 —— 它比 exit code 精確」。正確的判定一直存在，只是沒接上自動機制；接上自動機制的那份是錯的。
+
+### 修法：一層一處
+
+- **流量豁免**：`opencode_done` 帶 `upstreamInvalid`，假成功不再更新 `lastOpencodeSuccessAt`。`main.ts` 與 `runner.ts` 兩處 hook 共用 `isRealSuccessEvent()`，避免判斷再次分岔。
+- **探針判定**：抽出純函式 `interpretProbeOutput(code, output)`（與 spawn 解耦才測得到），順序改為限流 → 模型失效 → exit code，與 `probe-models.mjs` 的 `classify()` 對齊。
+- **樣式來源**：`MODEL_INVALID_PATTERNS` 併入 `src/core/rate-limit.ts` 統一提供，補上 `"statusCode":410`。
+
+以該次事故真實的 stderr 驗證：修復前判 `ok=true`，修復後判 `model-invalid`。
+
+**刻意不認 404。** 非對話類模型（embedding、圖像、語音）打 chat/completions 也回 404，那是「用錯端點」不是「模型失效」，混進來會讓告警說錯原因。
+
+**刻意不做自動切換。** 建立在壞訊號上的自動切換，只會在錯的時機切到錯的模型。偵測可信之後才輪得到它。
+
+### 迴歸測試
+
+新增 8 個測試，三層各一，其餘是迴歸 —— 其中一個是「比特幣 24 小時成交量 410 億美元」不得被判成模型下架。理由同 v2.27.1 的 429 誤觸：`--print-logs` 會回吐整包 request body，而本專案的排程任務正在跑市場分析。
+
 ## 2.27.1 — 2026-08-29
 
 ### 上游 429 會讓每一發排程燒滿 30 分鐘才失敗，連燒四天沒人發現
