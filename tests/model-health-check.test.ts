@@ -513,3 +513,39 @@ test('端到端:假成功不更新豁免視窗,探針因此仍會執行', async 
   assert.equal(state.status, 'failing', '下架必須進入 failing 才會推播');
   assert.ok(state.signature?.startsWith('model-invalid:'));
 });
+
+test('英文內容裡的 gone 不得被誤判成模型下架', () => {
+  // v2.27.2 初版的樣式表帶了裸的 \bGone\b —— 理由同 429 那條:--print-logs 會回吐
+  // 整包 request body,而 gone 是英文常用字,誤觸機率比 429 更高。
+  for (const s of [
+    'the opportunity is gone',
+    'Gone are the days of cheap compute',
+    'BTC 的漲勢 gone，但 ETH 還在'
+  ]) {
+    assert.deepEqual(interpretProbeOutput(0, s), { ok: true }, `不得誤判: ${s}`);
+  }
+});
+
+test('收緊裸 Gone 之後,真實下架 stderr 仍判得出來', () => {
+  // 真實 stderr 裡 410 與 end of life 各命中 3 次,移除裸 Gone 不影響偵測能力。
+  assert.equal(interpretProbeOutput(0, EOL_STDERR).ok, false);
+  assert.equal(classifyFailure('Gone: {"status":410,"detail":"...end of life..."}'), 'model-invalid');
+});
+
+test('裸 Gone 誤觸的那一刻,正確的結構化欄位就躺在旁邊', () => {
+  // 真實 410 payload 的 message 同時含 "title":"Gone" 與 "status":410。
+  // 這個並排對照比任何論述都更能說明該比對哪一個 —— 由 Wukong 專案的交接回饋提供,
+  // 兩邊各自以自己的語言保留同一組斷言。
+  const realMessage =
+    'Gone: {"type":"about:blank","title":"Gone","status":410,' +
+    '"detail":"The model \'openai/gpt-oss-120b\' has reached its end of life ' +
+    'on 2026-09-03T08:00:00Z and is no longer available."}';
+
+  assert.ok(realMessage.includes('"title":"Gone"'), '真實 payload 確實帶著裸的 Gone 字樣');
+  assert.equal(classifyFailure(realMessage), 'model-invalid', '靠 "status":410 命中,不靠 Gone');
+  assert.equal(
+    classifyFailure('Gone are the days of cheap compute'),
+    'unknown',
+    '同一個字出現在散文裡時不得被判成下架'
+  );
+});

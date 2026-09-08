@@ -26,6 +26,11 @@ export function countUpstreamRateLimitHits(output: string): number {
  * 為什麼不認 404:非對話類模型(embedding、圖像、語音)打 chat/completions 也回 404,
  * 那是「用錯端點」不是「模型失效」,混進來會讓告警說錯原因。
  *
+ * 為什麼不認裸的 `Gone`:理由同上面限流樣式不認裸 `429` —— `--print-logs` 會回吐整包
+ * request body,一句「the opportunity is gone」或「動能已經 gone」就會被判成模型下架。
+ * `gone` 是英文常用字,誤觸機率比 429 更高。要判 410 就去比對結構化的 statusCode。
+ * (2026-09-08 v2.27.2 初版帶著這個過寬的分支發佈,由 Wukong 專案的交接回饋抓出。)
+ *
  * 2026-09-08 的教訓:`nvidia/openai/gpt-oss-120b` 下架後,opencode 吞掉 AI_APICallError
  * 仍以 exit 0 收場並吐出降級文字,只看 exit code 的判定連續 9 天都說它健康。
  * 結構化訊號是唯一在那段期間仍然誠實的東西 —— 所以它必須比 exit code 先被檢查。
@@ -34,7 +39,7 @@ export function countUpstreamRateLimitHits(output: string): number {
  * 限流樣式 —— 那支腳本要能在沒有原始碼的正式映像裡直接跑,改動兩邊要同步。
  */
 export const UPSTREAM_MODEL_INVALID_PATTERN =
-  /"status(?:Code)?"\s*:\s*410\b|\bstatus(?:Code)?[=\s]+410\b|end of life|\bGone\b|ProviderModelNotFoundError|Model not found/i;
+  /"status(?:Code)?"\s*:\s*410\b|\bstatus(?:Code)?[=\s]+410\b|end of life|ProviderModelNotFoundError|Model not found/i;
 
 /** 輸出裡是否出現模型失效訊號。 */
 export function hasUpstreamModelInvalid(output: string): boolean {
