@@ -14,7 +14,12 @@ import {
 import { resolveProjectDir } from '../utils/paths.js';
 import { createLogger } from './logger.js';
 import { emitEvent } from '../services/event-bus.js';
-import { interpretEvent, parseEventLine, type OpencodeEvent } from './opencode-event-parser.js';
+import {
+  findUpstreamError,
+  interpretEvent,
+  parseEventLine,
+  type OpencodeEvent
+} from './opencode-event-parser.js';
 
 const logger = createLogger('Opencode');
 
@@ -67,36 +72,6 @@ export function parseOpencodeJsonOutput(stdout: string): AgentStructuredResult |
     result.stats = stats;
   }
   return result;
-}
-
-/**
- * 掃出 stdout 裡的上游錯誤,連同它之前已經產出的文字。
- *
- * 與 parseOpencodeJsonOutput 分開,是因為那邊在沒有文字或夾雜非 JSON 行時直接回 null,
- * 而只有一個 error 事件的回合正是這種輸出。
- */
-export function findUpstreamError(
-  stdout: string
-): { upstreamError: UpstreamError; text: string; sessionId?: string } | null {
-  let upstreamError: UpstreamError | undefined;
-  let sessionId: string | undefined;
-  let text = '';
-
-  for (const line of stdout.split(/\r?\n/)) {
-    const event = parseEventLine(line.trim());
-    if (!event) {
-      continue;
-    }
-    const interpreted = interpretEvent(event);
-    if (interpreted.sessionId) sessionId = interpreted.sessionId;
-    if (interpreted.text) text += interpreted.text;
-    if (interpreted.upstreamError) upstreamError = interpreted.upstreamError;
-  }
-
-  if (!upstreamError) {
-    return null;
-  }
-  return { upstreamError, text, ...(sessionId ? { sessionId } : {}) };
 }
 
 /**

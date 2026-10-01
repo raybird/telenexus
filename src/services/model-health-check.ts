@@ -12,13 +12,33 @@ import { spawn } from 'node:child_process';
 import type { Connector } from '../types/index.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
 import { trackChildProcess, terminateProcessTree } from '../core/process-runner.js';
-import { countUpstreamRateLimitHits, hasUpstreamModelInvalid } from '../core/rate-limit.js';
+import {
+  classifyUpstreamStatus,
+  countUpstreamRateLimitHits,
+  hasUpstreamModelInvalid
+} from '../core/rate-limit.js';
+import { findUpstreamError } from '../core/opencode-event-parser.js';
 
-export type FailureCategory = 'model-invalid' | 'rate-limited' | 'unknown';
+/**
+ * `client-outdated`:上游因為 opencode 版本太舊而拒絕(HTTP 426),模型本身沒問題。
+ * `upstream-error`:上游回了其他錯誤。與 `unknown` 的差別是這裡確定有一個 error 事件。
+ */
+export type FailureCategory =
+  | 'model-invalid'
+  | 'rate-limited'
+  | 'client-outdated'
+  | 'upstream-error'
+  | 'unknown';
 
 export type HealthCheckOutcome =
   | { ok: true }
-  | { ok: false; category: FailureCategory; message: string };
+  | {
+      ok: false;
+      category: FailureCategory;
+      message: string;
+      /** 上游回的 HTTP 狀態碼;只有從 error 事件判定時才有。 */
+      statusCode?: number;
+    };
 
 export type HealthState = {
   status: 'healthy' | 'failing';
@@ -76,7 +96,12 @@ export function classifyFailure(output: string): FailureCategory {
   return hasUpstreamModelInvalid(output) ? 'model-invalid' : 'unknown';
 }
 
-/** 失敗簽章：類別 + 訊息前段。用來區分「同一個故障」與「新的故障」。 */
+/**
+ * 失敗簽章：類別 + 狀態碼 + 訊息前段。用來區分「同一個故障」與「新的故障」。
+ *
+ * 沒有狀態碼時維持原本的兩段格式:升級當下若正處於故障中,狀態檔裡的舊簽章才對得上,
+ * 不會因為格式改變多推一次。
+ */
 export function failureSignature(outcome: HealthCheckOutcome): string {
   if (outcome.ok) return 'ok';
   const prefix = outcome.message.slice(0, SIGNATURE_PREFIX_LENGTH);
@@ -84,7 +109,9 @@ export function failureSignature(outcome: HealthCheckOutcome): string {
   for (let i = 0; i < prefix.length; i += 1) {
     hash = (hash * 31 + prefix.charCodeAt(i)) | 0;
   }
-  return `${outcome.category}:${hash}`;
+  return outcome.statusCode === undefined
+    ? `${outcome.category}:${hash}`
+    : `${outcome.category}:${outcome.statusCode}:${hash}`;
 }
 
 /**
@@ -190,12 +217,31 @@ function buildAlertText(
 
   const snippet = outcome.ok ? '' : outcome.message.slice(0, 240);
   const header = alert === 'reminder' ? '⏰ 模型仍未恢復' : '🚨 模型健康檢查失敗';
+  const status =
+    !outcome.ok && outcome.statusCode !== undefined ? ` (HTTP ${outcome.statusCode})` : '';
+
+  if (!outcome.ok && outcome.category === 'client-outdated') {
+    return (
+      `${header}\n` +
+      `模型：${model}\n` +
+      `原因：opencode 版本過舊，上游拒絕服務${status}\n` +
+      `錯誤：${snippet}\n\n` +
+      `模型本身沒有失效，換模型不一定有用。\n` +
+      `請升級 opencode：更新到釘了較新 opencode-ai 版本的 TeleNexus 映像。`
+    );
+  }
+
+  if (!outcome.ok && outcome.category === 'upstream-error') {
+    return (
+      `${header}\n` + `模型：${model}\n` + `原因：上游回了錯誤${status}\n` + `錯誤：${snippet}`
+    );
+  }
 
   if (!outcome.ok && outcome.category === 'model-invalid') {
     return (
       `${header}\n` +
       `模型：${model}\n` +
-      `原因：模型已失效（下架或 EOL）\n` +
+      `原因：模型已失效（下架或 EOL）${status}\n` +
       `錯誤：${snippet}\n\n` +
       `注意 opencode models 清單仍會列出已失效的模型,\n` +
       `換模型前請先實測：opencode run --model <名稱> "ping"`
@@ -225,8 +271,27 @@ function buildAlertText(
  * 吐出降級文字後以 exit 0 收場;舊版先看 `code === 0` 的順序讓探針連續 9 天回報
  * 健康,一次告警都沒發。scripts/probe-models.mjs 的 classify() 一直是對的順序,
  * 同一天用它一次就抓到了 —— 兩邊的差異就是這個 bug 本身。
+ *
+ * `output` 是套用文字樣式的來源(探針給的是 stderr);`stdout` 是 `--format json` 的事件。
  */
-export function interpretProbeOutput(code: number | null, output: string): HealthCheckOutcome {
+export function interpretProbeOutput(
+  code: number | null,
+  output: string,
+  stdout = ''
+): HealthCheckOutcome {
+  // error 事件是最精確的訊號:它直接帶狀態碼,不必從 log 文字裡猜。2026-09-17 的 426 就是
+  // 因為下面的樣式只列舉了 429 與 410 而被判成健康 —— 這裡不看狀態碼是哪一個,有就是不健康。
+  const upstream = findUpstreamError(stdout)?.upstreamError;
+  if (upstream?.statusCode !== undefined) {
+    const upstreamClass = classifyUpstreamStatus(upstream.statusCode);
+    return {
+      ok: false,
+      category: upstreamClass === 'other' ? 'upstream-error' : upstreamClass,
+      message: upstream.message,
+      statusCode: upstream.statusCode
+    };
+  }
+
   const hits = countUpstreamRateLimitHits(output);
   if (hits >= RATE_LIMIT_DEGRADED_THRESHOLD) {
     // exit 0 不等於健康:重試很多次才成功的模型,跑真實排程任務時就會 429 到逾時。
@@ -239,6 +304,12 @@ export function interpretProbeOutput(code: number | null, output: string): Healt
 
   if (hasUpstreamModelInvalid(output)) {
     return { ok: false, category: 'model-invalid', message: output.trim().slice(0, 2000) };
+  }
+
+  // 沒有狀態碼的 error 事件(例如模型不存在時的 UnknownError)排在 stderr 樣式之後:
+  // 事件裡只有一句通用訊息,真正的原因在 stderr。
+  if (upstream) {
+    return { ok: false, category: 'upstream-error', message: upstream.message };
   }
 
   if (code === 0) return { ok: true };
@@ -266,11 +337,23 @@ export function isRealSuccessEvent(type: string, payload: Record<string, unknown
 /** 預設探針：實際打一次 opencode,因為靜態比對模型清單無效（已 EOL 的仍會列出）。 */
 export async function defaultProbe(model: string, timeoutMs: number): Promise<HealthCheckOutcome> {
   return new Promise<HealthCheckOutcome>((resolve) => {
+    // --format json 不可省:上游錯誤的狀態碼只在 stdout 的 error 事件裡。預設格式下 stdout
+    // 是空的,opencode 1.18 的 stderr 也不再有狀態碼,410 與 426 都會落到「無法確認」。
     // --print-logs 不可省:少了它,上游的 429 只會進 opencode 自己的 log 檔,
     // 探針看到的就只有「跑很久然後沒輸出」,分不出限流、下架還是網路問題。
     const child = spawn(
       'opencode',
-      ['run', '--print-logs', '--log-level', 'ERROR', '--model', model, PROBE_PROMPT],
+      [
+        'run',
+        '--format',
+        'json',
+        '--print-logs',
+        '--log-level',
+        'ERROR',
+        '--model',
+        model,
+        PROBE_PROMPT
+      ],
       {
         stdio: ['ignore', 'pipe', 'pipe'],
         detached: process.platform !== 'win32'
@@ -278,7 +361,9 @@ export async function defaultProbe(model: string, timeoutMs: number): Promise<He
     );
     trackChildProcess(child);
 
-    let output = '';
+    // 分開收:兩條管線的 chunk 交錯到達,混在一起會把 stdout 的 JSON 行切斷。
+    let stdout = '';
+    let stderr = '';
     let settled = false;
     const finish = (outcome: HealthCheckOutcome) => {
       if (settled) return;
@@ -298,16 +383,16 @@ export async function defaultProbe(model: string, timeoutMs: number): Promise<He
     timer.unref?.();
 
     child.stdout?.on('data', (chunk: Buffer) => {
-      output += chunk.toString();
+      stdout += chunk.toString();
     });
     child.stderr?.on('data', (chunk: Buffer) => {
-      output += chunk.toString();
+      stderr += chunk.toString();
     });
     child.on('error', (error) => {
       finish({ ok: false, category: 'unknown', message: (error as Error).message });
     });
     child.on('close', (code) => {
-      finish(interpretProbeOutput(code, output));
+      finish(interpretProbeOutput(code, stderr, stdout));
     });
   });
 }

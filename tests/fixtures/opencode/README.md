@@ -9,6 +9,7 @@
 | `1.15.10-upstream-426.stdout.jsonl`                   | 真實免費層                     | 0      | 單一 `error` 事件，`statusCode` 426                                   |
 | `1.18.34-upstream-426.stdout.jsonl`、`.stderr.txt`    | 本機假上游                     | 1      | 同上；stderr 是 1.18 的 logfmt，沒有狀態碼                            |
 | `1.18.34-upstream-410.stdout.jsonl`                   | 本機假上游                     | 1      | 單一 `error` 事件，`statusCode` 410                                   |
+| `1.18.34-upstream-404.stdout.jsonl`                   | 本機假上游                     | 1      | 單一 `error` 事件，`statusCode` 404                                   |
 | `1.18.34-model-not-found.stdout.jsonl`、`.stderr.txt` | 真實（不存在的模型名）         | 1      | `error` 事件沒有 `statusCode`；stderr 有 `ProviderModelNotFoundError` |
 | `1.18.34-ok.stdout.jsonl`                             | 真實免費層                     | 0      | 正常回合：`step_start`、`text`、`step_finish`                         |
 | `1.18.34-ok-mentions-426.stdout.jsonl`                | 真實免費層                     | 0      | 正常回合，回覆文字裡有 `426`、`error`、`"statusCode":426`、`429`      |

@@ -101,7 +101,12 @@ SCN-006 是實地觀測。反向自檢：呼叫失敗時，回覆會是錯誤訊
    - 相依：步驟 1。
    - 完成判準：以步驟 1 的 426 fixture，先取得「回合被記為成功、訊息是沒有任何輸出」的紅燈，再實作至綠燈；串流與非串流對同一份 fixture 的結果相同；內容含「426」「error」的正常回合 fixture 判為成功；`npm run build`、`npm run test`、`npm run lint` 都是 exit 0。
    - 步驟 1 追加（SCN-001、SCN-004）：exit 1 的 426 fixture（1.18 的行為）與 exit 0 的得到相同結果；限流樣式命中 1.18 的兩份 429 stderr fixture（先紅後綠），不命中 500 與 426 的 stderr fixture，也不因模型名裡的數字命中。
-3. 📝 **健康檢查與真實成功的判定**（SCN-003、SCN-004）
+3. ✅ **健康檢查與真實成功的判定**（SCN-003、SCN-004）
+   - 證據（2026-10-01）：紅燈 [evidence/step3-red.txt](./evidence/step3-red.txt)（被測提交 `51c7399`，11 個測試 7 個失敗；第 1 個就是事故本身：exit 0 的 426 被探針判為健康）。綠燈 [evidence/step3-green.txt](./evidence/step3-green.txt)（新測試加上既有的健康檢查與 429 測試共 69／69、`npm run test` 311／311 共 48 個檔、`build` 與 `lint` exit 0）。
+   - 單迴圈合併：`tests/model-health-upstream-error.test.ts` 以 fixture 驅動 `interpretProbeOutput()`，再經 `startModelHealthCheck()` 斷言推播文字與狀態檔；`defaultProbe()` 另以假的 `opencode` 執行檔確認它帶 `--format json`。探針判定、狀態機與告警文字在同一層就能觀察，沒有另一層整合責任。
+   - 紅燈時已是綠的 4 個測試是既有行為的保護網：「帶上游錯誤的 `opencode_done` 不豁免探測」在步驟 2 已實作；模型不存在、限流次數、正常回合三項是 SCN-004 與 SCN-005 的不退化斷言。
+   - 精煉：`findUpstreamError()` 從 `opencode.ts` 移到 `opencode-event-parser.ts`，健康檢查不必為了解析事件而依賴整個 agent 模組；移動後重跑的就是上面的綠燈。
+   - 沒有處理的既有行為：持續限流時 opencode 會重試到探針的 120 秒逾時，結果是 `unknown`（「無法確認」）而不是限流。兩個 opencode 版本都是如此，告警仍會發出，不在本 issue 範圍。
    - 產出：`model-health-check.ts` 的變更與測試。
    - 相依：步驟 2。
    - 完成判準：探針對 426 fixture 判為不健康，訊息含狀態碼與升級提示（先紅後綠）；帶上游錯誤旗標的 `opencode_done` 不被 `isRealSuccessEvent()` 採信；429 與 410 的既有測試維持綠燈；狀態碼改變時簽章不同。

@@ -184,3 +184,33 @@ export function parseEventLine(line: string): OpencodeEvent | null {
     return null;
   }
 }
+
+/**
+ * 掃出 stdout 裡的上游錯誤,連同它之前已經產出的文字。
+ *
+ * 容忍非 JSON 行與沒有文字的輸出:只有一個 error 事件的回合正是這種形狀。
+ * 非串流回合與模型健康檢查的探針共用。
+ */
+export function findUpstreamError(
+  stdout: string
+): { upstreamError: UpstreamError; text: string; sessionId?: string } | null {
+  let upstreamError: UpstreamError | undefined;
+  let sessionId: string | undefined;
+  let text = '';
+
+  for (const line of stdout.split(/\r?\n/)) {
+    const event = parseEventLine(line.trim());
+    if (!event) {
+      continue;
+    }
+    const interpreted = interpretEvent(event);
+    if (interpreted.sessionId) sessionId = interpreted.sessionId;
+    if (interpreted.text) text += interpreted.text;
+    if (interpreted.upstreamError) upstreamError = interpreted.upstreamError;
+  }
+
+  if (!upstreamError) {
+    return null;
+  }
+  return { upstreamError, text, ...(sessionId ? { sessionId } : {}) };
+}
