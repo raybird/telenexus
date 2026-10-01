@@ -1,0 +1,10 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+[Runner] INFO listening port=8787
+[Runner] INFO run_start req=9b06ed02-5a05-4dfe-a77d-b968392466fd task=chat stream=false lane=interactive
+[Opencode] INFO execute model=opencode/big-pickle
+[Opencode] INFO start cmd=opencode run -c --format json --model opencode/big-pickle --print-logs --log-level ERROR <prompt> cwd=/app/workspace
+[Opencode] INFO done outputLen=931
+[Opencode] INFO reply len=9
+[Runner] INFO run_done req=9b06ed02-5a05-4dfe-a77d-b968392466fd durationMs=4755 provider=opencode lane=interactive
+[Runner] INFO run_start req=401d6d91-632c-4601-afc2-c005ebd3c539 task=chat stream=true lane=interactive
+[Runner] INFO run_done req=401d6d91-632c-4601-afc2-c005ebd3c539 durationMs=9589 provider=opencode stream=true lane=interactive

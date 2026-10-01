@@ -1,0 +1,17 @@
+{
+    "ok": true,
+    "requestId": "ccf18bc6-f3e9-4596-8954-c23f93f45aea",
+    "durationMs": 1779,
+    "provider": "opencode",
+    "output": "⚠️ 上游拒絕了這次請求 (HTTP 426)：opencode 版本過舊，需要升級 opencode 才能繼續使用這個模型。\n上游訊息：Error from provider (Console): OpenCode 1.18.0 or newer is required to use the free tier",
+    "structured": {
+        "provider": "opencode",
+        "text": "⚠️ 上游拒絕了這次請求 (HTTP 426)：opencode 版本過舊，需要升級 opencode 才能繼續使用這個模型。\n上游訊息：Error from provider (Console): OpenCode 1.18.0 or newer is required to use the free tier",
+        "failure": {
+            "kind": "upstream-error",
+            "message": "Error from provider (Console): OpenCode 1.18.0 or newer is required to use the free tier",
+            "statusCode": 426
+        },
+        "sessionId": "ses_f09726f24ffe1tPHmKYEUBMbl5"
+    }
+}

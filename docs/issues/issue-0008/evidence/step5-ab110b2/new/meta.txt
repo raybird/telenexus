@@ -1,0 +1,4 @@
+image=telenexus-issue0008:ab110b2
+opencode_version=1.18.34
+health_http=200 after_seconds=1
+startup_probe_finished_after_seconds=7

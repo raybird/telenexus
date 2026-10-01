@@ -1,0 +1,18 @@
+event: start
+data: {"provider":"opencode"}
+
+event: status
+data: {"text":"開始處理請求..."}
+
+event: delta
+data: {"text":"PONG-0008"}
+
+event: usage
+data: {"stats":{"tokens":{"total":7789,"input":5841,"output":7,"reasoning":0,"cache":{"write":0,"read":1941}},"cost":0,"reason":"stop"}}
+
+event: done
+data: {"text":"PONG-0008"}
+
+event: result
+data: {"ok":true,"requestId":"401d6d91-632c-4601-afc2-c005ebd3c539","durationMs":9589,"provider":"opencode","output":"PONG-0008","structured":{"provider":"opencode","text":"PONG-0008","sessionId":"ses_f0972c9e0ffeNDXnci1IK5uevs","stats":{"tokens":{"total":7789,"input":5841,"output":7,"reasoning":0,"cache":{"write":0,"read":1941}},"cost":0,"reason":"stop"}}}
+

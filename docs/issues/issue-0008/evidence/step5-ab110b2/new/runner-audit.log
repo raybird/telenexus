@@ -1,0 +1,2 @@
+{"requestId":"9b06ed02-5a05-4dfe-a77d-b968392466fd","timestamp":1790842850221,"durationMs":4755,"ok":true,"task":"chat","provider":"opencode","model":"(default)","passthrough":false,"lane":"interactive"}
+{"requestId":"401d6d91-632c-4601-afc2-c005ebd3c539","timestamp":1790842855022,"durationMs":9589,"ok":true,"task":"chat","provider":"opencode","model":"(default)","passthrough":false,"streaming":true,"lane":"interactive"}

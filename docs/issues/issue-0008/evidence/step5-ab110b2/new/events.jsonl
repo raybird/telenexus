@@ -1,0 +1,6 @@
+{"ts":1790842850222,"type":"runner_request_start","requestId":"9b06ed02-5a05-4dfe-a77d-b968392466fd","task":"chat","stream":false,"lane":"interactive"}
+{"ts":1790842850222,"type":"opencode_start","model":"opencode/big-pickle"}
+{"ts":1790842854975,"type":"opencode_done","outputLen":931,"upstreamInvalid":false,"upstreamError":false}
+{"ts":1790842854977,"type":"runner_request_done","requestId":"9b06ed02-5a05-4dfe-a77d-b968392466fd","durationMs":4755,"provider":"opencode","stream":false,"lane":"interactive"}
+{"ts":1790842855022,"type":"runner_request_start","requestId":"401d6d91-632c-4601-afc2-c005ebd3c539","task":"chat","stream":true,"lane":"interactive"}
+{"ts":1790842864611,"type":"runner_request_done","requestId":"401d6d91-632c-4601-afc2-c005ebd3c539","durationMs":9589,"provider":"opencode","stream":true,"lane":"interactive"}

@@ -1,0 +1,2 @@
+{"requestId":"ccf18bc6-f3e9-4596-8954-c23f93f45aea","timestamp":1790842869625,"durationMs":1779,"ok":false,"failureKind":"upstream-error","task":"chat","provider":"opencode","model":"(default)","passthrough":false,"lane":"interactive"}
+{"requestId":"459f5af2-309f-49ef-b89f-f5d552baf661","timestamp":1790842871457,"durationMs":1898,"ok":false,"failureKind":"upstream-error","task":"chat","provider":"opencode","model":"(default)","passthrough":false,"streaming":true,"lane":"interactive"}
