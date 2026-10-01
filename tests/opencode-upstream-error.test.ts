@@ -337,6 +337,127 @@ test('串流回呼有延遲時,正常回合不會被當成空輸出', async () =
   );
 });
 
+// 第二輪獨立審查(review-8bffb89.md 的 S1):close 等處理鏈時,逾時保險絲與使用者中止仍然要能
+// 結束回合,不能取決於回呼會不會返回。
+const never = new Promise<void>(() => {});
+const ABORTED_TEXT = '⏹️ 任務已被使用者中止。';
+
+async function streamWithCallback(
+  run: FakeRun,
+  onEvent: (event: AgentEvent) => Promise<void> | void,
+  extra: { abortAfterMs?: number; taskTimeoutMs?: number } = {}
+): Promise<{ result: AgentStructuredResult; elapsedMs: number }> {
+  setFakeRun(run);
+  const previousTimeout = process.env.OPENCODE_TASK_TIMEOUT_MS;
+  if (extra.taskTimeoutMs !== undefined) {
+    process.env.OPENCODE_TASK_TIMEOUT_MS = String(extra.taskTimeoutMs);
+  }
+  const controller = new AbortController();
+  const abortTimer =
+    extra.abortAfterMs === undefined
+      ? undefined
+      : setTimeout(() => controller.abort(), extra.abortAfterMs);
+  // 回合不結束時,卡住的 promise 不會讓 event loop 保持存活,node:test 會把後面的測試一併取消。
+  // 用一個計時器把「沒有結束」變成這個測試自己的失敗。
+  let guardTimer: NodeJS.Timeout | undefined;
+  const guard = new Promise<never>((_resolve, reject) => {
+    guardTimer = setTimeout(() => reject(new Error('回合在 6 秒內沒有結束')), 6000);
+  });
+  const startedAt = Date.now();
+  try {
+    // 逾時在建構 agent 時讀取,所以要先設好環境變數。
+    const result = await Promise.race([
+      new OpencodeAgent().streamChat(
+        'hi',
+        { forceNewSession: true, signal: controller.signal },
+        onEvent
+      ),
+      guard
+    ]);
+    return { result, elapsedMs: Date.now() - startedAt };
+  } finally {
+    clearTimeout(guardTimer);
+    clearTimeout(abortTimer);
+    if (previousTimeout === undefined) delete process.env.OPENCODE_TASK_TIMEOUT_MS;
+    else process.env.OPENCODE_TASK_TIMEOUT_MS = previousTimeout;
+  }
+}
+
+const hangOnDelta = (event: AgentEvent): Promise<void> | void =>
+  event.type === 'delta' ? never : undefined;
+
+test('回呼不返回、行程卡住時,逾時仍會結束回合', async () => {
+  const { result, elapsedMs } = await streamWithCallback(
+    { stdout: '1.18.34-ok.stdout.jsonl', sleepSec: 60 },
+    hangOnDelta,
+    { taskTimeoutMs: 1500 }
+  );
+  assert.equal(result.failure?.kind, 'timeout');
+  assert.ok(elapsedMs < 5000, `實際耗時 ${elapsedMs}ms`);
+});
+
+test('回呼不返回、行程已正常結束時,逾時仍會結束回合', async () => {
+  const { result, elapsedMs } = await streamWithCallback(
+    { stdout: '1.18.34-ok.stdout.jsonl', exit: 0 },
+    hangOnDelta,
+    { taskTimeoutMs: 1500 }
+  );
+  // 行程早就結束了,但回合收不了尾:這是「沒有完成」,記為逾時失敗而不是成功。
+  assert.equal(result.failure?.kind, 'timeout');
+  assert.ok(elapsedMs < 5000, `實際耗時 ${elapsedMs}ms`);
+});
+
+for (const [label, run] of [
+  ['行程卡住', { stdout: '1.18.34-ok.stdout.jsonl', sleepSec: 60 }],
+  ['行程已正常結束', { stdout: '1.18.34-ok.stdout.jsonl', exit: 0 }]
+] as const) {
+  test(`回呼不返回、${label}時,使用者中止仍會結束回合`, async () => {
+    const { result, elapsedMs } = await streamWithCallback(run, hangOnDelta, {
+      abortAfterMs: 300
+    });
+    assert.equal(result.text, ABORTED_TEXT);
+    assert.equal(result.failure, undefined, '使用者中止不算系統故障');
+    assert.ok(elapsedMs < 3000, `實際耗時 ${elapsedMs}ms`);
+  });
+}
+
+test('使用者中止不必等排隊中的回呼跑完', async () => {
+  // 20 行 text 一次送出,每個回呼 100ms:全部跑完要 2 秒以上。
+  const lines = readFixture('1.18.34-ok.stdout.jsonl').trim().split('\n');
+  const many = path.join(tempDir, 'twenty-text-lines.jsonl');
+  fs.writeFileSync(many, [lines[0], ...Array(20).fill(lines[1])].join('\n') + '\n');
+
+  const { result, elapsedMs } = await streamWithCallback(
+    { stdout: many, sleepSec: 60 },
+    async (event) => {
+      if (event.type === 'delta') await sleep(100);
+    },
+    { abortAfterMs: 150 }
+  );
+  assert.equal(result.text, ABORTED_TEXT);
+  assert.ok(elapsedMs < 1000, `中止後 ${elapsedMs - 150}ms 才返回`);
+});
+
+test('回呼在收尾期間丟例外時回合失敗,不會被記為成功', async () => {
+  const okLines = readFixture('1.18.34-ok.stdout.jsonl').trim().split('\n').slice(0, 2);
+  const composed = path.join(tempDir, 'throwing-callback.jsonl');
+  fs.writeFileSync(
+    composed,
+    [...okLines, readFixture('1.18.34-upstream-426.stdout.jsonl').trim()].join('\n') + '\n'
+  );
+
+  // 行程立刻結束,close 在回呼還在等的時候就觸發;回呼接著丟出例外。
+  await assert.rejects(
+    streamWithCallback({ stdout: composed, exit: 1 }, async (event) => {
+      if (event.type === 'delta') {
+        await sleep(50);
+        throw new Error('callback boom');
+      }
+    }),
+    /callback boom/
+  );
+});
+
 test('opencode 自己失敗(exit 1 且沒有 error 事件)仍然丟出例外,不留下成功事件', async () => {
   setFakeRun({ exit: 1 });
   const doneEvents: Record<string, unknown>[] = [];
@@ -394,7 +515,9 @@ test('SCN-004 限流樣式認得限流字樣的常見變形', () => {
     'Rate limit exceeded',
     'You have been rate-limited',
     'ratelimit reached',
-    'Rate limits apply'
+    'Rate limits apply',
+    'RateLimitError: slow down',
+    'rate_limit_exceeded'
   ]) {
     assert.ok(
       UPSTREAM_RATE_LIMIT_PATTERN.test(template.replace('Too Many Requests', wording)),
@@ -423,14 +546,15 @@ test('SCN-004 限流樣式不被其他上游錯誤、標題代理或模型名誤
   assert.equal(UPSTREAM_RATE_LIMIT_PATTERN.test(titleAgentOnly), false);
 
   // 「rate limiter」是元件名稱,不是被限流。
-  assert.equal(
-    UPSTREAM_RATE_LIMIT_PATTERN.test(
-      lines
-        .find((line) => line.includes('small=false'))!
-        .replace('Too Many Requests', 'internal error in rate limiter service')
-    ),
-    false
-  );
+  for (const wording of ['internal error in rate limiter service', 'all rate limiters are down']) {
+    assert.equal(
+      UPSTREAM_RATE_LIMIT_PATTERN.test(
+        lines.find((line) => line.includes('small=false'))!.replace('Too Many Requests', wording)
+      ),
+      false,
+      wording
+    );
+  }
 
   // 模型名是 n429,訊息換成與限流無關的內容後就不該命中。
   const mainAgentLine = lines.find((line) => line.includes('small=false'));

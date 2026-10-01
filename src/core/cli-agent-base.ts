@@ -199,9 +199,24 @@ export abstract class CliAgentBase implements AIAgent {
     let rateLimited = false;
     let externallyAborted = false;
 
+    // close 會等尚未處理完的 stdout(見下方 lineProcessing),但逾時與使用者中止必須不論回呼
+    // 會不會返回都能結束回合 —— 兩者都會放行那個等待。
+    let closed = false;
+    let releaseDrain = (): void => {};
+    const drainReleased = new Promise<void>((resolve) => {
+      releaseDrain = resolve;
+    });
+    // 行程結束之後不再送訊號:它的 PID 可能已經被別的行程拿去用。
+    const stopChild = (): void => {
+      if (!closed) {
+        terminateProcessTree(child);
+      }
+      releaseDrain();
+    };
+
     const onAbort = () => {
       externallyAborted = true;
-      terminateProcessTree(child);
+      stopChild();
     };
     if (options?.signal) {
       if (options.signal.aborted) {
@@ -217,7 +232,7 @@ export abstract class CliAgentBase implements AIAgent {
     const heartbeatMs = getStreamHeartbeatMs();
     const timer = setTimeout(() => {
       timedOut = true;
-      terminateProcessTree(child);
+      stopChild();
     }, streamTimeoutMs);
 
     const emitStart = async (): Promise<void> => {
@@ -266,6 +281,14 @@ export abstract class CliAgentBase implements AIAgent {
     let lineProcessing: Promise<void> = Promise.resolve();
 
     return new Promise<AgentStructuredResult>((resolve, reject) => {
+      const finishWithTimeout = async (detail: string): Promise<void> => {
+        const timeoutResult = buildTextOnlyStructuredResult(provider, this.config.timeoutMessage, {
+          failure: { kind: 'timeout', message: `streamChat ${detail}` }
+        });
+        await onEvent({ type: 'error', message: timeoutResult.text });
+        resolve(timeoutResult);
+      };
+
       child.stdout?.on('data', (chunk) => {
         stdoutBuffer += chunk.toString();
         const lines = stdoutBuffer.split(/\r?\n/);
@@ -351,13 +374,22 @@ export abstract class CliAgentBase implements AIAgent {
           if (settled) {
             return;
           }
+          closed = true;
+          clearInterval(heartbeatInterval);
+
+          // 中止、逾時、限流中止回的都是固定訊息,結果不取決於還沒處理的行,不必等。
+          // 其餘情況等處理鏈跑完;逾時計時器與中止監聽在等待期間仍然有效,任一個觸發就放行。
+          // 這條鏈自己的 catch 已經接住例外,這裡的 await 不會丟出。
+          if (!externallyAborted && !timedOut && !rateLimited) {
+            await Promise.race([lineProcessing, drainReleased]);
+          }
+          // 等待期間回呼丟了例外:處理鏈的 catch 已經讓這個回合失敗。
+          if (settled) {
+            return;
+          }
           settled = true;
           clearTimeout(timer);
-          clearInterval(heartbeatInterval);
           options?.signal?.removeEventListener('abort', onAbort);
-
-          // 這條鏈自己的 catch 已經吞掉例外,這裡的 await 不會丟出。
-          await lineProcessing;
 
           if (stdoutBuffer.trim()) {
             const trailing = this.parseStreamLine(stdoutBuffer.trim());
@@ -417,13 +449,7 @@ export abstract class CliAgentBase implements AIAgent {
               return;
             }
             if (timedOut || signal === 'SIGTERM') {
-              const timeoutResult = buildTextOnlyStructuredResult(
-                provider,
-                this.config.timeoutMessage,
-                { failure: { kind: 'timeout', message: `streamChat ${signal || 'timeout'}` } }
-              );
-              await onEvent({ type: 'error', message: timeoutResult.text });
-              resolve(timeoutResult);
+              await finishWithTimeout(signal || 'timeout');
               return;
             }
 
@@ -455,6 +481,12 @@ export abstract class CliAgentBase implements AIAgent {
               fields.signal = signal;
             }
             reject(new ProcessError(`Error calling ${provider}: exit=${code || 0}`, fields));
+            return;
+          }
+
+          // 行程自己結束了(exit 0),但逾時在收尾的等待期間觸發:回合沒有完成,不當成成功。
+          if (timedOut) {
+            await finishWithTimeout('timeout');
             return;
           }
 

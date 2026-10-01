@@ -1,0 +1,276 @@
+# 第二輪審查 S1 的紅燈:2026-10-01T08:35:17Z,被測提交 486ca3c(src/ 尚未修改,測試檔新增 6 個測試)
+# 命令:npx tsx --test tests/opencode-upstream-error.test.ts
+TAP version 13
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=<tmp>/workspace
+# Subtest: SCN-001 interpretEvent 從 error 事件取出狀態碼、名稱與訊息
+ok 1 - SCN-001 interpretEvent 從 error 事件取出狀態碼、名稱與訊息
+  ---
+  duration_ms: 1.410931
+  type: 'test'
+  ...
+# Subtest: SCN-001 沒有 statusCode 的 error 事件一樣被辨識
+ok 2 - SCN-001 沒有 statusCode 的 error 事件一樣被辨識
+  ---
+  duration_ms: 0.227682
+  type: 'test'
+  ...
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# [Opencode] INFO done outputLen=736
+# Subtest: SCN-001 非串流:上游 426 的回合被判為失敗(1.15.10 exit 0)
+ok 3 - SCN-001 非串流:上游 426 的回合被判為失敗(1.15.10 exit 0)
+  ---
+  duration_ms: 9.131694
+  type: 'test'
+  ...
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=<tmp>/workspace
+# Subtest: SCN-001 串流:上游 426 的回合被判為失敗(1.15.10 exit 0)
+ok 4 - SCN-001 串流:上游 426 的回合被判為失敗(1.15.10 exit 0)
+  ---
+  duration_ms: 3.822641
+  type: 'test'
+  ...
+# [Opencode] INFO done outputLen=736
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=<tmp>/workspace
+# Subtest: SCN-002 串流與非串流對同一份輸出的判定一致(1.15.10 exit 0)
+ok 5 - SCN-002 串流與非串流對同一份輸出的判定一致(1.15.10 exit 0)
+  ---
+  duration_ms: 6.133609
+  type: 'test'
+  ...
+# [Opencode] ERROR execution_failed err=Process exited with code 1 code=1 stdout={"type":"error","timestamp":1790838791067,"sessionID":"ses_f09b0a8b5ffee5DdG2kNnL0Tpv","error":{"name":"APIError","data":{"message":"mock: client upgrade required","statusCode":426,"isRetryable":false,"responseHeaders":{"connection":"keep-alive","content-type":"application/json","date":"Thu, 01 Oct 2026 07:13:11 GMT","keep-alive":"timeout=5","transfer-encoding":"chunked"},"responseBody":"{\\"type\\":\\"error\\",\\"error\\":{\\"type\\":\\"UpgradeRequired\\",\\"message\\":\\"mock: client upgrade required\\"}}", stderr=timestamp=2026-10-01T07:13:10.602Z level=ERROR run=c8162f1b message="stream error" providerID=mock modelID=s426 session.id=ses_f09b0a8b5ffee5DdG2kNnL0Tpv small=true agent=title mode=primary error.error="AI_APICallError: mock: client upgrade required" timestamp=2026-10-01T07:13:11.053Z level=ERROR run=c8162f1b message="stream error" providerID=mock modelID=s426 session.id=ses_f09b0a8b5ffee5DdG2kNnL0Tpv small=false agent=build mode=primary error.error="AI_APICallError: mock: client upgrade require
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# Subtest: SCN-001 非串流:上游 426 的回合被判為失敗(1.18.34 exit 1)
+ok 6 - SCN-001 非串流:上游 426 的回合被判為失敗(1.18.34 exit 1)
+  ---
+  duration_ms: 3.566671
+  type: 'test'
+  ...
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=<tmp>/workspace
+# Subtest: SCN-001 串流:上游 426 的回合被判為失敗(1.18.34 exit 1)
+ok 7 - SCN-001 串流:上游 426 的回合被判為失敗(1.18.34 exit 1)
+  ---
+  duration_ms: 3.08419
+  type: 'test'
+  ...
+# [Opencode] ERROR execution_failed err=Process exited with code 1 code=1 stdout={"type":"error","timestamp":1790838791067,"sessionID":"ses_f09b0a8b5ffee5DdG2kNnL0Tpv","error":{"name":"APIError","data":{"message":"mock: client upgrade required","statusCode":426,"isRetryable":false,"responseHeaders":{"connection":"keep-alive","content-type":"application/json","date":"Thu, 01 Oct 2026 07:13:11 GMT","keep-alive":"timeout=5","transfer-encoding":"chunked"},"responseBody":"{\\"type\\":\\"error\\",\\"error\\":{\\"type\\":\\"UpgradeRequired\\",\\"message\\":\\"mock: client upgrade required\\"}}", stderr=timestamp=2026-10-01T07:13:10.602Z level=ERROR run=c8162f1b message="stream error" providerID=mock modelID=s426 session.id=ses_f09b0a8b5ffee5DdG2kNnL0Tpv small=true agent=title mode=primary error.error="AI_APICallError: mock: client upgrade required" timestamp=2026-10-01T07:13:11.053Z level=ERROR run=c8162f1b message="stream error" providerID=mock modelID=s426 session.id=ses_f09b0a8b5ffee5DdG2kNnL0Tpv small=false agent=build mode=primary error.error="AI_APICallError: mock: client upgrade require
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=<tmp>/workspace
+# Subtest: SCN-002 串流與非串流對同一份輸出的判定一致(1.18.34 exit 1)
+ok 8 - SCN-002 串流與非串流對同一份輸出的判定一致(1.18.34 exit 1)
+  ---
+  duration_ms: 8.489495
+  type: 'test'
+  ...
+# [Opencode] ERROR execution_failed err=Process exited with code 1 code=1 stdout={"type":"error","timestamp":1790839107861,"sessionID":"ses_f09abd40effepan3qyD82ad9zP","error":{"name":"APIError","data":{"message":"Gone: {\\"title\\":\\"Gone\\",\\"status\\":410,\\"detail\\":\\"mock: model has reached its end of life\\"}","statusCode":410,"isRetryable":false,"responseHeaders":{"connection":"keep-alive","content-type":"application/json","date":"Thu, 01 Oct 2026 07:18:27 GMT","keep-alive":"timeout=5","transfer-encoding":"chunked"},"responseBody":"{\\"title\\":\\"Gone\\",\\"status\\":410,\\"detai
+# [CliAgent] WARN upstream_error provider=opencode statusCode=410 name=APIError
+# [CliAgent] WARN upstream_error provider=opencode statusCode=410 name=APIError
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=<tmp>/workspace
+# Subtest: SCN-004 410 的 error 事件帶出狀態碼(1.18 的 stderr 已不含 410)
+ok 9 - SCN-004 410 的 error 事件帶出狀態碼(1.18 的 stderr 已不含 410)
+  ---
+  duration_ms: 6.377142
+  type: 'test'
+  ...
+# [Opencode] ERROR execution_failed err=Process exited with code 1 code=1 stdout={"type":"step_start","timestamp":1790838770287,"sessionID":"ses_f09b0ff6cffevnDpBWcg79Sse9","part":{"id":"prt_0f64f0a67001WYRscg3chquA2u","messageID":"msg_0f64f02bb001ONhxges2chmFrZ","sessionID":"ses_f09b0ff6cffevnDpBWcg79Sse9","type":"step-start"}} {"type":"text","timestamp":1790838770319,"sessionID":"ses_f09b0ff6cffevnDpBWcg79Sse9","part":{"id":"prt_0f64f0a6b001SuupacXHkABl59","messageID":"msg_0f64f02bb001ONhxges2chmFrZ","sessionID":"ses_f09b0ff6cffevnDpBWcg79Sse9","type":"text","text":"OK","t
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# Subtest: SCN-001 已經產出的文字保留在上游錯誤說明之前
+ok 10 - SCN-001 已經產出的文字保留在上游錯誤說明之前
+  ---
+  duration_ms: 9.016038
+  type: 'test'
+  ...
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# Subtest: SCN-001 串流回呼有延遲時,同一批到達的 error 事件不會被漏掉(text 之後,exit 0)
+ok 11 - SCN-001 串流回呼有延遲時,同一批到達的 error 事件不會被漏掉(text 之後,exit 0)
+  ---
+  duration_ms: 203.83793
+  type: 'test'
+  ...
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# Subtest: SCN-001 串流回呼有延遲時,同一批到達的 error 事件不會被漏掉(text 之後,exit 1)
+ok 12 - SCN-001 串流回呼有延遲時,同一批到達的 error 事件不會被漏掉(text 之後,exit 1)
+  ---
+  duration_ms: 204.283317
+  type: 'test'
+  ...
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# Subtest: SCN-001 串流回呼有延遲時,工具呼叫之後同批到達的 error 事件不會被漏掉
+ok 13 - SCN-001 串流回呼有延遲時,工具呼叫之後同批到達的 error 事件不會被漏掉
+  ---
+  duration_ms: 508.163352
+  type: 'test'
+  ...
+# Subtest: 串流回呼有延遲時,正常回合不會被當成空輸出
+ok 14 - 串流回呼有延遲時,正常回合不會被當成空輸出
+  ---
+  duration_ms: 253.522718
+  type: 'test'
+  ...
+# Subtest: 回呼不返回、行程卡住時,逾時仍會結束回合
+not ok 15 - 回呼不返回、行程卡住時,逾時仍會結束回合
+  ---
+  duration_ms: 6000.910132
+  type: 'test'
+  location: '<repo>/tests/opencode-upstream-error.test.ts:6:10386'
+  failureType: 'testCodeFailure'
+  error: '回合在 6 秒內沒有結束'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Timeout.<anonymous> (<repo>/tests/opencode-upstream-error.test.ts:364:42)
+    listOnTimeout (node:internal/timers:588:17)
+    process.processTimers (node:internal/timers:523:7)
+  ...
+# Subtest: 回呼不返回、行程已正常結束時,逾時仍會結束回合
+not ok 16 - 回呼不返回、行程已正常結束時,逾時仍會結束回合
+  ---
+  duration_ms: 6003.964581
+  type: 'test'
+  location: '<repo>/tests/opencode-upstream-error.test.ts:6:10763'
+  failureType: 'testCodeFailure'
+  error: '回合在 6 秒內沒有結束'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Timeout.<anonymous> (<repo>/tests/opencode-upstream-error.test.ts:364:42)
+    listOnTimeout (node:internal/timers:588:17)
+    process.processTimers (node:internal/timers:523:7)
+  ...
+# Subtest: 回呼不返回、行程卡住時,使用者中止仍會結束回合
+not ok 17 - 回呼不返回、行程卡住時,使用者中止仍會結束回合
+  ---
+  duration_ms: 6000.686499
+  type: 'test'
+  location: '<repo>/tests/opencode-upstream-error.test.ts:6:11343'
+  failureType: 'testCodeFailure'
+  error: '回合在 6 秒內沒有結束'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Timeout.<anonymous> (<repo>/tests/opencode-upstream-error.test.ts:364:42)
+    listOnTimeout (node:internal/timers:588:17)
+    process.processTimers (node:internal/timers:523:7)
+  ...
+# Subtest: 回呼不返回、行程已正常結束時,使用者中止仍會結束回合
+not ok 18 - 回呼不返回、行程已正常結束時,使用者中止仍會結束回合
+  ---
+  duration_ms: 6004.907598
+  type: 'test'
+  location: '<repo>/tests/opencode-upstream-error.test.ts:6:11343'
+  failureType: 'testCodeFailure'
+  error: '回合在 6 秒內沒有結束'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Timeout.<anonymous> (<repo>/tests/opencode-upstream-error.test.ts:364:42)
+    listOnTimeout (node:internal/timers:588:17)
+    process.processTimers (node:internal/timers:523:7)
+  ...
+# Subtest: 使用者中止不必等排隊中的回呼跑完
+not ok 19 - 使用者中止不必等排隊中的回呼跑完
+  ---
+  duration_ms: 2008.420608
+  type: 'test'
+  location: '<repo>/tests/opencode-upstream-error.test.ts:6:11776'
+  failureType: 'testCodeFailure'
+  error: '中止後 1857ms 才返回'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/opencode-upstream-error.test.ts:438:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=<tmp>/workspace
+# Subtest: 回呼在收尾期間丟例外時回合失敗,不會被記為成功
+not ok 20 - 回呼在收尾期間丟例外時回合失敗,不會被記為成功
+  ---
+  duration_ms: 55.22462
+  type: 'test'
+  location: '<repo>/tests/opencode-upstream-error.test.ts:6:12370'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (<repo>/tests/opencode-upstream-error.test.ts:450:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# [Opencode] ERROR execution_failed err=Process exited with code 1 code=1
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=<tmp>/workspace
+# Subtest: opencode 自己失敗(exit 1 且沒有 error 事件)仍然丟出例外,不留下成功事件
+ok 21 - opencode 自己失敗(exit 1 且沒有 error 事件)仍然丟出例外,不留下成功事件
+  ---
+  duration_ms: 3.307598
+  type: 'test'
+  ...
+# [Opencode] INFO done outputLen=1024
+# [Opencode] INFO reply len=101
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=<tmp>/workspace
+# Subtest: SCN-005 回覆內容提到 426、error、429 的正常回合不受影響
+ok 22 - SCN-005 回覆內容提到 426、error、429 的正常回合不受影響
+  ---
+  duration_ms: 6.926431
+  type: 'test'
+  ...
+# Subtest: SCN-004 限流樣式認得 opencode 1.18 的 stderr
+ok 23 - SCN-004 限流樣式認得 opencode 1.18 的 stderr
+  ---
+  duration_ms: 0.206232
+  type: 'test'
+  ...
+# Subtest: SCN-004 限流樣式認得限流字樣的常見變形
+ok 24 - SCN-004 限流樣式認得限流字樣的常見變形
+  ---
+  duration_ms: 0.148638
+  type: 'test'
+  ...
+# Subtest: SCN-004 限流樣式不被其他上游錯誤、標題代理或模型名誤觸
+ok 25 - SCN-004 限流樣式不被其他上游錯誤、標題代理或模型名誤觸
+  ---
+  duration_ms: 0.179846
+  type: 'test'
+  ...
+# [Opencode] ERROR execution_failed err=Opencode upstream rate-limited (HTTP 429); aborted before internal backoff retries. code=ERATELIMIT stderr=timestamp=2026-10-01T07:13:31.602Z level=ERROR run=9aad31bd message="stream error" providerID=mock modelID=s429 session.id=ses_f09b057c2ffe1puWr4UY8XYRlz small=false agent=build mode=primary error.error="AI_APICallError: mock: rate limit exceeded" timestamp=2026-10-01T07:13:33.728Z level=ERROR run=9aad31bd message="stream error" providerID=mock modelID=s429 session.id=ses_f09b057c2ffe1puWr4UY8XYRlz small=false agent=build mode=primary error.error="AI_APICallError: mock: rate limit exceeded" time
+# [Opencode] WARN rate_limit
+# Subtest: SCN-004 non-stream:1.18 的 429 仍快速中止並判為限流
+ok 26 - SCN-004 non-stream:1.18 的 429 仍快速中止並判為限流
+  ---
+  duration_ms: 3.529172
+  type: 'test'
+  ...
+# [opencode] streamChat fail-fast on upstream 429.
+# Subtest: SCN-004 stream:1.18 的 429 仍快速中止並判為限流
+ok 27 - SCN-004 stream:1.18 的 429 仍快速中止並判為限流
+  ---
+  duration_ms: 4.169856
+  type: 'test'
+  ...
+1..27
+# tests 27
+# suites 0
+# pass 21
+# fail 6
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 27544.510505
+# exit=1

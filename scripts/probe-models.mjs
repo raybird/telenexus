@@ -207,7 +207,7 @@ function extractUpstreamError(stdout) {
  * logfmt：stderr 不再有狀態碼，只能認主代理 stream error 行裡的上游訊息；理由見那邊的註解。
  */
 const RATE_LIMIT_PATTERN =
-  /"status(?:Code)?"\s*:\s*429\b|\bstatus(?:Code)?[=\s]+429\b|RESOURCE_EXHAUSTED|message="stream error"[^\n]*\bsmall=false\b[^\n]*\berror\.error="AI_APICallError: [^"\n]*(?:Too Many Requests|rate[ -]?limit(?:ed|s|ing)?\b|quota|\b429\b)/i;
+  /"status(?:Code)?"\s*:\s*429\b|\bstatus(?:Code)?[=\s]+429\b|RESOURCE_EXHAUSTED|message="stream error"[^\n]*\bsmall=false\b[^\n]*\berror\.error="AI_APICallError: [^"\n]*(?:Too Many Requests|rate[ _-]?limit(?!ers?\b)|quota|\b429\b)/i;
 
 /**
  * 狀態碼到判定的對應,與 src/core/rate-limit.ts 的 classifyUpstreamStatus() 一致。

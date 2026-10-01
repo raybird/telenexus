@@ -2,12 +2,13 @@
 # 用法: verify.sh <標籤> <映像> <工作目錄> <輸出目錄>
 # 啟動隔離的 agent-runner,等啟動時的健康探針結束後,各打一次 /run 與 /run/stream,
 # 把原始回應與 runner 寫出的狀態檔收進輸出目錄,最後移除容器。
+# (執行當時 step5-run-runner.sh 的檔名是 run-runner.sh;提交後改成現在的檔名,內容相同。)
 set -uo pipefail
 label="$1"; image="$2"; work="$3"; out="$4"
 here="$(cd "$(dirname "$0")" && pwd)"
 name="tn0008-$label"
 mkdir -p "$out"; rm -rf "$work"
-"$here/run-runner.sh" "$name" "$image" "$work" >/dev/null
+"$here/step5-run-runner.sh" "$name" "$image" "$work" >/dev/null
 post() { docker exec "$name" sh -c "curl -s -m 170 -X POST http://localhost:8787$1 -H 'Content-Type: application/json' -H \"x-runner-token: \$RUNNER_SHARED_SECRET\" -d '{\"task\":\"chat\",\"input\":\"Reply with exactly: PONG-0008\"}'"; }
 {
   echo "image=$image"

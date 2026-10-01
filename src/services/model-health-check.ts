@@ -107,7 +107,9 @@ const VOLATILE_LOG_FIELDS =
 /** 失敗簽章：類別 + 狀態碼(有的話) + 訊息前段。用來區分「同一個故障」與「新的故障」。 */
 export function failureSignature(outcome: HealthCheckOutcome): string {
   if (outcome.ok) return 'ok';
-  const prefix = outcome.message.replace(VOLATILE_LOG_FIELDS, '').slice(0, SIGNATURE_PREFIX_LENGTH);
+  // 限流的訊息含這次探測被擋了幾次,次數每次都可能不同;「還在被限流」是同一個故障。
+  const basis = outcome.category === 'rate-limited' ? '' : outcome.message;
+  const prefix = basis.replace(VOLATILE_LOG_FIELDS, '').slice(0, SIGNATURE_PREFIX_LENGTH);
   let hash = 0;
   for (let i = 0; i < prefix.length; i += 1) {
     hash = (hash * 31 + prefix.charCodeAt(i)) | 0;

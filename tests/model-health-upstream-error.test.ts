@@ -221,6 +221,19 @@ test('同一個故障在不同時間探測,簽章相同(不因 log 的時間戳�
   );
 });
 
+test('持續被限流時,命中次數不同仍是同一個簽章', () => {
+  const stdout = readFixture('1.18.34-ok.stdout.jsonl');
+  const stderr = readFixture('1.18.34-upstream-429-retry.stderr.txt');
+  const mainAgentLines = stderr.split('\n').filter((line) => line.includes('small=false'));
+  const fiveHits = interpretProbeOutput(0, stderr, stdout);
+  const threeHits = interpretProbeOutput(0, mainAgentLines.slice(0, 3).join('\n'), stdout);
+
+  assertFailing(fiveHits);
+  assertFailing(threeHits);
+  assert.notEqual(fiveHits.message, threeHits.message, '兩次探測的命中次數應該不同');
+  assert.equal(failureSignature(threeHits), failureSignature(fiveHits));
+});
+
 test('SCN-004 探測期間被限流多次仍判為限流(1.18 的 stderr)', () => {
   // 重試後最終成功的情況:exit 0,stdout 是正常回合,stderr 留下重試期間的限流紀錄。
   const outcome = interpretProbeOutput(

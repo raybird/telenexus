@@ -19,7 +19,8 @@
  *   - `small=false`(主代理)。標題代理用另一顆小模型,它被限流不代表主模型不能用。
  *   - 訊息含限流字樣。`Too Many Requests` 是以真實 nvidia 429 的 body 重現的(body 沒有訊息時
  *     opencode 退回 HTTP 狀態文字);`Rate limit exceeded` 是免費層 2026-08-16 事故紀錄的措辭;
- *     `quota` 與 `429` 是其他常見寫法,沒有實際樣本。
+ *     `quota` 與 `429` 是其他常見寫法,沒有實際樣本。`rate limit` 也認 `RateLimitError`、
+ *     `rate_limit_exceeded` 這類寫法,但排除 `rate limiter`(那是元件名稱,不是被限流)。
  * 上游換成清單以外的措辭時這個分支不會命中,回合會退避到逾時後記為逾時失敗。
  * 樣本與比對過程見 docs/issues/issue-0008/evidence/step1-compat-probe.md。
  *
@@ -27,7 +28,7 @@
  * 沒有建置的正式映像裡直接執行,無法 import 這裡的 TypeScript —— 改動兩邊要同步。
  */
 export const UPSTREAM_RATE_LIMIT_PATTERN =
-  /"status(?:Code)?"\s*:\s*429\b|\bstatus(?:Code)?[=\s]+429\b|RESOURCE_EXHAUSTED|message="stream error"[^\n]*\bsmall=false\b[^\n]*\berror\.error="AI_APICallError: [^"\n]*(?:Too Many Requests|rate[ -]?limit(?:ed|s|ing)?\b|quota|\b429\b)/i;
+  /"status(?:Code)?"\s*:\s*429\b|\bstatus(?:Code)?[=\s]+429\b|RESOURCE_EXHAUSTED|message="stream error"[^\n]*\bsmall=false\b[^\n]*\berror\.error="AI_APICallError: [^"\n]*(?:Too Many Requests|rate[ _-]?limit(?!ers?\b)|quota|\b429\b)/i;
 
 /** 同一段輸出裡出現幾次限流。次數本身就是訊號:健康的模型答一句話不需要重試。 */
 export function countUpstreamRateLimitHits(output: string): number {
