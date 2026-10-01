@@ -112,10 +112,16 @@ SCN-001 與 SCN-002 沒有自動化測試承擔，屬實地觀測。失敗時的
      - dev 映像：`docker build --target dev -t telenexus-issue7:dev .` 為 exit 0。[step2-dev-image-check.txt](./evidence/step2-dev-image-check.txt) 顯示 CMD 是 `npm run dev`、沒有 `NODE_ENV`、有 `tsx` 4.21.0；以 compose 相同的權限限制掛載 `src/` 後，`tsx` 以 node 身分執行 `src/main.ts`，並因缺少 `TELEGRAM_TOKEN` 自行結束（未連線 Telegram）。
      - 等價證據（純重排）：守門測試在重排後仍為綠；`npm run test` 為 exit 0，283 個測試全過。
      - 精煉：no-op。dev 與正式 stage 各有一段相同的 `mkdir` 與 `chown`，原因見設計方案，不合併。
-3. 📝 **開發用 compose 檔與啟動 script**（SCN-001、SCN-002）
+3. ✅ **開發用 compose 檔與啟動 script**（SCN-001、SCN-002）
    - 產出：`docker-compose.dev.yml`、`package.json` 的開發啟動 script。
    - 相依：步驟 2。
    - 完成判準：`docker compose -f docker-compose.yml -f docker-compose.dev.yml config` 成功，合併結果中 telenexus 與 agent-runner 的 target、掛載與指令符合設計；`docker-compose.yml` 沒有變更，`compose-parity` 測試為綠。
+   - 證據（2026-10-01，工作區為 cd12dc7 加本步驟變更）：[step3-compose-config.txt](./evidence/step3-compose-config.txt)
+     - 合併設定：`config` 為 exit 0；telenexus 與 agent-runner 的 target 是 `dev`、映像是 `telenexus:dev`、指令分別是 `npm run dev` 與 `npm run dev:runner`，四個原始碼掛載都是唯讀；memoria 不變。
+     - `WEB_PORT=3031` 時，telenexus 的 healthcheck 與對外埠都跟著變成 3031。
+     - 只用 `docker-compose.yml` 時三個服務都沒有 target、映像名與指令維持原樣；`docker-compose.yml`、`docker-compose.release.yml`、`release.yml` 對 cd12dc7 沒有差異；`compose-parity` 測試為綠。
+     - 啟動 script 定名為 `docker:dev`。
+     - 本步驟只產出設定，實際啟動後的行為由步驟 4 驗證。精煉：no-op。
 4. 📝 **啟動與熱重載實測**（SCN-001、SCN-002）
    - 產出：實測紀錄，存於本目錄 `evidence/`。
    - 相依：步驟 3、TBD-1。啟動服務屬 `docs/agents/project.md` 列的使用者決定事項，執行前取得同意。

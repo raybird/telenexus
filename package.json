@@ -18,6 +18,7 @@
     "docker:up:meta": "APP_GIT_SHA=$(git rev-parse --short HEAD) APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) docker compose up -d --build --force-recreate",
     "docker:up:nocache": "APP_GIT_SHA=$(git rev-parse --short HEAD) APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) docker compose build --no-cache && APP_GIT_SHA=$(git rev-parse --short HEAD) APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) docker compose up -d --force-recreate",
     "docker:up:telenexus": "npm run docker:up:meta",
+    "docker:dev": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build",
     "report:compare": "node scripts/report-execution-compare.mjs",
     "report:compare:24h": "node scripts/report-execution-compare.mjs --hours 24",
     "models:probe": "node scripts/probe-models.mjs",

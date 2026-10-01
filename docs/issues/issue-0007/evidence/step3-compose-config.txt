@@ -1,0 +1,67 @@
+# 步驟 3:兩份 compose 檔合併結果(2026-10-01)
+# 以下只摘出 image、build、command、volumes、healthcheck、ports;環境變數不列
+
+$ docker compose -f docker-compose.yml -f docker-compose.dev.yml config --format json
+== telenexus
+  image: telenexus:dev
+  build: {'context': '.', 'target': 'dev', 'dockerfile': 'Dockerfile'}
+  command: ['npm', 'run', 'dev']
+  volume: bind ./data -> /app/data 
+  volume: bind ./workspace -> /app/workspace 
+  volume: bind ./ai-config.yaml -> /app/ai-config.yaml (ro)
+  volume: volume opencode_auth -> /home/node/.local/share/opencode 
+  volume: volume opencode_config -> /home/node/.config/opencode 
+  volume: bind ./skills -> /app/skills (ro)
+  volume: bind ./AGENTS.md -> /app/workspace/AGENTS.md (ro)
+  volume: bind ./src -> /app/src (ro)
+  volume: bind ./scripts -> /app/scripts (ro)
+  volume: bind ./package.json -> /app/package.json (ro)
+  volume: bind ./tsconfig.json -> /app/tsconfig.json (ro)
+  healthcheck: fetch('http://127.0.0.1:3030/api/health')
+  ports: [('3030', 3030)]
+== agent-runner
+  image: telenexus:dev
+  build: {'context': '.', 'target': 'dev', 'dockerfile': 'Dockerfile'}
+  command: ['npm', 'run', 'dev:runner']
+  volume: bind ./data -> /app/data 
+  volume: bind ./workspace -> /app/workspace 
+  volume: bind ./ai-config.yaml -> /app/ai-config.yaml (ro)
+  volume: volume opencode_auth -> /home/node/.local/share/opencode 
+  volume: volume opencode_config -> /home/node/.config/opencode 
+  volume: bind ./skills -> /app/skills (ro)
+  volume: bind ./AGENTS.md -> /app/workspace/AGENTS.md (ro)
+  volume: bind ./src -> /app/src (ro)
+  volume: bind ./scripts -> /app/scripts (ro)
+  volume: bind ./package.json -> /app/package.json (ro)
+  volume: bind ./tsconfig.json -> /app/tsconfig.json (ro)
+  healthcheck: fetch('http://127.0.0.1:8787/health')
+  ports: []
+== memoria
+  image: None
+  build: {'context': './docker', 'dockerfile': 'memoria.Dockerfile'}
+  command: None
+  volume: volume memoria_data -> /data 
+  healthcheck: fetch('http://127.0.0.1:3917/v1/health')
+  ports: []
+config exit=0
+
+$ WEB_PORT=3031 docker compose -f docker-compose.yml -f docker-compose.dev.yml config --format json   # healthcheck 與埠跟著 WEB_PORT
+  healthcheck: fetch('http://127.0.0.1:3031/api/health')
+  ports: [('3031', 3031)]
+
+$ docker compose config --format json   # 只用 docker-compose.yml:正式設定不受影響
+  agent-runner: image=None target=None command=['node', 'dist/runner.js']
+  memoria: image=None target=None command=None
+  telenexus: image=None target=None command=None
+
+$ git diff --stat cd12dc7 -- docker-compose.yml docker-compose.release.yml .github/workflows/release.yml
+(上方空白代表沒有變更)
+
+$ npx tsx --test tests/docker/compose-parity.test.ts
+# tests 1
+# pass 1
+# fail 0
+
+$ npm run | grep -A1 docker:dev
+  docker:dev
+    docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build

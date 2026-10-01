@@ -1,0 +1,36 @@
+# 開發用 override:以 Dockerfile 的 dev stage 執行掛載進來的原始碼,存檔即重載。
+#
+# 用法:npm run docker:dev
+#   (等同 docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build)
+#
+# 開發專用的設定只能放在這裡:docker-compose.yml 與 docker-compose.release.yml
+# 必須維持只差 build:/image:(tests/docker/compose-parity.test.ts)。
+#
+# 與既有部署並存時,.env 要換成另一個 bot 的 TELEGRAM_TOKEN ——
+# 同一個 token 兩邊同時 poll,Telegram 會回 409,兩邊都收不到訊息。
+# WEB_PORT 也要錯開(例如 3031)。
+
+x-dev-service: &dev-service
+  # 與 docker compose up --build 建出的正式映像分開命名,
+  # 否則之後不帶 --build 的 docker compose up 會拿 dev 映像去跑正式設定。
+  image: telenexus:dev
+  build:
+    target: dev
+  volumes:
+    # node_modules 留在映像內;改 package.json 的依賴後要重建(--build)。
+    - ./src:/app/src:ro
+    - ./scripts:/app/scripts:ro
+    - ./package.json:/app/package.json:ro
+    - ./tsconfig.json:/app/tsconfig.json:ro
+
+services:
+  telenexus:
+    <<: *dev-service
+    command: ['npm', 'run', 'dev']
+    healthcheck:
+      # docker-compose.yml 的 healthcheck 寫死 3030;開發時 WEB_PORT 會錯開,這裡跟著變數走。
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:${WEB_PORT:-3030}/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+
+  agent-runner:
+    <<: *dev-service
+    command: ['npm', 'run', 'dev:runner']
