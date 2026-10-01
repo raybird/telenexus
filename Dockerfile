@@ -22,6 +22,12 @@ FROM node:22-slim AS base
 
 WORKDIR /app
 
+# 這兩個 ARG 必須宣告在本 stage 的第一個 RUN 之前:ARG 之後的每個 RUN 都隱含使用它,
+# 值不同就 cache miss。release.yml 每次發版傳入不同的 APP_BUILD_TIME,
+# 系統套件、未釘版的全域 CLI 與 Chrome 因此每版重裝,而不是由 CI 快取決定新舊。
+ARG APP_GIT_SHA=unknown
+ARG APP_BUILD_TIME=unknown
+
 ENV HOME=/home/node
 
 # 安裝執行時依賴
@@ -40,8 +46,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Puppeteer settings for Docker. Browser runtime is provided by agent-browser.
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
-# 依賴清單刻意放在全域 CLI 之前:每次版本 bump 都會讓這一層之後的快取失效,
-# 未釘版的全域 CLI 與 Chrome 因此每版重裝。把它移到後面會讓這些工具改由快取決定新舊。
+# 依賴清單維持在全域 CLI 之前:不帶 build args 的本機建置下,
+# package.json 一有變動,後面的全域 CLI 與 Chrome 就會重裝。
 COPY package.json package-lock.json ./
 
 # Install uv (確保 uvx 可用，這是 MCP 必需的)
@@ -88,6 +94,7 @@ CMD ["npm", "run", "dev"]
 # 必須維持在最後:release.yml 與 docker-compose.yml 都不指定 target。
 FROM base
 
+# 供下方的 ENV 使用;每個 stage 各自宣告,不依賴從 base 繼承。
 ARG APP_GIT_SHA=unknown
 ARG APP_BUILD_TIME=unknown
 

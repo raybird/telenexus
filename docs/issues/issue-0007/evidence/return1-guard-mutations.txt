@@ -1,0 +1,37 @@
+# 審查退回(M2、S1):守門測試的變異檢查(2026-10-01)
+# 每組變異都從修正後的 Dockerfile 出發,測完即還原。命令:npx tsx --test tests/docker/dockerfile-hygiene.test.ts
+
+## 未變異(修正後的 Dockerfile)
+    # pass 4
+    # fail 0
+    exit=0
+
+## 變異 1:結尾接上小寫的 from base as dev 與 dev 的 cmd(reviewer 指出原本可繞過)
+      error: 'the dev stage must not be last: an untargeted build would ship it as the release image'
+    # pass 3
+    # fail 1
+    exit=1
+
+## 變異 2:最後一個 stage 多一行 RUN npm install --include=dev(原本可繞過)
+      error: 'final stage should not install devDependencies'
+    # pass 3
+    # fail 1
+    exit=1
+
+## 變異 3:最後一個 stage 的 npm start 之後再加一個 dev 的 CMD(原本可繞過)
+      error: 'the effective CMD of the final stage should start the compiled service with npm start'
+    # pass 3
+    # fail 1
+    exit=1
+
+## 變異 4:把 base 的兩行 ARG 拿掉(M2 的情境)
+      error: 'base stage should declare ARG APP_GIT_SHA before its first RUN so release builds refresh every layer'
+    # pass 3
+    # fail 1
+    exit=1
+
+## 變異 5:base 的 ARG 移到第一個 RUN 之後
+      error: 'base stage should declare ARG APP_GIT_SHA before its first RUN so release builds refresh every layer'
+    # pass 3
+    # fail 1
+    exit=1

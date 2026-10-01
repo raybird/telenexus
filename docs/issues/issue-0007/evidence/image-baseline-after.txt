@@ -623,7 +623,7 @@ bb8ec79a984f538d611a0c59eaeb0da951cf8147a2b34a3ccfc4d9aa530bfa4f  /app/dist/web/
 0ee3f9d5026809c39c613faaf9649a30692399a4986bf6607970da179dff5148  /app/dist/web/server.js
 c36581f8261f5cf5539a7237e12e3776143755f20543e0fbd73d714f0bfe84eb  /app/dist/web/server.js.map
 1197c94583eb93885620e454e1d56d54453155ba7e807e26b111fcd3f0d0b3c7  /app/package-lock.json
-a8e211b9c406e7d9c021d446024935c10b4fc8802aefc040401e225202192757  /app/package.json
+c159b57799258d40f26ad5a75ad3e3461fb572a14b7db68035c8a4ad52e16c78  /app/package.json
 d3713fe196c161a44ca7dc2dbb25550d0e64676903b9954e7be0edc54d6beeb9  /app/scripts/backfill-summary-metadata.ts
 4925b54accf7adbac90bb434a023e7ea6ad5255383154c44a76622e5f420ee8d  /app/scripts/copy-web-assets.mjs
 63e1adb7111fe98c198115820985e1954dd0790a19fcbcdda80562bcd5d900f3  /app/scripts/docker-entrypoint.sh
@@ -638,7 +638,7 @@ c8cbb263a419c4a951c84e8eb1877cc3a2868bba957bc373e73dbcbc95c39e03  /app/scripts/s
 ## /app/workspace digest
 entries: 8150
 entries sha256: 77b12c9ccbbfea52b27aa2baeee9111b75d8608ab52556221950338173f96ff4
-contents sha256: 737ec9ae501d8ff4f881c7986dd15a9d753c35a594f517f6fa8c9584889da04f
+contents sha256: 7edb1b70657d8e038305c69913a14025c6525417e587874d0dd6b734aca0c105
 
 ## /app dependencies (npm ls --all)
 telenexus@2.27.3 /app

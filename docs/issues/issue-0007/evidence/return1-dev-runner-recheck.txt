@@ -1,0 +1,12 @@
+# 審查退回後的局部重驗:dev target 的 agent-runner(2026-10-01 12:36)
+# dev 映像已用修正後的 Dockerfile 重建;telenexus 需要 Telegram token,這裡沒有啟動。
+$ docker compose -f docker-compose.yml -f docker-compose.dev.yml -f <實測用 override> up -d --no-build --wait agent-runner
+up exit=0
+image: telenexus:dev  health: healthy  command: ["npm","run","dev:runner"]
+proc: sh -c node scripts/sync-skills.mjs && tsx watch --ignore "workspace/context/**" src/runner.ts 
+修改前 /health 的 service: agent-runner
+反映修改: yes   修改後: agent-runner-issue7-probe
+容器與映像未重建: yes
+還原後回到原行為: yes   還原後: agent-runner
+12:37:05 PM [tsx] change in ./src/runner.ts Restarting...
+12:37:06 PM [tsx] change in ./src/runner.ts Restarting...

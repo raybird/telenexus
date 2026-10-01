@@ -1,0 +1,74 @@
+# 審查退回(M2):build args 的作用範圍與快取行為(2026-10-01)
+
+## 1. 帶有 APP_GIT_SHA / APP_BUILD_TIME 的 RUN(docker history,依建置順序)
+-- 重排前(79fd6cd 的 Dockerfile,telenexus-issue7:before)
+  apt-get update && apt-get install -y --no-instal
+  npm ci --omit=dev && npm cache clean --force # b
+  curl -LsSf https://astral.sh/uv/install.sh | sh 
+  npm install -g pnpm opencode-ai@1.15.10 mcp-memo
+  agent-browser install # buildkit
+  chmod +x debug-container.sh # buildkit
+  mkdir -p       /app/data /app/workspace       /h
+  chmod +x /usr/local/bin/docker-entrypoint.sh # b
+-- 修正後(本次 Dockerfile,telenexus-issue7:after)
+  apt-get update && apt-get install -y --no-instal
+  curl -LsSf https://astral.sh/uv/install.sh | sh 
+  npm install -g pnpm opencode-ai@1.15.10 mcp-memo
+  agent-browser install # buildkit
+  chmod +x /usr/local/bin/docker-entrypoint.sh # b
+  npm ci --omit=dev && npm cache clean --force # b
+  chmod +x debug-container.sh # buildkit
+  mkdir -p       /app/data /app/workspace       /h
+-- 兩者帶 ARG 的 RUN 指令集合相同: yes
+
+## 2. 實際以不同的 APP_BUILD_TIME 建置,各步驟是否命中快取
+# 兩次建置之前,同一份 Dockerfile 都已用預設 build args 建過,快取是熱的。
+
+-- 修正前(1d275ff 的 Dockerfile,ARG 只在最後一個 stage)
+$ docker build --progress=plain -f <1d275ff 的 Dockerfile> --build-arg APP_BUILD_TIME=issue7-probe-a .
+  CACHED [builder 3/7] RUN apt-get update && apt-get install -y --no-install-reco
+  CACHED [builder 4/7] COPY package.json package-lock.json ./
+  CACHED [builder 5/7] RUN npm ci
+  CACHED [base 5/9] RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+  CACHED [base 8/9] COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-en
+  CACHED [base 6/9] RUN npm install -g pnpm opencode-ai@1.15.10 mcp-memory-lib
+  CACHED [base 7/9] RUN agent-browser install
+  CACHED [base 3/9] RUN apt-get update && apt-get install -y --no-install-reco
+  CACHED [base 4/9] COPY package.json package-lock.json ./
+  CACHED [base 9/9] RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+  執行     [stage-3 1/7] RUN npm ci --omit=dev && npm cache clean --force
+  執行     [builder 6/7] COPY . .
+  執行     [builder 7/7] RUN npm run build
+  執行     [stage-3 2/7] COPY --from=builder /app/dist ./dist
+  執行     [stage-3 3/7] COPY workspace ./workspace
+  執行     [stage-3 4/7] COPY --from=builder /app/scripts ./scripts
+  執行     [stage-3 5/7] COPY debug-container.sh ./
+  執行     [stage-3 6/7] RUN chmod +x debug-container.sh
+  執行     [stage-3 7/7] RUN mkdir -p       /app/data /app/workspace       /home/no
+
+-- 修正後(ARG 在 base 的第一個 RUN 之前)
+$ docker build --progress=plain --build-arg APP_BUILD_TIME=issue7-probe-b .
+  CACHED [builder 4/7] COPY package.json package-lock.json ./
+  CACHED [builder 5/7] RUN npm ci
+  CACHED [builder 6/7] COPY . .
+  CACHED [builder 3/7] RUN apt-get update && apt-get install -y --no-install-reco
+  CACHED [builder 7/7] RUN npm run build
+  執行     [base 3/9] RUN apt-get update && apt-get install -y --no-install-reco
+  執行     [base 4/9] COPY package.json package-lock.json ./
+  執行     [base 5/9] RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+  執行     [base 6/9] RUN npm install -g pnpm opencode-ai@1.15.10 mcp-memory-lib
+  執行     [base 7/9] RUN agent-browser install
+  執行     [base 8/9] COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-en
+  執行     [base 9/9] RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+  執行     [stage-3 1/7] RUN npm ci --omit=dev && npm cache clean --force
+  執行     [stage-3 2/7] COPY --from=builder /app/dist ./dist
+  執行     [stage-3 3/7] COPY workspace ./workspace
+  執行     [stage-3 4/7] COPY --from=builder /app/scripts ./scripts
+  執行     [stage-3 5/7] COPY debug-container.sh ./
+  執行     [stage-3 6/7] RUN chmod +x debug-container.sh
+  執行     [stage-3 7/7] RUN mkdir -p       /app/data /app/workspace       /home/no
+
+## 3. 修正後的正式映像與重排前的基準
+$ diff image-baseline-before.txt image-baseline-after.txt
+exit=0 (0 代表相同)
+兩份基準皆於本次修正後重新建置與擷取(before 用 79fd6cd 的 Dockerfile),期間未執行測試,工作區狀態相同。

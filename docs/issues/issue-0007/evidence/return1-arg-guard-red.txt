@@ -1,0 +1,63 @@
+# 審查退回(M2、S1):修正前的 Dockerfile(HEAD 1d275ff)對新版守門測試,2026-10-01
+$ npx tsx --test tests/docker/dockerfile-hygiene.test.ts
+TAP version 13
+# Subtest: default build target (last stage) is the production image
+ok 1 - default build target (last stage) is the production image
+  ---
+  duration_ms: 1.130073
+  type: 'test'
+  ...
+# Subtest: build args are declared before the first RUN of the shared base stage
+not ok 2 - build args are declared before the first RUN of the shared base stage
+  ---
+  duration_ms: 1.366607
+  type: 'test'
+  location: '<repo>/tests/docker/dockerfile-hygiene.test.ts:1:1619'
+  failureType: 'testCodeFailure'
+  error: 'base stage should declare ARG APP_GIT_SHA before its first RUN so release builds refresh every layer'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    FROM node:22-slim AS base
+    
+    WORKDIR /app
+    
+    ENV HOME=/home/node
+    
+    # 安裝執行時依賴
+    # 保留 python3 (許多 MCP 需要), curl/jq/bash (工具與除錯)
+    # make/g++ 供 better-sqlite3 等原生 addon 編譯 (Memoria 需要)
+    
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/docker/dockerfile-hygiene.test.ts:76:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: runtime image installs production dependencies instead of copying builder node_modules
+ok 3 - runtime image installs production dependencies instead of copying builder node_modules
+  ---
+  duration_ms: 0.161847
+  type: 'test'
+  ...
+# Subtest: runtime image avoids installing both system Chromium and agent-browser Chrome
+ok 4 - runtime image avoids installing both system Chromium and agent-browser Chrome
+  ---
+  duration_ms: 0.131747
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 3
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 231.581291
+exit=1
