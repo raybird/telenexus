@@ -1,0 +1,15 @@
+{
+  "files": {
+    "docs/AGENTS.md": "364443858a80a6283cbcd902db910a9b8ee28c0a4feae4a3ea1978990e94ef82",
+    "docs/_templates/architecture-template.md": "d63340b19c8ed95f5a9c01cd73a56c0a7e38f8f3c0bea150dcdaae17e33a9f84",
+    "docs/_templates/changelog-template.md": "5a21dc6f0b6a20c186d53bcd22068c6488ea0b5a69b12c83fe16f3dd1de9a7c9",
+    "docs/_templates/domain-template.md": "65e69ecfe814867f1726860a0415290614edfa76fe05007839e7b756a9f005a7",
+    "docs/agents/acceptance.md": "eec455a0e2bd33b4a6ebbb73042f21af1467846d2bce52b9511d6b055dde3fd4",
+    "docs/agents/document-types.md": "83ae750a7fc0eb4709047400d72f83c050830434b9e248c97d9f94ef9cfb0454",
+    "docs/agents/issue-checklist.md": "050767ae0cd572fe628cd1ca3c3eb1c6c8d763dfff38769d6a2ed43d85297c87",
+    "docs/agents/readme-templates.md": "332885317fd5fdb069df0f100b7afc69288ced24c748038e8428c55002b170dd",
+    "docs/agents/review-evidence.md": "d07d914d3251d2b0fcb3985d48e821447593994f2a94b6b42fa2e0c72a87b6b6",
+    "docs/agents/verification.md": "192c29f0c01bca5d6d8fa2ac0e586fc9fc88a133aa2e473d5645220cdb38f13c"
+  },
+  "format": 1
+}
