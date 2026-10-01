@@ -1,0 +1,10 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+[Runner] INFO listening port=8787
+[Runner] INFO run_start req=9055d0fe-053a-4779-86c8-8b8a3422b153 task=chat stream=false lane=interactive
+[Opencode] INFO execute model=opencode/big-pickle
+[Opencode] INFO start cmd=opencode run -c --format json --model opencode/big-pickle --print-logs --log-level ERROR <prompt> cwd=/app/workspace
+[Opencode] INFO done outputLen=927
+[Opencode] INFO reply len=9
+[Runner] INFO run_done req=9055d0fe-053a-4779-86c8-8b8a3422b153 durationMs=4046 provider=opencode lane=interactive
+[Runner] INFO run_start req=d5bc4dbc-7f26-4522-a13f-ee6339099622 task=chat stream=true lane=interactive
+[Runner] INFO run_done req=d5bc4dbc-7f26-4522-a13f-ee6339099622 durationMs=4249 provider=opencode stream=true lane=interactive

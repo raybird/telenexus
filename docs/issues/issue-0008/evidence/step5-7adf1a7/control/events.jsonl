@@ -1,0 +1,8 @@
+{"ts":1790843961499,"type":"runtime_issue","scope":"model-health:client-outdated","message":"Error: [opencode/big-pickle] Error from provider (Console): OpenCode 1.18.0 or newer is required to use the free tier"}
+{"ts":1790843961965,"type":"runner_request_start","requestId":"a26b8da6-1392-485b-8218-288de2c66455","task":"chat","stream":false,"lane":"interactive"}
+{"ts":1790843961966,"type":"opencode_start","model":"opencode/big-pickle"}
+{"ts":1790843963967,"type":"opencode_done","outputLen":736,"upstreamInvalid":false,"upstreamError":true,"statusCode":426}
+{"ts":1790843963967,"type":"runtime_issue","scope":"opencode:upstream-error:426","message":"Error: Error from provider (Console): OpenCode 1.18.0 or newer is required to use the free tier"}
+{"ts":1790843963968,"type":"runner_request_done","requestId":"a26b8da6-1392-485b-8218-288de2c66455","durationMs":2004,"provider":"opencode","stream":false,"lane":"interactive"}
+{"ts":1790843964036,"type":"runner_request_start","requestId":"a952afd6-f1c7-4553-94d6-493596ddd97a","task":"chat","stream":true,"lane":"interactive"}
+{"ts":1790843965978,"type":"runner_request_done","requestId":"a952afd6-f1c7-4553-94d6-493596ddd97a","durationMs":1941,"provider":"opencode","stream":true,"lane":"interactive"}

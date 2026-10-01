@@ -67,6 +67,21 @@ runner 在 `data/` 與 `workspace/context/` 寫出的檔案屬於主機上的使
 
 第一次驗證（`984c5b0`）留下的原始回應只有四份：`step5-raw-new-1-concurrent-with-probe.json`（回覆 `OKOKOKOK` 的那一次）、`step5-raw-new-2.json`、`step5-raw-new-after-manual-probe.json`、`step5-raw-control-1.15.10.json`。那一次的 `events.jsonl`、audit 與狀態檔在清理暫存目錄時一併刪掉了，上面「結果」表格裡這幾列的數值沒有原始檔可以對照。
 
+## 第二輪審查後再重驗（2026-10-01，UTC 08:38 至 08:40）
+
+第二輪審查之後串流的收尾又改了一次（逾時與中止可以放行等待），所以用提交 `7adf1a7` 再驗一次。做法與上一節相同，這次直接用提交進 repo 的 `step5-verify.sh` 與 `step5-run-runner.sh` 執行。原始輸出在 [step5-7adf1a7/new/](./step5-7adf1a7/new/) 與 [step5-7adf1a7/control/](./step5-7adf1a7/control/)；容器與映像驗證後都已移除。
+
+| 項目                             | 新映像（opencode 1.18.34）                                           | 對照組（opencode 1.15.10）                                          |
+| -------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `/run` 的 `output`               | `PONG-0008`，沒有 `failure`                                          | 426 的說明文字，`failure.kind = upstream-error`、`statusCode = 426` |
+| `/run/stream` 的事件             | `start`、`status`、`delta`、`usage`、`done`（`PONG-0008`）、`result` | `start`、`done`（426 的說明文字）、`result`                         |
+| `runner-audit.log`（兩筆）       | 都是 `ok: true`                                                      | 都是 `ok: false`、`failureKind: "upstream-error"`                   |
+| `opencode_done`（非串流那一筆）  | `outputLen: 927`、`upstreamError: false`                             | `outputLen: 736`、`upstreamError: true`、`statusCode: 426`          |
+| `runner-status.md`               | 2 次請求、Success Rate 100.0%                                        | 2 次請求、Success Rate 0.0%                                         |
+| `model-health-state.runner.json` | `healthy`                                                            | `failing`，簽章 `client-outdated:426:160781252`                     |
+
+三次驗證的結果一致。
+
 ## 觀察到但不屬於本 issue 的行為
 
 第一次對新映像發請求時，容器才啟動約 1 秒，啟動時的健康探針還在執行。那次 `/run` 的回覆是 `OKOKOKOK`：探針與 `/run` 落在同一個 opencode session，兩個 opencode 行程同時推進它，產生了多則助理訊息。等探針結束後再發的請求都只有一則回覆，上表用的是這些。

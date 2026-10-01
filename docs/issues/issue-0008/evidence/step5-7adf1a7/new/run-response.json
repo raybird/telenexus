@@ -1,0 +1,129 @@
+{
+    "ok": true,
+    "requestId": "9055d0fe-053a-4779-86c8-8b8a3422b153",
+    "durationMs": 4046,
+    "provider": "opencode",
+    "output": "PONG-0008",
+    "structured": {
+        "provider": "opencode",
+        "text": "PONG-0008",
+        "raw": [
+            {
+                "type": "step_start",
+                "timestamp": 1790843952582,
+                "sessionID": "ses_f0961fec9ffennbAIvyuBS1Eg5",
+                "part": {
+                    "id": "prt_0f69e1dbd001VFWZoRMdWsHfAm",
+                    "messageID": "msg_0f69e13e5001fwE01A0Jp3VQAE",
+                    "sessionID": "ses_f0961fec9ffennbAIvyuBS1Eg5",
+                    "type": "step-start"
+                }
+            },
+            {
+                "type": "text",
+                "timestamp": 1790843952635,
+                "sessionID": "ses_f0961fec9ffennbAIvyuBS1Eg5",
+                "part": {
+                    "id": "prt_0f69e1dc2001BVlY2klgEbroMb",
+                    "messageID": "msg_0f69e13e5001fwE01A0Jp3VQAE",
+                    "sessionID": "ses_f0961fec9ffennbAIvyuBS1Eg5",
+                    "type": "text",
+                    "text": "PONG-0008",
+                    "time": {
+                        "start": 1790843952578,
+                        "end": 1790843952609
+                    }
+                }
+            },
+            {
+                "type": "step_finish",
+                "timestamp": 1790843952635,
+                "sessionID": "ses_f0961fec9ffennbAIvyuBS1Eg5",
+                "part": {
+                    "id": "prt_0f69e1de8001cxDpmcvwCaGGaT",
+                    "reason": "stop",
+                    "messageID": "msg_0f69e13e5001fwE01A0Jp3VQAE",
+                    "sessionID": "ses_f0961fec9ffennbAIvyuBS1Eg5",
+                    "type": "step-finish",
+                    "tokens": {
+                        "total": 7762,
+                        "input": 23,
+                        "output": 7,
+                        "reasoning": 0,
+                        "cache": {
+                            "write": 0,
+                            "read": 7732
+                        }
+                    },
+                    "cost": 0
+                }
+            }
+        ],
+        "events": [
+            {
+                "type": "step_start",
+                "timestamp": 1790843952582,
+                "sessionID": "ses_f0961fec9ffennbAIvyuBS1Eg5",
+                "part": {
+                    "id": "prt_0f69e1dbd001VFWZoRMdWsHfAm",
+                    "messageID": "msg_0f69e13e5001fwE01A0Jp3VQAE",
+                    "sessionID": "ses_f0961fec9ffennbAIvyuBS1Eg5",
+                    "type": "step-start"
+                }
+            },
+            {
+                "type": "text",
+                "timestamp": 1790843952635,
+                "sessionID": "ses_f0961fec9ffennbAIvyuBS1Eg5",
+                "part": {
+                    "id": "prt_0f69e1dc2001BVlY2klgEbroMb",
+                    "messageID": "msg_0f69e13e5001fwE01A0Jp3VQAE",
+                    "sessionID": "ses_f0961fec9ffennbAIvyuBS1Eg5",
+                    "type": "text",
+                    "text": "PONG-0008",
+                    "time": {
+                        "start": 1790843952578,
+                        "end": 1790843952609
+                    }
+                }
+            },
+            {
+                "type": "step_finish",
+                "timestamp": 1790843952635,
+                "sessionID": "ses_f0961fec9ffennbAIvyuBS1Eg5",
+                "part": {
+                    "id": "prt_0f69e1de8001cxDpmcvwCaGGaT",
+                    "reason": "stop",
+                    "messageID": "msg_0f69e13e5001fwE01A0Jp3VQAE",
+                    "sessionID": "ses_f0961fec9ffennbAIvyuBS1Eg5",
+                    "type": "step-finish",
+                    "tokens": {
+                        "total": 7762,
+                        "input": 23,
+                        "output": 7,
+                        "reasoning": 0,
+                        "cache": {
+                            "write": 0,
+                            "read": 7732
+                        }
+                    },
+                    "cost": 0
+                }
+            }
+        ],
+        "stats": {
+            "tokens": {
+                "total": 7762,
+                "input": 23,
+                "output": 7,
+                "reasoning": 0,
+                "cache": {
+                    "write": 0,
+                    "read": 7732
+                }
+            },
+            "cost": 0,
+            "reason": "stop"
+        }
+    }
+}
