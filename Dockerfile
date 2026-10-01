@@ -56,7 +56,7 @@ ENV UV_INSTALL_DIR=/usr/local/bin
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install global CLI tools (含 pnpm，Memoria 使用)
-RUN npm install -g pnpm opencode-ai@1.15.10 mcp-memory-libsql agent-browser \
+RUN npm install -g pnpm opencode-ai@1.18.34 mcp-memory-libsql agent-browser \
   && npm cache clean --force
 RUN agent-browser install
 

@@ -118,11 +118,15 @@ SCN-006 是實地觀測。反向自檢：呼叫失敗時，回覆會是錯誤訊
    - 產出：`scripts/probe-models.mjs` 的變更。
    - 相依：步驟 2（對應表定案）。
    - 完成判準：對上游錯誤的輸出標示不可用並列出狀態碼；`CLAUDE.md` 提到的兩處複本內容一致（含步驟 2 更新後的限流樣式）。
-5. 📝 **升釘版並以真實呼叫驗證**（SCN-006）
+5. ⏳ **升釘版並以真實呼叫驗證**（SCN-006）
+   - 已完成（2026-10-01）：`Dockerfile` 釘版改為 `opencode-ai@1.18.34`；`npx tsx --test tests/docker/*.test.ts` 5／5、`npm run test` 320／320。主機上以同一個版本的 opencode 對真實免費層完成過呼叫（步驟 1 的 `b-ok-new`、步驟 4 的實跑），對照組 1.15.10 得到 426。
+   - 未完成：以升版後的**映像**啟動 agent-runner 打一次 `/run`。建置映像與啟動容器需要使用者同意，尚未取得。在這之前 SCN-006 不算通過：主機上的執行檔與映像內經 `npm install -g` 裝出來的不是同一份安裝，映像還牽涉非 root 執行與既有資料卷的遷移。
    - 產出：`Dockerfile` 的釘版變更與實測紀錄。
    - 相依：步驟 1、2。啟動容器屬 `docs/agents/project.md` 列的使用者決定事項，執行前取得同意；只啟動 agent-runner，不連 Telegram。
    - 完成判準：升版後的映像經 `/run` 完成一次真實請求並得到含文字的回覆；對照組（1.15.10）得到 426 且被新的判定記為失敗；`tests/docker/` 的測試為綠。
-6. 📝 **文件更新**（SCN-001、SCN-003）
+6. ✅ **文件更新**（SCN-001、SCN-003）
+   - 證據（2026-10-01）：純文件變更，沒有可執行行為，以靜態檢查替代：`npx prettier --check CLAUDE.md ARCHITECTURE.md README.md` 通過；逐段對照實作——`CLAUDE.md` 的 Key Modules 兩列、Empty output handling、新增的 Upstream error events、Degraded results（`upstream-error`）、Upstream 429 fail-fast（兩代格式的分工與未涵蓋的措辭）、Model health check（`--format json` 與 `client-outdated`）、新增的 opencode pin。文中的版本敘述只寫實測過的版本（1.15.10、1.18.0、1.18.17、1.18.34）。
+   - 依 `docs/agents/project.md` 的常青文件對照另外更新了 `ARCHITECTURE.md`（事件解析與 agent 基底的職責）與 `README.md`（主動告警的範圍、上游錯誤如實回報）。沒有新增設定，`docs/configuration-reference.md` 與 `.env.example` 不需要改。
    - 產出：`CLAUDE.md` 的 Observability 段落（Degraded results、Model health check、上游錯誤的判定依據與升釘版是例行維護）；有新增設定時更新 `docs/configuration-reference.md` 與 `.env.example`。
    - 相依：步驟 2、3。
    - 完成判準：文件描述與實作一致；`CLAUDE.md` 中「樣式只認結構化欄位」的敘述已反映 stdout 事件與 stderr 樣式的分工。發版說明（`CHANGELOG.md`）在發版時由維護者處理。
@@ -137,6 +141,6 @@ SCN-006 是實地觀測。反向自檢：呼叫失敗時，回覆會是錯誤訊
 
 - [x] 步驟 1 的探測在改任何程式之前完成
 - [x] fixture 已去敏（無 token、使用者 ID、本機路徑、對話內容）
-- [ ] `scripts/probe-models.mjs` 與 TypeScript 端的判定一起改
+- [x] `scripts/probe-models.mjs` 與 TypeScript 端的判定一起改
 - [ ] `docker-compose.yml`、`docker-compose.release.yml`、`release.yml` 沒有變更
-- [ ] 依 `docs/agents/project.md` 的常青文件對照更新受影響的文件
+- [x] 依 `docs/agents/project.md` 的常青文件對照更新受影響的文件
