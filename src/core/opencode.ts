@@ -6,7 +6,11 @@ import { ProcessError, runProcess } from './process-runner.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
 import { CliAgentBase, type CliAgentConfig, type CliStreamParse } from './cli-agent-base.js';
 import { getOpencodeTaskTimeoutMs } from '../config/timeouts.js';
-import { UPSTREAM_RATE_LIMIT_PATTERN, hasUpstreamModelInvalid } from './rate-limit.js';
+import {
+  UPSTREAM_RATE_LIMIT_PATTERN,
+  hasUpstreamModelInvalid,
+  type UpstreamError
+} from './rate-limit.js';
 import { resolveProjectDir } from '../utils/paths.js';
 import { createLogger } from './logger.js';
 import { emitEvent } from '../services/event-bus.js';
@@ -65,7 +69,35 @@ export function parseOpencodeJsonOutput(stdout: string): AgentStructuredResult |
   return result;
 }
 
-const OPENCODE_RATE_LIMIT_PATTERN = /\b429\b|Too Many Requests|RESOURCE_EXHAUSTED/i;
+/**
+ * 掃出 stdout 裡的上游錯誤,連同它之前已經產出的文字。
+ *
+ * 與 parseOpencodeJsonOutput 分開,是因為那邊在沒有文字或夾雜非 JSON 行時直接回 null,
+ * 而只有一個 error 事件的回合正是這種輸出。
+ */
+export function findUpstreamError(
+  stdout: string
+): { upstreamError: UpstreamError; text: string; sessionId?: string } | null {
+  let upstreamError: UpstreamError | undefined;
+  let sessionId: string | undefined;
+  let text = '';
+
+  for (const line of stdout.split(/\r?\n/)) {
+    const event = parseEventLine(line.trim());
+    if (!event) {
+      continue;
+    }
+    const interpreted = interpretEvent(event);
+    if (interpreted.sessionId) sessionId = interpreted.sessionId;
+    if (interpreted.text) text += interpreted.text;
+    if (interpreted.upstreamError) upstreamError = interpreted.upstreamError;
+  }
+
+  if (!upstreamError) {
+    return null;
+  }
+  return { upstreamError, text, ...(sessionId ? { sessionId } : {}) };
+}
 
 /**
  * 讓 opencode 把內部錯誤吐到 stderr —— 這是 429 fail-fast 能不能生效的前提。
@@ -116,7 +148,9 @@ export class OpencodeAgent extends CliAgentBase {
   protected readonly config: CliAgentConfig = {
     provider: 'opencode',
     binary: 'opencode',
-    rateLimitPattern: OPENCODE_RATE_LIMIT_PATTERN,
+    // 與非串流的 abortOnStderr 共用同一個樣式。這裡原本自帶一份寬鬆的 `\b429\b`,
+    // 它認不得 opencode 1.18 的 `Rate limit exceeded`,而且會被舊版回吐的 request body 誤觸。
+    rateLimitPattern: UPSTREAM_RATE_LIMIT_PATTERN,
     rateLimitMessage: OPENCODE_RATE_LIMIT_MESSAGE,
     timeoutMessage: buildTimeoutMessage(),
     streamTimeoutMs: getOpencodeTaskTimeoutMs()
@@ -193,6 +227,7 @@ export class OpencodeAgent extends CliAgentBase {
     if (interpreted.reasoningText !== undefined) result.reasoningText = interpreted.reasoningText;
     if (interpreted.text !== undefined) result.deltaText = interpreted.text;
     if (interpreted.stats) result.stats = interpreted.stats;
+    if (interpreted.upstreamError) result.upstreamError = interpreted.upstreamError;
     return result;
   }
 
@@ -349,6 +384,20 @@ export class OpencodeAgent extends CliAgentBase {
   }
 
   /**
+   * 回合結束事件。exit 0 不代表上游真的服務了這次請求:opencode 1.15 在上游錯誤時仍以
+   * exit 0 收場。把這個訊號帶進事件裡,訂閱端(模型健康檢查的流量豁免)才不會把假成功
+   * 當成「模型顯然活著」。`upstreamInvalid` 是 stderr 樣式的判定,保留給既有的事件讀者。
+   */
+  private emitDone(stdout: string, stderr: string, upstreamError: UpstreamError | null): void {
+    emitEvent('opencode_done', {
+      outputLen: stdout.length,
+      upstreamInvalid: hasUpstreamModelInvalid(stderr),
+      upstreamError: upstreamError !== null,
+      ...(upstreamError?.statusCode !== undefined ? { statusCode: upstreamError.statusCode } : {})
+    });
+  }
+
+  /**
    * 生成結構化摘要
    */
   async summarize(text: string, options?: AIAgentOptions): Promise<string> {
@@ -424,14 +473,15 @@ ${text}
       const { stdout, stderr } = await this.executeChatProcess(prompt, options);
       this.writeVerboseStdout(stdout);
 
-      // exit 0 不代表上游真的服務了這次請求:模型下架時 opencode 會吞掉
-      // AI_APICallError、吐出降級文字後正常收場。把這個訊號帶進事件裡,
-      // 訂閱端(模型健康檢查的流量豁免)才不會把假成功當成「模型顯然活著」。
-      const upstreamInvalid = hasUpstreamModelInvalid(stderr);
+      // passthrough 指令不帶 `--format json`,stdout 是給使用者的純文字,不當成事件解析。
+      const upstream = options?.isPassthroughCommand === true ? null : findUpstreamError(stdout);
 
       logger.info('done', { outputLen: stdout.length });
-      emitEvent('opencode_done', { outputLen: stdout.length, upstreamInvalid });
+      this.emitDone(stdout, stderr, upstream?.upstreamError ?? null);
       this.logStderr('Chat', stderr);
+      if (upstream) {
+        return this.buildUpstreamErrorResult(upstream.upstreamError, upstream);
+      }
 
       const structured = this.toStructuredResult(stdout, options);
       if (!structured.text || structured.text.length === 0) {
@@ -471,6 +521,18 @@ ${text}
         return buildTextOnlyStructuredResult('opencode', buildTimeoutMessage(), {
           failure: { kind: 'timeout', message }
         });
+      }
+
+      // opencode 1.18 起上游錯誤以 exit 1 結束,error 事件仍在 stdout。有事件就是上游錯誤,
+      // 不是「opencode 自己壞了」:照樣回結構化失敗,別讓它變成一句通用的執行失敗。
+      // 沒有事件時不發 opencode_done:那是 opencode 自己失敗,不能留下一筆看起來像成功的紀錄。
+      if (isProcessError && typeof error.code === 'number' && !options?.isPassthroughCommand) {
+        const failedStdout = error.stdout || '';
+        const upstream = findUpstreamError(failedStdout);
+        if (upstream) {
+          this.emitDone(failedStdout, error.stderr || '', upstream.upstreamError);
+          return this.buildUpstreamErrorResult(upstream.upstreamError, upstream);
+        }
       }
 
       const fields: { code?: string | number; signal?: string; stderr?: string; stdout?: string } =

@@ -12,6 +12,7 @@ import {
 import { ProcessError } from './process-runner.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
 import { createLogger } from './logger.js';
+import { describeUpstreamError, type UpstreamError } from './rate-limit.js';
 
 export type CliStreamParse = {
   sessionId?: string;
@@ -20,6 +21,8 @@ export type CliStreamParse = {
   statusText?: string;
   stats?: Record<string, unknown>;
   emitStart?: boolean;
+  /** CLI 回報上游沒有服務這次請求;有值代表這個回合失敗。 */
+  upstreamError?: UpstreamError;
 };
 
 export type CliAgentConfig = {
@@ -100,6 +103,45 @@ export abstract class CliAgentBase implements AIAgent {
     // 預設不做事。
   }
 
+  /**
+   * 上游回了錯誤的回合。串流與非串流都從這裡產生結果,兩條路徑的失敗種類、給使用者的
+   * 訊息與 runtime issue 才不會各自演化。
+   *
+   * 已經產出的文字保留在說明前面:長任務做到一半才被上游拒絕時,前半段仍然有用。
+   */
+  protected buildUpstreamErrorResult(
+    upstreamError: UpstreamError,
+    partial: { text?: string; sessionId?: string | undefined } = {}
+  ): AgentStructuredResult {
+    const { provider } = this.config;
+    logger.warn('upstream_error', {
+      provider,
+      statusCode: upstreamError.statusCode,
+      name: upstreamError.name
+    });
+    recordRuntimeIssue(
+      `${provider}:upstream-error:${upstreamError.statusCode ?? 'unknown'}`,
+      new Error(upstreamError.message)
+    );
+
+    const partialText = partial.text ? this.cleanOutput(partial.text) : '';
+    const notice = describeUpstreamError(upstreamError);
+    return buildTextOnlyStructuredResult(
+      provider,
+      partialText ? `${partialText}\n\n${notice}` : notice,
+      {
+        failure: {
+          kind: 'upstream-error',
+          message: upstreamError.message,
+          ...(upstreamError.statusCode !== undefined
+            ? { statusCode: upstreamError.statusCode }
+            : {})
+        },
+        ...(partial.sessionId ? { sessionId: partial.sessionId } : {})
+      }
+    );
+  }
+
   async streamChat(
     prompt: string,
     options: AIAgentOptions | undefined,
@@ -150,6 +192,7 @@ export abstract class CliAgentBase implements AIAgent {
     let parsedLineCount = 0;
     let sessionId: string | undefined;
     let stats: Record<string, unknown> | undefined;
+    let upstreamError: UpstreamError | undefined;
     let started = false;
     let settled = false;
     let timedOut = false;
@@ -238,6 +281,10 @@ export abstract class CliAgentBase implements AIAgent {
             if (parsed.sessionId) {
               sessionId = parsed.sessionId;
             }
+            // 放在任何 await 之前:close 可能在這個迴圈還在等 onEvent 時就觸發。
+            if (parsed.upstreamError) {
+              upstreamError = parsed.upstreamError;
+            }
             if (parsed.emitStart) {
               await emitStart();
             }
@@ -306,6 +353,9 @@ export abstract class CliAgentBase implements AIAgent {
             if (trailing?.stats) {
               stats = trailing.stats;
             }
+            if (trailing?.upstreamError) {
+              upstreamError = trailing.upstreamError;
+            }
             if (typeof trailing?.deltaText === 'string' && trailing.deltaText.length > 0) {
               aggregatedText += trailing.deltaText;
             }
@@ -321,6 +371,21 @@ export abstract class CliAgentBase implements AIAgent {
             }
             await onEvent({ type: 'done', text: abortedResult.text });
             resolve(abortedResult);
+            return;
+          }
+
+          // 先於 exit code:opencode 1.15 在上游錯誤時 exit 0、1.18 起 exit 1,事件本身沒變。
+          // 也先於空輸出分類:只有 error 事件的回合不是「工具跑完沒回話」,追問一次只會再撞一次牆。
+          if (upstreamError) {
+            const failedResult = this.buildUpstreamErrorResult(upstreamError, {
+              text: aggregatedText,
+              sessionId
+            });
+            if (!started) {
+              await emitStart();
+            }
+            await onEvent({ type: 'done', text: failedResult.text });
+            resolve(failedResult);
             return;
           }
 

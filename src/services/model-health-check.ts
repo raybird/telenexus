@@ -249,12 +249,18 @@ export function interpretProbeOutput(code: number | null, output: string): Healt
 /**
  * 事件是否代表「上游真的服務了這次請求」—— 流量豁免只能採信這種成功。
  *
- * `opencode_done` 只在進程 exit 0 時 emit,但模型下架時 opencode 照樣 exit 0。
- * 2026-09-08 就是這種假成功持續餵養豁免視窗,讓探針 9 天沒跑過一次。
+ * `opencode_done` 不代表上游服務了請求:opencode 1.15 在上游錯誤時照樣 exit 0。
+ * 2026-09-08 就是這種假成功持續餵養豁免視窗,讓探針 9 天沒跑過一次;2026-09-17 的 426
+ * 又重演一次,因為當時的旗標只認得 stderr 裡的 410。`upstreamError` 來自 stdout 的
+ * error 事件,不看狀態碼是哪一個。
  * main.ts 與 runner.ts 兩處 hook 共用這裡,避免判斷再次分岔。
  */
 export function isRealSuccessEvent(type: string, payload: Record<string, unknown>): boolean {
-  return type === 'opencode_done' && payload['upstreamInvalid'] !== true;
+  return (
+    type === 'opencode_done' &&
+    payload['upstreamInvalid'] !== true &&
+    payload['upstreamError'] !== true
+  );
 }
 
 /** 預設探針：實際打一次 opencode,因為靜態比對模型清單無效（已 EOL 的仍會列出）。 */

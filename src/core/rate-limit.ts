@@ -2,18 +2,30 @@
  * 上游 HTTP 訊號的判定(限流 429 與模型失效 410/not-found) —— 刻意只認結構化的 HTTP 欄位。
  *
  * 為什麼不用寬鬆的 `\b429\b`:
- *   opencode 的 `--print-logs` 會把整包 request body(含 prompt、工具定義與先前的
+ *   opencode 1.17 以前的 `--print-logs` 會把整包 request body(含 prompt、工具定義與先前的
  *   工具輸出)原樣印進 ERROR 行。本專案的排程任務在跑加密貨幣與股市分析,內容出現
  *   「成交量 429 億美元」這種數字完全正常 —— 寬鬆比對會把一個本來會成功的任務誤砍。
  *
  * 已用 2026-08-29 真實 429 事故的 410KB stderr 驗證命中 `"statusCode":429`,
  * 並確認不會被上述市場數據誤觸。
  *
+ * opencode 1.18 把 `--print-logs` 改成 logfmt,stderr 裡不再有狀態碼,也不再回吐 request body。
+ * 重試期間 stdout 沒有任何事件,唯一即時可見的訊號是這一行:
+ *   level=ERROR message="stream error" … small=false … error.error="AI_APICallError: <上游訊息>"
+ * 所以最後一個分支比對的是文字,但範圍鎖在三個條件內:
+ *   - `stream error` 行的 `error.error` 欄位。這個欄位只有上游的錯誤訊息,沒有 request body,
+ *     上面說的市場數據誤觸來源不在這裡。
+ *   - `small=false`(主代理)。標題代理用另一顆小模型,它被限流不代表主模型不能用。
+ *   - 訊息含限流字樣。實際擷取過的有 `Too Many Requests`(上游 body 沒有訊息時 opencode
+ *     退回 HTTP 狀態文字)與 `Rate limit exceeded`;`quota` 與 `429` 是其他常見寫法。
+ * 上游換成清單以外的措辭時這個分支不會命中,回合會退避到逾時後記為逾時失敗。
+ * 樣本與比對過程見 docs/issues/issue-0008/evidence/step1-compat-probe.md。
+ *
  * 注意:scripts/probe-models.mjs 另有一份等價的 regex。那支腳本必須能在沒有原始碼、
  * 沒有建置的正式映像裡直接執行,無法 import 這裡的 TypeScript —— 改動兩邊要同步。
  */
 export const UPSTREAM_RATE_LIMIT_PATTERN =
-  /"status(?:Code)?"\s*:\s*429\b|\bstatus(?:Code)?[=\s]+429\b|RESOURCE_EXHAUSTED/i;
+  /"status(?:Code)?"\s*:\s*429\b|\bstatus(?:Code)?[=\s]+429\b|RESOURCE_EXHAUSTED|message="stream error"[^\n]*\bsmall=false\b[^\n]*\berror\.error="AI_APICallError: [^"\n]*(?:Too Many Requests|rate[ -]?limit|quota|\b429\b)/i;
 
 /** 同一段輸出裡出現幾次限流。次數本身就是訊號:健康的模型答一句話不需要重試。 */
 export function countUpstreamRateLimitHits(output: string): number {
@@ -44,4 +56,53 @@ export const UPSTREAM_MODEL_INVALID_PATTERN =
 /** 輸出裡是否出現模型失效訊號。 */
 export function hasUpstreamModelInvalid(output: string): boolean {
   return UPSTREAM_MODEL_INVALID_PATTERN.test(output);
+}
+
+/** opencode 的 `error` 事件帶出的上游錯誤。`statusCode` 不一定有(例如 `UnknownError`)。 */
+export type UpstreamError = {
+  statusCode?: number;
+  name?: string;
+  message: string;
+};
+
+export type UpstreamErrorClass = 'rate-limited' | 'model-invalid' | 'client-outdated' | 'other';
+
+/**
+ * 狀態碼到分類的唯一對應。分類只決定說明文字與告警措辭 ——「這個回合失敗了」不看分類,
+ * 有 `error` 事件就是失敗。2026-09-08 的 410 與 2026-09-17 的 426 都是因為判定逐一列舉
+ * 狀態碼而漏掉的,所以沒列在這裡的狀態碼一律落到 `other`,而不是被當成成功。
+ *
+ * 404 歸 `other` 的理由同上面的失效樣式:它也可能是「用錯端點」,說成模型下架會講錯原因。
+ */
+export function classifyUpstreamStatus(statusCode: number | undefined): UpstreamErrorClass {
+  switch (statusCode) {
+    case 429:
+      return 'rate-limited';
+    case 410:
+      return 'model-invalid';
+    case 426:
+      return 'client-outdated';
+    default:
+      return 'other';
+  }
+}
+
+const UPSTREAM_MESSAGE_SNIPPET_LENGTH = 200;
+
+/** 給使用者看的上游錯誤說明。串流與非串流共用,兩條路徑的訊息才會一致。 */
+export function describeUpstreamError(error: UpstreamError): string {
+  const status = error.statusCode === undefined ? '' : ` (HTTP ${error.statusCode})`;
+  const detail = error.message.trim().slice(0, UPSTREAM_MESSAGE_SNIPPET_LENGTH);
+  const suffix = detail ? `\n上游訊息：${detail}` : '';
+
+  switch (classifyUpstreamStatus(error.statusCode)) {
+    case 'rate-limited':
+      return `⏳ 上游配額已達上限${status}，請稍後再試或錯開排程時間。${suffix}`;
+    case 'model-invalid':
+      return `⚠️ 上游回報模型已失效${status}，請用 /set_model 換一個模型。${suffix}`;
+    case 'client-outdated':
+      return `⚠️ 上游拒絕了這次請求${status}：opencode 版本過舊，需要升級 opencode 才能繼續使用這個模型。${suffix}`;
+    case 'other':
+      return `⚠️ 上游回了錯誤${status}，這次請求沒有完成。${suffix}`;
+  }
 }

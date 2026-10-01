@@ -4,9 +4,19 @@
  * 兩條路徑共用同一份 dispatch table，避免 event schema 漂移。
  */
 
+import type { UpstreamError } from './rate-limit.js';
+
 export type OpencodeEvent = {
   type?: string;
   sessionID?: string;
+  /** `type: 'error'` 事件的內容;上游 API 錯誤時 `data` 帶 `statusCode`。 */
+  error?: {
+    name?: unknown;
+    data?: {
+      message?: unknown;
+      statusCode?: unknown;
+    };
+  };
   part?: {
     type?: string;
     tool?: string;
@@ -34,6 +44,11 @@ export type InterpretedEvent = {
   emitStart?: boolean;
   /** step_finish 帶來的 stats（tokens / cost / reason） */
   stats?: Record<string, unknown>;
+  /**
+   * error 事件帶來的上游錯誤。它是回合的結果(這個回合失敗了),不是可渲染的內容,
+   * 所以只回資訊、不產生 text 或 statusText。
+   */
+  upstreamError?: UpstreamError;
 };
 
 function truncateStatusValue(value: string): string {
@@ -87,6 +102,25 @@ export function formatToolStatus(tool: string | undefined, input: unknown): stri
 }
 
 /**
+ * 只依事件的型別與欄位判定,不比對任何文字 —— 模型的回覆裡出現「426」或「error」
+ * 是 text 事件,走不到這裡。
+ */
+function toUpstreamError(error: OpencodeEvent['error']): UpstreamError {
+  const message = error?.data?.message;
+  const statusCode = error?.data?.statusCode;
+  const out: UpstreamError = {
+    message: typeof message === 'string' && message.trim() ? message : '(opencode 沒有提供錯誤訊息)'
+  };
+  if (typeof statusCode === 'number' && Number.isInteger(statusCode)) {
+    out.statusCode = statusCode;
+  }
+  if (typeof error?.name === 'string' && error.name) {
+    out.name = error.name;
+  }
+  return out;
+}
+
+/**
  * 解譯一筆 OpencodeEvent。
  * 兩條路徑（stream/non-stream）共用此函式，確保行為一致。
  */
@@ -128,6 +162,10 @@ export function interpretEvent(event: OpencodeEvent): InterpretedEvent {
     if (Object.keys(nextStats).length > 0) {
       out.stats = nextStats;
     }
+  }
+
+  if (event.type === 'error') {
+    out.upstreamError = toUpstreamError(event.error);
   }
 
   return out;

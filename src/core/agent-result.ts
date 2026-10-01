@@ -1,11 +1,17 @@
 export type AgentProvider = 'opencode';
 
-/** 降級原因。使用者中止(EABORTED)不算 —— 那是使用者的意思,不是系統故障。 */
-export type AgentFailureKind = 'timeout' | 'rate-limit';
+/**
+ * 降級原因。使用者中止(EABORTED)不算 —— 那是使用者的意思,不是系統故障。
+ *
+ * `upstream-error`:opencode 回了 `error` 事件,上游沒有服務這次請求。
+ */
+export type AgentFailureKind = 'timeout' | 'rate-limit' | 'upstream-error';
 
 export type AgentFailure = {
   kind: AgentFailureKind;
   message: string;
+  /** 上游回的 HTTP 狀態碼;只有 `upstream-error` 會帶,而且事件本身沒有時就沒有。 */
+  statusCode?: number;
 };
 
 export type AgentStructuredResult = {

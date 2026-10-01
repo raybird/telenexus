@@ -1,0 +1,356 @@
+# 步驟 2 紅燈:2026-10-01T07:29:28Z,被測提交 9ed35ff(src/ 尚未修改)
+# 命令:npx tsx --test tests/opencode-upstream-error.test.ts
+TAP version 13
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=<tmp>/workspace
+# Subtest: SCN-001 interpretEvent 從 error 事件取出狀態碼、名稱與訊息
+not ok 1 - SCN-001 interpretEvent 從 error 事件取出狀態碼、名稱與訊息
+  ---
+  duration_ms: 5.56136
+  type: 'test'
+  location: '<repo>/tests/opencode-upstream-error.test.ts:6:1673'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + undefined
+    - {
+    -   message: 'Error from provider (Console): OpenCode 1.18.0 or newer is required to use the free tier',
+    -   name: 'APIError',
+    -   statusCode: 426
+    - }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    statusCode: 426
+    name: 'APIError'
+    message: 'Error from provider (Console): OpenCode 1.18.0 or newer is required to use the free tier'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/opencode-upstream-error.test.ts:137:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: SCN-001 沒有 statusCode 的 error 事件一樣被辨識
+not ok 2 - SCN-001 沒有 statusCode 的 error 事件一樣被辨識
+  ---
+  duration_ms: 0.782221
+  type: 'test'
+  location: '<repo>/tests/opencode-upstream-error.test.ts:6:2279'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + undefined
+    - {
+    -   message: 'Unexpected server error. Check server logs for details.',
+    -   name: 'UnknownError'
+    - }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    name: 'UnknownError'
+    message: 'Unexpected server error. Check server logs for details.'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/opencode-upstream-error.test.ts:150:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# [Opencode] INFO done outputLen=736
+# [Opencode] INFO reply len=26
+# Subtest: SCN-001 非串流:上游 426 的回合被判為失敗(1.15.10 exit 0)
+not ok 3 - SCN-001 非串流:上游 426 的回合被判為失敗(1.15.10 exit 0)
+  ---
+  duration_ms: 15.921434
+  type: 'test'
+  location: '<repo>/tests/opencode-upstream-error.test.ts:6:2669'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'upstream-error'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'upstream-error'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/opencode-upstream-error.test.ts:160:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# [CliAgent] WARN empty_output_follow_up reason=tool_only
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=<tmp>/workspace
+# [Opencode] INFO done outputLen=736
+# [Opencode] INFO reply len=26
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=<tmp>/workspace
+# Subtest: SCN-001 串流:上游 426 的回合被判為失敗(1.15.10 exit 0)
+not ok 4 - SCN-001 串流:上游 426 的回合被判為失敗(1.15.10 exit 0)
+  ---
+  duration_ms: 11.008291
+  type: 'test'
+  location: '<repo>/tests/opencode-upstream-error.test.ts:6:3783'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'upstream-error'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'upstream-error'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/opencode-upstream-error.test.ts:187:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# [Opencode] INFO done outputLen=736
+# [Opencode] INFO reply len=26
+# [CliAgent] WARN empty_output_follow_up reason=tool_only
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=<tmp>/workspace
+# [Opencode] INFO done outputLen=736
+# [Opencode] INFO reply len=26
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=<tmp>/workspace
+# Subtest: SCN-002 串流與非串流對同一份輸出的判定一致(1.15.10 exit 0)
+not ok 5 - SCN-002 串流與非串流對同一份輸出的判定一致(1.15.10 exit 0)
+  ---
+  duration_ms: 11.946708
+  type: 'test'
+  location: '<repo>/tests/opencode-upstream-error.test.ts:6:4690'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    undefined !== 426
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 426
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/opencode-upstream-error.test.ts:215:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# [Opencode] ERROR execution_failed err=Process exited with code 1 code=1 stdout={"type":"error","timestamp":1790838791067,"sessionID":"ses_f09b0a8b5ffee5DdG2kNnL0Tpv","error":{"name":"APIError","data":{"message":"mock: client upgrade required","statusCode":426,"isRetryable":false,"responseHeaders":{"connection":"keep-alive","content-type":"application/json","date":"Thu, 01 Oct 2026 07:13:11 GMT","keep-alive":"timeout=5","transfer-encoding":"chunked"},"responseBody":"{\\"type\\":\\"error\\",\\"error\\":{\\"type\\":\\"UpgradeRequired\\",\\"message\\":\\"mock: client upgrade required\\"}}", stderr=timestamp=2026-10-01T07:13:10.602Z level=ERROR run=c8162f1b message="stream error" providerID=mock modelID=s426 session.id=ses_f09b0a8b5ffee5DdG2kNnL0Tpv small=true agent=title mode=primary error.error="AI_APICallError: mock: client upgrade required" timestamp=2026-10-01T07:13:11.053Z level=ERROR run=c8162f1b message="stream error" providerID=mock modelID=s426 session.id=ses_f09b0a8b5ffee5DdG2kNnL0Tpv small=false agent=build mode=primary error.error="AI_APICallError: mock: client upgrade require
+# Subtest: SCN-001 非串流:上游 426 的回合被判為失敗(1.18.34 exit 1)
+not ok 6 - SCN-001 非串流:上游 426 的回合被判為失敗(1.18.34 exit 1)
+  ---
+  duration_ms: 4.350036
+  type: 'test'
+  location: '<repo>/tests/opencode-upstream-error.test.ts:6:2669'
+  failureType: 'testCodeFailure'
+  error: 'Error calling Opencode: Process exited with code 1'
+  code: 1
+  name: 'ProcessError'
+  stack: |-
+    OpencodeAgent.runChatStructured (<repo>/src/core/opencode.ts:483:13)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async OpencodeAgent.chatStructured (<repo>/src/core/opencode.ts:413:14)
+    async runTurn (<repo>/tests/opencode-upstream-error.test.ts:109:11)
+    async TestContext.<anonymous> (<repo>/tests/opencode-upstream-error.test.ts:158:49)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=<tmp>/workspace
+# Subtest: SCN-001 串流:上游 426 的回合被判為失敗(1.18.34 exit 1)
+not ok 7 - SCN-001 串流:上游 426 的回合被判為失敗(1.18.34 exit 1)
+  ---
+  duration_ms: 4.523317
+  type: 'test'
+  location: '<repo>/tests/opencode-upstream-error.test.ts:6:3783'
+  failureType: 'testCodeFailure'
+  error: 'Error calling opencode: exit=1'
+  code: 1
+  name: 'ProcessError'
+  stack: |-
+    <anonymous> (<repo>/src/core/cli-agent-base.ts:381:20)
+    ChildProcess.<anonymous> (<repo>/src/core/cli-agent-base.ts:455:9)
+    ChildProcess.emit (node:events:531:35)
+    maybeClose (node:internal/child_process:1101:16)
+    Socket.<anonymous> (node:internal/child_process:456:11)
+    Socket.emit (node:events:519:28)
+    Pipe.<anonymous> (node:net:346:12)
+  ...
+# [Opencode] ERROR execution_failed err=Process exited with code 1 code=1 stdout={"type":"error","timestamp":1790838791067,"sessionID":"ses_f09b0a8b5ffee5DdG2kNnL0Tpv","error":{"name":"APIError","data":{"message":"mock: client upgrade required","statusCode":426,"isRetryable":false,"responseHeaders":{"connection":"keep-alive","content-type":"application/json","date":"Thu, 01 Oct 2026 07:13:11 GMT","keep-alive":"timeout=5","transfer-encoding":"chunked"},"responseBody":"{\\"type\\":\\"error\\",\\"error\\":{\\"type\\":\\"UpgradeRequired\\",\\"message\\":\\"mock: client upgrade required\\"}}", stderr=timestamp=2026-10-01T07:13:10.602Z level=ERROR run=c8162f1b message="stream error" providerID=mock modelID=s426 session.id=ses_f09b0a8b5ffee5DdG2kNnL0Tpv small=true agent=title mode=primary error.error="AI_APICallError: mock: client upgrade required" timestamp=2026-10-01T07:13:11.053Z level=ERROR run=c8162f1b message="stream error" providerID=mock modelID=s426 session.id=ses_f09b0a8b5ffee5DdG2kNnL0Tpv small=false agent=build mode=primary error.error="AI_APICallError: mock: client upgrade require
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=<tmp>/workspace
+# Subtest: SCN-002 串流與非串流對同一份輸出的判定一致(1.18.34 exit 1)
+not ok 8 - SCN-002 串流與非串流對同一份輸出的判定一致(1.18.34 exit 1)
+  ---
+  duration_ms: 5.058034
+  type: 'test'
+  location: '<repo>/tests/opencode-upstream-error.test.ts:6:4690'
+  failureType: 'testCodeFailure'
+  error: 'Error calling Opencode: Process exited with code 1'
+  code: 1
+  name: 'ProcessError'
+  stack: |-
+    OpencodeAgent.runChatStructured (<repo>/src/core/opencode.ts:483:13)
+    async OpencodeAgent.chatStructured (<repo>/src/core/opencode.ts:413:14)
+    async runTurn (<repo>/tests/opencode-upstream-error.test.ts:109:11)
+    async TestContext.<anonymous> (<repo>/tests/opencode-upstream-error.test.ts:210:23)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# [Opencode] ERROR execution_failed err=Process exited with code 1 code=1 stdout={"type":"error","timestamp":1790839107861,"sessionID":"ses_f09abd40effepan3qyD82ad9zP","error":{"name":"APIError","data":{"message":"Gone: {\\"title\\":\\"Gone\\",\\"status\\":410,\\"detail\\":\\"mock: model has reached its end of life\\"}","statusCode":410,"isRetryable":false,"responseHeaders":{"connection":"keep-alive","content-type":"application/json","date":"Thu, 01 Oct 2026 07:18:27 GMT","keep-alive":"timeout=5","transfer-encoding":"chunked"},"responseBody":"{\\"title\\":\\"Gone\\",\\"status\\":410,\\"detai
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=<tmp>/workspace
+# Subtest: SCN-004 410 的 error 事件帶出狀態碼(1.18 的 stderr 已不含 410)
+not ok 9 - SCN-004 410 的 error 事件帶出狀態碼(1.18 的 stderr 已不含 410)
+  ---
+  duration_ms: 3.733774
+  type: 'test'
+  location: '<repo>/tests/opencode-upstream-error.test.ts:6:5094'
+  failureType: 'testCodeFailure'
+  error: 'Error calling Opencode: Process exited with code 1'
+  code: 1
+  name: 'ProcessError'
+  stack: |-
+    OpencodeAgent.runChatStructured (<repo>/src/core/opencode.ts:483:13)
+    async OpencodeAgent.chatStructured (<repo>/src/core/opencode.ts:413:14)
+    async runTurn (<repo>/tests/opencode-upstream-error.test.ts:109:11)
+    async TestContext.<anonymous> (<repo>/tests/opencode-upstream-error.test.ts:222:37)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# [Opencode] INFO done outputLen=1024
+# [Opencode] INFO reply len=101
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=<tmp>/workspace
+# Subtest: SCN-005 回覆內容提到 426、error、429 的正常回合不受影響
+ok 10 - SCN-005 回覆內容提到 426、error、429 的正常回合不受影響
+  ---
+  duration_ms: 10.507941
+  type: 'test'
+  ...
+# Subtest: SCN-004 限流樣式認得 opencode 1.18 的 stderr
+not ok 11 - SCN-004 限流樣式認得 opencode 1.18 的 stderr
+  ---
+  duration_ms: 74.562726
+  type: 'test'
+  location: '<repo>/tests/opencode-upstream-error.test.ts:6:6491'
+  failureType: 'testCodeFailure'
+  error: |-
+    The expression evaluated to a falsy value:
+    
+      test(`SCN-001 串流:上游 426 的回合被判為失敗(${label})`, async () => {
+      const { result, issueScopes, doneEvents, streamEvents } = await runTurn('stream', run);
+      
+      assert.equal(result.failure?.kind, 'upstream-error');
+      assert.equal(result.failure?.statusCode, 426);
+      assert.match(result.text, /426/);
+      assert.match(result.text, /升級 opencode/);
+      assert.equal(deriveRunOutcome(result).ok, false);
+      assert.ok(issueScopes.includes('opencode:upstream-error:426'));
+      assert.equal(
+      issueScopes.some((scope) => scope.includes('empty-output')),
+      false,
+      '上游錯誤不該再被歸類成空輸出'
+      );
+      assert.deepEqual(
+      streamEvents.at(-1),
+      { type: 'done', text: result.text },
+      '串流的最後一則訊息就是給使用者的說明'
+      );
+      assert.equal(
+      doneEvents.some((payload) => isRealSuccessEvent('opencode_done', payload)),
+      false
+      );
+      })
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/opencode-upstream-error.test.ts:253:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-004 限流樣式不被其他上游錯誤、標題代理或模型名誤觸
+ok 12 - SCN-004 限流樣式不被其他上游錯誤、標題代理或模型名誤觸
+  ---
+  duration_ms: 0.409682
+  type: 'test'
+  ...
+# [Opencode] ERROR execution_failed err=Process timed out code=ETIMEDOUT stderr=timestamp=2026-10-01T07:13:31.602Z level=ERROR run=9aad31bd message="stream error" providerID=mock modelID=s429 session.id=ses_f09b057c2ffe1puWr4UY8XYRlz small=false agent=build mode=primary error.error="AI_APICallError: mock: rate limit exceeded" timestamp=2026-10-01T07:13:33.728Z level=ERROR run=9aad31bd message="stream error" providerID=mock modelID=s429 session.id=ses_f09b057c2ffe1puWr4UY8XYRlz small=false agent=build mode=primary error.error="AI_APICallError: mock: rate limit exceeded" time
+# Subtest: SCN-004 non-stream:1.18 的 429 仍快速中止並判為限流
+not ok 13 - SCN-004 non-stream:1.18 的 429 仍快速中止並判為限流
+  ---
+  duration_ms: 8003.01434
+  type: 'test'
+  location: '<repo>/tests/opencode-upstream-error.test.ts:6:7818'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'timeout'
+    - 'rate-limit'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'rate-limit'
+  actual: 'timeout'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/opencode-upstream-error.test.ts:299:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-004 stream:1.18 的 429 仍快速中止並判為限流
+not ok 14 - SCN-004 stream:1.18 的 429 仍快速中止並判為限流
+  ---
+  duration_ms: 8005.359831
+  type: 'test'
+  location: '<repo>/tests/opencode-upstream-error.test.ts:6:7818'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'timeout'
+    - 'rate-limit'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'rate-limit'
+  actual: 'timeout'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/opencode-upstream-error.test.ts:299:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 2
+# fail 12
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 16470.228845
+# exit=1

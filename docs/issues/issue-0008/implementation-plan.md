@@ -91,7 +91,12 @@ SCN-006 是實地觀測。反向自檢：呼叫失敗時，回覆會是錯誤訊
    - 產出：候選版本的行為紀錄與去敏的事件 fixture，存於本目錄 `evidence/` 與 `tests/` 的 fixture 位置；TBD-1 的結論。
    - 相依：無。
    - 完成判準：以下每一項都有實際輸出為證，並與現有假設逐項比對：正常回合的事件型別與欄位（`sessionID`、`part.text`、`part.tool`、`step_finish` 的 `tokens`／`cost`／`reason`）；上游錯誤回合的 `error` 事件結構與 exit code（至少取得現行 1.15.10 的 426 樣本）；`-c`、`--model`、`--format json`、`--print-logs --log-level ERROR` 仍被接受；`--print-logs` 的 stderr 是否仍含 `"statusCode":429` 這類結構化欄位。有差異的項目都寫明處理方式。
-2. 📝 **事件解析與回合失敗判定**（SCN-001、SCN-002、SCN-005）
+2. ✅ **事件解析與回合失敗判定**（SCN-001、SCN-002、SCN-004、SCN-005）
+   - 證據（2026-10-01）：紅燈 [evidence/step2-red.txt](./evidence/step2-red.txt)（被測提交 `9ed35ff`，14 個測試 12 個失敗；非串流的 426 回合沒有 `failure`、串流丟出通用例外或走空輸出追問、429 的 stderr 等到 8 秒保險絲才以逾時結束）。綠燈 [evidence/step2-green.txt](./evidence/step2-green.txt)（最小實作與精煉後同一次執行：新測試 16／16、`npm run test` 300／300 共 47 個檔、`build` 與 `lint` exit 0）。
+   - 單迴圈合併：`tests/opencode-upstream-error.test.ts` 以假的 `opencode` 執行檔吐回 fixture，讓真正的 `OpencodeAgent` 走完串流與非串流兩條路徑，同一層就涵蓋了解析、失敗判定、runtime issue 與 `opencode_done`；`interpretEvent` 另有兩個單元測試。runner 的 audit 以 `deriveRunOutcome()` 的結果斷言，沒有啟動 runner 的 HTTP 服務。
+   - 紅燈之後對測試的修改：runtime issue 的觀察方式從 issue hook 改成比對累計次數（同一個 scope 與訊息在 60 秒內重複時不再呼叫 hook，連續測試會漏看）；另外新增兩個測試（已產出的文字保留在說明之前、exit 1 且沒有 error 事件時仍丟出例外且不發 `opencode_done`）。斷言的期望值沒有放寬。
+   - 精煉：非串流原本用一個帶布林旗標的輔助函式同時處理兩條結束路徑，改成「找事件」與「發事件」兩個步驟由呼叫點組合；精煉後重跑的就是上面的綠燈。
+   - 與設計方案的出入：404 沒有歸為模型失效，理由見 `src/core/rate-limit.ts` 的 `classifyUpstreamStatus()`（非對話類模型打錯端點也回 404，說成下架會講錯原因）。404 的回合一樣判為失敗，只是說明文字用一般上游錯誤。串流路徑原本自帶的寬鬆限流樣式改成與非串流共用 `UPSTREAM_RATE_LIMIT_PATTERN`，否則串流在 1.18 上認不得 `Rate limit exceeded`。
    - 產出：`opencode-event-parser.ts`、`agent-result.ts`、`opencode.ts`、`cli-agent-base.ts`、`rate-limit.ts` 的變更與對應測試。
    - 相依：步驟 1。
    - 完成判準：以步驟 1 的 426 fixture，先取得「回合被記為成功、訊息是沒有任何輸出」的紅燈，再實作至綠燈；串流與非串流對同一份 fixture 的結果相同；內容含「426」「error」的正常回合 fixture 判為成功；`npm run build`、`npm run test`、`npm run lint` 都是 exit 0。

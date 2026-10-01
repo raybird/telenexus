@@ -1,0 +1,47 @@
+# 步驟 2 綠燈(最小實作與精煉後):2026-10-01T07:33:51Z
+# 被測狀態:9ed35ff 加上步驟 2 的工作區變更(提交後的 SHA 見 implementation-plan.md)
+
+## npx tsx --test tests/opencode-upstream-error.test.ts
+ok 1 - SCN-001 interpretEvent 從 error 事件取出狀態碼、名稱與訊息
+ok 2 - SCN-001 沒有 statusCode 的 error 事件一樣被辨識
+ok 3 - SCN-001 非串流:上游 426 的回合被判為失敗(1.15.10 exit 0)
+ok 4 - SCN-001 串流:上游 426 的回合被判為失敗(1.15.10 exit 0)
+ok 5 - SCN-002 串流與非串流對同一份輸出的判定一致(1.15.10 exit 0)
+ok 6 - SCN-001 非串流:上游 426 的回合被判為失敗(1.18.34 exit 1)
+ok 7 - SCN-001 串流:上游 426 的回合被判為失敗(1.18.34 exit 1)
+ok 8 - SCN-002 串流與非串流對同一份輸出的判定一致(1.18.34 exit 1)
+ok 9 - SCN-004 410 的 error 事件帶出狀態碼(1.18 的 stderr 已不含 410)
+ok 10 - SCN-001 已經產出的文字保留在上游錯誤說明之前
+ok 11 - opencode 自己失敗(exit 1 且沒有 error 事件)仍然丟出例外,不留下成功事件
+ok 12 - SCN-005 回覆內容提到 426、error、429 的正常回合不受影響
+ok 13 - SCN-004 限流樣式認得 opencode 1.18 的 stderr
+ok 14 - SCN-004 限流樣式不被其他上游錯誤、標題代理或模型名誤觸
+ok 15 - SCN-004 non-stream:1.18 的 429 仍快速中止並判為限流
+ok 16 - SCN-004 stream:1.18 的 429 仍快速中止並判為限流
+# tests 16
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+exit=0
+
+## npm run build
+> tsc && node scripts/copy-web-assets.mjs
+
+[copy-web-assets] copied <repo>/src/web/public -> <repo>/dist/web/public
+exit=0
+
+## npm run test
+# tests 300
+# pass 300
+# fail 0
+# cancelled 0
+# skipped 0
+exit=0
+測試檔數:47(基準 46 個檔、284 個測試,加上本步驟新增的 1 個檔、16 個測試)
+
+## npm run lint
+> telenexus@2.27.3 lint
+> eslint "src/**/*.ts"
+
+exit=0
