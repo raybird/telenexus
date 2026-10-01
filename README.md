@@ -17,22 +17,33 @@
 
 > 您的私人本地 AI 助理閘道器（Telegram → Local CLI Agent）
 
-用 Telegram 控制本機 Opencode CLI，整合長對話記憶、排程、觀測與 runner 架構，作為可長期運作的個人 AI 控制平面。
+用 Telegram 控制本機 Opencode CLI，整合長對話記憶、排程、觀測與 runner 架構，作為可長期運作的個人 AI 控制平面。以 Docker Compose 部署，包含三個服務：`telenexus`（主服務）、`agent-runner`（執行 Opencode）與 `memoria`（長期記憶）。
 
 ## 核心能力
 
 - **本地 CLI 執行**：Telegram / Web Console 直接驅動本機 Opencode，保留完整工具權限
 - **長對話記憶**：Summary-Aware Retrieval (SAR) — 核心規則與決策跨 session 保留，不只抓近期訊息
+- **長期記憶服務**：內建 Memoria 服務，每輪對話自動同步，之後的對話可召回相關記憶
 - **排程系統**：內建 cron scheduler，定時任務與一般聊天走同一套可觀測模型
+- **Runner 隔離執行**：AI 任務交給獨立的 `agent-runner` 容器，連續失敗時熔斷並自動退回本地執行
 - **即時串流**：工具活動 emoji feed（🔍📖💻✏️🌐）+ MarkdownV2 渲染，對話感更即時
 - **Pinned 狀態訊息**：釘選訊息即時顯示模型、排程數、異常數，不需打 `/status`
-- **可觀測性**：`workspace/context/` 持續寫出 runtime / scheduler / error / runner 快照
+- **可觀測性**：`workspace/context/` 持續寫出 runtime / scheduler / error / runner 快照，並有事件流 `events.jsonl`
+- **主動告警**：定期確認目前的模型仍可呼叫，模型被上游下架或持續限流時推 Telegram 通知；同類錯誤短時間內重複發生也會推播
+- **上游限流快速失敗**：上游回 429 時約 1 秒內中止並如實回報，不會讓任務空等到逾時
+- **容器硬化**：非 root 執行、`cap_drop: ALL`、`no-new-privileges`，檔案擁有權自動對齊主機帳號
 
 ---
 
 ## 一鍵安裝（推薦）
 
-不需要 clone 原始碼。映像由 CI 預建於 GHCR，安裝只下載部署檔並 `docker compose pull`：
+不需要 clone 原始碼，本機也不需要 Node.js。映像由 CI 預建於 GHCR，安裝只下載部署檔並 `docker compose pull`。
+
+事前準備：
+
+- Docker 與 Docker Compose v2
+- 一個 Telegram bot 的 token（向 [@BotFather](https://t.me/BotFather) 申請）與你自己的 Telegram 使用者 ID
+- 可登入 opencode 的模型供應商帳號
 
 ```bash
 mkdir telenexus && cd telenexus
@@ -70,7 +81,9 @@ ALLOWED_USER_ID=your_telegram_user_id
 DB_DIR=./data
 ```
 
-### 2) 啟動雙服務
+### 2) 啟動服務
+
+會建置並啟動 `telenexus`、`agent-runner`、`memoria` 三個容器：
 
 ```bash
 docker compose up -d --build
@@ -100,6 +113,9 @@ docker compose logs -f telenexus
 | `/new`                    | 下一則訊息強制使用新 CLI session，不接續上一段對話 |
 | `/abort`                  | 中止當前正在執行的 AI 任務並清空佇列               |
 | `/send_file 路徑 \| 說明` | 把專案目錄內的檔案回傳到 Telegram                  |
+| `/reflect`                | 手動觸發一次追蹤分析                               |
+
+`/compress`、`/compact`、`/clear` 會原樣轉交給 Opencode CLI；可轉交的指令清單在 `ai-config.yaml` 的 `passthrough_commands`。
 
 ### 排程指令
 
@@ -128,19 +144,30 @@ docker compose exec telenexus node /app/dist/tools/scheduler-cli.js health
 
 模型 override 寫入 `data/ai-config.override.yaml`，`ai-config.yaml` 維持唯讀不變動。
 
+上游會下架模型，而 `opencode models` 仍會列出已下架的名稱。換模型前先實測：
+
+```bash
+docker compose exec agent-runner node scripts/probe-models.mjs        # 探測目前設定的模型
+docker compose exec agent-runner node scripts/probe-models.mjs --all  # 探測所有可用模型
+```
+
 ---
 
 ## 文件導覽
 
-| 文件                                    | 內容                         |
-| --------------------------------------- | ---------------------------- |
-| `docs/README.md`                        | 架構設計、維護規則、深入說明 |
-| `docs/configuration-reference.md`       | 所有環境變數與 runner 設定   |
-| `docs/web-console-reference.md`         | Web Console API 與頁面說明   |
-| `docs/summary-aware-retrieval-plan.md`  | 長對話記憶 SAR 設計          |
-| `docs/scheduler-operation-runbook.md`   | 排程維運 runbook             |
-| `docs/runtime-boundary-and-security.md` | 邊界與安全說明               |
-| `docs/deployment-cutover-checklist.md`  | 部署 checklist               |
+| 文件                                    | 內容                       |
+| --------------------------------------- | -------------------------- |
+| `docs/README.md`                        | 依任務查找文件的索引       |
+| `docs/installation.md`                  | 一鍵安裝、升級與回滾       |
+| `ARCHITECTURE.md`                       | 架構總覽與模組地圖         |
+| `docs/configuration-reference.md`       | 所有環境變數與 runner 設定 |
+| `docs/web-console-reference.md`         | Web Console API 與頁面說明 |
+| `docs/summary-aware-retrieval-plan.md`  | 長對話記憶 SAR 設計        |
+| `docs/scheduler-operation-runbook.md`   | 排程維運 runbook           |
+| `docs/runtime-boundary-and-security.md` | 邊界與安全說明             |
+| `docs/deployment-cutover-checklist.md`  | 部署 checklist             |
+| `CHANGELOG.md`                          | 各版本的變更與背景         |
+| `CONTRIBUTING.md`                       | 開發流程與提交規範         |
 
 ---
 
@@ -182,3 +209,9 @@ npm run test         # 執行全部測試
 - `TELEGRAM_TOKEN`
 - `RUNNER_SHARED_SECRET`
 - `ALLOWED_USER_ID`
+
+---
+
+## 授權
+
+[ISC License](LICENSE)
