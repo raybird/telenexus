@@ -1,0 +1,14 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "mock": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Mock upstream",
+      "options": { "baseURL": "http://127.0.0.1:18426/v1", "apiKey": "mock" },
+      "models": {
+        "s426": { "name": "s426" }, "s429": { "name": "s429" }, "s410": { "name": "s410" },
+        "s404": { "name": "s404" }, "s401": { "name": "s401" }, "s500": { "name": "s500" }, "n429": { "name": "n429" }
+      }
+    }
+  }
+}

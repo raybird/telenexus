@@ -47,6 +47,13 @@ v2.27.3 的 CHANGELOG 記錄了這個缺口，當時決定暫不做結構化 err
 - 410 與 model not found 的 stderr 樣式保留作為第二道，因為 `Model not found` 是 exit 1、不一定有 `error` 事件。
 - 狀態碼到分類的對應集中在一處：429 為限流、410 與 404 為模型失效、426 為客戶端版本過舊、其餘為一般上游錯誤。
 
+> NOTE（2026-10-01，步驟 1 的實測推翻了上面兩點的前提，細節見 [evidence/step1-compat-probe.md](./evidence/step1-compat-probe.md)）
+>
+> - opencode 1.18 在上游錯誤時以 exit 1 結束（1.15 是 exit 0），stdout 的 `error` 事件結構不變。判定要同時涵蓋兩種結束方式：exit 非 0 時從 `ProcessError` 帶出的 stdout 解析事件。
+> - 1.18 的 `--print-logs` 改成 logfmt，stderr 不再有 `"statusCode":NNN`，也不再回吐 request body。429 的快速中止因此不能「維持不變」：`UPSTREAM_RATE_LIMIT_PATTERN` 要增加一個分支，認主代理（`small=false`）的 `stream error` 行裡、`error.error` 欄位內的限流字樣。舊格式的分支保留。
+> - 410 在 1.18 的 stderr 只剩 `Gone`，改由 `error` 事件的 `statusCode` 判定。stderr 的失效樣式只剩 `Model not found` 這條路在用，它的 `error` 事件不帶狀態碼。
+> - `error` 事件可能沒有 `statusCode`（`UnknownError`）。沒有狀態碼的錯誤事件一樣判為失敗，分類為一般上游錯誤。
+
 ### 健康檢查
 
 - 探針改以 `--format json` 執行並解析事件，有上游錯誤事件即為不健康。分類沿用上面的對應。
@@ -79,14 +86,16 @@ SCN-006 是實地觀測。反向自檢：呼叫失敗時，回覆會是錯誤訊
 
 ## 實作步驟
 
-1. 📝 **新版 opencode 的相容性探測與 fixture**（SCN-004、SCN-006）
+1. ✅ **新版 opencode 的相容性探測與 fixture**（SCN-004、SCN-006）
+   - 證據（2026-10-01，被測提交 `da76420`）：[evidence/step1-compat-probe.md](./evidence/step1-compat-probe.md)，樣本清單在 [evidence/step1-samples.txt](./evidence/step1-samples.txt)，fixture 在 `tests/fixtures/opencode/`。結論：參數與事件格式相容；三項差異（exit code、stderr 格式、410 的 stderr）的處理方式併入步驟 2 至 4；TBD-1 定為 1.18.34。
    - 產出：候選版本的行為紀錄與去敏的事件 fixture，存於本目錄 `evidence/` 與 `tests/` 的 fixture 位置；TBD-1 的結論。
    - 相依：無。
    - 完成判準：以下每一項都有實際輸出為證，並與現有假設逐項比對：正常回合的事件型別與欄位（`sessionID`、`part.text`、`part.tool`、`step_finish` 的 `tokens`／`cost`／`reason`）；上游錯誤回合的 `error` 事件結構與 exit code（至少取得現行 1.15.10 的 426 樣本）；`-c`、`--model`、`--format json`、`--print-logs --log-level ERROR` 仍被接受；`--print-logs` 的 stderr 是否仍含 `"statusCode":429` 這類結構化欄位。有差異的項目都寫明處理方式。
 2. 📝 **事件解析與回合失敗判定**（SCN-001、SCN-002、SCN-005）
-   - 產出：`opencode-event-parser.ts`、`agent-result.ts`、`opencode.ts`、`cli-agent-base.ts` 的變更與對應測試。
+   - 產出：`opencode-event-parser.ts`、`agent-result.ts`、`opencode.ts`、`cli-agent-base.ts`、`rate-limit.ts` 的變更與對應測試。
    - 相依：步驟 1。
    - 完成判準：以步驟 1 的 426 fixture，先取得「回合被記為成功、訊息是沒有任何輸出」的紅燈，再實作至綠燈；串流與非串流對同一份 fixture 的結果相同；內容含「426」「error」的正常回合 fixture 判為成功；`npm run build`、`npm run test`、`npm run lint` 都是 exit 0。
+   - 步驟 1 追加（SCN-001、SCN-004）：exit 1 的 426 fixture（1.18 的行為）與 exit 0 的得到相同結果；限流樣式命中 1.18 的兩份 429 stderr fixture（先紅後綠），不命中 500 與 426 的 stderr fixture，也不因模型名裡的數字命中。
 3. 📝 **健康檢查與真實成功的判定**（SCN-003、SCN-004）
    - 產出：`model-health-check.ts` 的變更與測試。
    - 相依：步驟 2。
@@ -94,7 +103,7 @@ SCN-006 是實地觀測。反向自檢：呼叫失敗時，回覆會是錯誤訊
 4. 📝 **`probe-models.mjs` 同步**（SCN-007）
    - 產出：`scripts/probe-models.mjs` 的變更。
    - 相依：步驟 2（對應表定案）。
-   - 完成判準：對上游錯誤的輸出標示不可用並列出狀態碼；`CLAUDE.md` 提到的兩處複本內容一致。
+   - 完成判準：對上游錯誤的輸出標示不可用並列出狀態碼；`CLAUDE.md` 提到的兩處複本內容一致（含步驟 2 更新後的限流樣式）。
 5. 📝 **升釘版並以真實呼叫驗證**（SCN-006）
    - 產出：`Dockerfile` 的釘版變更與實測紀錄。
    - 相依：步驟 1、2。啟動容器屬 `docs/agents/project.md` 列的使用者決定事項，執行前取得同意；只啟動 agent-runner，不連 Telegram。
@@ -112,8 +121,8 @@ SCN-006 是實地觀測。反向自檢：呼叫失敗時，回覆會是錯誤訊
 
 ## 檢查清單
 
-- [ ] 步驟 1 的探測在改任何程式之前完成
-- [ ] fixture 已去敏（無 token、使用者 ID、本機路徑、對話內容）
+- [x] 步驟 1 的探測在改任何程式之前完成
+- [x] fixture 已去敏（無 token、使用者 ID、本機路徑、對話內容）
 - [ ] `scripts/probe-models.mjs` 與 TypeScript 端的判定一起改
 - [ ] `docker-compose.yml`、`docker-compose.release.yml`、`release.yml` 沒有變更
 - [ ] 依 `docs/agents/project.md` 的常青文件對照更新受影響的文件
