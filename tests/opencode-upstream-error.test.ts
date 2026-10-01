@@ -100,7 +100,14 @@ function issueCounts(): Map<string, number> {
   return counts;
 }
 
-async function runTurn(mode: 'stream' | 'non-stream', run: FakeRun): Promise<Observed> {
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function runTurn(
+  mode: 'stream' | 'non-stream',
+  run: FakeRun,
+  // 串流回呼的延遲。正式環境的回呼是 Telegram 編輯訊息(網路 I/O),不會同步返回。
+  streamCallbackDelayMs = 0
+): Promise<Observed> {
   setFakeRun(run);
   const doneEvents: Record<string, unknown>[] = [];
   const streamEvents: AgentEvent[] = [];
@@ -115,8 +122,9 @@ async function runTurn(mode: 'stream' | 'non-stream', run: FakeRun): Promise<Obs
     const agent = new OpencodeAgent();
     const result =
       mode === 'stream'
-        ? await agent.streamChat('hi', { forceNewSession: true }, (event) => {
+        ? await agent.streamChat('hi', { forceNewSession: true }, async (event) => {
             streamEvents.push(event);
+            if (streamCallbackDelayMs > 0) await sleep(streamCallbackDelayMs);
           })
         : await agent.chatStructured('hi', { forceNewSession: true });
     const issueScopes = [...issueCounts()]
@@ -260,6 +268,75 @@ test('SCN-001 已經產出的文字保留在上游錯誤說明之前', async () 
   }
 });
 
+// 第一輪獨立審查(review-48944eb.md 的 M1)找到的缺口:串流對每一批 stdout 開一個非同步迴圈
+// 逐行處理,close 不等它跑完。回呼一有延遲,排在同一批後面的 error 事件就還沒被處理到。
+for (const exit of [0, 1]) {
+  test(`SCN-001 串流回呼有延遲時,同一批到達的 error 事件不會被漏掉(text 之後,exit ${exit})`, async () => {
+    const okLines = readFixture('1.18.34-ok.stdout.jsonl').trim().split('\n').slice(0, 2);
+    const composed = path.join(tempDir, `slow-text-then-426-${exit}.jsonl`);
+    fs.writeFileSync(
+      composed,
+      [...okLines, readFixture('1.18.34-upstream-426.stdout.jsonl').trim()].join('\n') + '\n'
+    );
+
+    const { result, issueScopes } = await runTurn('stream', { stdout: composed, exit }, 50);
+
+    assert.equal(result.failure?.kind, 'upstream-error');
+    assert.equal(result.failure?.statusCode, 426);
+    assert.equal(deriveRunOutcome(result).ok, false);
+    assert.match(result.text, /426/);
+    assert.ok(issueScopes.includes('opencode:upstream-error:426'));
+    // exit 0 時漏掉 error 事件會被當成空輸出而追問一次,追問那次(非串流)才判出失敗:
+    // 結果看起來一樣,但多打了一次 opencode。這條斷言分得出兩者。
+    assert.equal(
+      issueScopes.some((scope) => scope.includes('empty-output')),
+      false,
+      '不該走空輸出追問'
+    );
+    assert.ok(result.text.startsWith('OK\n\n'), `已產出的文字要保留: ${result.text}`);
+  });
+}
+
+test('SCN-001 串流回呼有延遲時,工具呼叫之後同批到達的 error 事件不會被漏掉', async () => {
+  // 工具回合的前三行(step_start、text、tool_use)接上 426 的 error 事件。
+  const toolLines = readFixture('1.18.34-tool-use.stdout.jsonl').trim().split('\n').slice(0, 3);
+  assert.ok(toolLines[2]?.includes('"type":"tool_use"'), 'fixture 第三行應是 tool_use');
+  const composed = path.join(tempDir, 'slow-tool-then-426.jsonl');
+  fs.writeFileSync(
+    composed,
+    [...toolLines, readFixture('1.18.34-upstream-426.stdout.jsonl').trim()].join('\n') + '\n'
+  );
+
+  for (const exit of [0, 1]) {
+    const { result, issueScopes } = await runTurn('stream', { stdout: composed, exit }, 50);
+    assert.equal(result.failure?.kind, 'upstream-error', `exit ${exit}`);
+    assert.equal(result.failure?.statusCode, 426, `exit ${exit}`);
+    assert.equal(
+      issueScopes.some((scope) => scope.includes('empty-output')),
+      false,
+      `exit ${exit}: 不該走空輸出追問`
+    );
+  }
+});
+
+test('串流回呼有延遲時,正常回合不會被當成空輸出', async () => {
+  // 同一個競態在修正前也會吃掉正常回合的文字:close 判定時 text 那一行還沒被處理,
+  // 回合被歸成 tool_only 而多追問一次。
+  const { result, issueScopes, streamEvents } = await runTurn(
+    'stream',
+    { stdout: '1.18.34-ok.stdout.jsonl', exit: 0 },
+    50
+  );
+
+  assert.equal(result.failure, undefined);
+  assert.equal(result.text, 'OK');
+  assert.deepEqual(issueScopes, []);
+  assert.deepEqual(
+    streamEvents.map((event) => event.type),
+    ['start', 'status', 'delta', 'usage', 'done']
+  );
+});
+
 test('opencode 自己失敗(exit 1 且沒有 error 事件)仍然丟出例外,不留下成功事件', async () => {
   setFakeRun({ exit: 1 });
   const doneEvents: Record<string, unknown>[] = [];
@@ -308,6 +385,24 @@ test('SCN-004 限流樣式認得 opencode 1.18 的 stderr', () => {
   );
 });
 
+test('SCN-004 限流樣式認得限流字樣的常見變形', () => {
+  const template = readFixture('1.18.34-upstream-429-retry-status-text.stderr.txt')
+    .split('\n')
+    .find((line) => line.includes('small=false'));
+  assert.ok(template);
+  for (const wording of [
+    'Rate limit exceeded',
+    'You have been rate-limited',
+    'ratelimit reached',
+    'Rate limits apply'
+  ]) {
+    assert.ok(
+      UPSTREAM_RATE_LIMIT_PATTERN.test(template.replace('Too Many Requests', wording)),
+      wording
+    );
+  }
+});
+
 test('SCN-004 限流樣式不被其他上游錯誤、標題代理或模型名誤觸', () => {
   // 500 與 426 的 fixture 裡,模型名分別是 s500 與 s426;500 那份同樣在重試中。
   assert.equal(
@@ -326,6 +421,16 @@ test('SCN-004 限流樣式不被其他上游錯誤、標題代理或模型名誤
   const titleAgentOnly = lines.filter((line) => line.includes('small=true')).join('\n');
   assert.ok(titleAgentOnly.includes('Too Many Requests'), 'fixture 應含標題代理的限流行');
   assert.equal(UPSTREAM_RATE_LIMIT_PATTERN.test(titleAgentOnly), false);
+
+  // 「rate limiter」是元件名稱,不是被限流。
+  assert.equal(
+    UPSTREAM_RATE_LIMIT_PATTERN.test(
+      lines
+        .find((line) => line.includes('small=false'))!
+        .replace('Too Many Requests', 'internal error in rate limiter service')
+    ),
+    false
+  );
 
   // 模型名是 n429,訊息換成與限流無關的內容後就不該命中。
   const mainAgentLine = lines.find((line) => line.includes('small=false'));

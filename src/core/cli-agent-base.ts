@@ -258,64 +258,72 @@ export abstract class CliAgentBase implements AIAgent {
       Math.max(1000, Math.min(heartbeatMs, 5000))
     );
 
+    // 各批 stdout 依到達順序逐一處理,close 等這條鏈跑完才做判定。
+    //
+    // 原本每一批各開一個不相干的非同步迴圈,close 也不等它們:onEvent 一有延遲(Telegram 編輯
+    // 訊息是網路 I/O),同一批裡排在後面的行在 close 判定時還沒被處理。正常回合因此被當成
+    // 空輸出而多追問一次;上游的 error 事件排在 text 或 tool_use 後面時則整個被漏掉。
+    let lineProcessing: Promise<void> = Promise.resolve();
+
     return new Promise<AgentStructuredResult>((resolve, reject) => {
       child.stdout?.on('data', (chunk) => {
         stdoutBuffer += chunk.toString();
         const lines = stdoutBuffer.split(/\r?\n/);
         stdoutBuffer = lines.pop() || '';
 
-        void (async () => {
-          for (const rawLine of lines) {
-            const line = rawLine.trim();
-            if (!line) {
-              continue;
+        lineProcessing = lineProcessing
+          .then(async () => {
+            for (const rawLine of lines) {
+              const line = rawLine.trim();
+              if (!line) {
+                continue;
+              }
+              if (verbosePath) {
+                this.appendVerboseLine(verbosePath, line);
+              }
+              const parsed = this.parseStreamLine(line);
+              if (!parsed) {
+                continue;
+              }
+              parsedLineCount += 1;
+              if (parsed.sessionId) {
+                sessionId = parsed.sessionId;
+              }
+              if (parsed.upstreamError) {
+                upstreamError = parsed.upstreamError;
+              }
+              if (parsed.emitStart) {
+                await emitStart();
+              }
+              if (parsed.statusText) {
+                await emitStatus(parsed.statusText);
+              }
+              if (typeof parsed.reasoningText === 'string' && parsed.reasoningText.length > 0) {
+                // 思考片段視為「活動中」，避免心跳誤判為靜默而插入等待提示
+                lastDeltaAt = Date.now();
+                await emitStart();
+                await onEvent({ type: 'reasoning', text: parsed.reasoningText });
+              }
+              if (typeof parsed.deltaText === 'string' && parsed.deltaText.length > 0) {
+                lastDeltaAt = Date.now();
+                await emitStart();
+                aggregatedText += parsed.deltaText;
+                await onEvent({ type: 'delta', text: parsed.deltaText });
+              }
+              if (parsed.stats) {
+                stats = parsed.stats;
+              }
             }
-            if (verbosePath) {
-              this.appendVerboseLine(verbosePath, line);
+          })
+          .catch((error) => {
+            if (settled) {
+              return;
             }
-            const parsed = this.parseStreamLine(line);
-            if (!parsed) {
-              continue;
-            }
-            parsedLineCount += 1;
-            if (parsed.sessionId) {
-              sessionId = parsed.sessionId;
-            }
-            // 放在任何 await 之前:close 可能在這個迴圈還在等 onEvent 時就觸發。
-            if (parsed.upstreamError) {
-              upstreamError = parsed.upstreamError;
-            }
-            if (parsed.emitStart) {
-              await emitStart();
-            }
-            if (parsed.statusText) {
-              await emitStatus(parsed.statusText);
-            }
-            if (typeof parsed.reasoningText === 'string' && parsed.reasoningText.length > 0) {
-              // 思考片段視為「活動中」，避免心跳誤判為靜默而插入等待提示
-              lastDeltaAt = Date.now();
-              await emitStart();
-              await onEvent({ type: 'reasoning', text: parsed.reasoningText });
-            }
-            if (typeof parsed.deltaText === 'string' && parsed.deltaText.length > 0) {
-              lastDeltaAt = Date.now();
-              await emitStart();
-              aggregatedText += parsed.deltaText;
-              await onEvent({ type: 'delta', text: parsed.deltaText });
-            }
-            if (parsed.stats) {
-              stats = parsed.stats;
-            }
-          }
-        })().catch((error) => {
-          if (settled) {
-            return;
-          }
-          settled = true;
-          clearTimeout(timer);
-          clearInterval(heartbeatInterval);
-          reject(error);
-        });
+            settled = true;
+            clearTimeout(timer);
+            clearInterval(heartbeatInterval);
+            reject(error);
+          });
       });
 
       child.stderr?.on('data', (chunk) => {
@@ -347,6 +355,9 @@ export abstract class CliAgentBase implements AIAgent {
           clearTimeout(timer);
           clearInterval(heartbeatInterval);
           options?.signal?.removeEventListener('abort', onAbort);
+
+          // 這條鏈自己的 catch 已經吞掉例外,這裡的 await 不會丟出。
+          await lineProcessing;
 
           if (stdoutBuffer.trim()) {
             const trailing = this.parseStreamLine(stdoutBuffer.trim());

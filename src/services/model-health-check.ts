@@ -97,14 +97,17 @@ export function classifyFailure(output: string): FailureCategory {
 }
 
 /**
- * 失敗簽章：類別 + 狀態碼 + 訊息前段。用來區分「同一個故障」與「新的故障」。
- *
- * 沒有狀態碼時維持原本的兩段格式:升級當下若正處於故障中,狀態檔裡的舊簽章才對得上,
- * 不會因為格式改變多推一次。
+ * 每次執行都不同的 log 欄位。沒有狀態碼的失敗(模型不存在、無法歸因)訊息取自 stderr,
+ * 而 opencode 的每一行 log 都以時間戳開頭(1.18 還多一個隨機的 run id)。留著它們,同一個
+ * 故障每次探測都會算出不同的簽章,被當成「新的故障」每小時推播一次。
  */
+const VOLATILE_LOG_FIELDS =
+  /\b(?:timestamp|run|session\.id|messageID|ref)=\S+\s*|\bERROR \S+ \+\d+ms\s*/g;
+
+/** 失敗簽章：類別 + 狀態碼(有的話) + 訊息前段。用來區分「同一個故障」與「新的故障」。 */
 export function failureSignature(outcome: HealthCheckOutcome): string {
   if (outcome.ok) return 'ok';
-  const prefix = outcome.message.slice(0, SIGNATURE_PREFIX_LENGTH);
+  const prefix = outcome.message.replace(VOLATILE_LOG_FIELDS, '').slice(0, SIGNATURE_PREFIX_LENGTH);
   let hash = 0;
   for (let i = 0; i < prefix.length; i += 1) {
     hash = (hash * 31 + prefix.charCodeAt(i)) | 0;

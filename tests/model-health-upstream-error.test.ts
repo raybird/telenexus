@@ -191,6 +191,36 @@ test('SCN-004 模型不存在:error 事件沒有狀態碼時仍由 stderr 判為
   assert.match(outcome.message, /Model not found/, '訊息要用 stderr 的原因,不是事件裡的通用句子');
 });
 
+test('同一個故障在不同時間探測,簽章相同(不因 log 的時間戳與 run id 而改變)', () => {
+  const stdout = readFixture('1.18.34-model-not-found.stdout.jsonl');
+  const stderr = readFixture('1.18.34-model-not-found.stderr.txt');
+  // 一小時後的下一次探測:同樣的錯誤,只有每一行開頭的時間戳與 run id 不同。
+  const nextProbeStderr = stderr
+    .replace(/timestamp=\S+/g, 'timestamp=2026-10-01T09:00:00.000Z')
+    .replace(/run=\S+/g, 'run=0a1b2c3d');
+  assert.notEqual(nextProbeStderr, stderr, 'fixture 應含 timestamp 與 run 欄位');
+
+  assert.equal(
+    failureSignature(interpretProbeOutput(1, nextProbeStderr, stdout)),
+    failureSignature(interpretProbeOutput(1, stderr, stdout))
+  );
+
+  // 舊格式的行首是 `ERROR <時間> +<毫秒>ms`。
+  const oldFormat = (time: string, delta: string): HealthCheckOutcome => ({
+    ok: false,
+    category: 'unknown',
+    message: `ERROR ${time} ${delta} service=llm providerID=x error=boom`
+  });
+  assert.equal(
+    failureSignature(oldFormat('2026-08-29T08:17:04', '+310ms')),
+    failureSignature(oldFormat('2026-08-29T09:17:09', '+12ms'))
+  );
+  assert.notEqual(
+    failureSignature(oldFormat('2026-08-29T08:17:04', '+310ms')),
+    failureSignature({ ok: false, category: 'unknown', message: 'ERROR service=llm other failure' })
+  );
+});
+
 test('SCN-004 探測期間被限流多次仍判為限流(1.18 的 stderr)', () => {
   // 重試後最終成功的情況:exit 0,stdout 是正常回合,stderr 留下重試期間的限流紀錄。
   const outcome = interpretProbeOutput(

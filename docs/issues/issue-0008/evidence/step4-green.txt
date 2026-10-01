@@ -18,7 +18,8 @@ ok 9 - 限流樣式與 src/core/rate-limit.ts 的那一份完全相同
 # skipped 0
 exit=0
 
-## 實跑(真實上游,opencode 1.15.10):node scripts/probe-models.mjs --models opencode/big-pickle
+## 實跑(真實上游,opencode 1.15.10):node scripts/probe-models.mjs --models opencode/big-pickle --timeout 120
+## (2026-10-01 更正:原本記錄的命令漏了 --timeout,輸出未更動)
 探測 1 顆模型，每顆 1 輪，逐一執行（不並行）。
 prompt: 請搜尋比特幣目前價格，並用繁體中文給我一段 3 行以內的簡短摘要。請直接給最終結果。
 預估最長耗時: 120 秒
@@ -31,7 +32,8 @@ prompt: 請搜尋比特幣目前價格，並用繁體中文給我一段 3 行以
 可用 0 / 共測 1 顆
 exit=1
 
-## 實跑(真實上游,opencode 1.18.34,對照組):node scripts/probe-models.mjs --models opencode/big-pickle
+## 實跑(真實上游,opencode 1.18.34,對照組):node scripts/probe-models.mjs --models opencode/big-pickle --timeout 180
+## (2026-10-01 更正:原本記錄的命令漏了 --timeout,輸出未更動)
 探測 1 顆模型，每顆 1 輪，逐一執行（不並行）。
 prompt: 請搜尋比特幣目前價格，並用繁體中文給我一段 3 行以內的簡短摘要。請直接給最終結果。
 預估最長耗時: 180 秒

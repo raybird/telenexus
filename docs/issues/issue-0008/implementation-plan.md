@@ -133,6 +133,16 @@ SCN-006 是實地觀測。反向自檢：呼叫失敗時，回覆會是錯誤訊
    - 相依：步驟 2、3。
    - 完成判準：文件描述與實作一致；`CLAUDE.md` 中「樣式只認結構化欄位」的敘述已反映 stdout 事件與 stderr 樣式的分工。發版說明（`CHANGELOG.md`）在發版時由維護者處理。
 
+7. ✅ **第一輪獨立審查退回的修正**（SCN-001、SCN-003、SCN-004）
+   - 來源：[review-48944eb.md](./review-48944eb.md)，判定 RETURN TO execute-task。
+   - M1（MUST FIX）：串流對每一批 stdout 各開一個非同步迴圈，`close` 不等它們。回呼有延遲時，與 `text` 或 `tool_use` 同批到達的 `error` 事件在判定當下還沒被處理，回合被記為成功或丟出通用例外。步驟 2 只把指派挪到同一行的 await 之前，沒有處理「前面的行還在等」的情況。修正：各批改成一條依序執行的 promise chain，`close` 先等它跑完。這同時修掉 reviewer 指出的既有競態（正常回合的文字在慢回呼下遺失、被當成空輸出而多追問一次）。這是串流生命週期的行為修正，影響每一個本地串流回合；既有的串流測試全數維持綠燈。
+   - 證據（2026-10-01）：紅燈 [evidence/return1-red.txt](./evidence/return1-red.txt)（被測提交 `8d5bf86` 的 `src/`，新增 4 個回呼延遲 50ms 的測試全部失敗：漏掉 error 事件、丟出 `Error calling opencode: exit=1`、走空輸出追問）。綠燈 [evidence/return1-green.txt](./evidence/return1-green.txt)（三個測試檔 42／42、`npm run test` 326／326 共 49 個檔、`build` 與 `lint` exit 0）。
+   - S1：失敗簽章在取雜湊前去掉每次執行都不同的 log 欄位（`timestamp=`、`run=` 等，以及舊格式行首的時間）。沒有狀態碼的失敗訊息取自 stderr，原本同一個故障每次探測簽章都不同，會每小時推播。這個修正先寫了程式才補測試，所以沒有時間序上的紅燈；改以反向檢查證明測試有鑑別力：暫時還原修正後該測試失敗（記在 `return1-green.txt` 末段）。
+   - S2、N5：`CLAUDE.md` 三處與 `README.md` 一處照實作改寫。S5：`step4-green.txt` 補上實際使用的 `--timeout`。N3：腳本端解析事件前先 `trim()`。N4：限流字樣收緊為 `rate[ -]?limit(?:ed|s|ing)?\b`，`rate limiter` 不再命中；兩處複本同步。
+   - S3：步驟 5 以修正後的提交重新建置映像再驗一次，並保存原始輸出，見步驟 5 的補充。
+   - S4（步驟 2、3 的「最小實作後」與「精煉後」綠燈合併成一筆）：精煉前的狀態沒有提交，補不回來，維持原紀錄。
+   - 沒有採納：N1（逾時或限流中止與 error 事件並存時兩條路徑的優先順序不同）、N2（429 以 error 事件出現時不計入 Rate-limit Issues）、N6（fixture 保留 `cf-ray` 標頭）。N7 列的三項既有行為記在 README 的 TBD-5。
+
 ## 風險與首要驗證
 
 見 [README.md](./README.md) 的「風險與首要驗證」。步驟 1 即首要驗證。
