@@ -144,5 +144,5 @@ SCN-006 是實地觀測。反向自檢：呼叫失敗時，回覆會是錯誤訊
 - [x] 步驟 1 的探測在改任何程式之前完成
 - [x] fixture 已去敏（無 token、使用者 ID、本機路徑、對話內容）
 - [x] `scripts/probe-models.mjs` 與 TypeScript 端的判定一起改
-- [ ] `docker-compose.yml`、`docker-compose.release.yml`、`release.yml` 沒有變更
+- [x] `docker-compose.yml`、`docker-compose.release.yml`、`release.yml` 沒有變更
 - [x] 依 `docs/agents/project.md` 的常青文件對照更新受影響的文件
