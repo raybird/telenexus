@@ -8,10 +8,11 @@
    ```bash
    npm install
    ```
-2. 啟動開發模式
+2. 啟動開發模式（預設在容器內執行，存檔即重載；注意事項見 `README.md` 的「本機開發」）
    ```bash
-   npm run dev
+   npm run docker:dev
    ```
+   不經容器、直接在主機執行：`npm run dev`。
 3. 確認型別與品質
    ```bash
    npm run build

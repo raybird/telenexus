@@ -6,6 +6,9 @@
 # 開發專用的設定只能放在這裡:docker-compose.yml 與 docker-compose.release.yml
 # 必須維持只差 build:/image:(tests/docker/compose-parity.test.ts)。
 #
+# 開發容器以原始碼執行,沒有編譯後的 /app/dist:bot 內建的排程與記憶 skill
+# 會呼叫 dist/tools/ 下的 CLI,在這裡無法使用,要測那些流程請改用正式映像。
+#
 # 與既有部署並存時,.env 要換成另一個 bot 的 TELEGRAM_TOKEN ——
 # 同一個 token 兩邊同時 poll,Telegram 會回 409,兩邊都收不到訊息。
 # WEB_PORT 也要錯開(例如 3031)。

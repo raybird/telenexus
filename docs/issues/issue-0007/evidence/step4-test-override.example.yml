@@ -1,0 +1,22 @@
+# 步驟 4 實測時疊在最後的 override(去敏複本;實際使用的檔案放在 repo 之外,不進版控)。
+# <暫存目錄> 是 repo 之外的空目錄,實測前建立 data/ 與 workspace/ 兩個子目錄。
+#
+# 用法:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml -f <本檔> up -d --no-build --wait
+#
+# 目的:借用正式部署的 bot token 時,不讓開發 stack 讀到 repo 內舊資料裡的排程,
+# 也不更新聊天室的釘選訊息或送出模型健康檢查的告警。
+services:
+  telenexus:
+    environment:
+      PINNED_STATUS_ENABLED: 'false'
+      MODEL_HEALTH_CHECK_ENABLED: 'false'
+    volumes:
+      - <暫存目錄>/data:/app/data
+      - <暫存目錄>/workspace:/app/workspace
+  agent-runner:
+    environment:
+      MODEL_HEALTH_CHECK_ENABLED: 'false'
+    volumes:
+      - <暫存目錄>/data:/app/data
+      - <暫存目錄>/workspace:/app/workspace

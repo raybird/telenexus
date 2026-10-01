@@ -42,7 +42,8 @@ runtime（最後）  base                 runtime
 ### Dockerfile
 
 - `base`：現行 runtime stage 中兩邊共用的部分，包含系統套件、`COPY package.json package-lock.json`、uv、全域 CLI（`pnpm`、`opencode-ai@1.15.10`、`mcp-memory-libsql`、`agent-browser`）與 entrypoint。
-- 依賴清單的 COPY 留在全域 CLI 之前（2026-10-01 實作時補記）：現況下每次版本 bump 都會讓這一層之後的快取失效，未釘版的全域 CLI 與 Chrome 因此每版重裝。把它移到後面會讓這些工具改由 CI 快取決定新舊，屬於正式映像的行為變更，本 issue 不動。
+- `ARG APP_GIT_SHA` 與 `ARG APP_BUILD_TIME` 宣告在 `base` 的第一個 RUN 之前，正式 stage 另外宣告一次供 ENV 使用（2026-10-01 審查退回後修正）：ARG 之後的每個 RUN 都隱含使用它，`release.yml` 每次傳入不同的 `APP_BUILD_TIME`，所以從 apt 起的每一層每版都會重建。這是重排前的行為，本 issue 不改。
+- 依賴清單的 COPY 留在全域 CLI 之前（2026-10-01 實作時補記；審查退回後更正適用範圍）：以下描述只適用於不帶 build args 的本機建置。現況下每次版本 bump 都會讓這一層之後的快取失效，未釘版的全域 CLI 與 Chrome 因此每版重裝。把它移到後面會讓這些工具改由 CI 快取決定新舊，屬於正式映像的行為變更，本 issue 不動。
 - 建立目錄與 `chown -R node:node /app /home/node` 留在 dev 與正式 stage 各自的最後，不放進 `base`：它要在該 stage 的 `npm ci` 與 COPY 之後執行，擁有權才與現況相同。
 - `dev`：`FROM base`，`npm ci`（含 devDependencies），不設 `NODE_ENV=production`，預設指令為 `npm run dev`。原始碼不 COPY 進映像，由 compose 掛載。
 - 正式 stage（最後）：`FROM base`，`npm ci --omit=dev`、`COPY --from=builder /app/dist`、workspace 與 scripts，`NODE_ENV=production`、`CMD ["npm", "start"]`。內容與現行 runtime stage 等價。
@@ -107,7 +108,7 @@ SCN-001 與 SCN-002 沒有自動化測試承擔，屬實地觀測。失敗時的
    - 相依：步驟 1。
    - 完成判準：不指定 target 建出的映像與步驟 1 的基準逐項相同；`--target dev` 建置成功且映像內有 `tsx`；`npm run test` 全綠。
    - 證據（2026-10-01，工作區為 083e133 加本步驟變更）：
-     - 正式映像等價：`docker build -t telenexus-issue7:after .`（exit 0）後擷取成 [image-baseline-after.txt](./evidence/image-baseline-after.txt)，與基準的 `diff` 為空（exit 0），見 [step2-image-baseline.diff](./evidence/step2-image-baseline.diff)。
+     - 正式映像等價：`docker build -t telenexus-issue7:after .`（exit 0）後擷取成 [image-baseline-after.txt](./evidence/image-baseline-after.txt)，與基準的 `diff` 為空（exit 0）。審查退回修正後兩份基準都已重建並重新擷取，命令與結果見 [return1-build-arg-scope.txt](./evidence/return1-build-arg-scope.txt) 第 3 節。
      - 第一次比對曾有一處差異：`/app/workspace` 的內容雜湊不同、檔案清單相同。逐檔比對後只有 `workspace/context/events.jsonl` 不同，它在兩次建置之間被步驟 1 的 `npm run test` 寫入。以 083e133 的 Dockerfile 在同一份工作區狀態下重建基準映像後，差異消失。CI 從乾淨的 checkout 建置，不受這個本機檔案影響。
      - dev 映像：`docker build --target dev -t telenexus-issue7:dev .` 為 exit 0。[step2-dev-image-check.txt](./evidence/step2-dev-image-check.txt) 顯示 CMD 是 `npm run dev`、沒有 `NODE_ENV`、有 `tsx` 4.21.0；以 compose 相同的權限限制掛載 `src/` 後，`tsx` 以 node 身分執行 `src/main.ts`，並因缺少 `TELEGRAM_TOKEN` 自行結束（未連線 Telegram）。
      - 等價證據（純重排）：守門測試在重排後仍為綠；`npm run test` 為 exit 0，283 個測試全過。
@@ -155,9 +156,47 @@ SCN-001 與 SCN-002 沒有自動化測試承擔，屬實地觀測。失敗時的
 
 2026-10-01 補記：以拋棄式容器先行探測，機制成立。在與 compose 相同的權限限制與唯讀掛載下，`tsx watch` 偵測到主機端的修改並重跑，容器沒有重建，見 [step2-tsx-watch-probe.txt](./evidence/step2-tsx-watch-probe.txt)。這只證明機制，SCN-001 與 SCN-002 仍要由步驟 4 以實際服務驗證。
 
+## 審查退回（第 1 輪，2026-10-01）
+
+第一輪獨立審查的判定是 `RETURN TO execute-task`，報告見 [review-60f845f.md](./review-60f845f.md)。五項 SCN 的證據成立，退回原因是兩項 MUST FIX。
+
+### 提交改寫
+
+為了處理 M1，083e133 起的 6 筆提交已改寫（分支當時沒有任何遠端參照）。核准 commit f863d1a 在改寫範圍之前，不受影響。改寫前後每一筆的樹只差 `evidence/step1-guard-test-red.txt` 中的兩行路徑。本檔與證據檔中出現的舊 SHA 依下表對照：
+
+| 改寫前  | 改寫後  | 提交                                    |
+| ------- | ------- | --------------------------------------- |
+| 083e133 | ae891e5 | 守門測試與基準                          |
+| cd12dc7 | 37b91c1 | Dockerfile 拆出 base 並新增 dev stage   |
+| e2b6016 | c1d98f5 | 開發用 compose override 與 `docker:dev` |
+| 0b96860 | 0094620 | 文件更新                                |
+| cb92e18 | b2afd49 | 步驟 4 實測紀錄                         |
+| 60f845f | e6b9797 | Gate 豁免紀錄（第一輪審查的 HEAD）      |
+
+### 處理結果
+
+| 編號 | 問題                                                                | 處理                                                                                                                                                                                                                                                       |
+| ---- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M1   | 證據檔含本機絕對路徑                                                | 改寫提交，把路徑換成 `<repo>`。改寫後 f863d1a 之後的每一筆提交都不含該路徑（`git grep` 逐筆確認）。                                                                                                                                                        |
+| M2   | `ARG` 下移改變了正式映像的建置快取語意                              | 把兩個 `ARG` 放回 `base` 的第一個 RUN 之前，並新增守門斷言。紅燈見 [return1-arg-guard-red.txt](./evidence/return1-arg-guard-red.txt)；實際帶不同 `APP_BUILD_TIME` 建置的前後對照見 [return1-build-arg-scope.txt](./evidence/return1-build-arg-scope.txt)。 |
+| S1   | 守門測試可被小寫 `from`、`npm install --include=dev`、多個 CMD 繞過 | 比對改為不分大小寫、擋下 `npm install` 與 `--include=dev`、只認最後一個 CMD。五組變異全紅，見 [return1-guard-mutations.txt](./evidence/return1-guard-mutations.txt)。                                                                                      |
+| S2   | 開發 stack 沒有 `/app/dist`，排程與記憶 skill 無法使用              | 只補文件：`README.md`、`CLAUDE.md`、`docker-compose.dev.yml` 與 `docs/agents/project.md` 寫明限制，README 的「環境與正式映像相同」改為「工具鏈相同」。讓 dev 映像帶 dist 是新行為，不在本 issue 範圍。                                                     |
+| S3   | `docs/runtime-boundary-and-security.md` 的 dev/prod 說明過時        | 已改寫該節。                                                                                                                                                                                                                                               |
+| S4   | `CONTRIBUTING.md` 的開發流程只列主機 `npm run dev`                  | 已改為先列 `npm run docker:dev`，並加入 README 的涉及檔案。                                                                                                                                                                                                |
+
+改善建議中採納的項目：issue 狀態用語、留存實測 override 的去敏複本（[step4-test-override.example.yml](./evidence/step4-test-override.example.yml)）、0 位元組的 diff 檔改為文字紀錄、`step4-live.txt` 的容器 ID 截短為 12 碼、README 提醒重建時間、`project.md` 補回共用 token 的現況。未採納：兩份相同的基準檔仍各留一份；`docker-compose.yml` 的 healthcheck 寫死 3030 屬既有問題，另行處理。
+
+### 修正後的證據
+
+- **M2 紅綠**：修正前的 Dockerfile 對新斷言為紅，原因是 `base stage should declare ARG APP_GIT_SHA before its first RUN`；修正後 `tests/docker/dockerfile-hygiene.test.ts` 的 4 個測試全過。
+- **快取行為**：以不同的 `APP_BUILD_TIME` 實際建置。修正前 `base` 的每一層都命中快取；修正後從 apt 起每一層都重新執行，帶 ARG 的 RUN 指令集合與重排前相同。
+- **SCN-003**：修正後不指定 target 建出的映像，基準與重排前的 `diff` 仍為空。兩份基準在同一份工作區狀態下重建與擷取。
+- **SCN-001、SCN-002 的適用性**：步驟 4 的實測是對修正前的 dev 映像做的。修正只在 `base` 多了兩行 ARG，dev 映像已重建。這次沒有再暫停正式部署重跑完整實測，改以只啟動 agent-runner 的方式重驗：healthy、行程為 `tsx watch`、改檔後不重建容器即反映、還原後回到原值，見 [return1-dev-runner-recheck.txt](./evidence/return1-dev-runner-recheck.txt)。telenexus 在修正後的 dev 映像上沒有重新啟動過，這是殘餘限制。
+- **SCN-004、SCN-005**：見 [return1-docs-and-host-checks.txt](./evidence/return1-docs-and-host-checks.txt)。
+
 ## 檢查清單
 
 - [x] 步驟 1 的基準在改 Dockerfile 之前取得（之後以同一份舊 Dockerfile 重建過一次，見步驟 2）
 - [x] `docker-compose.yml`、`docker-compose.release.yml`、`release.yml` 沒有變更
 - [x] 啟動開發 stack 前取得使用者同意（借用正式 token 並暫停正式部署，未換成開發用 token）
-- [x] 依 `docs/agents/project.md` 的常青文件對照更新受影響的文件
+- [x] 依 `docs/agents/project.md` 的常青文件對照更新受影響的文件（`docs/runtime-boundary-and-security.md` 於審查退回後補上）

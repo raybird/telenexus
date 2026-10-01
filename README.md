@@ -146,7 +146,7 @@ docker compose exec telenexus node /app/dist/tools/scheduler-cli.js health
 
 ## 本機開發
 
-開發時預設在容器內執行服務：環境與正式映像相同（opencode、agent-browser、uv、Memoria），原始碼由主機掛載，存檔即重載。
+開發時預設在容器內執行服務：工具鏈與正式映像相同（opencode、agent-browser、uv、Memoria），原始碼由主機掛載，存檔即重載。
 
 ```bash
 npm run docker:dev   # 以 dev stage 啟動 telenexus、agent-runner、memoria（tsx watch）
@@ -154,7 +154,9 @@ npm run docker:dev   # 以 dev stage 啟動 telenexus、agent-runner、memoria�
 
 同一台機器上已有另一份部署在跑時，開發用的 `.env` 要換成**另一個 bot** 的 `TELEGRAM_TOKEN`，`WEB_PORT` 也要錯開（例如 `3031`）。同一個 token 兩邊同時 poll，Telegram 會回 409，兩邊都收不到訊息。
 
-`node_modules` 在映像內，改了 `package.json` 的依賴後重跑 `npm run docker:dev`（它帶 `--build`）。
+`node_modules` 在映像內，改了 `package.json` 的依賴後重跑 `npm run docker:dev`（它帶 `--build`）。`package.json` 有任何變動時，重建會連全域 CLI 與 Chrome 一起重裝，需要幾分鐘。
+
+開發容器以原始碼執行，沒有編譯後的 `/app/dist`。bot 內建的排程與記憶 skill 會呼叫 `dist/tools/` 下的 CLI，在開發 stack 內無法使用；要測這些流程，請用上方「從原始碼安裝」建出正式映像。
 
 替代方式是直接在主機執行，需自備 opencode 等工具：
 

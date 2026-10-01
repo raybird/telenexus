@@ -165,5 +165,7 @@
 
 ### dev/prod 模式說明
 
-- `docker-compose.override.yml` 會被預設 `docker compose up` 合併，把 `telenexus`/`agent-runner` 切到 dev（`npm run dev` + tsx watch + 唯讀掛載 `./src`）。
-- 安全硬化（非 root、volume 隔離）在 dev/prod 兩模式**一致生效**，因為共用同一個映像；要測 production 路徑用 `docker compose -f docker-compose.yml ...`。
+- 開發模式以 `npm run docker:dev` 啟動：在 `docker-compose.yml` 上疊 `docker-compose.dev.yml`，把 `telenexus`/`agent-runner` 切到 Dockerfile 的 `dev` stage（`npm run dev` + tsx watch + 唯讀掛載 `./src`）。只用 `docker-compose.yml` 就是 production 路徑。
+- dev 與正式是同一個 `base` stage 上的兩個映像：系統套件、全域 CLI 與 entrypoint 相同；dev 多了 devDependencies，沒有編譯後的 `dist/`。
+- 安全硬化（非 root、`cap_drop`、`no-new-privileges`、volume 隔離）來自 `docker-compose.yml` 與共用的 entrypoint，dev override 只多了唯讀的原始碼掛載，兩模式**一致生效**。
+- `docker-compose.override.yml` 保留給個人的本機設定（已列入 `.gitignore`）；存在時會被不帶 `-f` 的 `docker compose up` 自動合併。

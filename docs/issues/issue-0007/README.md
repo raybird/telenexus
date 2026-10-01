@@ -42,6 +42,8 @@ GitHub：<https://github.com/raybird/telenexus/issues/7>
 ├── README.md                     # 可改：開發段落
 ├── CLAUDE.md                     # 可改：Common Commands
 ├── docs/agents/project.md        # 可改：啟動服務一節
+├── CONTRIBUTING.md               # 可改：開發流程（審查退回後加入）
+├── docs/runtime-boundary-and-security.md # 可改：dev/prod 模式說明（審查退回後加入）
 ├── docker-compose.yml            # 不可觸及：與 release 版的一致性由 compose-parity 測試守著
 ├── docker-compose.release.yml    # 不可觸及
 ├── .github/workflows/release.yml # 不可觸及：維持不指定 target 的建法
@@ -137,4 +139,4 @@ Feature: 開發環境預設在 Docker 內執行
 **建立日期**: 2026-10-01  
 **分級**: Medium  
 **風險**: Medium\
-**狀態**: 實作完成，待 PR 與審查
+**狀態**: 第 1 輪審查退回後已修正，待重新審查

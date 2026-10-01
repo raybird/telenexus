@@ -1,0 +1,49 @@
+# 審查退回後:文件與主機驗證入口(2026-10-01,工作區為 1d275ff 加本次修正)
+
+## SCN-004:文件
+README.md                                docker:dev=2  409=1  dist 限制=4
+CLAUDE.md                                docker:dev=2  409=1  dist 限制=3
+CONTRIBUTING.md                          docker:dev=1  409=0  dist 限制=0
+.env.example                             docker:dev=1  409=1  dist 限制=0
+docs/agents/project.md                   docker:dev=1  409=1  dist 限制=1
+docs/runtime-boundary-and-security.md    docker:dev=1  409=0  dist 限制=1
+README.md: docker:dev 第 152 行;主機 npm run dev 第 164 行;Docker 在前=yes
+CLAUDE.md: docker:dev 第 13 行;主機 npm run dev 第 14 行;Docker 在前=yes
+CONTRIBUTING.md: docker:dev 第 13 行;主機 npm run dev 第 15 行;Docker 在前=yes
+
+## 格式與連結
+$ npx prettier --check <變更的 md>
+All matched files use Prettier code style!
+$ python3 <kit>/scripts/check-links.py docs
+OK: 所有 Markdown 相對連結皆有效。
+$ python3 <kit>/scripts/init-project.py . --check
+OK：核心與本 kit 一致，project.md 已存在；客製語意另行覆核。
+
+## SCN-005:主機驗證入口
+$ npm run build
+exit=0
+$ npm run test
+# tests 284
+# pass 284
+# fail 0
+exit=0
+tests/ 下的測試檔數: 46
+$ npm run lint
+exit=0
+$ npm run test:installer
+installer upgrade checks passed
+exit=0
+$ npx tsx --test tests/docker/compose-parity.test.ts tests/docker/dockerfile-hygiene.test.ts
+# tests 5
+# pass 5
+# fail 0
+
+## 不可觸及的檔案與 src/ 對 BASE 79fd6cd 沒有變更
+$ git diff --stat 79fd6cd -- docker-compose.yml docker-compose.release.yml .github/workflows/release.yml docker/memoria.Dockerfile scripts/install.sh src/
+(上方空白代表沒有變更)
+
+## 隱私掃描(工作區中本 issue 變更與新增的檔案)
+本機家目錄路徑: 0 個檔
+Telegram 使用者 ID: 0 個檔
+bot token: 0 個檔
+64 碼容器 ID: 0 個檔(基準檔的 sha256 與審查報告不計)

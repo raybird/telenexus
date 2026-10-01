@@ -54,7 +54,7 @@ npm run release:patch|minor|major  # Bump version + release workflow
 
 > `npm run dev`, `start`, and `dev:runner` all auto-run `scripts/sync-skills.mjs` to materialize `skills/` into the workspace before launching.
 
-> `npm run docker:dev` layers `docker-compose.dev.yml` over `docker-compose.yml`: the `dev` stage of the Dockerfile, `src/` mounted read-only, `node_modules` inside the image (rerun it after changing dependencies — it passes `--build`). Dev-only compose settings belong in `docker-compose.dev.yml`; `docker-compose.yml` must stay identical to `docker-compose.release.yml` apart from `build:`/`image:`. In the Dockerfile the production stage stays last, because `release.yml` and `docker-compose.yml` build without a target.
+> `npm run docker:dev` layers `docker-compose.dev.yml` over `docker-compose.yml`: the `dev` stage of the Dockerfile, `src/` mounted read-only, `node_modules` inside the image (rerun it after changing dependencies — it passes `--build`). The dev container runs from source and has no compiled `/app/dist`, so the bot's built-in scheduler and memory skills (which call `dist/tools/*.js`) fail there; exercise those against the production image. Dev-only compose settings belong in `docker-compose.dev.yml`; `docker-compose.yml` must stay identical to `docker-compose.release.yml` apart from `build:`/`image:`. In the Dockerfile the production stage stays last, because `release.yml` and `docker-compose.yml` build without a target.
 
 > When another deployment runs on the same host, the dev `.env` needs a different bot's `TELEGRAM_TOKEN` and a different `WEB_PORT` (e.g. `3031`). Two pollers on one token make Telegram answer 409 and neither receives messages.
 

@@ -3,9 +3,9 @@
 # 並以 PINNED_STATUS_ENABLED=false、MODEL_HEALTH_CHECK_ENABLED=false 啟動(實測專用 override,不進版控)。
 
 ## 暫停正式部署
-runtelenexus-agent-runner-1 320d42b8ff137d684ad8730b11834f6823ef9e2a380e6967443f8d25fded8a12
-runtelenexus-memoria-1 804fdfb2c20d48aa4c643f5c24388d842488a58a5a70db7733130250220d93e7
-runtelenexus-telenexus-1 0138e06a788b1fbf7584bbcd5dcfbfc20773cd97996c0f984010bb07819a8ad7
+runtelenexus-agent-runner-1 320d42b8ff13…
+runtelenexus-memoria-1 804fdfb2c20d…
+runtelenexus-telenexus-1 0138e06a788b…
 stop exit=0  時間: 12:10:18
 
 ## SCN-001:以開發指令啟動
@@ -76,6 +76,6 @@ moltbot-lite-telenexus-1 running healthy
 原始碼已還原: yes
 開發 stack 已關閉: yes
 正式部署恢復時間: 12:10:33
-runtelenexus-agent-runner-1 320d42b8ff137d684ad8730b11834f6823ef9e2a380e6967443f8d25fded8a12 running healthy
-runtelenexus-memoria-1 804fdfb2c20d48aa4c643f5c24388d842488a58a5a70db7733130250220d93e7 running healthy
-runtelenexus-telenexus-1 0138e06a788b1fbf7584bbcd5dcfbfc20773cd97996c0f984010bb07819a8ad7 running healthy
+runtelenexus-agent-runner-1 320d42b8ff13… running healthy
+runtelenexus-memoria-1 804fdfb2c20d… running healthy
+runtelenexus-telenexus-1 0138e06a788b… running healthy
