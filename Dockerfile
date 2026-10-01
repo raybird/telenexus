@@ -16,14 +16,11 @@ COPY . .
 RUN npm run build
 
 # ==========================================
-# Stage 2: Runtime (Production Environment)
+# Stage 2: Base (dev 與正式映像共用的執行環境)
 # ==========================================
-FROM node:22-slim
+FROM node:22-slim AS base
 
 WORKDIR /app
-
-ARG APP_GIT_SHA=unknown
-ARG APP_BUILD_TIME=unknown
 
 ENV HOME=/home/node
 
@@ -43,9 +40,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Puppeteer settings for Docker. Browser runtime is provided by agent-browser.
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
-# Production dependencies only. Builder node_modules includes devDependencies.
+# 依賴清單刻意放在全域 CLI 之前:每次版本 bump 都會讓這一層之後的快取失效,
+# 未釘版的全域 CLI 與 Chrome 因此每版重裝。把它移到後面會讓這些工具改由快取決定新舊。
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
 
 # Install uv (確保 uvx 可用，這是 MCP 必需的)
 # 安裝到 /usr/local/bin，讓非 root 的 node 使用者也能取用 (PATH 已含此目錄)
@@ -56,6 +53,46 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 RUN npm install -g pnpm opencode-ai@1.15.10 mcp-memory-libsql agent-browser \
   && npm cache clean --force
 RUN agent-browser install
+
+# ==========================================
+# 非 root 執行：以 root 啟動 entrypoint，runtime 依 PUID/PGID 對齊 node 使用者後
+# gosu 降權執行。預建映像 (GHCR) 因此可在任意 host 帳號下使用，
+# bind mount 寫出的檔案在 host 上即為該帳號所有，不以 root 污染 workspace/data。
+# ==========================================
+COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+
+# ==========================================
+# Stage 3: Dev (以原始碼執行,搭配 docker-compose.dev.yml)
+# ==========================================
+# 原始碼不進映像,由 compose 掛載 src/ 後以 tsx watch 執行;改依賴時重建本 stage。
+# 必須排在正式 stage 之前:不指定 target 的建置取最後一個 stage。
+FROM base AS dev
+
+# 含 devDependencies (tsx)
+RUN npm ci && npm cache clean --force
+
+RUN mkdir -p \
+      /app/data /app/workspace \
+      /home/node/.config/opencode/skills \
+      /home/node/.local/share/opencode \
+  && chown -R node:node /app /home/node
+
+CMD ["npm", "run", "dev"]
+
+# ==========================================
+# Stage 4: Runtime (Production Environment)
+# ==========================================
+# 必須維持在最後:release.yml 與 docker-compose.yml 都不指定 target。
+FROM base
+
+ARG APP_GIT_SHA=unknown
+ARG APP_BUILD_TIME=unknown
+
+# Production dependencies only. Builder node_modules includes devDependencies.
+RUN npm ci --omit=dev && npm cache clean --force
 
 # 從 Builder 階段複製編譯好的檔案
 COPY --from=builder /app/dist ./dist
@@ -71,11 +108,6 @@ ENV APP_PROJECT_DIR=/app
 ENV APP_GIT_SHA=$APP_GIT_SHA
 ENV APP_BUILD_TIME=$APP_BUILD_TIME
 
-# ==========================================
-# 非 root 執行：以 root 啟動 entrypoint，runtime 依 PUID/PGID 對齊 node 使用者後
-# gosu 降權執行。預建映像 (GHCR) 因此可在任意 host 帳號下使用，
-# bind mount 寫出的檔案在 host 上即為該帳號所有，不以 root 污染 workspace/data。
-# ==========================================
 # 預先建立 opencode 全域設定與認證目錄並交給 node 持有；
 # 這些路徑掛載 named volume 時會以 node 的 ownership 初始化。
 RUN mkdir -p \
@@ -84,8 +116,4 @@ RUN mkdir -p \
       /home/node/.local/share/opencode \
   && chown -R node:node /app /home/node
 
-COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["npm", "start"]

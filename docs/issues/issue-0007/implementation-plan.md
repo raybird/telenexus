@@ -41,7 +41,9 @@ runtime（最後）  base                 runtime
 
 ### Dockerfile
 
-- `base`：現行 runtime stage 中與依賴無關的部分，包含系統套件、uv、全域 CLI（`pnpm`、`opencode-ai@1.15.10`、`mcp-memory-libsql`、`agent-browser`）、目錄與擁有權、entrypoint。
+- `base`：現行 runtime stage 中兩邊共用的部分，包含系統套件、`COPY package.json package-lock.json`、uv、全域 CLI（`pnpm`、`opencode-ai@1.15.10`、`mcp-memory-libsql`、`agent-browser`）與 entrypoint。
+- 依賴清單的 COPY 留在全域 CLI 之前（2026-10-01 實作時補記）：現況下每次版本 bump 都會讓這一層之後的快取失效，未釘版的全域 CLI 與 Chrome 因此每版重裝。把它移到後面會讓這些工具改由 CI 快取決定新舊，屬於正式映像的行為變更，本 issue 不動。
+- 建立目錄與 `chown -R node:node /app /home/node` 留在 dev 與正式 stage 各自的最後，不放進 `base`：它要在該 stage 的 `npm ci` 與 COPY 之後執行，擁有權才與現況相同。
 - `dev`：`FROM base`，`npm ci`（含 devDependencies），不設 `NODE_ENV=production`，預設指令為 `npm run dev`。原始碼不 COPY 進映像，由 compose 掛載。
 - 正式 stage（最後）：`FROM base`，`npm ci --omit=dev`、`COPY --from=builder /app/dist`、workspace 與 scripts，`NODE_ENV=production`、`CMD ["npm", "start"]`。內容與現行 runtime stage 等價。
 
@@ -49,8 +51,9 @@ runtime（最後）  base                 runtime
 
 對 telenexus 與 agent-runner：
 
-- `build.target: dev`
-- 追加掛載：`./src`、`./scripts`、`./package.json`、`./tsconfig.json`。`node_modules` 留在映像內，改依賴時重建 dev 映像。
+- `build.target: dev`，映像另外命名為 `telenexus:dev`。不分開命名的話，之後不帶 `--build` 的 `docker compose up` 會拿 dev 映像去跑正式設定。
+- 追加唯讀掛載：`./src`、`./scripts`、`./package.json`、`./tsconfig.json`。`node_modules` 留在映像內，改依賴時重建 dev 映像。
+- telenexus 的 healthcheck 改成跟著 `WEB_PORT` 走。`docker-compose.yml` 的 healthcheck 寫死 3030，開發時錯開埠會讓服務永遠 unhealthy。
 - 指令：telenexus 用 `npm run dev`，agent-runner 用 `npm run dev:runner`（覆寫 `docker-compose.yml` 的 `node dist/runner.js`）。
 
 memoria 服務不變。
@@ -98,10 +101,17 @@ SCN-001 與 SCN-002 沒有自動化測試承擔，屬實地觀測。失敗時的
      - 單迴圈合併：這項守門只有「讀 Dockerfile 文字」一個可觀察層級，沒有另一層整合責任；映像層的保障由步驟 2 的基準比對承擔。
      - 精煉：no-op，新增內容只有一個取最後 stage 的輔助函式與一個測試。
      - 基準的範圍限制：`/app/workspace` 是建置當下本機工作區的複本，只記筆數與彙總雜湊，不列檔名。
-2. 📝 **Dockerfile 重排：base、dev、正式**（SCN-003、SCN-001）
+     - 補記：`image-baseline-before.txt` 在步驟 2 以同一份 Dockerfile（083e133 版）重建後重新擷取，原因見步驟 2 的證據。
+2. ✅ **Dockerfile 重排：base、dev、正式**（SCN-003、SCN-001）
    - 產出：三段式 `Dockerfile`。
    - 相依：步驟 1。
    - 完成判準：不指定 target 建出的映像與步驟 1 的基準逐項相同；`--target dev` 建置成功且映像內有 `tsx`；`npm run test` 全綠。
+   - 證據（2026-10-01，工作區為 083e133 加本步驟變更）：
+     - 正式映像等價：`docker build -t telenexus-issue7:after .`（exit 0）後擷取成 [image-baseline-after.txt](./evidence/image-baseline-after.txt)，與基準的 `diff` 為空（exit 0），見 [step2-image-baseline.diff](./evidence/step2-image-baseline.diff)。
+     - 第一次比對曾有一處差異：`/app/workspace` 的內容雜湊不同、檔案清單相同。逐檔比對後只有 `workspace/context/events.jsonl` 不同，它在兩次建置之間被步驟 1 的 `npm run test` 寫入。以 083e133 的 Dockerfile 在同一份工作區狀態下重建基準映像後，差異消失。CI 從乾淨的 checkout 建置，不受這個本機檔案影響。
+     - dev 映像：`docker build --target dev -t telenexus-issue7:dev .` 為 exit 0。[step2-dev-image-check.txt](./evidence/step2-dev-image-check.txt) 顯示 CMD 是 `npm run dev`、沒有 `NODE_ENV`、有 `tsx` 4.21.0；以 compose 相同的權限限制掛載 `src/` 後，`tsx` 以 node 身分執行 `src/main.ts`，並因缺少 `TELEGRAM_TOKEN` 自行結束（未連線 Telegram）。
+     - 等價證據（純重排）：守門測試在重排後仍為綠；`npm run test` 為 exit 0，283 個測試全過。
+     - 精煉：no-op。dev 與正式 stage 各有一段相同的 `mkdir` 與 `chown`，原因見設計方案，不合併。
 3. 📝 **開發用 compose 檔與啟動 script**（SCN-001、SCN-002）
    - 產出：`docker-compose.dev.yml`、`package.json` 的開發啟動 script。
    - 相依：步驟 2。
@@ -120,6 +130,8 @@ SCN-001 與 SCN-002 沒有自動化測試承擔，屬實地觀測。失敗時的
 見 [README.md](./README.md) 的「風險與首要驗證」。步驟 1 即首要驗證。
 
 次要未知：`tsx watch` 在容器內（非 root、`cap_drop: ALL`、bind mount）能否正常偵測檔案變更。由步驟 4 實測；不成立時回到本檔修訂設計，不影響步驟 1、2 的成果。
+
+2026-10-01 補記：以拋棄式容器先行探測，機制成立。在與 compose 相同的權限限制與唯讀掛載下，`tsx watch` 偵測到主機端的修改並重跑，容器沒有重建，見 [step2-tsx-watch-probe.txt](./evidence/step2-tsx-watch-probe.txt)。這只證明機制，SCN-001 與 SCN-002 仍要由步驟 4 以實際服務驗證。
 
 ## 檢查清單
 

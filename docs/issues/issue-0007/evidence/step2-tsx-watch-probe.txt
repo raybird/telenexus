@@ -1,0 +1,11 @@
+# tsx watch 探針(拋棄式容器,非服務;2026-10-01)
+# 權限限制與 docker-compose.yml 相同:cap_drop ALL + CHOWN/SETUID/SETGID/FOWNER/DAC_OVERRIDE、no-new-privileges、唯讀 bind mount、經 entrypoint 降權為 node
+# 步驟:啟動 npx tsx watch probe/a.ts -> 等 log 出現 version 1 -> 在主機把 a.ts 改成輸出 version 2 -> 等 log 出現 version 2
+修改前已看到 version 1: yes
+修改前 log 中 version 2 的次數: 0
+修改後看到 version 2: yes
+容器未重建(修改前後的 Id 與 StartedAt 相同): yes
+--- docker logs(去除終端控制碼)
+probe version 1
+3:58:01 AM [tsx] change in ./probe/a.ts Rerunning...
+probe version 2

@@ -1,0 +1,17 @@
+# dev 映像檢查(telenexus-issue7:dev,2026-10-01)
+$ docker image inspect --format Cmd/Entrypoint/Env(NODE_ENV)
+Cmd=["npm","run","dev"] Entrypoint=["/usr/local/bin/docker-entrypoint.sh"]
+NODE_ENV 出現次數: 0
+
+$ docker run --rm --entrypoint bash telenexus-issue7:dev -c "ls node_modules/.bin | grep -x tsx; npx tsx --version; ls /app"
+tsx
+tsx v4.21.0
+/app: data node_modules package-lock.json package.json workspace 
+
+# 以 compose 相同的權限限制、經 entrypoint 降權後,用 tsx 執行掛載進來的 src/main.ts(不帶任何環境變數)
+# 預期:main.ts 因缺少 TELEGRAM_TOKEN 自行結束,不會連線 Telegram
+uid=1000 user=node
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+🚀 Starting TeleNexus (YOLO Agent + Stream UX)...
+❌ Missing environment variables.
+main.ts exit=1
