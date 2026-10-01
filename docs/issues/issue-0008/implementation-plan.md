@@ -118,9 +118,11 @@ SCN-006 是實地觀測。反向自檢：呼叫失敗時，回覆會是錯誤訊
    - 產出：`scripts/probe-models.mjs` 的變更。
    - 相依：步驟 2（對應表定案）。
    - 完成判準：對上游錯誤的輸出標示不可用並列出狀態碼；`CLAUDE.md` 提到的兩處複本內容一致（含步驟 2 更新後的限流樣式）。
-5. ⏳ **升釘版並以真實呼叫驗證**（SCN-006）
-   - 已完成（2026-10-01）：`Dockerfile` 釘版改為 `opencode-ai@1.18.34`；`npx tsx --test tests/docker/*.test.ts` 5／5、`npm run test` 320／320。主機上以同一個版本的 opencode 對真實免費層完成過呼叫（步驟 1 的 `b-ok-new`、步驟 4 的實跑），對照組 1.15.10 得到 426。
-   - 未完成：以升版後的**映像**啟動 agent-runner 打一次 `/run`。建置映像與啟動容器需要使用者同意，尚未取得。在這之前 SCN-006 不算通過：主機上的執行檔與映像內經 `npm install -g` 裝出來的不是同一份安裝，映像還牽涉非 root 執行與既有資料卷的遷移。
+5. ✅ **升釘版並以真實呼叫驗證**（SCN-006）
+   - 證據（2026-10-01，被測提交 `984c5b0`）：[evidence/step5-image-verification.md](./evidence/step5-image-verification.md)。以升版後的映像只啟動 agent-runner，`/run` 得到模型的文字回覆、沒有 `failure`、`opencode_done` 的 `upstreamError` 為 `false`、audit 為 `ok: true`。對照組（同一份程式加 opencode 1.15.10）得到 426，被記為 `upstream-error`、audit `ok: false`、成功率 0.0%、健康檢查 `failing`（`client-outdated:426`）。`npx tsx --test tests/docker/*.test.ts` 5／5、`npm run test` 320／320。
+   - 觀測式驗收的反向自檢與判準寫在證據檔；對照組就是「失敗時判準會呈現什麼」的實測。
+   - 使用者於 2026-10-01 同意以隔離方式建置映像並啟動 agent-runner；驗證後容器與映像都已移除，正式部署沒有被碰到。
+   - 驗證過程另外觀察到健康探針與聊天共用 opencode session，新舊版行為相同，不屬於本 issue，見 README 的 TBD-4。
    - 產出：`Dockerfile` 的釘版變更與實測紀錄。
    - 相依：步驟 1、2。啟動容器屬 `docs/agents/project.md` 列的使用者決定事項，執行前取得同意；只啟動 agent-runner，不連 Telegram。
    - 完成判準：升版後的映像經 `/run` 完成一次真實請求並得到含文字的回覆；對照組（1.15.10）得到 426 且被新的判定記為失敗；`tests/docker/` 的測試為綠。
