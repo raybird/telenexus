@@ -1,23 +1,25 @@
 /**
- * 上游 HTTP 訊號的判定(限流 429 與模型失效 410/not-found) —— 刻意只認結構化的 HTTP 欄位。
+ * 上游 HTTP 訊號的判定(限流 429 與模型失效 410/not-found) —— 有結構化的 HTTP 欄位時只認它。
  *
  * 為什麼不用寬鬆的 `\b429\b`:
- *   opencode 1.17 以前的 `--print-logs` 會把整包 request body(含 prompt、工具定義與先前的
+ *   舊版 opencode(實測 1.15.10)的 `--print-logs` 會把整包 request body(含 prompt、工具定義與先前的
  *   工具輸出)原樣印進 ERROR 行。本專案的排程任務在跑加密貨幣與股市分析,內容出現
  *   「成交量 429 億美元」這種數字完全正常 —— 寬鬆比對會把一個本來會成功的任務誤砍。
  *
  * 已用 2026-08-29 真實 429 事故的 410KB stderr 驗證命中 `"statusCode":429`,
  * 並確認不會被上述市場數據誤觸。
  *
- * opencode 1.18 把 `--print-logs` 改成 logfmt,stderr 裡不再有狀態碼,也不再回吐 request body。
+ * opencode 1.18(實測 1.18.0、1.18.17、1.18.34)的 `--print-logs` 是 logfmt,stderr 裡沒有狀態碼,
+ * 也不回吐 request body。
  * 重試期間 stdout 沒有任何事件,唯一即時可見的訊號是這一行:
  *   level=ERROR message="stream error" … small=false … error.error="AI_APICallError: <上游訊息>"
  * 所以最後一個分支比對的是文字,但範圍鎖在三個條件內:
  *   - `stream error` 行的 `error.error` 欄位。這個欄位只有上游的錯誤訊息,沒有 request body,
  *     上面說的市場數據誤觸來源不在這裡。
  *   - `small=false`(主代理)。標題代理用另一顆小模型,它被限流不代表主模型不能用。
- *   - 訊息含限流字樣。實際擷取過的有 `Too Many Requests`(上游 body 沒有訊息時 opencode
- *     退回 HTTP 狀態文字)與 `Rate limit exceeded`;`quota` 與 `429` 是其他常見寫法。
+ *   - 訊息含限流字樣。`Too Many Requests` 是以真實 nvidia 429 的 body 重現的(body 沒有訊息時
+ *     opencode 退回 HTTP 狀態文字);`Rate limit exceeded` 是免費層 2026-08-16 事故紀錄的措辭;
+ *     `quota` 與 `429` 是其他常見寫法,沒有實際樣本。
  * 上游換成清單以外的措辭時這個分支不會命中,回合會退避到逾時後記為逾時失敗。
  * 樣本與比對過程見 docs/issues/issue-0008/evidence/step1-compat-probe.md。
  *

@@ -43,9 +43,10 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 - `src/core/opencode.ts`
   - 封裝 Opencode CLI 呼叫；stream / non-stream 路徑均透過 `opencode-event-parser` 解析事件
 - `src/core/opencode-event-parser.ts`
-  - 共用 `interpretEvent()` dispatch table；兩條路徑從同一份 schema 取 text / statusText / stats
+  - 共用 `interpretEvent()` dispatch table；兩條路徑從同一份 schema 取 text / statusText / stats，以及上游 `error` 事件的狀態碼（`upstreamError`）
 - `src/core/cli-agent-base.ts`
   - stream 生命週期基底；偵測空輸出類型（`no_events` / `tool_only` / `text_filtered_out`）並採對應策略
+  - 上游回 `error` 事件的回合由 `buildUpstreamErrorResult()` 轉成 `upstream-error` 失敗，串流與非串流共用
   - 監聽 `options.signal`（`AbortSignal`），收到 abort 時 kill spawn 子程序並回傳 `⏹️ 任務已被使用者中止`
 - `src/telegram/render/markdown-v2.ts`
   - 以 `remark-parse` AST walking 將 Markdown 轉成 MarkdownV2 entities

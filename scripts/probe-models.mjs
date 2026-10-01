@@ -201,7 +201,7 @@ function extractUpstreamError(stdout) {
  * 上游限流判定。必須與 src/core/rate-limit.ts 的 UPSTREAM_RATE_LIMIT_PATTERN 完全相同
  * (tests/probe-models-script.test.ts 會比對兩邊的原始字串)—— 這支腳本要能在沒有原始碼、
  * 沒有建置的正式映像裡直接跑，無法 import 那邊的 TypeScript。
- * 前三個分支只認結構化 HTTP 欄位：opencode 1.17 以前的 --print-logs 會回吐整包 request body，
+ * 前三個分支只認結構化 HTTP 欄位：舊版 opencode（實測 1.15.10）的 --print-logs 會回吐整包 request body，
  * 寬鬆的 \b429\b 會被「成交量 429 億美元」這種市場數據誤觸。最後一個分支是 opencode 1.18 的
  * logfmt：stderr 不再有狀態碼，只能認主代理 stream error 行裡的上游訊息；理由見那邊的註解。
  */
