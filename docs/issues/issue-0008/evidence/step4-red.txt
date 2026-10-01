@@ -1,0 +1,212 @@
+# 步驟 4 紅燈:2026-10-01T07:38:07Z,被測提交 4320835(scripts/probe-models.mjs 尚未修改)
+# 命令:npx tsx --test tests/probe-models-script.test.ts
+TAP version 13
+# Subtest: SCN-007 上游 426 標示為不可用並列出狀態碼,不是空輸出(1.15.10 exit 0)
+not ok 1 - SCN-007 上游 426 標示為不可用並列出狀態碼,不是空輸出(1.15.10 exit 0)
+  ---
+  duration_ms: 30.076077
+  type: 'test'
+  location: '<repo>/tests/probe-models-script.test.ts:5:1057'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'empty-output'
+    - 'client-outdated'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'client-outdated'
+  actual: 'empty-output'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/probe-models-script.test.ts:85:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: SCN-007 上游 426 標示為不可用並列出狀態碼,不是空輸出(1.18.34 exit 1)
+not ok 2 - SCN-007 上游 426 標示為不可用並列出狀態碼,不是空輸出(1.18.34 exit 1)
+  ---
+  duration_ms: 27.927502
+  type: 'test'
+  location: '<repo>/tests/probe-models-script.test.ts:5:1057'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'error'
+    - 'client-outdated'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'client-outdated'
+  actual: 'error'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/probe-models-script.test.ts:85:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-007 表格輸出列出狀態碼與處置方向
+not ok 3 - SCN-007 表格輸出列出狀態碼與處置方向
+  ---
+  duration_ms: 27.536476
+  type: 'test'
+  location: '<repo>/tests/probe-models-script.test.ts:5:1447'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /HTTP 426/. Input:
+    
+    '探測 1 顆模型，每顆 1 輪，逐一執行（不並行）。\n' +
+      'prompt: 請搜尋比特幣目前價格，並用繁體中文給我一段 3 行以內的簡短摘要。請直接給最終結果。\n' +
+      '預估最長耗時: 240 秒\n' +
+      '\n' +
+      '\n' +
+      '⚠️  空輸出        mock/model          0s  len=0         \n' +
+      '\n' +
+      '可用 0 / 共測 1 顆\n'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    探測 1 顆模型，每顆 1 輪，逐一執行（不並行）。
+    prompt: 請搜尋比特幣目前價格，並用繁體中文給我一段 3 行以內的簡短摘要。請直接給最終結果。
+    預估最長耗時: 240 秒
+    
+    
+    ⚠️  空輸出        mock/model          0s  len=0         
+    
+    可用 0 / 共測 1 顆
+    
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/probe-models-script.test.ts:94:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-007 410 的 error 事件標示為已下架
+not ok 4 - SCN-007 410 的 error 事件標示為已下架
+  ---
+  duration_ms: 31.462312
+  type: 'test'
+  location: '<repo>/tests/probe-models-script.test.ts:5:1752'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    'error' !== 'eol'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'eol'
+  actual: 'error'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/probe-models-script.test.ts:101:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-007 未列舉的狀態碼標示為上游錯誤
+not ok 5 - SCN-007 未列舉的狀態碼標示為上游錯誤
+  ---
+  duration_ms: 28.379847
+  type: 'test'
+  location: '<repo>/tests/probe-models-script.test.ts:5:1995'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'error'
+    - 'upstream-error'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'upstream-error'
+  actual: 'error'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/probe-models-script.test.ts:107:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-007 模型不存在仍由 stderr 判定
+ok 6 - SCN-007 模型不存在仍由 stderr 判定
+  ---
+  duration_ms: 27.270826
+  type: 'test'
+  ...
+# Subtest: SCN-007 認得 opencode 1.18 stderr 裡的限流
+not ok 7 - SCN-007 認得 opencode 1.18 stderr 裡的限流
+  ---
+  duration_ms: 31.182766
+  type: 'test'
+  location: '<repo>/tests/probe-models-script.test.ts:5:2514'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'ok'
+    - 'rate-limited'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'rate-limited'
+  actual: 'ok'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/probe-models-script.test.ts:126:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-005 正常回合標示為可用,即使回覆文字提到 426 與 error
+ok 8 - SCN-005 正常回合標示為可用,即使回覆文字提到 426 與 error
+  ---
+  duration_ms: 27.756799
+  type: 'test'
+  ...
+# Subtest: 限流樣式與 src/core/rate-limit.ts 的那一份完全相同
+not ok 9 - 限流樣式與 src/core/rate-limit.ts 的那一份完全相同
+  ---
+  duration_ms: 0.691321
+  type: 'test'
+  location: '<repo>/tests/probe-models-script.test.ts:5:3147'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + '"status(?:Code)?"\\s*:\\s*429\\b|\\bstatus(?:Code)?[=\\s]+429\\b|RESOURCE_EXHAUSTED'
+    - '"status(?:Code)?"\\s*:\\s*429\\b|\\bstatus(?:Code)?[=\\s]+429\\b|RESOURCE_EXHAUSTED|message="stream error"[^\\n]*\\bsmall=false\\b[^\\n]*\\berror\\.error="AI_APICallError: [^"\\n]*(?:Too Many Requests|rate[ -]?limit|quota|\\b429\\b)'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: '"status(?:Code)?"\\s*:\\s*429\\b|\\bstatus(?:Code)?[=\\s]+429\\b|RESOURCE_EXHAUSTED|message="stream error"[^\\n]*\\bsmall=false\\b[^\\n]*\\berror\\.error="AI_APICallError: [^"\\n]*(?:Too Many Requests|rate[ -]?limit|quota|\\b429\\b)'
+  actual: '"status(?:Code)?"\\s*:\\s*429\\b|\\bstatus(?:Code)?[=\\s]+429\\b|RESOURCE_EXHAUSTED'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/probe-models-script.test.ts:143:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 2
+# fail 7
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 451.464656
+# exit=1

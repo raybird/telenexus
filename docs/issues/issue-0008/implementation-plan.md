@@ -110,7 +110,11 @@ SCN-006 是實地觀測。反向自檢：呼叫失敗時，回覆會是錯誤訊
    - 產出：`model-health-check.ts` 的變更與測試。
    - 相依：步驟 2。
    - 完成判準：探針對 426 fixture 判為不健康，訊息含狀態碼與升級提示（先紅後綠）；帶上游錯誤旗標的 `opencode_done` 不被 `isRealSuccessEvent()` 採信；429 與 410 的既有測試維持綠燈；狀態碼改變時簽章不同。
-4. 📝 **`probe-models.mjs` 同步**（SCN-007）
+4. ✅ **`probe-models.mjs` 同步**（SCN-007）
+   - 證據（2026-10-01）：紅燈 [evidence/step4-red.txt](./evidence/step4-red.txt)（被測提交 `4320835`，9 個測試 7 個失敗；exit 0 的 426 被歸為 `empty-output`，正是驗收劇本要排除的結果）。綠燈與實跑 [evidence/step4-green.txt](./evidence/step4-green.txt)：腳本層測試 9／9；以真實上游實跑，opencode 1.15.10 得到「需升級 opencode、上游回 HTTP 426」且腳本 exit 1，對照組 1.18.34 得到「可用」且 exit 0；`npm run test` 320／320 共 49 個檔、`build` 與 `lint` exit 0。
+   - 單迴圈合併：腳本一載入就執行 `main()`、沒有可匯入的函式，`tests/probe-models-script.test.ts` 直接執行腳本並放一支吐回 fixture 的假 `opencode`，判定與輸出都在這一層觀察。
+   - 複本一致：測試從腳本原始碼取出 `RATE_LIMIT_PATTERN` 的字串，與 `UPSTREAM_RATE_LIMIT_PATTERN.source` 比對相等。下架樣式移除了腳本裡殘留的裸 `Gone`（TypeScript 端在 v2.27.3 已移除），兩邊現在認同一組訊號；410 改由 error 事件判定，不受影響。
+   - 精煉：no-op。新增的是一個事件擷取函式與一張對應表，沒有可以再簡化而不損可讀性的地方，沿用同一份綠燈。
    - 產出：`scripts/probe-models.mjs` 的變更。
    - 相依：步驟 2（對應表定案）。
    - 完成判準：對上游錯誤的輸出標示不可用並列出狀態碼；`CLAUDE.md` 提到的兩處複本內容一致（含步驟 2 更新後的限流樣式）。

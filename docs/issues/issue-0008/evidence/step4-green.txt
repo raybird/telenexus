@@ -1,0 +1,66 @@
+# 步驟 4 綠燈與實跑:2026-10-01T07:38:50Z
+# 被測狀態:4320835 加上步驟 4 的工作區變更
+
+## npx tsx --test tests/probe-models-script.test.ts
+ok 1 - SCN-007 上游 426 標示為不可用並列出狀態碼,不是空輸出(1.15.10 exit 0)
+ok 2 - SCN-007 上游 426 標示為不可用並列出狀態碼,不是空輸出(1.18.34 exit 1)
+ok 3 - SCN-007 表格輸出列出狀態碼與處置方向
+ok 4 - SCN-007 410 的 error 事件標示為已下架
+ok 5 - SCN-007 未列舉的狀態碼標示為上游錯誤
+ok 6 - SCN-007 模型不存在仍由 stderr 判定
+ok 7 - SCN-007 認得 opencode 1.18 stderr 裡的限流
+ok 8 - SCN-005 正常回合標示為可用,即使回覆文字提到 426 與 error
+ok 9 - 限流樣式與 src/core/rate-limit.ts 的那一份完全相同
+# tests 9
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+exit=0
+
+## 實跑(真實上游,opencode 1.15.10):node scripts/probe-models.mjs --models opencode/big-pickle
+探測 1 顆模型，每顆 1 輪，逐一執行（不並行）。
+prompt: 請搜尋比特幣目前價格，並用繁體中文給我一段 3 行以內的簡短摘要。請直接給最終結果。
+預估最長耗時: 120 秒
+
+[1/1] opencode/big-pickle ... ⛔ 需升級 opencode
+
+⛔ 需升級 opencode opencode/big-pickle          2s  len=0         
+                ↳ 上游回 HTTP 426：上游要求較新的 opencode，請升級 opencode（換模型不一定有用）
+
+可用 0 / 共測 1 顆
+exit=1
+
+## 實跑(真實上游,opencode 1.18.34,對照組):node scripts/probe-models.mjs --models opencode/big-pickle
+探測 1 顆模型，每顆 1 輪，逐一執行（不並行）。
+prompt: 請搜尋比特幣目前價格，並用繁體中文給我一段 3 行以內的簡短摘要。請直接給最終結果。
+預估最長耗時: 180 秒
+
+[1/1] opencode/big-pickle ... ✅ 可用
+
+✅ 可用           opencode/big-pickle          8s  len=131       
+                ↳ 比特幣（BTC）現價約 **84,200 美元**，24 小時上漲約 1.1%，市值約 1.68 兆美元。 近期波動較大，7 月曾在 6.2
+
+可用 1 / 共測 1 顆
+
+把其中一顆寫進 ai-config.yaml 的 model:
+  model: opencode/big-pickle
+exit=0
+
+## npm run build
+[copy-web-assets] copied <repo>/src/web/public -> <repo>/dist/web/public
+exit=0
+
+## npm run test
+# tests 320
+# pass 320
+# fail 0
+# cancelled 0
+# skipped 0
+exit=0
+測試檔數:49
+
+## npm run lint
+> eslint "src/**/*.ts"
+
+exit=0

@@ -54,8 +54,10 @@ const VERDICTS = {
   'rate-limited': { label: '⛔ 429 限流', order: 2 },
   eol: { label: '⛔ 已下架', order: 3 },
   'not-found': { label: '⛔ 模型不存在', order: 4 },
-  timeout: { label: '⛔ 逾時', order: 5 },
-  error: { label: '⛔ 錯誤', order: 6 }
+  'client-outdated': { label: '⛔ 需升級 opencode', order: 5 },
+  'upstream-error': { label: '⛔ 上游錯誤', order: 6 },
+  timeout: { label: '⛔ 逾時', order: 7 },
+  error: { label: '⛔ 錯誤', order: 8 }
 };
 
 function parseArgs(argv) {
@@ -176,22 +178,62 @@ function extractText(stdout) {
 }
 
 /**
- * 上游限流判定。必須與 src/core/rate-limit.ts 的 UPSTREAM_RATE_LIMIT_PATTERN 保持一致 ——
- * 這支腳本要能在沒有原始碼、沒有建置的正式映像裡直接跑，無法 import 那邊的 TypeScript。
- * 刻意只認結構化 HTTP 欄位：--print-logs 會回吐整包 request body，寬鬆的 \b429\b 會被
- * 「成交量 429 億美元」這種市場數據誤觸。
+ * 上游回的 error 事件。opencode 在上游拒絕請求時,stdout 只有這一個事件、沒有任何文字;
+ * 1.15 仍以 exit 0 結束,1.18 起改成 exit 1。事件不一定帶 statusCode(例如模型不存在)。
+ */
+function extractUpstreamError(stdout) {
+  let found = null;
+  for (const line of stdout.split(/\r?\n/)) {
+    if (!line.startsWith('{')) continue;
+    try {
+      const event = JSON.parse(line);
+      if (event.type !== 'error') continue;
+      const statusCode = event.error?.data?.statusCode;
+      found = Number.isInteger(statusCode) ? { statusCode } : {};
+    } catch {
+      // 半行 / 非 JSON 直接略過。
+    }
+  }
+  return found;
+}
+
+/**
+ * 上游限流判定。必須與 src/core/rate-limit.ts 的 UPSTREAM_RATE_LIMIT_PATTERN 完全相同
+ * (tests/probe-models-script.test.ts 會比對兩邊的原始字串)—— 這支腳本要能在沒有原始碼、
+ * 沒有建置的正式映像裡直接跑，無法 import 那邊的 TypeScript。
+ * 前三個分支只認結構化 HTTP 欄位：opencode 1.17 以前的 --print-logs 會回吐整包 request body，
+ * 寬鬆的 \b429\b 會被「成交量 429 億美元」這種市場數據誤觸。最後一個分支是 opencode 1.18 的
+ * logfmt：stderr 不再有狀態碼，只能認主代理 stream error 行裡的上游訊息；理由見那邊的註解。
  */
 const RATE_LIMIT_PATTERN =
-  /"status(?:Code)?"\s*:\s*429\b|\bstatus(?:Code)?[=\s]+429\b|RESOURCE_EXHAUSTED/i;
+  /"status(?:Code)?"\s*:\s*429\b|\bstatus(?:Code)?[=\s]+429\b|RESOURCE_EXHAUSTED|message="stream error"[^\n]*\bsmall=false\b[^\n]*\berror\.error="AI_APICallError: [^"\n]*(?:Too Many Requests|rate[ -]?limit|quota|\b429\b)/i;
+
+/**
+ * 狀態碼到判定的對應,與 src/core/rate-limit.ts 的 classifyUpstreamStatus() 一致。
+ * 沒列在這裡的狀態碼一律是 upstream-error:2026-09-17 的 426 就是因為判定只列舉了
+ * 429 與 410,被歸成「空輸出」。
+ */
+function verdictForStatus(statusCode) {
+  if (statusCode === 429) return 'rate-limited';
+  if (statusCode === 410) return 'eol';
+  if (statusCode === 426) return 'client-outdated';
+  return 'upstream-error';
+}
 
 function classify({ code, stdout, stderr, timedOut }) {
   // 先看結構化的 HTTP 訊號 —— 它比 exit code 精確。
   // 這個順序是對的,但 src/services/model-health-check.ts 的探針原本是反過來的
   // (先看 exit code),導致 2026-09-08 的下架連續 9 天沒被自動偵測到。
-  // 兩邊的判定語意要一起維護:下架樣式的來源是 src/core/rate-limit.ts。
+  // 兩邊的判定語意要一起維護:樣式與對應表的來源是 src/core/rate-limit.ts。
+  const upstreamError = extractUpstreamError(stdout);
+  if (upstreamError?.statusCode !== undefined) return verdictForStatus(upstreamError.statusCode);
+
   if (RATE_LIMIT_PATTERN.test(stderr)) return 'rate-limited';
-  if (/"status(?:Code)?"\s*:\s*410\b|end of life|\bGone\b/i.test(stderr)) return 'eol';
+  if (/"status(?:Code)?"\s*:\s*410\b|\bstatus(?:Code)?[=\s]+410\b|end of life/i.test(stderr))
+    return 'eol';
   if (/ProviderModelNotFoundError|Model not found/i.test(stderr)) return 'not-found';
+  // 沒有狀態碼的 error 事件排在 stderr 樣式之後:事件裡只有一句通用訊息,原因在 stderr。
+  if (upstreamError) return 'upstream-error';
   if (timedOut) return 'timeout';
   if (code !== 0) return 'error';
 
@@ -231,9 +273,11 @@ async function probeModel(model, options) {
       ],
       options.timeoutSec * 1000
     );
+    const statusCode = extractUpstreamError(result.stdout)?.statusCode;
     rounds.push({
       round,
       verdict: classify(result),
+      ...(statusCode !== undefined ? { statusCode } : {}),
       durationMs: result.durationMs,
       textLength: extractText(result.stdout).length,
       rateLimitHits: count429(result.stderr),
@@ -262,6 +306,16 @@ function renderTable(results) {
     );
     const sample = result.rounds.find((r) => r.sample)?.sample;
     if (sample) console.log(`${' '.repeat(16)}↳ ${sample}`);
+    const statusCodes = [
+      ...new Set(result.rounds.map((r) => r.statusCode).filter((c) => c !== undefined))
+    ];
+    if (statusCodes.length > 0) {
+      const hint =
+        result.verdict === 'client-outdated'
+          ? '：上游要求較新的 opencode，請升級 opencode（換模型不一定有用）'
+          : '';
+      console.log(`${' '.repeat(16)}↳ 上游回 HTTP ${statusCodes.join('、')}${hint}`);
+    }
   }
 
   const usable = sorted.filter((r) => r.verdict === 'ok');
