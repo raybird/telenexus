@@ -1,0 +1,81 @@
+# 步驟 4:開發 stack 啟動與熱重載實測(2026-10-01)
+# 借用正式部署的 bot token,實測期間正式部署暫停;/app/data 與 /app/workspace 指到暫存空目錄,
+# 並以 PINNED_STATUS_ENABLED=false、MODEL_HEALTH_CHECK_ENABLED=false 啟動(實測專用 override,不進版控)。
+
+## 暫停正式部署
+runtelenexus-agent-runner-1 320d42b8ff137d684ad8730b11834f6823ef9e2a380e6967443f8d25fded8a12
+runtelenexus-memoria-1 804fdfb2c20d48aa4c643f5c24388d842488a58a5a70db7733130250220d93e7
+runtelenexus-telenexus-1 0138e06a788b1fbf7584bbcd5dcfbfc20773cd97996c0f984010bb07819a8ad7
+stop exit=0  時間: 12:10:18
+
+## SCN-001:以開發指令啟動
+$ docker compose -f docker-compose.yml -f docker-compose.dev.yml -f <實測用 override> up -d --no-build --wait
+# 與 npm run docker:dev 的差別:映像已預先建好(--no-build)、背景執行並等待 healthy(-d --wait)
+up exit=0
+moltbot-lite-agent-runner-1 running healthy
+moltbot-lite-memoria-1 running healthy
+moltbot-lite-telenexus-1 running healthy
+-- telenexus: image=telenexus:dev command=["npm","run","dev"]
+     proc: sh -c node scripts/sync-skills.mjs && tsx watch src/main.ts 
+     proc: node /app/node_modules/.bin/tsx watch src/main.ts 
+     proc: /usr/local/bin/node --require /app/node_modules/tsx/dist/preflight.cjs --import file:///app/node_modules/tsx/dist/loader.mjs src/main.ts 
+     mount: /app/src ro,relatime,errors=remount-ro
+-- agent-runner: image=telenexus:dev command=["npm","run","dev:runner"]
+     proc: sh -c node scripts/sync-skills.mjs && tsx watch --ignore "workspace/context/**" src/runner.ts 
+     proc: node /app/node_modules/.bin/tsx watch --ignore workspace/context/** src/runner.ts 
+     proc: /usr/local/bin/node --require /app/node_modules/tsx/dist/preflight.cjs --import file:///app/node_modules/tsx/dist/loader.mjs src/runner.ts 
+     mount: /app/src ro,relatime,errors=remount-ro
+
+## SCN-002:熱重載
+修改前  telenexus /api/health service=telenexus-web   agent-runner /health service=agent-runner
+已在主機修改:  src/runner.ts | 2 +-; src/web/server.ts | 2 +-;
+telenexus 反映修改: yes
+agent-runner 反映修改: yes
+修改後  telenexus /api/health service=telenexus-web-issue7-probe   agent-runner /health service=agent-runner-issue7-probe
+telenexus 容器與映像未重建(Id、StartedAt、Image 相同): yes
+agent-runner 容器與映像未重建(Id、StartedAt、Image 相同): yes
+還原後 telenexus 回到原行為: yes
+還原後 agent-runner 回到原行為: yes
+還原後  telenexus /api/health service=telenexus-web   agent-runner /health service=agent-runner
+
+## log 摘錄(tsx 的重跑紀錄與 Telegram 連線狀況)
+-- telenexus
+🚀 Starting TeleNexus (YOLO Agent + Stream UX)...
+[Web] Local server listening at http://0.0.0.0:3030
+[Telegram] Network probe: IPv6 is unreachable. using IPv4
+[Telegram] Initializing with allowed users: <user-id>
+[Telegram] startup getMe preflight succeeded (746ms)
+[Telegram] Bot launched successfully!
+[Telegram] Sending message chat=<user-id> chunks=1
+[Telegram] sendMessage chat=<user-id> chunk=1/1 succeeded (960ms)
+12:10:25 PM [tsx] change in ./src/web/server.ts Restarting...
+[scheduler] INFO shutdown.started jobs=0 systemJobs=1
+🚀 Starting TeleNexus (YOLO Agent + Stream UX)...
+[Web] Local server listening at http://0.0.0.0:3030
+[Telegram] Network probe: IPv6 is unreachable. using IPv4
+[Telegram] Initializing with allowed users: <user-id>
+12:10:26 PM [tsx] change in ./src/web/server.ts Restarting...
+[scheduler] INFO shutdown.started jobs=0 systemJobs=0
+🚀 Starting TeleNexus (YOLO Agent + Stream UX)...
+[Web] Local server listening at http://0.0.0.0:3030
+[Telegram] Network probe: IPv6 is unreachable. using IPv4
+[Telegram] Initializing with allowed users: <user-id>
+-- agent-runner
+[Runner] INFO listening port=8787
+12:10:25 PM [tsx] change in ./src/runner.ts Restarting...
+[Runner] INFO listening port=8787
+12:10:26 PM [tsx] change in ./src/runner.ts Restarting...
+[Runner] INFO listening port=8787
+telenexus log 中 409/Conflict 的行數: 0
+結束前狀態:
+moltbot-lite-agent-runner-1 running healthy
+moltbot-lite-memoria-1 running healthy
+moltbot-lite-telenexus-1 running healthy
+
+## 收尾
+原始碼已還原: yes
+開發 stack 已關閉: yes
+正式部署恢復時間: 12:10:33
+runtelenexus-agent-runner-1 320d42b8ff137d684ad8730b11834f6823ef9e2a380e6967443f8d25fded8a12 running healthy
+runtelenexus-memoria-1 804fdfb2c20d48aa4c643f5c24388d842488a58a5a70db7733130250220d93e7 running healthy
+runtelenexus-telenexus-1 0138e06a788b1fbf7584bbcd5dcfbfc20773cd97996c0f984010bb07819a8ad7 running healthy

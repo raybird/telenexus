@@ -122,10 +122,21 @@ SCN-001 與 SCN-002 沒有自動化測試承擔，屬實地觀測。失敗時的
      - 只用 `docker-compose.yml` 時三個服務都沒有 target、映像名與指令維持原樣；`docker-compose.yml`、`docker-compose.release.yml`、`release.yml` 對 cd12dc7 沒有差異；`compose-parity` 測試為綠。
      - 啟動 script 定名為 `docker:dev`。
      - 本步驟只產出設定，實際啟動後的行為由步驟 4 驗證。精煉：no-op。
-4. 📝 **啟動與熱重載實測**（SCN-001、SCN-002）— 等待 TBD-1
+4. ✅ **啟動與熱重載實測**（SCN-001、SCN-002）
    - 產出：實測紀錄，存於本目錄 `evidence/`。
    - 相依：步驟 3、TBD-1。啟動服務屬 `docs/agents/project.md` 列的使用者決定事項，執行前取得同意。
    - 完成判準：三個服務 healthy；telenexus 與 agent-runner 的行程為 `tsx watch`；各修改一個被載入的檔案後，該服務未重建映像與容器即重啟並反映修改；對照組結果已記錄。
+   - 證據（2026-10-01，被測提交 0b96860；使用者於同日對話同意暫停正式部署、借用其 token 實測）：
+     - 實測：[step4-live.txt](./evidence/step4-live.txt)。三個服務 healthy；telenexus 與 agent-runner 的映像是 `telenexus:dev`、行程是 `tsx watch src/main.ts` 與 `tsx watch src/runner.ts`、`/app/src` 為唯讀掛載。在主機修改 `src/web/server.ts` 與 `src/runner.ts` 的 health 回應後，兩個服務的回應都變成修改後的值，容器的 Id、StartedAt 與映像都沒變，log 有 tsx 的 `Restarting` 紀錄；還原原始碼後回應也回到原值。telenexus 的 log 沒有 409。
+     - 對照組：[step4-control.txt](./evidence/step4-control.txt)。不疊 `docker-compose.dev.yml`、以正式 target 啟動 agent-runner，對 `src/runner.ts` 做同樣的修改，30 秒內回應維持原值。
+     - 反向自檢：熱重載失敗時，health 回應會維持原值，與對照組的結果相同；判準分得出成功與失敗。
+     - 與驗收劇本的落差，照實記錄：
+       - SCN-001 的前提是「開發用的 bot token」。這次用的是正式部署的 token，並在實測期間暫停正式部署，同一時間只有一個 poller，條件等價。獨立的開發用 bot 仍未建立，見 README 的 TBD-1。
+       - 啟動指令是 `docker compose -f docker-compose.yml -f docker-compose.dev.yml -f <實測用 override> up -d --no-build --wait`，不是字面上的 `npm run docker:dev`：映像已用同一組 compose 檔預先建好，改成背景執行並等待 healthy。
+       - 實測用 override（不進版控）把 `/app/data` 與 `/app/workspace` 指到暫存空目錄，並設 `PINNED_STATUS_ENABLED=false`、`MODEL_HEALTH_CHECK_ENABLED=false`。原因是 repo 的舊資料裡有 5 個啟用中的排程，借用正式 token 時要避免重複觸發與干擾聊天室。釘選訊息與模型健康檢查在開發 stack 下的行為因此沒有驗到。
+       - 沒有透過 Telegram 實際對話，也沒有觸發 opencode 執行；驗到的是啟動、健康檢查、Telegram 連線成功與重載。
+     - 正式部署兩次暫停各約 15 秒（12:09:12 至 12:09:26、12:10:18 至 12:10:33），恢復後三個容器是原本的容器且都是 healthy，Telegram 重新連上，沒有 409。
+     - 第一輪實測的輸出已捨棄：腳本的等待函式把成功回報成 `no`，log 摘錄也沒有遮蔽使用者 ID。修正後重跑的第二輪即上述證據，兩輪的實際觀察一致。
 5. ✅ **文件更新**（SCN-004、SCN-005）
    - 產出：`.env.example`、`README.md`、`CLAUDE.md`、`docs/agents/project.md` 的開發段落。
    - 相依：步驟 3（指令名稱定案）。
@@ -148,5 +159,5 @@ SCN-001 與 SCN-002 沒有自動化測試承擔，屬實地觀測。失敗時的
 
 - [x] 步驟 1 的基準在改 Dockerfile 之前取得（之後以同一份舊 Dockerfile 重建過一次，見步驟 2）
 - [x] `docker-compose.yml`、`docker-compose.release.yml`、`release.yml` 沒有變更
-- [ ] 啟動開發 stack 前已換成開發用 token，並取得使用者同意
+- [x] 啟動開發 stack 前取得使用者同意（借用正式 token 並暫停正式部署，未換成開發用 token）
 - [x] 依 `docs/agents/project.md` 的常青文件對照更新受影響的文件

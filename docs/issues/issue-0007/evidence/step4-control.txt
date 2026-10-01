@@ -1,0 +1,9 @@
+# 步驟 4 對照組:正式 target 的 agent-runner(2026-10-01 12:08)
+$ docker compose -f docker-compose.yml -f <實測用 override> up -d --no-build --wait agent-runner
+up exit=0
+image: moltbot-lite-agent-runner  health: healthy
+command: ["node","dist/runner.js"]
+修改前 /health 的 service: agent-runner
+已修改主機的 src/runner.ts:  1 file changed, 1 insertion(+), 1 deletion(-)
+30 秒內行為改變: no (對照組預期為 no)
+修改後 /health 的 service: agent-runner
