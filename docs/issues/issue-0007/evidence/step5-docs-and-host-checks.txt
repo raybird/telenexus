@@ -1,0 +1,41 @@
+# 步驟 5:文件與主機驗證入口(2026-10-01,工作區為 e2b6016 加本步驟變更)
+
+## SCN-004:四份文件都有 Docker 開發指令、獨立 token、Web 埠與共用 token 的後果
+README.md                docker:dev=2  409=1  另一個bot/different bot=1  3031或WEB_PORT錯開=1
+CLAUDE.md                docker:dev=2  409=1  另一個bot/different bot=1  3031或WEB_PORT錯開=1
+.env.example             docker:dev=1  409=1  另一個bot/different bot=1  3031或WEB_PORT錯開=2
+docs/agents/project.md   docker:dev=1  409=1  另一個bot/different bot=1  3031或WEB_PORT錯開=1
+
+## SCN-004:開發段落最先列出的是 Docker 指令,主機 npm run dev 在後
+README.md: 'npm run docker:dev' 第 152 行;'npm run dev' 第 162 行;Docker 在前=yes
+CLAUDE.md: 'npm run docker:dev' 第 13 行;'npm run dev' 第 14 行;Docker 在前=yes
+
+## docs/configuration-reference.md:本 issue 沒有新增環境變數,no-op
+$ git diff --stat f863d1a -- docs/configuration-reference.md src/
+(上方空白代表沒有變更)
+
+## 格式
+$ npx prettier --check README.md CLAUDE.md docs/agents/project.md
+All matched files use Prettier code style!
+
+## SCN-005:主機驗證入口
+$ npm run build
+exit=0
+$ npm run test
+# tests 283
+# pass 283
+# fail 0
+exit=0
+tests/ 下的測試檔數: 46
+$ npm run lint
+exit=0
+$ npm run test:installer
+
+installer upgrade checks passed
+exit=0
+$ npx tsx --test tests/docker/*.test.ts
+# tests 4
+# pass 4
+# fail 0
+$ python3 <kit>/scripts/init-project.py . --check
+OK：核心與本 kit 一致，project.md 已存在；客製語意另行覆核。

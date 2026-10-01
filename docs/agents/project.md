@@ -9,7 +9,7 @@
 ### 產品內容與開發工具的分界
 
 - 根目錄 `AGENTS.md` 與 `skills/` 是產品內容：compose 把 `AGENTS.md` 掛進 bot 的 workspace，兩者都隨 release bundle 出貨。開發 agent 的規則寫在 `CLAUDE.md` 與 `docs/agents/`。
-- `docker-compose.yml`（開發）與 `docker-compose.release.yml`（bundle 範本）是兩份獨立檔案，服務設定兩份一起改。`tests/docker/compose-parity.test.ts` 要求兩者只差在 `build:` 與 `image:`。
+- `docker-compose.yml`（開發）與 `docker-compose.release.yml`（bundle 範本）是兩份獨立檔案，服務設定兩份一起改。`tests/docker/compose-parity.test.ts` 要求兩者只差在 `build:` 與 `image:`，開發專用的設定放 `docker-compose.dev.yml`。
 - `workspace/`、`data/`、`ai-config.yaml`、`.env` 是執行期狀態，範圍見 `.gitignore`。
 
 ### 驗證
@@ -17,7 +17,7 @@
 交付前依序執行，三者都以 exit 0 為通過：
 
 1. `npm run build`：`tsc` 就是型別檢查，repo 沒有獨立的 typecheck 指令。
-2. `npm run test`：核對輸出的 `# tests` 與 `tests/` 下的測試檔數相稱（2026-10-01 基準：46 個檔、282 個測試）。v2.22.2 之前 glob 沒加引號，只跑到 4 個檔，輸出仍是 `# fail 0`。
+2. `npm run test`：核對輸出的 `# tests` 與 `tests/` 下的測試檔數相稱（2026-10-01 基準：46 個檔、283 個測試）。v2.22.2 之前 glob 沒加引號，只跑到 4 個檔，輸出仍是 `# fail 0`。
 3. `npm run lint`
 
 改到 `scripts/install.sh` 或升級流程時加跑 `npm run test:installer`。
@@ -26,7 +26,9 @@ GitHub Actions 只有 tag 觸發的 `release.yml`，它只建映像與打包、�
 
 ### 啟動服務
 
-維護者的正式服務跑在 repo 之外的 release 部署目錄（GHCR 映像），與本 repo 的 `.env` 用同一個 Telegram token。在 repo 內 `npm run dev` 或 `docker compose up` 會讓兩邊同時 poll（Telegram 回 409），Web Console 的 3030 埠也會衝突。驗證以測試為主；需要實機驗證時，由使用者決定時機與方式。
+開發時以 `npm run docker:dev` 在容器內啟動：dev stage、唯讀掛載 `src/`、存檔即重載。主機的 `npm run dev` 是替代方式。
+
+維護者的正式服務跑在 repo 之外的 release 部署目錄（GHCR 映像）。啟動開發 stack 前，確認 repo 的 `.env` 用的是另一個 bot 的 `TELEGRAM_TOKEN`、`WEB_PORT` 已錯開：同一個 token 兩邊同時 poll，Telegram 會回 409，兩邊都收不到訊息。驗證以測試為主；需要實機驗證時，由使用者決定時機與方式。
 
 ## 提交與交付
 

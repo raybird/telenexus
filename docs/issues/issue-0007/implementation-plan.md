@@ -122,14 +122,19 @@ SCN-001 與 SCN-002 沒有自動化測試承擔，屬實地觀測。失敗時的
      - 只用 `docker-compose.yml` 時三個服務都沒有 target、映像名與指令維持原樣；`docker-compose.yml`、`docker-compose.release.yml`、`release.yml` 對 cd12dc7 沒有差異；`compose-parity` 測試為綠。
      - 啟動 script 定名為 `docker:dev`。
      - 本步驟只產出設定，實際啟動後的行為由步驟 4 驗證。精煉：no-op。
-4. 📝 **啟動與熱重載實測**（SCN-001、SCN-002）
+4. 📝 **啟動與熱重載實測**（SCN-001、SCN-002）— 等待 TBD-1
    - 產出：實測紀錄，存於本目錄 `evidence/`。
    - 相依：步驟 3、TBD-1。啟動服務屬 `docs/agents/project.md` 列的使用者決定事項，執行前取得同意。
    - 完成判準：三個服務 healthy；telenexus 與 agent-runner 的行程為 `tsx watch`；各修改一個被載入的檔案後，該服務未重建映像與容器即重啟並反映修改；對照組結果已記錄。
-5. 📝 **文件更新**（SCN-004、SCN-005）
+5. ✅ **文件更新**（SCN-004、SCN-005）
    - 產出：`.env.example`、`README.md`、`CLAUDE.md`、`docs/agents/project.md` 的開發段落。
    - 相依：步驟 3（指令名稱定案）。
    - 完成判準：`README.md` 與 `CLAUDE.md` 的開發段落最先列出 Docker 開發指令，主機 `npm run dev` 列為替代；四份文件都寫明獨立 token、Web 埠與共用 token 的後果；`docs/configuration-reference.md` 已檢查，沒有新環境變數時記為 no-op；主機 `npm run build`、`npm run test`、`npm run lint` 都是 exit 0。
+   - 證據（2026-10-01，工作區為 e2b6016 加本步驟變更）：[step5-docs-and-host-checks.txt](./evidence/step5-docs-and-host-checks.txt)
+     - SCN-004（純文件，等價證據）：四份文件都以 grep 確認含 `docker:dev`、409、另一個 bot 的 token 與錯開 `WEB_PORT` 的說明；`README.md` 與 `CLAUDE.md` 的開發段落中 `npm run docker:dev` 排在主機 `npm run dev` 之前。
+     - SCN-005：`npm run build`、`npm run test`（283 個測試、46 個檔）、`npm run lint`、`npm run test:installer` 都是 exit 0；`tests/docker/` 的 4 個測試全過。
+     - `docs/configuration-reference.md`：no-op，本 issue 沒有新增環境變數，`src/` 也沒有變更。
+     - `docs/agents/project.md` 的測試基準由 282 更新為 283（步驟 1 新增一個測試）。
 
 ## 風險與首要驗證
 
@@ -141,7 +146,7 @@ SCN-001 與 SCN-002 沒有自動化測試承擔，屬實地觀測。失敗時的
 
 ## 檢查清單
 
-- [ ] 步驟 1 的基準在改 Dockerfile 之前取得
-- [ ] `docker-compose.yml`、`docker-compose.release.yml`、`release.yml` 沒有變更
+- [x] 步驟 1 的基準在改 Dockerfile 之前取得（之後以同一份舊 Dockerfile 重建過一次，見步驟 2）
+- [x] `docker-compose.yml`、`docker-compose.release.yml`、`release.yml` 沒有變更
 - [ ] 啟動開發 stack 前已換成開發用 token，並取得使用者同意
-- [ ] 依 `docs/agents/project.md` 的常青文件對照更新受影響的文件
+- [x] 依 `docs/agents/project.md` 的常青文件對照更新受影響的文件

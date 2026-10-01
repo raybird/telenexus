@@ -9,9 +9,10 @@ TeleNexus is a local AI assistant gateway that bridges Telegram to Opencode CLI 
 ## Common Commands
 
 ```bash
-# Development
-npm run dev              # Start main TeleNexus service (tsx watch) — runs sync-skills.mjs first
-npm run dev:runner       # Start agent-runner service (tsx watch)
+# Development — default is in Docker: same toolchain as the release image, hot reload
+npm run docker:dev       # Start telenexus + agent-runner + memoria from the dev stage (tsx watch on mounted src/)
+npm run dev              # Host alternative: main TeleNexus service (tsx watch) — runs sync-skills.mjs first
+npm run dev:runner       # Host alternative: agent-runner service (tsx watch)
 npm run build            # TypeScript compile + copy web assets
 npm run lint             # ESLint on src/**/*.ts
 npm run format           # Prettier on src/**/*.ts and *.md
@@ -20,7 +21,7 @@ npm run test             # Run all tests via `tsx --test tests/**/*.test.ts`
 # Run a single test (tests may live in nested dirs under tests/)
 npx tsx --test tests/memory-manager.test.ts
 
-# Docker
+# Docker (production image built from source)
 npm run docker:up:build     # Build and start both services
 npm run docker:up:meta      # Build with git metadata and force recreate
 npm run docker:up:nocache   # Full no-cache rebuild + force recreate
@@ -52,6 +53,10 @@ npm run release:patch|minor|major  # Bump version + release workflow
 ```
 
 > `npm run dev`, `start`, and `dev:runner` all auto-run `scripts/sync-skills.mjs` to materialize `skills/` into the workspace before launching.
+
+> `npm run docker:dev` layers `docker-compose.dev.yml` over `docker-compose.yml`: the `dev` stage of the Dockerfile, `src/` mounted read-only, `node_modules` inside the image (rerun it after changing dependencies — it passes `--build`). Dev-only compose settings belong in `docker-compose.dev.yml`; `docker-compose.yml` must stay identical to `docker-compose.release.yml` apart from `build:`/`image:`. In the Dockerfile the production stage stays last, because `release.yml` and `docker-compose.yml` build without a target.
+
+> When another deployment runs on the same host, the dev `.env` needs a different bot's `TELEGRAM_TOKEN` and a different `WEB_PORT` (e.g. `3031`). Two pollers on one token make Telegram answer 409 and neither receives messages.
 
 ## Architecture
 

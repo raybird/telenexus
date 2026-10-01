@@ -58,6 +58,8 @@ curl -fsSL https://raw.githubusercontent.com/raybird/telenexus/main/scripts/inst
 
 ## 從原始碼安裝（開發，5 分鐘上手）
 
+以下步驟從原始碼建出正式映像並啟動。要邊改邊跑（熱重載）見下方「[本機開發](#本機開發)」。
+
 ### 1) 準備環境變數
 
 複製 `.env.example`（開發）或 `.env.production.example`（保守上線），最低必要：
@@ -144,9 +146,26 @@ docker compose exec telenexus node /app/dist/tools/scheduler-cli.js health
 
 ## 本機開發
 
+開發時預設在容器內執行服務：環境與正式映像相同（opencode、agent-browser、uv、Memoria），原始碼由主機掛載，存檔即重載。
+
+```bash
+npm run docker:dev   # 以 dev stage 啟動 telenexus、agent-runner、memoria（tsx watch）
+```
+
+同一台機器上已有另一份部署在跑時，開發用的 `.env` 要換成**另一個 bot** 的 `TELEGRAM_TOKEN`，`WEB_PORT` 也要錯開（例如 `3031`）。同一個 token 兩邊同時 poll，Telegram 會回 409，兩邊都收不到訊息。
+
+`node_modules` 在映像內，改了 `package.json` 的依賴後重跑 `npm run docker:dev`（它帶 `--build`）。
+
+替代方式是直接在主機執行，需自備 opencode 等工具：
+
 ```bash
 npm run dev          # 啟動主服務（tsx watch）
 npm run dev:runner   # 啟動 agent-runner（tsx watch）
+```
+
+build、lint、test 在主機執行：
+
+```bash
 npm run build        # TypeScript 編譯
 npm run lint         # ESLint
 npm run test         # 執行全部測試
