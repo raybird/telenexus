@@ -87,10 +87,17 @@ SCN-001 與 SCN-002 沒有自動化測試承擔，屬實地觀測。失敗時的
 
 ## 實作步驟
 
-1. 📝 **正式映像基準與守門測試**（SCN-003）
+1. ✅ **正式映像基準與守門測試**（SCN-003）
    - 產出：現行正式映像的基準清單，存於本目錄 `evidence/`；`tests/docker/` 新增「最後一個 stage 是正式映像」的靜態斷言。
    - 相依：無。
    - 完成判準：基準涵蓋 ENTRYPOINT、CMD、ENV、`/app` 檔案清單、`npm ls --omit=dev`、全域 CLI 版本；新斷言對現行 Dockerfile 為綠，並以「暫時把一個 dev stage 接在最後」的變異確認它會紅。
+   - 證據（2026-10-01，工作區為 f863d1a 加本步驟變更，Dockerfile 與 f863d1a 相同）：
+     - 基準：以 `docker build -t telenexus-issue7:before .` 建置（exit 0），再以 [capture-image-baseline.sh](./evidence/capture-image-baseline.sh) 擷取成 [image-baseline-before.txt](./evidence/image-baseline-before.txt)。同一映像連續擷取兩次，輸出相同。依賴清單用 `npm ls --all`，正式映像只裝 production 依賴，與 `--omit=dev` 等價。
+     - 紅燈：[step1-guard-test-red.txt](./evidence/step1-guard-test-red.txt)，在 Dockerfile 最後接上 dev stage 後 `npx tsx --test tests/docker/dockerfile-hygiene.test.ts` 為 exit 1，3 個測試中失敗的是新增的那一個，原因是 `the dev stage must not be last`。變異在測試後以 `git checkout -- Dockerfile` 還原。
+     - 綠燈：[step1-guard-test-green.txt](./evidence/step1-guard-test-green.txt)，現行 Dockerfile 下同一命令 exit 0，3 個測試全過。`npm run test` 為 exit 0，283 個測試全過。
+     - 單迴圈合併：這項守門只有「讀 Dockerfile 文字」一個可觀察層級，沒有另一層整合責任；映像層的保障由步驟 2 的基準比對承擔。
+     - 精煉：no-op，新增內容只有一個取最後 stage 的輔助函式與一個測試。
+     - 基準的範圍限制：`/app/workspace` 是建置當下本機工作區的複本，只記筆數與彙總雜湊，不列檔名。
 2. 📝 **Dockerfile 重排：base、dev、正式**（SCN-003、SCN-001）
    - 產出：三段式 `Dockerfile`。
    - 相依：步驟 1。

@@ -91,7 +91,7 @@ Feature: 開發環境預設在 Docker 內執行
 
 ## Gherkin 核准紀錄
 
-- **核准 commit**: 待提交
+- **核准 commit**: f863d1a
 - **核准來源**: 使用者於 2026-10-01 對話提出「如果這個專案想要預設都是使用 docker 環境無論是開發或使用」，同日在範圍選項中選定「只做開發服務預設走 Docker」（Dockerfile 加 dev stage、新增 dev 用 compose 檔含熱重載、開發用 .env 說明，更新 README、CLAUDE.md、project.md；build／test／lint 仍以主機為主），並指示「再來開 issue」。
 
 全部 Scenario 於 2026-10-01 核准。

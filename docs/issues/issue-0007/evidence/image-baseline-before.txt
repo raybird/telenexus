@@ -1,0 +1,1123 @@
+## config
+Entrypoint: ["/usr/local/bin/docker-entrypoint.sh"]
+Cmd: ["npm", "start"]
+WorkingDir: "/app"
+User: ""
+Env:
+  APP_BUILD_TIME=unknown
+  APP_GIT_SHA=unknown
+  APP_PROJECT_DIR=/app
+  HOME=/home/node
+  NODE_ENV=production
+  NODE_VERSION=22.23.3
+  PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+  PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+  UV_INSTALL_DIR=/usr/local/bin
+  YARN_VERSION=1.22.22
+
+## /home/node (depth 3; npm log names normalized)
+      1 node:node d /home/node
+      1 node:node d /home/node/.agent-browser
+      1 node:node d /home/node/.agent-browser/browsers
+      1 node:node d /home/node/.agent-browser/browsers/chrome-154.0.8037.92
+      1 node:node f /home/node/.bash_logout
+      1 node:node f /home/node/.bashrc
+      1 node:node d /home/node/.cache
+      1 node:node d /home/node/.cache/opencode
+      1 node:node d /home/node/.cache/opencode/bin
+      1 node:node d /home/node/.config
+      1 node:node d /home/node/.config/opencode
+      1 node:node d /home/node/.config/opencode/skills
+      1 node:node d /home/node/.config/uv
+      1 node:node f /home/node/.config/uv/uv-receipt.json
+      1 node:node d /home/node/.local
+      1 node:node d /home/node/.local/share
+      1 node:node d /home/node/.local/share/opencode
+      1 node:node d /home/node/.local/state
+      1 node:node d /home/node/.local/state/opencode
+      1 node:node d /home/node/.npm
+      1 node:node d /home/node/.npm/_logs
+      5 node:node f /home/node/.npm/_logs/<log>
+      1 node:node d /home/node/.npm/_prebuilds
+      1 node:node f /home/node/.npm/_prebuilds/a20b28-better-sqlite3-v12.6.2-node-v127-linux-x64.tar.gz
+      1 node:node f /home/node/.npm/_update-notifier-last-checked
+      1 node:node f /home/node/.profile
+
+## /app entries (mode owner type path; node_modules and workspace contents pruned)
+drwxr-xr-x node:node d /app
+drwxr-xr-x node:node d /app/data
+-rwxrwxr-x node:node f /app/debug-container.sh
+drwxr-xr-x node:node d /app/dist
+drwxr-xr-x node:node d /app/dist/config
+-rw-r--r-- node:node f /app/dist/config/ai-config.d.ts
+-rw-r--r-- node:node f /app/dist/config/ai-config.d.ts.map
+-rw-r--r-- node:node f /app/dist/config/ai-config.js
+-rw-r--r-- node:node f /app/dist/config/ai-config.js.map
+-rw-r--r-- node:node f /app/dist/config/timeouts.d.ts
+-rw-r--r-- node:node f /app/dist/config/timeouts.d.ts.map
+-rw-r--r-- node:node f /app/dist/config/timeouts.js
+-rw-r--r-- node:node f /app/dist/config/timeouts.js.map
+drwxr-xr-x node:node d /app/dist/connectors
+-rw-r--r-- node:node f /app/dist/connectors/telegram.d.ts
+-rw-r--r-- node:node f /app/dist/connectors/telegram.d.ts.map
+-rw-r--r-- node:node f /app/dist/connectors/telegram.js
+-rw-r--r-- node:node f /app/dist/connectors/telegram.js.map
+drwxr-xr-x node:node d /app/dist/core
+-rw-r--r-- node:node f /app/dist/core/agent-result.d.ts
+-rw-r--r-- node:node f /app/dist/core/agent-result.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/agent-result.js
+-rw-r--r-- node:node f /app/dist/core/agent-result.js.map
+-rw-r--r-- node:node f /app/dist/core/agent.d.ts
+-rw-r--r-- node:node f /app/dist/core/agent.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/agent.js
+-rw-r--r-- node:node f /app/dist/core/agent.js.map
+-rw-r--r-- node:node f /app/dist/core/cli-agent-base.d.ts
+-rw-r--r-- node:node f /app/dist/core/cli-agent-base.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/cli-agent-base.js
+-rw-r--r-- node:node f /app/dist/core/cli-agent-base.js.map
+-rw-r--r-- node:node f /app/dist/core/command-router.d.ts
+-rw-r--r-- node:node f /app/dist/core/command-router.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/command-router.js
+-rw-r--r-- node:node f /app/dist/core/command-router.js.map
+-rw-r--r-- node:node f /app/dist/core/config-loader.d.ts
+-rw-r--r-- node:node f /app/dist/core/config-loader.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/config-loader.js
+-rw-r--r-- node:node f /app/dist/core/config-loader.js.map
+-rw-r--r-- node:node f /app/dist/core/execution-queue.d.ts
+-rw-r--r-- node:node f /app/dist/core/execution-queue.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/execution-queue.js
+-rw-r--r-- node:node f /app/dist/core/execution-queue.js.map
+-rw-r--r-- node:node f /app/dist/core/logger.d.ts
+-rw-r--r-- node:node f /app/dist/core/logger.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/logger.js
+-rw-r--r-- node:node f /app/dist/core/logger.js.map
+-rw-r--r-- node:node f /app/dist/core/memoria-recall.d.ts
+-rw-r--r-- node:node f /app/dist/core/memoria-recall.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/memoria-recall.js
+-rw-r--r-- node:node f /app/dist/core/memoria-recall.js.map
+-rw-r--r-- node:node f /app/dist/core/memoria-sync.d.ts
+-rw-r--r-- node:node f /app/dist/core/memoria-sync.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/memoria-sync.js
+-rw-r--r-- node:node f /app/dist/core/memoria-sync.js.map
+-rw-r--r-- node:node f /app/dist/core/memory-intent.d.ts
+-rw-r--r-- node:node f /app/dist/core/memory-intent.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/memory-intent.js
+-rw-r--r-- node:node f /app/dist/core/memory-intent.js.map
+-rw-r--r-- node:node f /app/dist/core/memory.d.ts
+-rw-r--r-- node:node f /app/dist/core/memory.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/memory.js
+-rw-r--r-- node:node f /app/dist/core/memory.js.map
+-rw-r--r-- node:node f /app/dist/core/message-pipeline-chat.d.ts
+-rw-r--r-- node:node f /app/dist/core/message-pipeline-chat.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/message-pipeline-chat.js
+-rw-r--r-- node:node f /app/dist/core/message-pipeline-chat.js.map
+-rw-r--r-- node:node f /app/dist/core/message-pipeline-context.d.ts
+-rw-r--r-- node:node f /app/dist/core/message-pipeline-context.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/message-pipeline-context.js
+-rw-r--r-- node:node f /app/dist/core/message-pipeline-context.js.map
+-rw-r--r-- node:node f /app/dist/core/message-pipeline-helpers.d.ts
+-rw-r--r-- node:node f /app/dist/core/message-pipeline-helpers.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/message-pipeline-helpers.js
+-rw-r--r-- node:node f /app/dist/core/message-pipeline-helpers.js.map
+-rw-r--r-- node:node f /app/dist/core/message-pipeline-preflight.d.ts
+-rw-r--r-- node:node f /app/dist/core/message-pipeline-preflight.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/message-pipeline-preflight.js
+-rw-r--r-- node:node f /app/dist/core/message-pipeline-preflight.js.map
+-rw-r--r-- node:node f /app/dist/core/message-pipeline.d.ts
+-rw-r--r-- node:node f /app/dist/core/message-pipeline.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/message-pipeline.js
+-rw-r--r-- node:node f /app/dist/core/message-pipeline.js.map
+-rw-r--r-- node:node f /app/dist/core/opencode-event-parser.d.ts
+-rw-r--r-- node:node f /app/dist/core/opencode-event-parser.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/opencode-event-parser.js
+-rw-r--r-- node:node f /app/dist/core/opencode-event-parser.js.map
+-rw-r--r-- node:node f /app/dist/core/opencode.d.ts
+-rw-r--r-- node:node f /app/dist/core/opencode.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/opencode.js
+-rw-r--r-- node:node f /app/dist/core/opencode.js.map
+-rw-r--r-- node:node f /app/dist/core/process-runner.d.ts
+-rw-r--r-- node:node f /app/dist/core/process-runner.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/process-runner.js
+-rw-r--r-- node:node f /app/dist/core/process-runner.js.map
+-rw-r--r-- node:node f /app/dist/core/prompt-build.d.ts
+-rw-r--r-- node:node f /app/dist/core/prompt-build.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/prompt-build.js
+-rw-r--r-- node:node f /app/dist/core/prompt-build.js.map
+-rw-r--r-- node:node f /app/dist/core/rate-limit.d.ts
+-rw-r--r-- node:node f /app/dist/core/rate-limit.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/rate-limit.js
+-rw-r--r-- node:node f /app/dist/core/rate-limit.js.map
+-rw-r--r-- node:node f /app/dist/core/run-outcome.d.ts
+-rw-r--r-- node:node f /app/dist/core/run-outcome.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/run-outcome.js
+-rw-r--r-- node:node f /app/dist/core/run-outcome.js.map
+-rw-r--r-- node:node f /app/dist/core/runner-agent-options.d.ts
+-rw-r--r-- node:node f /app/dist/core/runner-agent-options.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/runner-agent-options.js
+-rw-r--r-- node:node f /app/dist/core/runner-agent-options.js.map
+-rw-r--r-- node:node f /app/dist/core/sar-policy.d.ts
+-rw-r--r-- node:node f /app/dist/core/sar-policy.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/sar-policy.js
+-rw-r--r-- node:node f /app/dist/core/sar-policy.js.map
+-rw-r--r-- node:node f /app/dist/core/scheduler-helpers.d.ts
+-rw-r--r-- node:node f /app/dist/core/scheduler-helpers.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/scheduler-helpers.js
+-rw-r--r-- node:node f /app/dist/core/scheduler-helpers.js.map
+-rw-r--r-- node:node f /app/dist/core/scheduler.d.ts
+-rw-r--r-- node:node f /app/dist/core/scheduler.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/scheduler.js
+-rw-r--r-- node:node f /app/dist/core/scheduler.js.map
+-rw-r--r-- node:node f /app/dist/core/summary-metadata.d.ts
+-rw-r--r-- node:node f /app/dist/core/summary-metadata.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/summary-metadata.js
+-rw-r--r-- node:node f /app/dist/core/summary-metadata.js.map
+-rw-r--r-- node:node f /app/dist/core/telegram-stream-renderer.d.ts
+-rw-r--r-- node:node f /app/dist/core/telegram-stream-renderer.d.ts.map
+-rw-r--r-- node:node f /app/dist/core/telegram-stream-renderer.js
+-rw-r--r-- node:node f /app/dist/core/telegram-stream-renderer.js.map
+-rw-r--r-- node:node f /app/dist/main.d.ts
+-rw-r--r-- node:node f /app/dist/main.d.ts.map
+-rw-r--r-- node:node f /app/dist/main.js
+-rw-r--r-- node:node f /app/dist/main.js.map
+drwxr-xr-x node:node d /app/dist/prompt
+-rw-r--r-- node:node f /app/dist/prompt/builder.d.ts
+-rw-r--r-- node:node f /app/dist/prompt/builder.d.ts.map
+-rw-r--r-- node:node f /app/dist/prompt/builder.js
+-rw-r--r-- node:node f /app/dist/prompt/builder.js.map
+-rw-r--r-- node:node f /app/dist/runner.d.ts
+-rw-r--r-- node:node f /app/dist/runner.d.ts.map
+-rw-r--r-- node:node f /app/dist/runner.js
+-rw-r--r-- node:node f /app/dist/runner.js.map
+drwxr-xr-x node:node d /app/dist/services
+-rw-r--r-- node:node f /app/dist/services/audit-log.d.ts
+-rw-r--r-- node:node f /app/dist/services/audit-log.d.ts.map
+-rw-r--r-- node:node f /app/dist/services/audit-log.js
+-rw-r--r-- node:node f /app/dist/services/audit-log.js.map
+-rw-r--r-- node:node f /app/dist/services/context-snapshots.d.ts
+-rw-r--r-- node:node f /app/dist/services/context-snapshots.d.ts.map
+-rw-r--r-- node:node f /app/dist/services/context-snapshots.js
+-rw-r--r-- node:node f /app/dist/services/context-snapshots.js.map
+-rw-r--r-- node:node f /app/dist/services/error-alerter.d.ts
+-rw-r--r-- node:node f /app/dist/services/error-alerter.d.ts.map
+-rw-r--r-- node:node f /app/dist/services/error-alerter.js
+-rw-r--r-- node:node f /app/dist/services/error-alerter.js.map
+-rw-r--r-- node:node f /app/dist/services/event-bus.d.ts
+-rw-r--r-- node:node f /app/dist/services/event-bus.d.ts.map
+-rw-r--r-- node:node f /app/dist/services/event-bus.js
+-rw-r--r-- node:node f /app/dist/services/event-bus.js.map
+-rw-r--r-- node:node f /app/dist/services/event-projector.d.ts
+-rw-r--r-- node:node f /app/dist/services/event-projector.d.ts.map
+-rw-r--r-- node:node f /app/dist/services/event-projector.js
+-rw-r--r-- node:node f /app/dist/services/event-projector.js.map
+-rw-r--r-- node:node f /app/dist/services/interaction-guard.d.ts
+-rw-r--r-- node:node f /app/dist/services/interaction-guard.d.ts.map
+-rw-r--r-- node:node f /app/dist/services/interaction-guard.js
+-rw-r--r-- node:node f /app/dist/services/interaction-guard.js.map
+-rw-r--r-- node:node f /app/dist/services/issue-store.d.ts
+-rw-r--r-- node:node f /app/dist/services/issue-store.d.ts.map
+-rw-r--r-- node:node f /app/dist/services/issue-store.js
+-rw-r--r-- node:node f /app/dist/services/issue-store.js.map
+-rw-r--r-- node:node f /app/dist/services/memoria-recall-telemetry.d.ts
+-rw-r--r-- node:node f /app/dist/services/memoria-recall-telemetry.d.ts.map
+-rw-r--r-- node:node f /app/dist/services/memoria-recall-telemetry.js
+-rw-r--r-- node:node f /app/dist/services/memoria-recall-telemetry.js.map
+-rw-r--r-- node:node f /app/dist/services/memoria-status.d.ts
+-rw-r--r-- node:node f /app/dist/services/memoria-status.d.ts.map
+-rw-r--r-- node:node f /app/dist/services/memoria-status.js
+-rw-r--r-- node:node f /app/dist/services/memoria-status.js.map
+-rw-r--r-- node:node f /app/dist/services/memory-backfill-worker.d.ts
+-rw-r--r-- node:node f /app/dist/services/memory-backfill-worker.d.ts.map
+-rw-r--r-- node:node f /app/dist/services/memory-backfill-worker.js
+-rw-r--r-- node:node f /app/dist/services/memory-backfill-worker.js.map
+-rw-r--r-- node:node f /app/dist/services/memory-backfill.d.ts
+-rw-r--r-- node:node f /app/dist/services/memory-backfill.d.ts.map
+-rw-r--r-- node:node f /app/dist/services/memory-backfill.js
+-rw-r--r-- node:node f /app/dist/services/memory-backfill.js.map
+-rw-r--r-- node:node f /app/dist/services/memory-health.d.ts
+-rw-r--r-- node:node f /app/dist/services/memory-health.d.ts.map
+-rw-r--r-- node:node f /app/dist/services/memory-health.js
+-rw-r--r-- node:node f /app/dist/services/memory-health.js.map
+-rw-r--r-- node:node f /app/dist/services/memory-intent-telemetry.d.ts
+-rw-r--r-- node:node f /app/dist/services/memory-intent-telemetry.d.ts.map
+-rw-r--r-- node:node f /app/dist/services/memory-intent-telemetry.js
+-rw-r--r-- node:node f /app/dist/services/memory-intent-telemetry.js.map
+-rw-r--r-- node:node f /app/dist/services/model-health-check.d.ts
+-rw-r--r-- node:node f /app/dist/services/model-health-check.d.ts.map
+-rw-r--r-- node:node f /app/dist/services/model-health-check.js
+-rw-r--r-- node:node f /app/dist/services/model-health-check.js.map
+-rw-r--r-- node:node f /app/dist/services/pinned-status-manager.d.ts
+-rw-r--r-- node:node f /app/dist/services/pinned-status-manager.d.ts.map
+-rw-r--r-- node:node f /app/dist/services/pinned-status-manager.js
+-rw-r--r-- node:node f /app/dist/services/pinned-status-manager.js.map
+-rw-r--r-- node:node f /app/dist/services/prompt-session-telemetry.d.ts
+-rw-r--r-- node:node f /app/dist/services/prompt-session-telemetry.d.ts.map
+-rw-r--r-- node:node f /app/dist/services/prompt-session-telemetry.js
+-rw-r--r-- node:node f /app/dist/services/prompt-session-telemetry.js.map
+drwxr-xr-x node:node d /app/dist/telegram
+drwxr-xr-x node:node d /app/dist/telegram/render
+-rw-r--r-- node:node f /app/dist/telegram/render/chunker.d.ts
+-rw-r--r-- node:node f /app/dist/telegram/render/chunker.d.ts.map
+-rw-r--r-- node:node f /app/dist/telegram/render/chunker.js
+-rw-r--r-- node:node f /app/dist/telegram/render/chunker.js.map
+-rw-r--r-- node:node f /app/dist/telegram/render/escape.d.ts
+-rw-r--r-- node:node f /app/dist/telegram/render/escape.d.ts.map
+-rw-r--r-- node:node f /app/dist/telegram/render/escape.js
+-rw-r--r-- node:node f /app/dist/telegram/render/escape.js.map
+-rw-r--r-- node:node f /app/dist/telegram/render/markdown-v2.d.ts
+-rw-r--r-- node:node f /app/dist/telegram/render/markdown-v2.d.ts.map
+-rw-r--r-- node:node f /app/dist/telegram/render/markdown-v2.js
+-rw-r--r-- node:node f /app/dist/telegram/render/markdown-v2.js.map
+drwxr-xr-x node:node d /app/dist/tools
+-rw-r--r-- node:node f /app/dist/tools/memory-backfill-cli.d.ts
+-rw-r--r-- node:node f /app/dist/tools/memory-backfill-cli.d.ts.map
+-rw-r--r-- node:node f /app/dist/tools/memory-backfill-cli.js
+-rw-r--r-- node:node f /app/dist/tools/memory-backfill-cli.js.map
+-rw-r--r-- node:node f /app/dist/tools/memory-cli.d.ts
+-rw-r--r-- node:node f /app/dist/tools/memory-cli.d.ts.map
+-rw-r--r-- node:node f /app/dist/tools/memory-cli.js
+-rw-r--r-- node:node f /app/dist/tools/memory-cli.js.map
+-rw-r--r-- node:node f /app/dist/tools/memory-health-cli.d.ts
+-rw-r--r-- node:node f /app/dist/tools/memory-health-cli.d.ts.map
+-rw-r--r-- node:node f /app/dist/tools/memory-health-cli.js
+-rw-r--r-- node:node f /app/dist/tools/memory-health-cli.js.map
+-rw-r--r-- node:node f /app/dist/tools/scheduler-cli.d.ts
+-rw-r--r-- node:node f /app/dist/tools/scheduler-cli.d.ts.map
+-rw-r--r-- node:node f /app/dist/tools/scheduler-cli.js
+-rw-r--r-- node:node f /app/dist/tools/scheduler-cli.js.map
+drwxr-xr-x node:node d /app/dist/types
+-rw-r--r-- node:node f /app/dist/types/index.d.ts
+-rw-r--r-- node:node f /app/dist/types/index.d.ts.map
+-rw-r--r-- node:node f /app/dist/types/index.js
+-rw-r--r-- node:node f /app/dist/types/index.js.map
+drwxr-xr-x node:node d /app/dist/utils
+-rw-r--r-- node:node f /app/dist/utils/crypto.d.ts
+-rw-r--r-- node:node f /app/dist/utils/crypto.d.ts.map
+-rw-r--r-- node:node f /app/dist/utils/crypto.js
+-rw-r--r-- node:node f /app/dist/utils/crypto.js.map
+-rw-r--r-- node:node f /app/dist/utils/env.d.ts
+-rw-r--r-- node:node f /app/dist/utils/env.d.ts.map
+-rw-r--r-- node:node f /app/dist/utils/env.js
+-rw-r--r-- node:node f /app/dist/utils/env.js.map
+-rw-r--r-- node:node f /app/dist/utils/errors.d.ts
+-rw-r--r-- node:node f /app/dist/utils/errors.d.ts.map
+-rw-r--r-- node:node f /app/dist/utils/errors.js
+-rw-r--r-- node:node f /app/dist/utils/errors.js.map
+-rw-r--r-- node:node f /app/dist/utils/paths.d.ts
+-rw-r--r-- node:node f /app/dist/utils/paths.d.ts.map
+-rw-r--r-- node:node f /app/dist/utils/paths.js
+-rw-r--r-- node:node f /app/dist/utils/paths.js.map
+drwxr-xr-x node:node d /app/dist/web
+drwxr-xr-x node:node d /app/dist/web/public
+drwxr-xr-x node:node d /app/dist/web/public/app
+-rw-rw-r-- node:node f /app/dist/web/public/app/api.js
+-rw-rw-r-- node:node f /app/dist/web/public/app/main.js
+-rw-rw-r-- node:node f /app/dist/web/public/app/router.js
+drwxr-xr-x node:node d /app/dist/web/public/app/services
+-rw-rw-r-- node:node f /app/dist/web/public/app/services/chat-service.js
+-rw-rw-r-- node:node f /app/dist/web/public/app/services/memory-service.js
+-rw-rw-r-- node:node f /app/dist/web/public/app/services/schedule-service.js
+-rw-rw-r-- node:node f /app/dist/web/public/app/services/status-service.js
+-rw-rw-r-- node:node f /app/dist/web/public/app/state.js
+drwxr-xr-x node:node d /app/dist/web/public/app/utils
+-rw-rw-r-- node:node f /app/dist/web/public/app/utils/dom.js
+-rw-rw-r-- node:node f /app/dist/web/public/app/utils/format.js
+-rw-rw-r-- node:node f /app/dist/web/public/app/utils/list.js
+-rw-rw-r-- node:node f /app/dist/web/public/app/utils/markdown.js
+-rw-rw-r-- node:node f /app/dist/web/public/app/utils/view.js
+drwxr-xr-x node:node d /app/dist/web/public/app/views
+-rw-rw-r-- node:node f /app/dist/web/public/app/views/chat.js
+-rw-rw-r-- node:node f /app/dist/web/public/app/views/memory.js
+-rw-rw-r-- node:node f /app/dist/web/public/app/views/schedules.js
+-rw-rw-r-- node:node f /app/dist/web/public/app/views/status.js
+-rw-rw-r-- node:node f /app/dist/web/public/index.html
+-rw-r--r-- node:node f /app/dist/web/server.d.ts
+-rw-r--r-- node:node f /app/dist/web/server.d.ts.map
+-rw-r--r-- node:node f /app/dist/web/server.js
+-rw-r--r-- node:node f /app/dist/web/server.js.map
+-rw-rw-r-- node:node f /app/package-lock.json
+-rw-rw-r-- node:node f /app/package.json
+drwxr-xr-x node:node d /app/scripts
+-rw-rw-r-- node:node f /app/scripts/backfill-summary-metadata.ts
+-rw-rw-r-- node:node f /app/scripts/copy-web-assets.mjs
+-rwxrwxr-x node:node f /app/scripts/docker-entrypoint.sh
+-rwxrwxr-x node:node f /app/scripts/install.sh
+-rw-rw-r-- node:node f /app/scripts/probe-models.mjs
+-rw-rw-r-- node:node f /app/scripts/release-workflow.mjs
+-rw-rw-r-- node:node f /app/scripts/report-execution-compare.mjs
+-rw-rw-r-- node:node f /app/scripts/seed-sar-anchors.mjs
+-rw-rw-r-- node:node f /app/scripts/sync-skills.mjs
+-rwxrwxr-x node:node f /app/scripts/test-installer-upgrade.sh
+drwxr-xr-x node:node d /app/node_modules
+drwxr-xr-x node:node d /app/workspace
+
+## /app file hashes (node_modules and workspace pruned)
+773375c1e5a704c13717964722cf53da9b947c2ee5884348a56535d2d19b69c8  /app/debug-container.sh
+805317bfe40a574280848cb790ef121f6988b50681b6abd70688ccd7c1610260  /app/dist/config/ai-config.d.ts
+1fb49d6b7f1c2262afde96845b111532e328f4f0f86549d6e3f976de307050cc  /app/dist/config/ai-config.d.ts.map
+200cd1f1b06f5472ab79e86ab40c400b02c73d267860ebd1d79fdf076fb00f93  /app/dist/config/ai-config.js
+1ccff3bb066dc6c53342439fae5ecb34a679bada8db478e827a08cad877b571e  /app/dist/config/ai-config.js.map
+d3e0e3715d3b59a1d05209a51f9163e419c1769c247d580bbc3935fbf54c16fa  /app/dist/config/timeouts.d.ts
+db528f96d70c6b692295c1a49837de8fc5c154dbb6d80420e9a0e6862f0f3780  /app/dist/config/timeouts.d.ts.map
+22952dc758d42fd4111d8670925310ecd7c6642359ce22739dc66e978aa36001  /app/dist/config/timeouts.js
+550f9951b210b11ddb6402347d5ef846bde0243b0df3d6e0d337317743232a02  /app/dist/config/timeouts.js.map
+0cd6af314df2af1bb9f9ba60476d0afd1cc9b1b672bf0b4501a7990e04bae17d  /app/dist/connectors/telegram.d.ts
+abc4f2df9149b6b1f2c531266a82f4664d9f4c47d347bb12af5745c88b4c38a4  /app/dist/connectors/telegram.d.ts.map
+fe2815cd6f3ce355be53df977b0948b8719fee85bf0e3e4c49404aa2ccef374c  /app/dist/connectors/telegram.js
+8f9b3612ad007f447c08f3af380fe7061e906af24bba3c259492ffc656e63932  /app/dist/connectors/telegram.js.map
+2a390c0a7d74e87d7ae02029248b42e1251da74e9591ecb92d0b171faa099543  /app/dist/core/agent-result.d.ts
+f4f140b36a93ffad6b0544952e88c96a95c9c802b714c3e84a32e4587774fd71  /app/dist/core/agent-result.d.ts.map
+593bdf562e89a8becaffc929b9f416ed8fd67bfd64c12e817102d82dde99610d  /app/dist/core/agent-result.js
+3fcdefdb49e72c57769d192a27a86657d74638ab1c140f59364aa1b04cd7c1cd  /app/dist/core/agent-result.js.map
+cd6603d16fa871bc69b405a92d0b8c2e64b00a0fc29e24af1efa0e04071edbc2  /app/dist/core/agent.d.ts
+4c1100adc72693102c9fc5c99d3fb2bf810d3867dadca14e1b71082cf6948c38  /app/dist/core/agent.d.ts.map
+06632f03c16bc2c82bd3715a180f3d2ccc8b73de507e06a196b45de25f0c5255  /app/dist/core/agent.js
+01b6a6dcf8d76f109a0e82a747c8c7e84b3a03d5f8e5541936ac11c83427ebc8  /app/dist/core/agent.js.map
+4191f6723b8f3cae59b89e8cdcc34b27ec2c27e1bbabc3ccdf343294e8fd62b8  /app/dist/core/cli-agent-base.d.ts
+b6bd0eb3f711655a248e75c77997683636de088f6cfc2cd652bc9f091f308018  /app/dist/core/cli-agent-base.d.ts.map
+01f0e4bb661cfb709c89a3a015a016e7270f7873b70e1a1a6ccf6c5da5517aa8  /app/dist/core/cli-agent-base.js
+36fa34faf6fa6622db2e590e058113fbfbdecaff16dbef827f23fdf2dd6c98ae  /app/dist/core/cli-agent-base.js.map
+d857b92d1939cc72894a48edfbf54ca5623d5d7b12c923bb572ed9e2b09db595  /app/dist/core/command-router.d.ts
+e6c49759432ee6198dce2df5b168edb164bc256e629c6e006acc858b5851c551  /app/dist/core/command-router.d.ts.map
+65b8b724f6bc420c4f612af58cecb552dbaa8dafeee326a638bd7492d4986b11  /app/dist/core/command-router.js
+2158846cc6462ebed857bd6492e03bc6c7772c135d94d5d6999f632bc0fadf08  /app/dist/core/command-router.js.map
+79129538838276219a96f55f00ab3de9455507688e737b79fbc6905c7a582f21  /app/dist/core/config-loader.d.ts
+35bdd11c32838422fa3eb7aa2e7f9a112cc5afd15bf4eb0c80f9f44d41d6ebff  /app/dist/core/config-loader.d.ts.map
+0effa453994144e56ed909ccc95d84bb1f58f9729d6b2d1294d67c3a5ee98e7b  /app/dist/core/config-loader.js
+d0af16715cd3f8f6e61758fd56f5c968df0a944b7da495cfef6bf46efff0a7ea  /app/dist/core/config-loader.js.map
+54feba214d5b301711e451e0bcb9b29fb48c89a7eabbeb5df7a9bb017e63f89f  /app/dist/core/execution-queue.d.ts
+d85431df85e33285d998b74dfe1841c7d0db5d33f8df183ec9f64e7724cbd17a  /app/dist/core/execution-queue.d.ts.map
+f548546a5cf7108f547c3941b0f58baa5b4bf85fedd912ad538894a71c508643  /app/dist/core/execution-queue.js
+02c7707128464e944780a9f1405487ba3aa93bb9366a1acf894d2d8aa4ef2090  /app/dist/core/execution-queue.js.map
+8a7a9947f3268d388ac56f2afa241be806f9614e98c55dfaba140bbcce8515a6  /app/dist/core/logger.d.ts
+6c6e5a63431206347bac1a773c2cd358664233886a6ddfa77bd4f983f4bf5c3c  /app/dist/core/logger.d.ts.map
+755e399f8786ea31328b575b5f3465194aa5f245cf5b3cd3906cc40845d8a97a  /app/dist/core/logger.js
+cdbbf98556fb561ae6e36fe6bfc8452d8a4430d0c0c27f5df5af40c85b8952ee  /app/dist/core/logger.js.map
+57443d2fa21508fc2af6d5f484587faf05bf90e9c6ecb8b0f0512f60c05f6a3e  /app/dist/core/memoria-recall.d.ts
+b7e1bcc423f1ae2b10d2b1976983b8836e5a20b63683fbf90da0b9492f50cedd  /app/dist/core/memoria-recall.d.ts.map
+ca1d9a6c7f8d041b0416fbb794614c168983ea8fe0ed2de5dfab74899e1ce960  /app/dist/core/memoria-recall.js
+9ea721ae3506bd3fb91600eb8230f994c8fac24b41051eb5f2a711f5c8fcf92f  /app/dist/core/memoria-recall.js.map
+ca4e46ed6165a8c682e773918c0e9dcd29df6f0175cc657d167daef060764f26  /app/dist/core/memoria-sync.d.ts
+4d6cd0b48b7043973369b01e17b65ab8d7a09b340acebadc34102dab48a78027  /app/dist/core/memoria-sync.d.ts.map
+c1948983142d00a6521781225bbd6a677470799c3d22a38b3f846f2d79dec2d6  /app/dist/core/memoria-sync.js
+012d11dfe2ff90410a039cbedf7fb3dec953202ee9a3b9c5bd3d4b48cbe74bd7  /app/dist/core/memoria-sync.js.map
+1135a2fccf5046633d0ec6e12a87ed899a605b07dafc6fc5ec23449cc4d73ed6  /app/dist/core/memory-intent.d.ts
+f88342f4b68721cde14a9252abde06cf179f35288163815a33801c8aa6f8c0f8  /app/dist/core/memory-intent.d.ts.map
+c4ee69d70019cfdef849eb60333924e3463af918444bb982a770c206603d1aa7  /app/dist/core/memory-intent.js
+a6fd0da1b2e21b77f64a135dfd61e5d7294830fd2de871b526921f77a67cb477  /app/dist/core/memory-intent.js.map
+6e70eebaa5b1e6cfb2cdb67b82e9847e598e7ab73c62e6062675c605b3415277  /app/dist/core/memory.d.ts
+95cc1a827456bee4e58d2bb86a1313ea77375f2b6ab9b2d59da0a7f4b998e924  /app/dist/core/memory.d.ts.map
+e8ad1b0ca203465b668137508d0418f8cc5f8c8d16ec47659059b08b2f78b878  /app/dist/core/memory.js
+898a30703f7cd19006a0b05105befcd99484cfff216f63f3ab54ca635b4190d3  /app/dist/core/memory.js.map
+0f4458c4154e7fd1fe9d9c6eebdccdda2200590ba8fe60cf75fd4d424a8ca1fe  /app/dist/core/message-pipeline-chat.d.ts
+37611f093603c93a9946328ee388db153d3f1fe02acaa54978144cc6f32b0d4d  /app/dist/core/message-pipeline-chat.d.ts.map
+390b7cc2a6bd3bef68c6f6ae612a6141286767aeb161b831a3091d9b87acf7d2  /app/dist/core/message-pipeline-chat.js
+65598bb5cc4a0353c6bbb7c5f56e7dc96406d1be2d9e14d7e4dc02464695cbac  /app/dist/core/message-pipeline-chat.js.map
+36a0e8d3ef8bb708a1309b332723997f6012dea9400c045b96d82e5b763ac956  /app/dist/core/message-pipeline-context.d.ts
+833018d186816e8690d34724c3f603ae29b278cee3014f0d4f7d12c5124422d2  /app/dist/core/message-pipeline-context.d.ts.map
+f2c13f64f1345c50247d4a8308f6f19841ce9745917d4f8398b3b8c3a50f73bf  /app/dist/core/message-pipeline-context.js
+1ac683072b5c77ba7870a3da3f058663cf6042bf2a007a41c6046545333773a9  /app/dist/core/message-pipeline-context.js.map
+253737dd2caee6bc78a55ae6ac35f1bbc73ec61105e080b76f8724dc652a4724  /app/dist/core/message-pipeline-helpers.d.ts
+cb0104905093fa6f1601a85b167dd914ea718c85084c0d53ff574b7fa83f4c78  /app/dist/core/message-pipeline-helpers.d.ts.map
+e5f53136cf3ccb668049b524ea99c3aa126f19fa02f835c80a45cbdd0591ae12  /app/dist/core/message-pipeline-helpers.js
+eedea4952643dac1b13cb8c637cd086a4cd4236633953df129742e0124cb3592  /app/dist/core/message-pipeline-helpers.js.map
+73f5d7f362b8eb1d89a54287b6e5263fd91a062faaa059a91558e38f3e83ec86  /app/dist/core/message-pipeline-preflight.d.ts
+bd5d9d51d1d0555a9522bf6362c807ccd9770e8818833a1cfa75b6fbcf352272  /app/dist/core/message-pipeline-preflight.d.ts.map
+9d3f6c39d25a7bcc266ada259ff13e3507b2746948220e929a1964b3b4b59475  /app/dist/core/message-pipeline-preflight.js
+e24405bf60473d155634438872561e1affd4b297fc123424fff0aced299c1d99  /app/dist/core/message-pipeline-preflight.js.map
+613da8d475def5f373b566a710ee3e9a1ba2f45dcba03f6dc2f7624eb732972c  /app/dist/core/message-pipeline.d.ts
+0f86282aa3bebb280ccbd29d21e2da25a24ccc06377faa2b3893f96dd0bc210e  /app/dist/core/message-pipeline.d.ts.map
+d3ca48049d87372ead3ce0a912e94b11b7289d91552edaa92dac3a05a0fb73ed  /app/dist/core/message-pipeline.js
+aa47d9b299417593035ab366675d169f3fde361133ac19dd80b94cbde0a091e1  /app/dist/core/message-pipeline.js.map
+b0f73f5fef3668319855f45036fe1e1c27cd88805e1004983e6b6de470eb8bef  /app/dist/core/opencode-event-parser.d.ts
+95b66da60a9e0d2781ce18ee24afb9e3c86ce6298f9f63e8690604942840b9f3  /app/dist/core/opencode-event-parser.d.ts.map
+a50720787559939dbecaa71fd5c48b4084f1390b9f11a91f415289c2e7ff7fc3  /app/dist/core/opencode-event-parser.js
+1ce40dc8371a02d96b00979c321a409288d169a6708333266b6bb9b210bfe234  /app/dist/core/opencode-event-parser.js.map
+cd63bdffd1678157c6803e69cf14583434f12aa662d2a6c7da3c45707f435f68  /app/dist/core/opencode.d.ts
+222f593d60068c06fcb67d3f062f9754347599a2171ce395415f61b0f09dbc95  /app/dist/core/opencode.d.ts.map
+794e10b9863a044962d38e4ff922dce22112311024b1bd655635f01d4fe79f0d  /app/dist/core/opencode.js
+527826db364153733bdbda9e4a08a63750c1cb139c4f719cdd999207f3317bee  /app/dist/core/opencode.js.map
+5e3be6cac8d052adc44389de35930b2c7e4135f7662c3e41f05f4f74091c8f67  /app/dist/core/process-runner.d.ts
+ea64790aa98da366be58ad0201a674ccd7f9c6866f514a64f3bc2ea8f5c1b1db  /app/dist/core/process-runner.d.ts.map
+1dcf48f9a4e79f4b4296cd021b8e5459dd6685e02eba7c3093fe0afc1842c46b  /app/dist/core/process-runner.js
+998de266d27c19c3b2e9c8fc61e4ae35a180f9248105c00ef3ad98c73f9330b6  /app/dist/core/process-runner.js.map
+ea9ec1ce7ad2062603631f5bd0f1c6c3bbe3afda1558d7b14340c719eb0a146d  /app/dist/core/prompt-build.d.ts
+bc9108ba6dd0caf8e4abe66d36e510cef3b6fffe051e43380fd3820eb19a1e3c  /app/dist/core/prompt-build.d.ts.map
+b6d7033aa0e63936c6e5cd23dadb45cff75c39ca08b83625d760a1e8c62c8202  /app/dist/core/prompt-build.js
+29e4640f862139b0f524049f9250715a8d0b89fcaacb7bf77b16564a82d53f88  /app/dist/core/prompt-build.js.map
+3040de965cc4777b718ecbb71d9637062f5a1eaaaf6f702a91e7d9b60d155667  /app/dist/core/rate-limit.d.ts
+ae6fb2fdc53598e7e3fe433a6d9e2f8f3bee6144629be2f8db23b0d3b8540151  /app/dist/core/rate-limit.d.ts.map
+3693c7f7a4d2d2b41d2b67ddfb8f78ff4ef63f5ed4a36c120463fa0828062ea7  /app/dist/core/rate-limit.js
+d5c9efee116f05b0e98eb8efed81a41a9af41d4eb33d5cbd35a662111dd6f035  /app/dist/core/rate-limit.js.map
+7ab945df235ac7f39d2dde5af6e4a9673ff9b3d3606a8b85f3355258a692353a  /app/dist/core/run-outcome.d.ts
+b8d23d85af84c5caa900204a495f60a86128db030c9f4fa61de7b3f65e851b14  /app/dist/core/run-outcome.d.ts.map
+9b1f4e8d2c8bad3a46737571e33efb7dc241fcd421ed1a062ce4883a260b1a4a  /app/dist/core/run-outcome.js
+39e2144b1910d87d63d072fe2d1c28881b84fb04549b06822c4e6ceacd16c5a2  /app/dist/core/run-outcome.js.map
+8299e21b7f6015f17061de80855865b32d2f76ae3836119c2ea8394b3ec028a6  /app/dist/core/runner-agent-options.d.ts
+501621562e2064bdd7ac7b8ea127fc1744bc197d7f0b810faa1e47808dff2ae5  /app/dist/core/runner-agent-options.d.ts.map
+442c7fb6ec022e05c566ade53cc643eab796d1fe313069bdfa89d99c0a63b2b4  /app/dist/core/runner-agent-options.js
+e25d65cc67a4a83ed023d3f467ee015265f96e31b3f3cc25a885004e2bbe6107  /app/dist/core/runner-agent-options.js.map
+81afb29d1eecfe558aaa4b5bef5922c1c163a47b516fbc31a772d61cd72b44e3  /app/dist/core/sar-policy.d.ts
+6ed998dbabb754b1116691f3feac7ecd928ca8679d0c03f5158a253f1a828163  /app/dist/core/sar-policy.d.ts.map
+dcf13cc3af10d389c7483b84640cd151343a9aab79b3caadd039e4311f405847  /app/dist/core/sar-policy.js
+9c94a13dba2ba383670f592fea50a7f95739821377570444a4ad09c97acb78fc  /app/dist/core/sar-policy.js.map
+044aa39dba46895071f3d059797ad9381fd7de9612e816d14995772b64eaf587  /app/dist/core/scheduler-helpers.d.ts
+43fbb30596b75da95f60c83a84e78d4fae8676f5b5698fe1d379833b0b54f03a  /app/dist/core/scheduler-helpers.d.ts.map
+30fd124a46dccfd9eb637d2db155fc0de544d8dfeda5f9fed46ca26579fce394  /app/dist/core/scheduler-helpers.js
+2956f981257f432b0083095f6b3f55d25de3b3d7d2a3f44dde51e6276d53c5b6  /app/dist/core/scheduler-helpers.js.map
+ae953f1728c9cdc0619d8d268980ec37fe3ff4a09f5dee51c6add9c488ae08b0  /app/dist/core/scheduler.d.ts
+16772eabf38038b44ee779597380241be7ebf76989e712f4680090dbecaca60e  /app/dist/core/scheduler.d.ts.map
+406675404401027e7a98f549b7e50291aa81b72aed42bf304b199982ee9bf14b  /app/dist/core/scheduler.js
+38e979f8d657f9e5926e1a62ae424a27b557f74e25c97132b857d7c3236b6e0c  /app/dist/core/scheduler.js.map
+df6715d20f222af2599cfbfb8fd6e87f3fc4e4bc35371ab348c0520a6dd3623f  /app/dist/core/summary-metadata.d.ts
+0af0df24d9ef2113cc2162e0fb1ea60fa41e9e67b573a8639ea328b381a10811  /app/dist/core/summary-metadata.d.ts.map
+cf3a6d14915bb270988cfec4b87b648a1f8318af64f44a79e0f45b51dbb1691e  /app/dist/core/summary-metadata.js
+4322cbcc766b96aa77fbf10bfb52af0dca9d2e042e04934ec52bbd98b5b65a6b  /app/dist/core/summary-metadata.js.map
+745eef503b66fdc5deb3a19fced219a2d64f4242797bfa078b596e72221ae0d2  /app/dist/core/telegram-stream-renderer.d.ts
+16091db630a196e6ec6f62ae05c02eb248e8ef5b0f54ed563137d089c023cde5  /app/dist/core/telegram-stream-renderer.d.ts.map
+8fc91616e425e1a4926e04b2c05430a8835fb1ee96b40988cf75f265453b0a20  /app/dist/core/telegram-stream-renderer.js
+5b3d711aa6c35341707effc3f7f0b8c785bc25d1a62b11ec3dc95bbaacd6dd47  /app/dist/core/telegram-stream-renderer.js.map
+a9190fb43abc43193e152369c49f856ec6ba0e4f55d8ed9ae205ccaba9d505ef  /app/dist/main.d.ts
+05dd0e05e844679dc599a77a2204852c52aab78f810f41d2cd7541907611ad0d  /app/dist/main.d.ts.map
+79ad59942a86e5c56cfb8bec7bdd8d1d4ffeba3bda06da8c023f431b9db5ad57  /app/dist/main.js
+f3995b20b25885b1619fe5b3bbe128ad702bb9056d3145ebd87af7023e0c8fb9  /app/dist/main.js.map
+9bf60a99f523c7a88f78cb1d5df510d450cb635fcc2cf63d8bf9b9db251d7fc3  /app/dist/prompt/builder.d.ts
+ebcd65a938595e530f33b52bc063004fe717f346fa8c910b522e61b8d740d4c7  /app/dist/prompt/builder.d.ts.map
+189823e80c64f24d4eb1d2a37156e1059f1b078d923043b30347f7bf687487ef  /app/dist/prompt/builder.js
+b54511de1c94d6dee602cdf8f173c773e9819c0db7037b5dfc9df87d06dfa9bc  /app/dist/prompt/builder.js.map
+15ded1ff236769612c591afddba9987d551e1a8acfe53f59c8171392026c1bcf  /app/dist/runner.d.ts
+a7514f200a649672ccef85ffebe246f28355e5329572dc05e76f44e47cedae2d  /app/dist/runner.d.ts.map
+4469a0228426479f8de9352e892eafff6b87a5674e0b8c82113e0d8b7a52af57  /app/dist/runner.js
+280493560a05e97e9439c96a4857720b8d84bbd71b516250104998b06d1319d5  /app/dist/runner.js.map
+22ff13667cd3dbdf2c9b599e700d6a18c647c05515cee31ada372729fdc804d6  /app/dist/services/audit-log.d.ts
+cd20e16632e1738820eea646f8e19dd8fc73f688357259fff4702698711f6e80  /app/dist/services/audit-log.d.ts.map
+d5b74435ca2ab2e621bc31ae790fcfda1447067923bc1280c288b423c623b86b  /app/dist/services/audit-log.js
+fc2f37944712d29d35b182c32aea0ed8923194775815a78a69a18c5b64cce1e0  /app/dist/services/audit-log.js.map
+3dd19ebc6153553ca52ba51736702ddafb888450d73df1ccd017a73db4b5b158  /app/dist/services/context-snapshots.d.ts
+22c91146129d8a3a86794e5024d6b8dd2ac9c231f6526234e0bb415efdbf9517  /app/dist/services/context-snapshots.d.ts.map
+4b4b100f41b37bcee6ba0aa23cd98fd84358d482dde1f8ed055dc9a8e1b4580d  /app/dist/services/context-snapshots.js
+1a17b343e8b5c9d54834afd3a3514c29317a7a4712940ef3b81d1afc9eb238ee  /app/dist/services/context-snapshots.js.map
+268ef5d10c179440687e9631e336190f91f167760b1ebf149d63089112bb0df0  /app/dist/services/error-alerter.d.ts
+96df7ff3dd6f6f271ff8dce8aedd450f07a5e8e09a7ad256eaa7d857f5606db9  /app/dist/services/error-alerter.d.ts.map
+a8118a1019930cea5f499424f91614be0ab796e8452989ff67016e355ce5bff4  /app/dist/services/error-alerter.js
+87e34d59e1cf934531654841f19a470056525f2400618bb385b605650fe3640a  /app/dist/services/error-alerter.js.map
+3a2f4f7c9034807010203c24b6e47fe82c2cadb158844f154e459c8985770096  /app/dist/services/event-bus.d.ts
+01ebb04b048befe99ffd90e38302b699131b523322b74fbb1f95ff52b13662a5  /app/dist/services/event-bus.d.ts.map
+4851dd93dcaf5017e5a67b2d36228ae5d596051086dd48397adcecf06fca5ba1  /app/dist/services/event-bus.js
+6b2ddaf7bd672fd86969d6f80184f7ca7205f848d1a6b0118900e2076a092185  /app/dist/services/event-bus.js.map
+696f2197ca175608170229b7cb86f54aa45e03221de08011776eda5a270cdb2d  /app/dist/services/event-projector.d.ts
+30c9b79ed4336ce02f139415a5854423aa7237c189911b7a6e454c50bc0a8ace  /app/dist/services/event-projector.d.ts.map
+a18f23929d256ce093fdedd0c08dc00e5b2c34cea442107c49f8f20cbf33a9bd  /app/dist/services/event-projector.js
+abe0c6d81608cc13f799b7ff6805e2cf71e52f3f123d9533c382e750215c694e  /app/dist/services/event-projector.js.map
+2ccbe2ce36b1bc3d38163947900d135435cab175b42df506ba88b4c34863391b  /app/dist/services/interaction-guard.d.ts
+829607b1429b3caeac41af59c9fb05c372b47495ed9e26e3b2bf18da16787ceb  /app/dist/services/interaction-guard.d.ts.map
+53076653fcd8a0737e63febb3dc288c0d478196cac3d930948a0c8b0a487204d  /app/dist/services/interaction-guard.js
+6bcc0d084290b3fd0224de92af5a22798f1275cb21bb9dc689a0a8a87d8097a8  /app/dist/services/interaction-guard.js.map
+3c9b9dcdb64f9c6b7ca478ec28ddc3b49f16c5e462f139c50e515315f7534b70  /app/dist/services/issue-store.d.ts
+4f30330aca1cc1fcc06753f8abeaf3f1dddfd40480deba1fd3a6839244a4639b  /app/dist/services/issue-store.d.ts.map
+47afd2128ba7c0bbe55b70d1736083751dd0bf7baa15c378be6596bf548534cd  /app/dist/services/issue-store.js
+016002ee23da6992b5a72dfb8c731d7ac3635961eb219960e252bc3c865bc31d  /app/dist/services/issue-store.js.map
+56e24477ea615e924c5de16f0470ac1671f9e1bbb2b9091e68986d05374356ea  /app/dist/services/memoria-recall-telemetry.d.ts
+161057d78db15df607f735f01c28fe25790307f5551c9937c7d3b40d25eb210a  /app/dist/services/memoria-recall-telemetry.d.ts.map
+28a8ffe65027678e4cf6c6cbb8fd1f14b0cfd6c54fb11a68116b349f55ad63bf  /app/dist/services/memoria-recall-telemetry.js
+bb86aef40d149eb3c7add1497a1d74e4901ac7ea0d7dcbf0356d7d93ca14b7fe  /app/dist/services/memoria-recall-telemetry.js.map
+53040e2d0cde8968c1669175e03f299b809c5feab615a65bb8cad137b60044a9  /app/dist/services/memoria-status.d.ts
+68649e2b6091bf8c15d107c52159f2f163cce0cddaaf5dcb5496a6956bde65f4  /app/dist/services/memoria-status.d.ts.map
+1bd86532a0b0844976797d36785570c814381354d37fea27b3dc32f58d79d395  /app/dist/services/memoria-status.js
+ec81d1dea2186611e0c59cdeb977254d6778050ef9afead2dfcca305bf8e8bb2  /app/dist/services/memoria-status.js.map
+cbb147078bfd892d30d4528f3845a170e1e0c39fcc7e67579cb1b629ed02184f  /app/dist/services/memory-backfill-worker.d.ts
+3ae69cea922464a370ac32745577b340f8e6bad95a66fb5f8b0688e2e9feba45  /app/dist/services/memory-backfill-worker.d.ts.map
+133b977c3447493c93ba7d77871ae85aed7b53ae5ed23a050f577700fd19384a  /app/dist/services/memory-backfill-worker.js
+1c718a86089cbc7624a1096b3e19b984c197a34287a72d084df5d083652de5f7  /app/dist/services/memory-backfill-worker.js.map
+b9bab2ff391361a9222f55a585393b07f52e63892047abffe68043a032144e67  /app/dist/services/memory-backfill.d.ts
+d9d76e38cc376bbd84cf1fa338fd4b2beb6d6098d74a314486e8accd57449bcf  /app/dist/services/memory-backfill.d.ts.map
+ad4dd5f7c39c6c8fed500e92d85a2d13107762b8719b32fd2b520e96690fd540  /app/dist/services/memory-backfill.js
+3a752375f70a22785f7e8f3b759cb1b8e3e4d3f801e259eb218dbadaad1c975a  /app/dist/services/memory-backfill.js.map
+70134ed552b18ecc4170e93021c31fc99b96e7b595fc6c7abf513f0238a7397d  /app/dist/services/memory-health.d.ts
+a065a39081fdaea677906ced6ec7f5cec9dc02fc4c59b0a3dace9fad65529f04  /app/dist/services/memory-health.d.ts.map
+960701f52cd4a0514b78a913a5fb7d962e7c872aa44bf5cf508c22be371bab4f  /app/dist/services/memory-health.js
+a32f568d687162d0f147af01cc3fb58e91183534837cd7d61ebb122fb1a75327  /app/dist/services/memory-health.js.map
+ffb2cd48091a54c53254f1efc64d5fbe6f35ac4e5e401d636ea2422055948be4  /app/dist/services/memory-intent-telemetry.d.ts
+29ff772bca7e5c463beab11c76a887562af0f1e84091a4423f6b482d2254273e  /app/dist/services/memory-intent-telemetry.d.ts.map
+c92628265f852242b08c012a9b7ef48c0eb2fe322eca496ced0ce39e5f731151  /app/dist/services/memory-intent-telemetry.js
+e70418366c656d2cbae8105ec57678d74185a55f5a966cbea0d753ba69fca559  /app/dist/services/memory-intent-telemetry.js.map
+096a90b2096de29e507ae30cde78d10ea17662e7012bba4446053bd1775d5fd8  /app/dist/services/model-health-check.d.ts
+1e4dfd8b97ad587fb8cab74c4eb32df8e78c3ffbf9b8d0ff72d93c4d482d176d  /app/dist/services/model-health-check.d.ts.map
+7df974224941c3be18e417e50739faaa1205cfca39b99114b834877f2eb07dda  /app/dist/services/model-health-check.js
+bbece6f69ae6156b4e3954a05d099db0489e7a1ec950a5a9f727778315cb1f11  /app/dist/services/model-health-check.js.map
+87b9d0c63991dce124b9d763551956d2992bbd585258206535b7da31186c9377  /app/dist/services/pinned-status-manager.d.ts
+15971f8740ec31d92c41db8a720c573dddd09ceea9bebc9fb918517ed45d20f8  /app/dist/services/pinned-status-manager.d.ts.map
+8ab1066e320e2b9d989973ba30758d568924c4897c915815d6d466c68a681c2b  /app/dist/services/pinned-status-manager.js
+1336aecda48123c60d37c36c384ec7d7d6b761fcd590dbadf5c8c366e831acb0  /app/dist/services/pinned-status-manager.js.map
+3c108da7df8e861acd5b4af012425010ee75699395f19bc55e7ec9c27bb41787  /app/dist/services/prompt-session-telemetry.d.ts
+303e1c80b29cdaf8e1398984e9dfcd98d0263ae8042407862a0a284bfcec5ef7  /app/dist/services/prompt-session-telemetry.d.ts.map
+fa163b2361f755159f32936b71242fd6ead55a1205be6aaa48fc21287f4c4f0d  /app/dist/services/prompt-session-telemetry.js
+d1a1aa0f64e99160a9bbf42d21a67adcc76637c23c598beb5a1a48a0778d6e61  /app/dist/services/prompt-session-telemetry.js.map
+e8293673df74eb9d58d96b76d7883b28e2fdb167bf23b147b0bf2ce37e2a0e50  /app/dist/telegram/render/chunker.d.ts
+60b6b1cabab3b977f08d74419514dc577f626151ff20ec63b2bb51ee64c7f0da  /app/dist/telegram/render/chunker.d.ts.map
+6309b02a0ea610f812f7b5f61ff25aee0e64f6f96c8eaec52c1f7aad05f30e1a  /app/dist/telegram/render/chunker.js
+96d13f098e26843c4b130fd4cb5822861694bb4c0ffeee9ba2447e213a540da1  /app/dist/telegram/render/chunker.js.map
+c4ed413b8fa4bcb267ca3ebf470aef4d2766a6417faa7ed692560bb3744c058a  /app/dist/telegram/render/escape.d.ts
+96e0570895c76f444faf9bac2124a7993de278f906e1e425d82ca156ea11c103  /app/dist/telegram/render/escape.d.ts.map
+9dfbc09ed21b7fcc457ab9a7d34d87ce795dd0fe1bc6930d9f0d2540b6161f53  /app/dist/telegram/render/escape.js
+84658888aa5d91c83bbc19cecfe83f11263e91757a89a875e051faa912bb0f8c  /app/dist/telegram/render/escape.js.map
+46ea32b214b5796829736a68bb57cfa55abed2bb2fa75b2ccfbb72a8badc3c7d  /app/dist/telegram/render/markdown-v2.d.ts
+71887ff9947668ed027d4ef2df8d59d8ffd99170211f52086806fc0d44697061  /app/dist/telegram/render/markdown-v2.d.ts.map
+6c9730175ecf8964661d9a952214934cb0aaddded65ac1da2ea6400dcfc1e242  /app/dist/telegram/render/markdown-v2.js
+0411a9bf238ada354dff6f5a53a409e41eb84946ce57900e3d99e012c37cf35b  /app/dist/telegram/render/markdown-v2.js.map
+89325dce991263313966b33b68af16ac6250fddd3c0fcfcbb06972b7da2b4fa4  /app/dist/tools/memory-backfill-cli.d.ts
+7345541f83e9b445b4de375416e1c19b75d6189308d080c596ceefe0397547d8  /app/dist/tools/memory-backfill-cli.d.ts.map
+fb73b5c3e2ff1274f5efe9a4634045c32628bb37241d19c580816f73f0cad8ee  /app/dist/tools/memory-backfill-cli.js
+412277fdd4df844f5db55809537531d692f330c78347fe0e0a99b3c1819277e0  /app/dist/tools/memory-backfill-cli.js.map
+25614818ae3b33c53a1faa9c9dad07269d8cf0405c33dc47fe50c025b3fa6f05  /app/dist/tools/memory-cli.d.ts
+655130f6ad5a495036237f8b696e90d3cebe21deb1d186fe80f7d0e617be954d  /app/dist/tools/memory-cli.d.ts.map
+906f8ee2baeb0e43916f8fcf4f4d3aff16eac742c2f3dda30ec654976afdf1c8  /app/dist/tools/memory-cli.js
+ff7632a18e825f497c398f498cd8802fe0df4da53672fcd1492af30f5a3b3dbb  /app/dist/tools/memory-cli.js.map
+beb08ca638726b818ad0f89ab89c76abc764b229f25b8887f53dd4c00eb2759f  /app/dist/tools/memory-health-cli.d.ts
+ed90a54a28cf598b424842ab022d9260463fd02e8277ede367dd26839f998f47  /app/dist/tools/memory-health-cli.d.ts.map
+8e528625761d8dff876653048748d3d5c7205a72dff9f69d2705addfe0879cd2  /app/dist/tools/memory-health-cli.js
+05dcdc105cd88eacbc32b05814e63c9d45771f7e707853e50a1b994c2ae24a8d  /app/dist/tools/memory-health-cli.js.map
+a3396da4f4f32fa9f2f277a36b27afb984f9440bc3dcb7114b291b746b6e267b  /app/dist/tools/scheduler-cli.d.ts
+295971b593d154bcd97d2f4063b413958503a0b1f0ed101a4a6b0b1735f7c6ca  /app/dist/tools/scheduler-cli.d.ts.map
+a46590907434bbf1f70b48c4c8007d47c9fc75dbe972e8967ab188aae3c33450  /app/dist/tools/scheduler-cli.js
+5d727da75c104272a5ba7fb4adc080871be86f57fb22b7d13f0f093fb6c844d9  /app/dist/tools/scheduler-cli.js.map
+f94655912c24ca92748fe307bcf63633f15fe5e0b95b973821e1932977754701  /app/dist/types/index.d.ts
+55e3dea949d4395156015c5110a53947e51f8d312df9fb47c34ef6bb0df453ab  /app/dist/types/index.d.ts.map
+827c148a2159c5d098f9fe33185b555382ad63931193dda5f41f6af38a6a4445  /app/dist/types/index.js
+c4ac53ade294b76aa27a4b8b63477beeecc81827655f68f64c9bc4c7bbeeb817  /app/dist/types/index.js.map
+82b3d69b269db82d1d339b9f5b9630b71b84c970a044b214f17a1ff9b7191e22  /app/dist/utils/crypto.d.ts
+1f19bcbf9f7cd18787db9f9f6940c170a2c9e228479106be70f0bf130a17f3c9  /app/dist/utils/crypto.d.ts.map
+e49825890a13bd08a338e4139ce0aee1c9261c2c6aacf7cbe637b066bd9b24b3  /app/dist/utils/crypto.js
+9ed147846159b2945da66d00b36b4d1a555a46295ab350c0733838a682ce6211  /app/dist/utils/crypto.js.map
+f6489d5bf0d8245e149748c84348b6b62828e62bfd7c00e8970f44e53b09b8e7  /app/dist/utils/env.d.ts
+670768050ae913f20cd32e8e173e1952413a3a217b0a72c03bd1c6860010fc6b  /app/dist/utils/env.d.ts.map
+99f5f6471d6b68cad34b04e2e58bd333c5ca4cd7369ab318dc5989f97ec34f6c  /app/dist/utils/env.js
+5e5fde8b5200f88aa0cd1530e686ccfb63bb34136ff9d7bec80bae5f9e028530  /app/dist/utils/env.js.map
+0926e4ba44488bc1bf5a4271b1dc21400645052e54dc7e5f359c89980c83fbc0  /app/dist/utils/errors.d.ts
+23eb8b26cbeb2a0239511b916dbb9bbf7f421ebc516f5e18e1e3614a24aed6f5  /app/dist/utils/errors.d.ts.map
+dc7f5a74e8d358b349cdba92e2e176f7fa12103efdd7af017746084bbf95e075  /app/dist/utils/errors.js
+cac482d483a67ab9535b54daddc2dfde3b413821a2ce8c04bfaa2cc93f627e75  /app/dist/utils/errors.js.map
+9ffb7535093bca7ef908c8dbdaf60101cf99170b656a6eca4fa4dbd48f429329  /app/dist/utils/paths.d.ts
+1aaa15b5f681129e55c89e7a993a8d851bf630d93ce9108c66db784827b273e2  /app/dist/utils/paths.d.ts.map
+5ed14e2fbee99e603f697cd2e8dca5fe1d96be9d8009369e4d54d9d477718c06  /app/dist/utils/paths.js
+fbfe36e1d3dcef070015eeb568e940ae590519712cf295ddf34a99e0fd3d5af8  /app/dist/utils/paths.js.map
+4cda0921d618c6c11cd4eb866f5e54cf925435e3dc029f8af3c21bb09fb288e0  /app/dist/web/public/app/api.js
+5386e67f6fcd27669c60e73548c5987240d4395e8ef390b12fef3425a467427c  /app/dist/web/public/app/main.js
+c08ebad74d29aae0ee9011e7bad17595a1ce86103c15b113c5f107fb83086ad7  /app/dist/web/public/app/router.js
+2171c419ff6b84dbb7e1974c28172e0ab7cc46ab4795c724e8e2698d576c9f5b  /app/dist/web/public/app/services/chat-service.js
+bfb27b66aab351da240758f78a926a26edab2b1938d9af81d2a0743ba320f474  /app/dist/web/public/app/services/memory-service.js
+5f5c0fd3e19efd73aa8681af9969d2e8ea1040e7b8cde80e0a8727c8b7f82381  /app/dist/web/public/app/services/schedule-service.js
+3193dcf81ccdddad2b1efe1d084023b197ead320f91de5f979860353f0fe43d0  /app/dist/web/public/app/services/status-service.js
+6e8a92cd997201c5b9bd30d2e6a88b6b521de7e091cdb4d0ce3aea2e05b7b098  /app/dist/web/public/app/state.js
+9beeb51cb3cddf0fe56e253bb9b247dc1ef07fac90cfa0ad7bcc19d70d1716e0  /app/dist/web/public/app/utils/dom.js
+624027d0028a1b977237066ff44a6d8b349aeff6e0485ee1eb947c58cfd014bb  /app/dist/web/public/app/utils/format.js
+a232a9615246b2302260f2afec648c4dff4227cf1ffa5dc6f6a11b5d36f29256  /app/dist/web/public/app/utils/list.js
+983d7e05a06081225c6e9b3c44d7be62ffc6a8196cc2603940239c54e6d79207  /app/dist/web/public/app/utils/markdown.js
+86e2b2d33d44dbdc533ee2d1fa76ff4f20d06722726775eddc2ccbd31ff1b9ec  /app/dist/web/public/app/utils/view.js
+e65ab57e1cbb48fe01b42230c105fefe02ca73e08633b7fabe6ab4c9f98e4119  /app/dist/web/public/app/views/chat.js
+5f3a06c73edd3f2d30461c68b33c573827f5654f2ed5bfd7013902468c7b5376  /app/dist/web/public/app/views/memory.js
+4a54c9891b37b1cdb12f33f0fb4d8d58ef7defd9b702f0923ac43c06de07a255  /app/dist/web/public/app/views/schedules.js
+b19b4c65e4b825c1ecd028fecb9917a0bd6ea9c52c91962a78d903d7b18e8033  /app/dist/web/public/app/views/status.js
+fb866eee338d3c17de943d3b696b77e6bf10c171562e55533ff3e0939b242098  /app/dist/web/public/index.html
+bb8ec79a984f538d611a0c59eaeb0da951cf8147a2b34a3ccfc4d9aa530bfa4f  /app/dist/web/server.d.ts
+7033199cc3b9df2083e24636a7b4c73fef37ba53ad8aa96d5447f2aa3c39b4aa  /app/dist/web/server.d.ts.map
+0ee3f9d5026809c39c613faaf9649a30692399a4986bf6607970da179dff5148  /app/dist/web/server.js
+c36581f8261f5cf5539a7237e12e3776143755f20543e0fbd73d714f0bfe84eb  /app/dist/web/server.js.map
+1197c94583eb93885620e454e1d56d54453155ba7e807e26b111fcd3f0d0b3c7  /app/package-lock.json
+a8e211b9c406e7d9c021d446024935c10b4fc8802aefc040401e225202192757  /app/package.json
+d3713fe196c161a44ca7dc2dbb25550d0e64676903b9954e7be0edc54d6beeb9  /app/scripts/backfill-summary-metadata.ts
+4925b54accf7adbac90bb434a023e7ea6ad5255383154c44a76622e5f420ee8d  /app/scripts/copy-web-assets.mjs
+63e1adb7111fe98c198115820985e1954dd0790a19fcbcdda80562bcd5d900f3  /app/scripts/docker-entrypoint.sh
+577863ef3f0d86e9da9725130cb430fd09b622ba96e06ecb2fe9847c3c92f347  /app/scripts/install.sh
+23db11a2a37e96050862e8580061af3ea1edd997ce64678abea87e74676dab3a  /app/scripts/probe-models.mjs
+42c79b917bf0deab33271b26acdf1e0fd6426dc34e26dba46adbb391baadc237  /app/scripts/release-workflow.mjs
+d8758332d16e500be4651f97672dfc858d21cd8c53db2e9d19f94bc76b99464d  /app/scripts/report-execution-compare.mjs
+c8cbb263a419c4a951c84e8eb1877cc3a2868bba957bc373e73dbcbc95c39e03  /app/scripts/seed-sar-anchors.mjs
+1c7f13246a3bb466ee247f29d9916e9e422b0f795e5ade9058cf22dbcf6df03e  /app/scripts/sync-skills.mjs
+78d401bb6b4c0c85ff035bf83f40044c2ad40358dec30b0490db000d0f05749c  /app/scripts/test-installer-upgrade.sh
+
+## /app/workspace digest
+entries: 8150
+entries sha256: 77b12c9ccbbfea52b27aa2baeee9111b75d8608ab52556221950338173f96ff4
+contents sha256: 046f59fbcdb4b6184df30d1949446eb3b8bce124c991977979e5072a869255ec
+
+## /app dependencies (npm ls --all)
+telenexus@2.27.3 /app
++-- better-sqlite3@12.6.2
+| +-- bindings@1.5.0
+| | `-- file-uri-to-path@1.0.0
+| `-- prebuild-install@7.1.3
+|   +-- detect-libc@2.1.2
+|   +-- expand-template@2.0.3
+|   +-- github-from-package@0.0.0
+|   +-- minimist@1.2.8
+|   +-- mkdirp-classic@0.5.3
+|   +-- napi-build-utils@2.0.0
+|   +-- node-abi@3.87.0
+|   | `-- semver@7.7.3
+|   +-- pump@3.0.3
+|   | +-- end-of-stream@1.4.5
+|   | | `-- once@1.4.0 deduped
+|   | `-- once@1.4.0
+|   |   `-- wrappy@1.0.2
+|   +-- rc@1.2.8
+|   | +-- deep-extend@0.6.0
+|   | +-- ini@1.3.8
+|   | +-- minimist@1.2.8 deduped
+|   | `-- strip-json-comments@2.0.1
+|   +-- simple-get@4.0.1
+|   | +-- decompress-response@6.0.0
+|   | | `-- mimic-response@3.1.0
+|   | +-- once@1.4.0 deduped
+|   | `-- simple-concat@1.0.1
+|   +-- tar-fs@2.1.4
+|   | +-- chownr@1.1.4
+|   | +-- mkdirp-classic@0.5.3 deduped
+|   | +-- pump@3.0.3 deduped
+|   | `-- tar-stream@2.2.0
+|   |   +-- bl@4.1.0
+|   |   | +-- buffer@5.7.1
+|   |   | | +-- base64-js@1.5.1
+|   |   | | `-- ieee754@1.2.1
+|   |   | +-- inherits@2.0.4 deduped
+|   |   | `-- readable-stream@3.6.2 deduped
+|   |   +-- end-of-stream@1.4.5 deduped
+|   |   +-- fs-constants@1.0.0
+|   |   +-- inherits@2.0.4
+|   |   `-- readable-stream@3.6.2
+|   |     +-- inherits@2.0.4 deduped
+|   |     +-- string_decoder@1.3.0
+|   |     | `-- safe-buffer@5.2.1 deduped
+|   |     `-- util-deprecate@1.0.2
+|   `-- tunnel-agent@0.6.0
+|     `-- safe-buffer@5.2.1
++-- commander@14.0.3
++-- croner@9.1.0
++-- dotenv@17.2.3
++-- js-yaml@4.1.1
+| `-- argparse@2.0.1
++-- mdast-util-to-string@4.0.0
+| `-- @types/mdast@4.0.4
+|   `-- @types/unist@3.0.3 deduped
++-- remark-parse@11.0.0
+| +-- @types/mdast@4.0.4 deduped
+| +-- mdast-util-from-markdown@2.0.3
+| | +-- @types/mdast@4.0.4 deduped
+| | +-- @types/unist@3.0.3 deduped
+| | +-- decode-named-character-reference@1.3.0
+| | | `-- character-entities@2.0.2
+| | +-- devlop@1.1.0 deduped
+| | +-- mdast-util-to-string@4.0.0 deduped
+| | +-- micromark-util-decode-numeric-character-reference@2.0.2
+| | | `-- micromark-util-symbol@2.0.1 deduped
+| | +-- micromark-util-decode-string@2.0.1
+| | | +-- decode-named-character-reference@1.3.0 deduped
+| | | +-- micromark-util-character@2.1.1
+| | | | +-- micromark-util-symbol@2.0.1 deduped
+| | | | `-- micromark-util-types@2.0.2 deduped
+| | | +-- micromark-util-decode-numeric-character-reference@2.0.2 deduped
+| | | `-- micromark-util-symbol@2.0.1 deduped
+| | +-- micromark-util-normalize-identifier@2.0.1
+| | | `-- micromark-util-symbol@2.0.1 deduped
+| | +-- micromark-util-symbol@2.0.1
+| | +-- micromark-util-types@2.0.2 deduped
+| | +-- micromark@4.0.2
+| | | +-- @types/debug@4.1.13
+| | | | `-- @types/ms@2.1.0
+| | | +-- debug@4.4.3 deduped
+| | | +-- decode-named-character-reference@1.3.0 deduped
+| | | +-- devlop@1.1.0 deduped
+| | | +-- micromark-core-commonmark@2.0.3
+| | | | +-- decode-named-character-reference@1.3.0 deduped
+| | | | +-- devlop@1.1.0 deduped
+| | | | +-- micromark-factory-destination@2.0.1
+| | | | | +-- micromark-util-character@2.1.1 deduped
+| | | | | +-- micromark-util-symbol@2.0.1 deduped
+| | | | | `-- micromark-util-types@2.0.2 deduped
+| | | | +-- micromark-factory-label@2.0.1
+| | | | | +-- devlop@1.1.0 deduped
+| | | | | +-- micromark-util-character@2.1.1 deduped
+| | | | | +-- micromark-util-symbol@2.0.1 deduped
+| | | | | `-- micromark-util-types@2.0.2 deduped
+| | | | +-- micromark-factory-space@2.0.1 deduped
+| | | | +-- micromark-factory-title@2.0.1
+| | | | | +-- micromark-factory-space@2.0.1 deduped
+| | | | | +-- micromark-util-character@2.1.1 deduped
+| | | | | +-- micromark-util-symbol@2.0.1 deduped
+| | | | | `-- micromark-util-types@2.0.2 deduped
+| | | | +-- micromark-factory-whitespace@2.0.1
+| | | | | +-- micromark-factory-space@2.0.1 deduped
+| | | | | +-- micromark-util-character@2.1.1 deduped
+| | | | | +-- micromark-util-symbol@2.0.1 deduped
+| | | | | `-- micromark-util-types@2.0.2 deduped
+| | | | +-- micromark-util-character@2.1.1 deduped
+| | | | +-- micromark-util-chunked@2.0.1 deduped
+| | | | +-- micromark-util-classify-character@2.0.1
+| | | | | +-- micromark-util-character@2.1.1 deduped
+| | | | | +-- micromark-util-symbol@2.0.1 deduped
+| | | | | `-- micromark-util-types@2.0.2 deduped
+| | | | +-- micromark-util-html-tag-name@2.0.1
+| | | | +-- micromark-util-normalize-identifier@2.0.1 deduped
+| | | | +-- micromark-util-resolve-all@2.0.1 deduped
+| | | | +-- micromark-util-subtokenize@2.1.0 deduped
+| | | | +-- micromark-util-symbol@2.0.1 deduped
+| | | | `-- micromark-util-types@2.0.2 deduped
+| | | +-- micromark-factory-space@2.0.1
+| | | | +-- micromark-util-character@2.1.1 deduped
+| | | | `-- micromark-util-types@2.0.2 deduped
+| | | +-- micromark-util-character@2.1.1 deduped
+| | | +-- micromark-util-chunked@2.0.1
+| | | | `-- micromark-util-symbol@2.0.1 deduped
+| | | +-- micromark-util-combine-extensions@2.0.1
+| | | | +-- micromark-util-chunked@2.0.1 deduped
+| | | | `-- micromark-util-types@2.0.2 deduped
+| | | +-- micromark-util-decode-numeric-character-reference@2.0.2 deduped
+| | | +-- micromark-util-encode@2.0.1
+| | | +-- micromark-util-normalize-identifier@2.0.1 deduped
+| | | +-- micromark-util-resolve-all@2.0.1
+| | | | `-- micromark-util-types@2.0.2 deduped
+| | | +-- micromark-util-sanitize-uri@2.0.1
+| | | | +-- micromark-util-character@2.1.1 deduped
+| | | | +-- micromark-util-encode@2.0.1 deduped
+| | | | `-- micromark-util-symbol@2.0.1 deduped
+| | | +-- micromark-util-subtokenize@2.1.0
+| | | | +-- devlop@1.1.0 deduped
+| | | | +-- micromark-util-chunked@2.0.1 deduped
+| | | | +-- micromark-util-symbol@2.0.1 deduped
+| | | | `-- micromark-util-types@2.0.2 deduped
+| | | +-- micromark-util-symbol@2.0.1 deduped
+| | | `-- micromark-util-types@2.0.2 deduped
+| | `-- unist-util-stringify-position@4.0.0
+| |   `-- @types/unist@3.0.3 deduped
+| +-- micromark-util-types@2.0.2
+| `-- unified@11.0.5 deduped
++-- telegraf@4.16.3
+| +-- @telegraf/types@7.1.0
+| +-- abort-controller@3.0.0
+| | `-- event-target-shim@5.0.1
+| +-- debug@4.4.3
+| | `-- ms@2.1.3
+| +-- mri@1.2.0
+| +-- node-fetch@2.7.0
+| | +-- UNMET OPTIONAL DEPENDENCY encoding@^0.1.0
+| | `-- whatwg-url@5.0.0
+| |   +-- tr46@0.0.3
+| |   `-- webidl-conversions@3.0.1
+| +-- p-timeout@4.1.0
+| +-- safe-compare@1.1.4
+| | `-- buffer-alloc@1.2.0
+| |   +-- buffer-alloc-unsafe@1.1.0
+| |   `-- buffer-fill@1.0.0
+| `-- sandwich-stream@2.0.2
+`-- unified@11.0.5
+  +-- @types/unist@3.0.3
+  +-- bail@2.0.2
+  +-- devlop@1.1.0
+  | `-- dequal@2.0.3
+  +-- extend@3.0.2
+  +-- is-plain-obj@4.1.0
+  +-- trough@2.2.0
+  `-- vfile@6.0.3
+    +-- @types/unist@3.0.3 deduped
+    `-- vfile-message@4.0.3
+      +-- @types/unist@3.0.3 deduped
+      `-- unist-util-stringify-position@4.0.0 deduped
+
+
+## /app/node_modules/.bin
+js-yaml
+prebuild-install
+rc
+semver
+telegraf
+
+## global npm packages
+/usr/local/lib
++-- agent-browser@0.27.0
++-- corepack@0.36.0
++-- mcp-memory-libsql@0.0.17
++-- npm@10.9.9
++-- opencode-ai@1.15.10
+`-- pnpm@12.8.1
+
+
+## tool versions
+node v22.23.3
+opencode 1.15.10
+uv uv 0.12.21 (x86_64-unknown-linux-gnu)
+gosu 1.14 (go1.19.8 on linux/amd64; gc)
+
+## ownership of runtime paths
+node:node 755 /app
+node:node 755 /app/data
+node:node 755 /app/workspace
+node:node 755 /home/node
+node:node 755 /home/node/.config/opencode
+node:node 755 /home/node/.config/opencode/skills
+node:node 755 /home/node/.local/share/opencode
+root:root 775 /usr/local/bin/docker-entrypoint.sh
+node:node 775 /app/debug-container.sh
+
+## entrypoint hash
+63e1adb7111fe98c198115820985e1954dd0790a19fcbcdda80562bcd5d900f3  /usr/local/bin/docker-entrypoint.sh
+
+## system packages
+adduser 3.134
+apt 2.6.1
+at-spi2-common 2.46.0-5
+base-files 12.4+deb12u15
+base-passwd 3.6.1
+bash 5.2.15-2+b13
+binutils 2.40-2
+binutils-common 2.40-2
+binutils-x86-64-linux-gnu 2.40-2
+bsdutils 1:2.38.1-5+deb12u3
+ca-certificates 20250419~deb12u1
+coreutils 9.1-1
+cpp 4:12.2.0-3
+cpp-12 12.2.0-14+deb12u1
+curl 7.88.1-10+deb12u15
+dash 0.5.12-2
+debconf 1.5.82
+debian-archive-keyring 2023.3+deb12u2
+debianutils 5.7-0.5~deb12u1
+diffutils 1:3.8-4
+dpkg 1.21.23
+e2fsprogs 1.47.0-2+b2
+findutils 4.9.0-4
+fontconfig 2.14.1-4
+fontconfig-config 2.14.1-4
+fonts-freefont-ttf 20120503-10
+fonts-ipafont-gothic 00303-23
+fonts-kacst 2.01+mry-15
+fonts-thai-tlwg 1:0.7.3-1
+fonts-tlwg-garuda 1:0.7.3-1
+fonts-tlwg-garuda-ttf 1:0.7.3-1
+fonts-tlwg-kinnari 1:0.7.3-1
+fonts-tlwg-kinnari-ttf 1:0.7.3-1
+fonts-tlwg-laksaman 1:0.7.3-1
+fonts-tlwg-laksaman-ttf 1:0.7.3-1
+fonts-tlwg-loma 1:0.7.3-1
+fonts-tlwg-loma-ttf 1:0.7.3-1
+fonts-tlwg-mono 1:0.7.3-1
+fonts-tlwg-mono-ttf 1:0.7.3-1
+fonts-tlwg-norasi 1:0.7.3-1
+fonts-tlwg-norasi-ttf 1:0.7.3-1
+fonts-tlwg-purisa 1:0.7.3-1
+fonts-tlwg-purisa-ttf 1:0.7.3-1
+fonts-tlwg-sawasdee 1:0.7.3-1
+fonts-tlwg-sawasdee-ttf 1:0.7.3-1
+fonts-tlwg-typewriter 1:0.7.3-1
+fonts-tlwg-typewriter-ttf 1:0.7.3-1
+fonts-tlwg-typist 1:0.7.3-1
+fonts-tlwg-typist-ttf 1:0.7.3-1
+fonts-tlwg-typo 1:0.7.3-1
+fonts-tlwg-typo-ttf 1:0.7.3-1
+fonts-tlwg-umpush 1:0.7.3-1
+fonts-tlwg-umpush-ttf 1:0.7.3-1
+fonts-tlwg-waree 1:0.7.3-1
+fonts-tlwg-waree-ttf 1:0.7.3-1
+fonts-wqy-zenhei 0.9.45-8
+g++ 4:12.2.0-3
+g++-12 12.2.0-14+deb12u1
+gcc 4:12.2.0-3
+gcc-12 12.2.0-14+deb12u1
+gcc-12-base 12.2.0-14+deb12u1
+git 1:2.39.5-0+deb12u3
+git-man 1:2.39.5-0+deb12u3
+gosu 1.14-1+b10
+gpgv 2.2.40-1.1+deb12u2
+grep 3.8-5
+gzip 1.12-1
+hostname 3.23+nmu1
+init-system-helpers 1.65.2+deb12u1
+jq 1.6-2.1+deb12u2
+libacl1 2.3.1-3
+libapt-pkg6.0 2.6.1
+libasan8 12.2.0-14+deb12u1
+libasound2 1.2.8-1+b1
+libasound2-data 1.2.8-1
+libatk-bridge2.0-0 2.46.0-5
+libatk1.0-0 2.46.0-5
+libatomic1 12.2.0-14+deb12u1
+libatspi2.0-0 2.46.0-5
+libattr1 1:2.5.1-4
+libaudit-common 1:3.0.9-1
+libaudit1 1:3.0.9-1
+libavahi-client3 0.8-10+deb12u1
+libavahi-common-data 0.8-10+deb12u1
+libavahi-common3 0.8-10+deb12u1
+libbinutils 2.40-2
+libblkid1 2.38.1-5+deb12u3
+libbrotli1 1.0.9-2+b6
+libbsd0 0.11.7-2
+libbz2-1.0 1.0.8-5+b1
+libc-bin 2.36-9+deb12u14
+libc-dev-bin 2.36-9+deb12u14
+libc6 2.36-9+deb12u14
+libc6-dev 2.36-9+deb12u14
+libcairo2 1.16.0-7
+libcap-ng0 0.8.3-1+b3
+libcap2 1:2.66-4+deb12u3+b1
+libcc1-0 12.2.0-14+deb12u1
+libcom-err2 1.47.0-2+b2
+libcrypt-dev 1:4.4.33-2
+libcrypt1 1:4.4.33-2
+libctf-nobfd0 2.40-2
+libctf0 2.40-2
+libcups2 2.4.2-3+deb12u9
+libcurl3-gnutls 7.88.1-10+deb12u15
+libcurl4 7.88.1-10+deb12u15
+libdatrie1 0.2.13-2+b1
+libdb5.3 5.3.28+dfsg2-1
+libdbus-1-3 1.14.10-1~deb12u1
+libdebconfclient0 0.270
+libdrm-common 2.4.114-1
+libdrm2 2.4.114-1+b1
+liberror-perl 0.17029-2
+libexpat1 2.5.0-1+deb12u3
+libext2fs2 1.47.0-2+b2
+libffi8 3.4.4-1
+libfontconfig1 2.14.1-4
+libfreetype6 2.12.1+dfsg-5+deb12u4
+libfribidi0 1.0.8-2.1
+libgbm1 22.3.6-1+deb12u2
+libgcc-12-dev 12.2.0-14+deb12u1
+libgcc-s1 12.2.0-14+deb12u1
+libgcrypt20 1.10.1-3+deb12u1
+libgdbm-compat4 1.23-3
+libgdbm6 1.23-3
+libglib2.0-0 2.74.6-2+deb12u9
+libgmp10 2:6.2.1+dfsg1-1.1
+libgnutls30 3.7.9-2+deb12u7
+libgomp1 12.2.0-14+deb12u1
+libgpg-error0 1.46-1
+libgprofng0 2.40-2
+libgraphite2-3 1.3.14-1+deb12u1
+libgssapi-krb5-2 1.20.1-2+deb12u5
+libharfbuzz0b 6.0.0+dfsg-3
+libhogweed6 3.8.1-2
+libidn2-0 2.3.3-1+b1
+libisl23 0.25-1.1
+libitm1 12.2.0-14+deb12u1
+libjansson4 2.14-2
+libjq1 1.6-2.1+deb12u2
+libk5crypto3 1.20.1-2+deb12u5
+libkeyutils1 1.6.3-2
+libkrb5-3 1.20.1-2+deb12u5
+libkrb5support0 1.20.1-2+deb12u5
+libldap-2.5-0 2.5.13+dfsg-5
+liblsan0 12.2.0-14+deb12u1
+liblz4-1 1.9.4-1
+liblzma5 5.4.1-1+deb12u2
+libmd0 1.0.4-2
+libmount1 2.38.1-5+deb12u3
+libmpc3 1.3.1-1
+libmpfr6 4.2.0-1
+libncursesw6 6.4-4
+libnettle8 3.8.1-2
+libnghttp2-14 1.52.0-1+deb12u3
+libnsl-dev 1.3.0-2
+libnsl2 1.3.0-2
+libnspr4 2:4.35-1
+libnss3 2:3.87.1-1+deb12u4
+libonig5 6.9.8-1
+libp11-kit0 0.24.1-2
+libpam-modules 1.5.2-6+deb12u2
+libpam-modules-bin 1.5.2-6+deb12u2
+libpam-runtime 1.5.2-6+deb12u2
+libpam0g 1.5.2-6+deb12u2
+libpango-1.0-0 1.50.12+ds-1
+libpcre2-8-0 10.42-1+deb12u1
+libperl5.36 5.36.0-7+deb12u3
+libpixman-1-0 0.42.2-1
+libpng16-16 1.6.39-2+deb12u5
+libpsl5 0.21.2-1
+libpython3-stdlib 3.11.2-1+b1
+libpython3.11-minimal 3.11.2-6+deb12u8
+libpython3.11-stdlib 3.11.2-6+deb12u8
+libquadmath0 12.2.0-14+deb12u1
+libreadline8 8.2-1.3
+librtmp1 2.4+20151223.gitfa8646d.1-2+b2
+libsasl2-2 2.1.28+dfsg-10
+libsasl2-modules-db 2.1.28+dfsg-10
+libseccomp2 2.5.4-1+deb12u1
+libselinux1 3.4-1+b6
+libsemanage-common 3.4-1
+libsemanage2 3.4-1+b5
+libsepol2 3.4-2.1
+libsmartcols1 2.38.1-5+deb12u3
+libsqlite3-0 3.40.1-2+deb12u2
+libss2 1.47.0-2+b2
+libssh2-1 1.10.0-3+deb12u1
+libssl3 3.0.22-1~deb12u1
+libstdc++-12-dev 12.2.0-14+deb12u1
+libstdc++6 12.2.0-14+deb12u1
+libsystemd0 252.39-1~deb12u2
+libtasn1-6 4.19.0-2+deb12u1
+libthai-data 0.1.29-1
+libthai0 0.1.29-1
+libtinfo6 6.4-4
+libtirpc-common 1.3.3+ds-1
+libtirpc-dev 1.3.3+ds-1
+libtirpc3 1.3.3+ds-1
+libtsan2 12.2.0-14+deb12u1
+libubsan1 12.2.0-14+deb12u1
+libudev1 252.39-1~deb12u2
+libunistring2 1.0-2
+libuuid1 2.38.1-5+deb12u3
+libwayland-server0 1.21.0-1
+libx11-6 2:1.8.4-2+deb12u2
+libx11-data 2:1.8.4-2+deb12u2
+libxau6 1:1.0.9-1
+libxcb-render0 1.15-1
+libxcb-shm0 1.15-1
+libxcb1 1.15-1
+libxcomposite1 1:0.4.5-1
+libxdamage1 1:1.1.6-1
+libxdmcp6 1:1.1.2-3
+libxext6 2:1.3.4-1+b1
+libxfixes3 1:6.0.0-2
+libxi6 2:1.8-1+b1
+libxkbcommon0 1.5.0-1
+libxrandr2 2:1.5.2-2+b1
+libxrender1 1:0.9.10-1.1
+libxss1 1:1.2.3-1
+libxxhash0 0.8.1-1
+libzstd1 1.5.4+dfsg2-5
+linux-libc-dev 6.1.187-1
+login 1:4.13+dfsg1-1+deb12u2
+logsave 1.47.0-2+b2
+make 4.3-4.1
+mawk 1.3.4.20200120-3.1
+media-types 10.0.0
+mount 2.38.1-5+deb12u3
+ncurses-base 6.4-4
+ncurses-bin 6.4-4
+openssl 3.0.22-1~deb12u1
+passwd 1:4.13+dfsg1-1+deb12u2
+perl 5.36.0-7+deb12u3
+perl-base 5.36.0-7+deb12u3
+perl-modules-5.36 5.36.0-7+deb12u3
+python3 3.11.2-1+b1
+python3-distutils 3.11.2-3
+python3-lib2to3 3.11.2-3
+python3-minimal 3.11.2-1+b1
+python3-pip-whl 23.0.1+dfsg-1
+python3-setuptools-whl 66.1.1-1+deb12u2
+python3-venv 3.11.2-1+b1
+python3.11 3.11.2-6+deb12u8
+python3.11-minimal 3.11.2-6+deb12u8
+python3.11-venv 3.11.2-6+deb12u8
+readline-common 8.2-1.3
+rpcsvc-proto 1.4.3-1
+sed 4.9-1+deb12u1
+sysvinit-utils 3.06-4
+tar 1.34+dfsg-1.2+deb12u1
+tzdata 2026b-0+deb12u1
+unzip 6.0-28+deb12u1
+usr-is-merged 37~deb12u1
+util-linux 2.38.1-5+deb12u3
+util-linux-extra 2.38.1-5+deb12u3
+x11-common 1:7.7+23
+xkb-data 2.35.1-1
+zlib1g 1:1.2.13.dfsg-1
