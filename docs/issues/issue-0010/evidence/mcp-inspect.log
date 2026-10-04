@@ -1,0 +1,4 @@
+/issue10-mcp-sandbox-20261004 running=true init=true
+/issue10-mcp-eof-20261004 running=true init=true
+/issue10-mcp-kill-20261004 running=true init=true
+/issue10-mcp-stopped-20261004 running=true init=true

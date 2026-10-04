@@ -1,0 +1,44 @@
+[
+  {
+    "date": "2026-10-04",
+    "mode": "static",
+    "command": [
+      "docker",
+      "run",
+      "--detach",
+      "--init",
+      "--network",
+      "none",
+      "--cap-drop",
+      "ALL",
+      "--security-opt",
+      "no-new-privileges",
+      "--user",
+      "node",
+      "--memory",
+      "2g",
+      "--pids-limit",
+      "1024",
+      "--name",
+      "issue10-matrix-static-v5-20261004",
+      "--mount",
+      "type=bind,src=/home/kevin/Documents/RCodes/moltbot-lite/docs/issues/issue-0010/evidence,dst=/probe,readonly",
+      "--entrypoint",
+      "node",
+      "issue10-mcp-probe:20261004",
+      "/probe/opencode-contract.mjs",
+      "static"
+    ],
+    "containerId": "bfee275a81f5438b2dbb4ae60a680d65068e28b50aea7ddb1ab0b8ad79ef1d1e",
+    "codeHashes": {
+      "opencode-contract.mjs": "4abea94a64228715c43295739628b5c0aac0702ed79d12a6122716faf695d50c",
+      "task-owned-launcher.mjs": "c07cf285964707aa0eb9b93150b1d711d4305661f354a74674f749f7a8a28e5d",
+      "proc-observer.mjs": "195c19d3971e67c19c62ee99f8d10d368fb8bb4849a9127bbda01a3e8f54b9cb",
+      "memory-mcp-fixture.mjs": "241898f5549009652c7e795becb7057d5a64c6ccb19fe53c93821de296fc0536"
+    },
+    "image": "sha256:8bfb44aadb11a4f096e38c6e6c7a4f79a4c3403f4ce94ed9c853895c2f69a814",
+    "init": true,
+    "runningAtMeasurement": false,
+    "result": null
+  }
+]

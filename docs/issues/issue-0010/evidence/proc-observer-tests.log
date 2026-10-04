@@ -1,0 +1,22 @@
+TAP version 13
+# Subtest: 2026-10-04：已知 Linux stat 樣本區分活程序與 Z，保留 PID 身分
+ok 1 - 2026-10-04：已知 Linux stat 樣本區分活程序與 Z，保留 PID 身分
+  ---
+  duration_ms: 1.023926
+  type: 'test'
+  ...
+# Subtest: 2026-10-04：觀測器活 PID 存在，不存在的 PID 不列入
+ok 2 - 2026-10-04：觀測器活 PID 存在，不存在的 PID 不列入
+  ---
+  duration_ms: 11.971297
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 18.342513

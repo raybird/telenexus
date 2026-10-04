@@ -8,6 +8,7 @@
 x-common-config: &common-config
   image: ghcr.io/raybird/telenexus:latest
   env_file: .env
+  init: true
   restart: unless-stopped
   # 降權:禁止透過 setuid 提權,並丟棄所有 Linux capabilities，
   # 只保留 entrypoint 做 runtime UID 對齊 (usermod/chown) 與 gosu 降權所需的最小集合。

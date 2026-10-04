@@ -1,0 +1,2 @@
+/issue10-no-init-control-20261004 running=true init=<nil>
+/issue10-init-control-20261004 running=true init=true

@@ -1,0 +1,9 @@
+{"event":"profile-present","profiles":["profile-GX4VBF"],"profile":"/tmp/issue10-control-hg342d/profile-GX4VBF"}
+{"event":"profile-removed","profiles":[]}
+{"event":"target","targetPid":22,"observerPid":8}
+{"event":"sample","second":0,"target":{"pid":22,"comm":"node","state":"R","ppid":1,"pgid":22,"sid":22,"starttime":"23197747","argv":"/usr/local/bin/node -e setTimeout(()=>process.exit(0),1500)"},"zombieCount":0,"observerAlive":true}
+{"event":"sample","second":1,"target":{"pid":22,"comm":"node","state":"S","ppid":1,"pgid":22,"sid":22,"starttime":"23197747","argv":"/usr/local/bin/node -e setTimeout(()=>process.exit(0),1500)"},"zombieCount":0,"observerAlive":true}
+{"event":"sample","second":2,"target":null,"zombieCount":0,"observerAlive":true}
+{"event":"sample","second":3,"target":null,"zombieCount":0,"observerAlive":true}
+{"event":"sample","second":4,"target":null,"zombieCount":0,"observerAlive":true}
+{"event":"measurement-complete","observerStillAlive":true}

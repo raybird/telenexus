@@ -68,8 +68,8 @@
 - 相依：無；核准規格提交後執行。支援 SCN-003、007 及首要風險證據。
 - 完成判準：no-init 已知 orphan／Z 對照確實被觀測到；init 組能回收；確認觀測器分辨活程序、Z、已消失 PID 與 profile，保存命令與實際數值。
 - 驗證：真實正／負對照加 parser 單元測試；fixture／探測不改產品行為，不假造產品紅綠燈。
-- 狀態：📝 待實作。
-- 證據：執行時填入。
+- 狀態：✅ 2026-10-04 已完成。
+- 證據：[Phase 0 探測紀錄](evidence/phase0-report.md) 的 T0.1；no-init 組第 2～4 秒 Z=1，init 組相同觀測路徑 Z=0 且 PID 消失，兩容器保持存活；profile 正／負對照 1→0，parser 測試 2／2 通過。此證據不代表產品 Scenario 已通過。
 
 ### T0.2 — OpenCode／MCP／Chrome 真實契約 gate
 
@@ -77,8 +77,8 @@
 - 相依：T0.1。支援 SCN-001～005、007。
 - 完成判準：發布版本的工具／旗標可用，實際 OpenCode 能取得受控 HTTP／JS fixture 的獨立正文與 URL；正常、部分啟動失敗、取消、導覽逾時、上游失敗、強制終止後 15 秒內無本工作活程序／Z／profile；兩工作所有權獨立。
 - 驗證：實際 MCP transport 與 OpenCode 工具路徑、程序樹／profile 每秒採樣；發布套件原始碼只輔助解釋。若缺口只能靠擴張架構或修訂核准行為解決，先回報新決策，不推進 T1 以後。
-- 狀態：📝 待實作。
-- 證據：執行時填入；未通過不得標記 Phase 0 完成。
+- 狀態：✅ 2026-10-04 已完成，Phase 0 gate 通過。
+- 證據：[Phase 0 探測紀錄](evidence/phase0-report.md)、[最終矩陣](evidence/matrix-v6-summary.json)；固定 MCP 1.10.1／Chrome 154.0.8037.92／OpenCode 1.18.34，最小 launcher 補足原生 profile 收尾缺口。真 OpenCode HTTP／JS、memory MCP 設定合併及六種工作退出的最終矩陣 7／7 通過，每輪 15 秒內 live／Z／profile／launcher root=0，量測時容器仍存活；[並行 v2](evidence/concurrent-v2.jsonl) 的 A 收尾不影響 B cookie／正文。這是隔離可行性 gate，不代表產品 Scenario 已完成；條件與限制見報告。
 
 ### T1.1 — 兩服務 init 回收與 compose parity
 
@@ -86,8 +86,8 @@
 - 相依：T0.2 gate 通過。支援 SCN-003、007。
 - 完成判準：resolved Compose、fresh 測試容器 inspect 及 orphan 對照均證明 init 生效；parity 測試通過，保留 pids_limit。
 - 驗證：先以缺 init 的配置／容器取得行為紅燈，再修改設定並重跑；配置單元與真容器回收屬不同失敗面。
-- 狀態：📝 待實作。
-- 證據：執行時填入。
+- 狀態：✅ 2026-10-04 已完成。
+- 證據：[Phase 1 紀錄](evidence/phase1-report.md)；配置紅燈 2／2 fail → init／parity 3／3 pass；base／release／dev 的兩服務 resolved init=true，六個 fresh fixture 的 inspect Init=true、Running=true、orphan PID 消失／Z=0。build／335 tests／lint 均 exit 0，沒有正式服務操作。
 
 ### T2.1 — HTTP 優先閱讀
 
@@ -168,9 +168,9 @@
 - [x] 2026-10-04 建立 issue 與初始範圍／風險／待核准劇本
 - [x] 2026-10-04 保存首要契約驗證、對照組與失敗差異的計畫
 - [x] 2026-10-04 使用者核准規格與本期相容性取捨；來源見 README
-- [ ] 初始核准規格提交並回填核准基線
+- [x] 2026-10-04 初始核准規格已提交 d345ba1，README 回填核准基線
 - [x] 2026-10-04 在本檔細化 Large 的可執行 Task，Scenario 責任覆蓋完整
-- [ ] 取得 Phase 0 gate 證據，才推進主要實作
+- [x] 2026-10-04 取得 Phase 0 gate 證據，才推進主要實作
 - [ ] 完成後續紅綠／整合／重複與資料保留證據
 - [ ] 依使用者交付授權處理 commit／PR／獨立審查
 - [ ] 維護者另行決定發版與正式部署切換
