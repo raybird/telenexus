@@ -132,7 +132,7 @@ export class DynamicAIAgent implements AIAgent {
     this.runnerOpenUntil = 0;
   }
 
-  private async callRunner(payload: RunnerRequest): Promise<RunnerResponse> {
+  private async callRunner(payload: RunnerRequest, signal?: AbortSignal): Promise<RunnerResponse> {
     if (!this.runnerEndpoint) {
       return { ok: false, error: 'RUNNER_ENDPOINT is not configured.' };
     }
@@ -160,7 +160,8 @@ export class DynamicAIAgent implements AIAgent {
             port: endpoint.port || undefined,
             path: `${endpoint.pathname}${endpoint.search}`,
             method: 'POST',
-            headers
+            headers,
+            ...(signal ? { signal } : {})
           });
 
           req.setTimeout(this.runnerTimeoutMs, () => {
@@ -204,7 +205,8 @@ export class DynamicAIAgent implements AIAgent {
 
   private async callRunnerStream(
     payload: RunnerRequest,
-    onEvent: (event: AgentEvent) => Promise<void> | void
+    onEvent: (event: AgentEvent) => Promise<void> | void,
+    signal?: AbortSignal
   ): Promise<RunnerResponse> {
     if (!this.runnerEndpoint) {
       return { ok: false, error: 'RUNNER_ENDPOINT is not configured.' };
@@ -232,7 +234,8 @@ export class DynamicAIAgent implements AIAgent {
           port: endpoint.port || undefined,
           path: `${endpoint.pathname}${endpoint.search}`,
           method: 'POST',
-          headers
+          headers,
+          ...(signal ? { signal } : {})
         });
 
         req.setTimeout(this.runnerTimeoutMs, () => {
@@ -358,6 +361,7 @@ export class DynamicAIAgent implements AIAgent {
     options: AIAgentOptions | undefined,
     onEvent: (event: AgentEvent) => Promise<void> | void
   ): Promise<AgentStructuredResult> {
+    if (options?.signal?.aborted) return { provider: 'opencode', text: '🛑 任務已取消。' };
     const config = this.loadProviderConfig();
     const provider = 'opencode';
     const model = options?.model || config.model;
@@ -395,7 +399,8 @@ export class DynamicAIAgent implements AIAgent {
           runnerPayload.model = model;
         }
 
-        const runnerResult = await this.callRunnerStream(runnerPayload, onEvent);
+        const runnerResult = await this.callRunnerStream(runnerPayload, onEvent, options?.signal);
+        if (options?.signal?.aborted) return { provider, text: '🛑 任務已取消。' };
         if (runnerResult.ok && runnerResult.output) {
           this.markRunnerSuccess();
           const rawText = runnerResult.structured?.text || runnerResult.output;
@@ -440,6 +445,7 @@ export class DynamicAIAgent implements AIAgent {
     input: string,
     options?: AIAgentOptions
   ): Promise<string> {
+    if (options?.signal?.aborted) return '🛑 任務已取消。';
     const config = this.loadProviderConfig();
     const provider = 'opencode';
     const model = options?.model || config.model;
@@ -489,7 +495,8 @@ export class DynamicAIAgent implements AIAgent {
         runnerPayload.model = model;
       }
 
-      const runnerResult = await this.callRunner(runnerPayload);
+      const runnerResult = await this.callRunner(runnerPayload, options?.signal);
+      if (options?.signal?.aborted) return '🛑 任務已取消。';
 
       if (runnerResult.ok && runnerResult.output) {
         this.markRunnerSuccess();

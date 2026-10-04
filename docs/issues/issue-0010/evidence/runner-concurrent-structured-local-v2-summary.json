@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-04",
+  "container": "issue10-runner-concurrent-structured-local-v2-20261004",
+  "containerId": "a09ccc105aee008287a43ff58e110d1dc4bdb26c4eee09b126dd6706f66d9d70",
+  "image": "sha256:058cb99a2038b54c3cc5db8e9bae341d3176e868ac4bda4c22ee7a8c755f22f8",
+  "init": true,
+  "runningAtCollection": true,
+  "command": [
+    "docker",
+    "logs",
+    "issue10-runner-concurrent-structured-local-v2-20261004"
+  ],
+  "lastSample": {
+    "event": "sample",
+    "second": "final-15",
+    "owned": [],
+    "roots": [],
+    "profiles": [],
+    "liveCount": 0,
+    "zombieCount": 0
+  },
+  "result": {
+    "event": "measurement-complete",
+    "entry": "structured",
+    "lane": "interactive",
+    "cancelTarget": "local",
+    "scn": "SCN-004",
+    "verified": true,
+    "mergeVerified": true,
+    "browserObserved": 18,
+    "runnerStillAlive": true,
+    "cleanupPassed": true,
+    "observerStillAlive": true
+  }
+}

@@ -1,0 +1,75 @@
+TAP version 13
+# Subtest: SCN-003 EOF 轉送原始 stdio，移除真實 profile 與 root
+ok 1 - SCN-003 EOF 轉送原始 stdio，移除真實 profile 與 root
+  ---
+  duration_ms: 132.383691
+  type: 'test'
+  ...
+# Subtest: SCN-003 子程序非零退出不能被收尾成功掩蓋
+ok 2 - SCN-003 子程序非零退出不能被收尾成功掩蓋
+  ---
+  duration_ms: 103.723761
+  type: 'test'
+  ...
+# Subtest: SCN-005 executable spawn 失敗亦清理已建立 root
+ok 3 - SCN-005 executable spawn 失敗亦清理已建立 root
+  ---
+  duration_ms: 87.674796
+  type: 'test'
+  ...
+# Subtest: SCN-003 SIGTERM 仍回報取消而非成功
+ok 4 - SCN-003 SIGTERM 仍回報取消而非成功
+  ---
+  duration_ms: 104.230497
+  type: 'test'
+  ...
+# Subtest: SCN-003 MCP 被 SIGKILL 後保留失敗結果並清理 profile
+ok 5 - SCN-003 MCP 被 SIGKILL 後保留失敗結果並清理 profile
+  ---
+  duration_ms: 103.561408
+  type: 'test'
+  ...
+# Subtest: SCN-003 子程序停止回應 EOF 時限本工作強制收尾
+not ok 6 - SCN-003 子程序停止回應 EOF 時限本工作強制收尾
+  ---
+  duration_ms: 3598.337337
+  type: 'test'
+  location: '/home/kevin/Documents/RCodes/moltbot-lite/tests/browser-mcp-launcher.test.ts:18:2964'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    1 !== 137
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 137
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/kevin/Documents/RCodes/moltbot-lite/tests/browser-mcp-launcher.test.ts:110:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-004 A 收尾不影響 B 的程序、profile 或 stdio
+ok 7 - SCN-004 A 收尾不影響 B 的程序、profile 或 stdio
+  ---
+  duration_ms: 190.259831
+  type: 'test'
+  ...
+# Subtest: SCN-003 收尾失敗須留下不含正文與參數的持久紀錄
+ok 8 - SCN-003 收尾失敗須留下不含正文與參數的持久紀錄
+  ---
+  duration_ms: 104.240815
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 7
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4556.267753

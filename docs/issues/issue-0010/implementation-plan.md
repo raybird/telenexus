@@ -95,8 +95,8 @@
 - 相依：T1.1。責任驗收：SCN-001。
 - 完成判準：實際 OpenCode 取得 fixture 已知正文／URL，工作期間沒有 Chrome 啟動；websearch 不可用仍可對給定 URL 閱讀。
 - 驗證：實際工具紀錄與獨立正文斷言；若既有 webfetch 已符合行為，記 characterization 與指引靜態檢查，不虛構既有功能紅燈。
-- 狀態：📝 待實作。
-- 證據：執行時填入。
+- 狀態：✅ 2026-10-04 已完成。
+- 證據：[HTTP 閱讀紀錄](evidence/phase2-http-report.md)，既有 webfetch characterization 取得真正文／URL、Chrome 啟動 0；dynamic 對照啟動 1。新增最小 web-reading 指引，分支人工查核與 skill 格式驗證 exit 0；沒有新增 HTTP 後端。真模型自主選工具品質尚未驗證，未將 fake provider 冒充該證據。
 
 ### T2.2 — 動態閱讀、任務收尾與失敗傳遞
 
@@ -104,8 +104,8 @@
 - 相依：T2.1。責任驗收：SCN-002、003、005。
 - 完成判準：JS 正文／URL 正確；六種退出結果收尾符合 15 秒窗；MCP／binary 不可用如實失敗，後續 HTTP 仍成功；不掛宿主 profile、不放寬容器權限。
 - 驗證：先補真實失敗重現與收尾邏輯紅燈，再最小實作；串流／非串流、local／runner、聊天／排程均實測，mock 不能取代核心 browser 契約。
-- 狀態：📝 待實作。
-- 證據：執行時填入。
+- 狀態：✅ 2026-10-04 已完成。
+- 證據：[真產品整合報告](evidence/phase2-product-report.md)；實際 runtime 映像 10／10 矩陣涵蓋六種退出、串流／非串流、聊天／排程，15 秒內 live／Z／profile／root=0。同環境 Chrome 始終缺少的兩工作證明 JS 如實失敗後 HTTP 仍成功；EACCES 負對照留下清理失敗紀錄且不假報 cleanup PASS。內層紅綠與 356 tests／build／lint 均通過；配置及安全常青文件已更新。local／runner 取消實測見 T2.3；不是 45 次最終回歸。
 
 ### T2.3 — 並行工作所有權隔離
 
@@ -113,8 +113,8 @@
 - 相依：T2.2。責任驗收：SCN-004。
 - 完成判準：不同 cookie／profile／收尾目標；取消其一另一個仍成功，包括 local 與 runner 同時執行。
 - 驗證：實機並行及獨立 fixture 斷言；需要修補時保留先紅後綠證據。
-- 狀態：📝 待實作。
-- 證據：執行時填入。
+- 狀態：✅ 2026-10-04 已完成。
+- 證據：[真產品整合報告](evidence/phase2-product-report.md#localrunner-所有權scn-004) 與四輪摘要；local／runner 同源不同 cookie，串流／非串流、互動／排程各涵蓋取消一方，另一方再讀成功，最終 runner 仍活著且工作 live／Z／profile／root=0。保留實際 runner 取消留下 A root 的紅燈及原生 HTTP signal／response disconnect 修補後綠燈；沒有新增全域 pool。
 
 ### T3.1 — 相容性盤點、安全遷移與舊後端退役
 
@@ -122,8 +122,8 @@
 - 相依：T2.3；實際依賴有核准範圍外缺口時先處理決策。責任驗收：SCN-006。
 - 完成判準：新安裝／升級 fixture 各遷移兩次，認證、memory／自訂 MCP、文字 -c 延續、客製技能不變；內建舊指引不再載入，客製舊版明列保留／備份；映像不再依賴 agent-browser。
 - 驗證：遷移紅綠、idempotence 及資料前後獨立清單；修改技能前用 writing-rules，不清空 volume。
-- 狀態：📝 待實作。
-- 證據：執行時填入。
+- 狀態：⏳ 2026-10-04 唯讀盤點完成，退役前的互動用途待確認。
+- 證據：[相容性盤點](evidence/phase3-compatibility-audit.md)，限定窗口 2175 工具 parts 中有 2 次完成的 click，用途無法由 @ref 判定；未觀察到登入／state save-load／跨使用者回合，不等於不存在。已詢問是否接受依已核准公開閱讀範圍替換、不保證沿用自動點擊；尚未取得回答，保留舊後端及全域 close，不標 SCN-006 通過。
 
 ### T4.1 — 重複生命週期與完整回歸
 

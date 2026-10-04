@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { parse, type ParseError } from 'jsonc-parser';
 import type { AIAgentOptions } from './agent.js';
 import { buildTextOnlyStructuredResult, type AgentStructuredResult } from './agent-result.js';
 import { ProcessError, runProcess } from './process-runner.js';
@@ -120,6 +121,52 @@ function buildTimeoutMessage(): string {
 }
 
 export class OpencodeAgent extends CliAgentBase {
+  protected override getEnv(): NodeJS.ProcessEnv {
+    const env = super.getEnv();
+    const errors: ParseError[] = [];
+    const config = parse(env.OPENCODE_CONFIG_CONTENT || '{}', errors, {
+      allowTrailingComma: true
+    }) as Record<string, unknown>;
+    if (errors.length || !config || typeof config !== 'object' || Array.isArray(config)) {
+      throw new Error('OPENCODE_CONFIG_CONTENT 必須是有效的 JSON／JSONC 設定物件。');
+    }
+    const mcp = config.mcp ?? {};
+    if (typeof mcp !== 'object' || Array.isArray(mcp)) {
+      throw new Error('OPENCODE_CONFIG_CONTENT 的 mcp 必須是設定物件。');
+    }
+    if (Object.hasOwn(mcp, 'telenexus_browser')) {
+      logger.warn('browser.custom-config-preserved', { builtinCleanup: false });
+      return env;
+    }
+    config.mcp = {
+      ...mcp,
+      telenexus_browser: {
+        type: 'local',
+        command: [
+          'setsid',
+          'node',
+          '/usr/local/lib/telenexus/browser-mcp-launcher.mjs',
+          'node',
+          '/usr/local/lib/telenexus/browser/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js',
+          '--headless',
+          '--isolated',
+          '--slim',
+          '--no-usage-statistics',
+          '--no-performance-crux',
+          '--executable-path=/opt/telenexus/chrome/chrome-linux64/chrome',
+          '--chrome-arg=--no-sandbox',
+          '--chrome-arg=--disable-dev-shm-usage'
+        ],
+        timeout: 20_000
+      }
+    };
+    return {
+      ...env,
+      OPENCODE_CONFIG_CONTENT: JSON.stringify(config),
+      TELENEXUS_BROWSER_AUDIT_FILE: path.join(resolveProjectDir(), 'data', 'browser-lifecycle.jsonl')
+    };
+  }
+
   protected readonly config: CliAgentConfig = {
     provider: 'opencode',
     binary: 'opencode',
@@ -324,9 +371,7 @@ export class OpencodeAgent extends CliAgentBase {
     return runProcess('opencode', argsWithPrompt, {
       timeoutMs: getOpencodeTaskTimeoutMs(),
       cwd: workspacePath,
-      env: {
-        ...process.env
-      },
+      env: this.getEnv(),
       abortOnStderr: OPENCODE_RATE_LIMIT_ABORT,
       ...(options?.signal ? { signal: options.signal } : {})
     });

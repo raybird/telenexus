@@ -1,5 +1,17 @@
 # Configuration Reference
 
+最後驗證日期：2026-10-04。
+
+## OpenCode 網頁閱讀與工作專屬 MCP
+
+2026-10-04：OpenCode 聊天（串流／非串流、local／runner）沿用 webfetch 讀普通公開網頁；JS 正文才使用內建 `telenexus_browser` MCP。映像固定 Chrome DevTools MCP 1.10.1、Chrome 154.0.8037.92，不在每次工作下載套件。摘要路徑不額外注入此工具。
+
+- `OPENCODE_CONFIG_CONTENT` 支援 JSON／JSONC 物件；工作 env 合併 MCP，不改寫持久 OpenCode 設定或認證。既有 memory／自訂 MCP 保留。
+- `telenexus_browser` 是內建命名空間；若 inline 設定已明確定義同名 entry，保留自訂設定並記 `browser.custom-config-preserved`，不承諾自訂 entry 的內建收尾保障。持久設定的同名 entry 不屬此 inline 保留判斷，請避免命名衝突。
+- 每個工作使用獨立臨時 root／profile；內建 launcher 負責 EOF／信號／子程序退出的收尾。`TELENEXUS_BROWSER_AUDIT_FILE` 是產品內部注入的 `APP_PROJECT_DIR/data/browser-lifecycle.jsonl` 路徑，不是新增的使用者設定旋鈕。
+- 清理失敗寫入該 JSONL（只記錯誤碼與程序身份，不記 URL／token）；無自動輪替，維護者需依部署的 log 保存政策管理。記錄存在代表需要查核，不代表清理成功。
+- runner 連線在回覆完成前中斷會取消工作；使用者取消不再觸發 local fallback。舊 agent-browser 尚待相容性／遷移 gate 後退役，不能把此階段當成替換已全部完成。
+
 ## 推薦基線（單人使用）
 
 ```env
@@ -264,7 +276,7 @@ recordRuntimeIssue(scope, err)
 
 - `RUNNER_REQUEST_TIMEOUT_MS`（預設 `1900000` = 31.7 分）：telenexus 端等待 runner HTTP 回應的上限
 - 應設為略大於 runner 端 process timeout（opencode/gemini 均為 1800s = 30 min），讓 process timeout 先觸發
-- 低於此值的長任務會導致 telenexus 誤判為 runner 失敗並觸發 fallback，但 runner 仍會繼續跑完
+- 低於此值的長任務可能導致 telenexus 判定 runner 失敗並觸發 fallback；2026-10-04 起，回覆完成前的連線中斷會通知 runner 取消原工作，避免原工作繼續執行
 
 **Rate-limit 計數 (`error-summary.md`)**
 

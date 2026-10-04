@@ -1,0 +1,58 @@
+TAP version 13
+# Subtest: SCN-003 EOF 轉送原始 stdio，移除真實 profile 與 root
+ok 1 - SCN-003 EOF 轉送原始 stdio，移除真實 profile 與 root
+  ---
+  duration_ms: 137.843145
+  type: 'test'
+  ...
+# Subtest: SCN-003 子程序非零退出不能被收尾成功掩蓋
+ok 2 - SCN-003 子程序非零退出不能被收尾成功掩蓋
+  ---
+  duration_ms: 108.524163
+  type: 'test'
+  ...
+# Subtest: SCN-005 executable spawn 失敗亦清理已建立 root
+ok 3 - SCN-005 executable spawn 失敗亦清理已建立 root
+  ---
+  duration_ms: 95.054164
+  type: 'test'
+  ...
+# Subtest: SCN-003 SIGTERM 仍回報取消而非成功
+ok 4 - SCN-003 SIGTERM 仍回報取消而非成功
+  ---
+  duration_ms: 109.32976
+  type: 'test'
+  ...
+# Subtest: SCN-003 MCP 被 SIGKILL 後保留失敗結果並清理 profile
+ok 5 - SCN-003 MCP 被 SIGKILL 後保留失敗結果並清理 profile
+  ---
+  duration_ms: 107.245386
+  type: 'test'
+  ...
+# Subtest: SCN-003 子程序停止回應 EOF 時限本工作強制收尾
+ok 6 - SCN-003 子程序停止回應 EOF 時限本工作強制收尾
+  ---
+  duration_ms: 3600.644896
+  type: 'test'
+  ...
+# Subtest: SCN-004 A 收尾不影響 B 的程序、profile 或 stdio
+ok 7 - SCN-004 A 收尾不影響 B 的程序、profile 或 stdio
+  ---
+  duration_ms: 193.752554
+  type: 'test'
+  ...
+# Subtest: SCN-003 收尾失敗須留下不含正文與參數的持久紀錄
+ok 8 - SCN-003 收尾失敗須留下不含正文與參數的持久紀錄
+  ---
+  duration_ms: 111.244077
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4601.298933

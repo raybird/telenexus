@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-04",
+  "container": "issue10-product-audit-negative-v1-20261004",
+  "containerId": "6937f9d11689722786992a118dfe8d41e61665391bc37dbbfef7ac846fb12a58",
+  "image": "sha256:058cb99a2038b54c3cc5db8e9bae341d3176e868ac4bda4c22ee7a8c755f22f8",
+  "init": true,
+  "runningAtCollection": true,
+  "command": [
+    "docker",
+    "logs",
+    "issue10-product-audit-negative-v1-20261004"
+  ],
+  "lastSample": {
+    "event": "sample",
+    "second": 15,
+    "owned": [],
+    "liveCount": 0,
+    "zombieCount": 0,
+    "profiles": [
+      "/tmp/tnb-5MUHxV/puppeteer_dev_chrome_profile-azQkzZ"
+    ],
+    "launcherRoots": [
+      "/tmp/tnb-5MUHxV"
+    ]
+  },
+  "result": {
+    "event": "measurement-complete",
+    "mode": "cleanupfailure",
+    "entry": "structured",
+    "lane": "interactive",
+    "verified": true,
+    "mergeVerified": true,
+    "calls": 2,
+    "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"product-call-1\",\"content\":\"Navigated to http://127.0.0.1:43149/dynamic.\"},{\"role\":\"tool\",\"tool_call_id\":\"product-call-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:43149/dynamic\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:43149/dynamic",
+    "productError": null,
+    "browserObserved": 9,
+    "auditPath": "/tmp/i10p-9xMfun/data/browser-lifecycle.jsonl",
+    "audit": "{\"event\":\"browser-mcp-cleanup-failed\",\"launcherPid\":40,\"root\":\"/tmp/tnb-5MUHxV\",\"errorCode\":\"EACCES\",\"remaining\":[]}\n",
+    "negativeControl": true,
+    "expectedFailureObserved": true,
+    "cleanupPassed": false,
+    "observerStillAlive": true
+  }
+}

@@ -169,6 +169,12 @@
 
 2026-10-04：開發與 release Compose 的 `telenexus`／`agent-runner` 設定 `init: true`，dev overlay 繼承此設定；保留 runner 的 `pids_limit: 1024`。容器 init 負責回收被收養且已退出的子程序，不能代替工作專屬瀏覽器收尾，也不能關閉仍存活的孤兒 Chrome。此設定變更不會自動重建既有正式容器；維護者需另行核准部署時機。
 
+2026-10-04：新增工作專屬 Chrome DevTools MCP launcher，使用獨立 `/tmp/tnb-*` root／profile、PID 與 starttime 追蹤；只關閉該工作資源，不使用全域 close，不暴露 CDP port、不掛載宿主 browser profile。EOF／SIGTERM／SIGINT／MCP 退出後收尾預算 12 秒；容器 init 回收退出的孤兒。真產品測試以退出後 15 秒的 live／Z／profile／root 為判準。
+
+Chrome 使用 `--no-sandbox`／`--disable-dev-shm-usage`，沒有放寬容器非 root、cap-drop 或 no-new-privileges；**這不是啟用 Chrome sandbox，也不是安全執行任意網站程式碼的保證**。指引僅涵蓋公開唯讀閱讀，認證、表單提交與跨回合 state 不在本期承諾。舊 agent-browser 暫留至安全遷移完成。
+
+launcher 自身若被 SIGKILL 無法執行清理；PID/starttime 檢查不是 pidfd 的原子保障。清理失敗會嘗試寫入產品 data 目錄的 `browser-lifecycle.jsonl`（0600），包含錯誤碼、臨時 root 及剩餘程序身份，不包含 URL／憑證／完整 argv；寫入失敗另記 stderr，不能宣稱已保存。紀錄沒有自動輪替，依部署保存政策管理；禁止以文字回答成功或僅 init=true 取代資源驗收。
+
 ### dev/prod 模式說明
 
 - 開發模式以 `npm run docker:dev` 啟動：在 `docker-compose.yml` 上疊 `docker-compose.dev.yml`，把 `telenexus`/`agent-runner` 切到 Dockerfile 的 `dev` stage（`npm run dev` + tsx watch + 唯讀掛載 `./src`）。只用 `docker-compose.yml` 就是 production 路徑。

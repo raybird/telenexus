@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-04",
+  "command": [
+    "docker",
+    "build",
+    "--progress=plain",
+    "-t",
+    "issue10-product:20261004",
+    "."
+  ],
+  "codeHashes": {
+    "Dockerfile": "2f270e3675115b14c9a29edd923ceb6fb585b2a7c592071fab9cc72c3cb64eab",
+    "package.json": "7a0d37d34abc1c22734d415b40d06a59fa1331e8e4fa0e0d7434c3a24dc0ab2c",
+    "package-lock.json": "7d8e621f6baa2dc726a8efc0a713d992384819867099853e2c634ff187378b49",
+    "scripts/browser-mcp-launcher.mjs": "24c0021a768010c07dacad12f4c19bf0a906c4070e70301be1b58d35b158c1f2",
+    "src/core/opencode.ts": "23768ed0d549723165c12651ee1a58e24fbfc0627ecca2951aeb573dddb8ff56"
+  },
+  "exitCode": 0,
+  "imageId": "sha256:c515f7d592bba00c5e16b6562c5e4a9c31e7c40ebe45ba7c4d48a50487eee249"
+}
