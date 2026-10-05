@@ -134,7 +134,7 @@ SCN-003 的「啟動失敗」包含尚未建立完整瀏覽器的情況，仍檢
 ## Gherkin 核准紀錄
 
 - **核准 commit**: d345ba1bc3f391bd2038f8ca0341ccbf742490d0
-- **SCN-008 核准 commit**: 待提交；2026-10-05 新增規格，原 SCN-001～007 基線不變。
+- **SCN-008 核准 commit**: 5dfc8f77159387418ab2ab2e1ba89df07822fcc7；2026-10-05 新增規格，原 SCN-001～007 基線不變。
 - **需求來源**: 使用者於 2026-10-04 對話：「那能規劃新方案用來替換 agent -browser 造成的 殭屍進程 在github 開 issue」。
 - **核准來源**: 使用者於 2026-10-04 對話：「那文件規劃核准」。
 - **核准範圍**: 文件集合、既有 SCN-001～007、分階段計畫與本期相容性取捨；未新增或修改 Scenario 語意。2026-10-04 使用者另以 /dev-cycle 授權推進；正式服務操作、發版與部署仍需另行授權。
@@ -186,6 +186,7 @@ Phase 0 契約探測 → Phase 1 容器回收 → Phase 2 工具與生命週期 
 | 2026-10-04 | 使用者以「確認」接受公開網頁閱讀替換、不保證舊自動點擊；解除 TBD-2 退役前決策，保留客製資料與原驗收規格 | - |
 | 2026-10-05 | SCN-001～007、45 輪及完整 gate 通過；建立 PR #11，初次獨立審查 PASS，交付有效性依對應 HEAD 報告 | [PR #11](https://github.com/raybird/telenexus/pull/11) |
 | 2026-10-05 | 使用者 REQUEST CHANGES：新增已核准 SCN-008，原 PASS 不涵蓋新規格；補 runner／container termination 與 final gate，完成後交第二輪 review，不合併 | 使用者對話 |
+| 2026-10-05 | SCN-008 真 runner SIGTERM 與 deadline 強制終止補驗完成；程序終態／強制組 profile 殘留分別揭露，等待新版交付的第二輪 review | [補驗證據](evidence/scn008-report.md) |
 
 ---
 
@@ -195,4 +196,4 @@ Phase 0 契約探測 → Phase 1 容器回收 → Phase 2 工具與生命週期 
 
 **風險**: High
 
-**狀態**: 2026-10-05 PR #11 REQUEST CHANGES；SCN-008 補驗與第二輪交付審查中，不合併
+**狀態**: 2026-10-05 SCN-008 補驗完成，PR #11 等待第二輪 review；未合併，原 PASS 不代表新增規格已獲維護者放行

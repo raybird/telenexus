@@ -69,6 +69,8 @@ curl -fsSL https://raw.githubusercontent.com/raybird/telenexus/main/scripts/inst
 3. 套用新映像與兩份一致的 Compose 配置，**重建** `telenexus`／`agent-runner` 才能套用 `init: true`；一般 restart 不會新增 init。Memoria 不需因瀏覽器替換而重建。
 4. 確認兩服務 inspect Init=true，普通 HTTP／JS 閱讀可用，工作結束後 15 秒 live／Z／臨時 profile=0；healthy 不能替代這些判準。
 
+2026-10-05：若維護者另行核准容器終止驗證，須在 runner 正持有真 MCP／Chrome 時查核 SIGTERM 與 deadline 強制終止，從宿主確認原 PID/starttime 消失且容器 cgroup 無殘留；不要以容器 stopped 當作應用程式完成收尾。強制終止可能留下停止容器可寫層的 `/tmp/tnb-*`，重啟原容器不保證刪除它；現有 runner `/tmp` 不在持久化掛載內，但自訂掛載者須另行評估。這不是清空 data／workspace／OpenCode volumes 的授權。
+
 回退時復原舊映像與所需工具設定，但保留兩執行服務的 init；需要還原技能時先比對備份與目標，避免覆寫客製內容。一般指定舊 bundle 的操作可能帶回沒有 init 的 Compose，應由維護者查核後再套用。不要刪除使用者資料以「清乾淨」。
 
 ```bash

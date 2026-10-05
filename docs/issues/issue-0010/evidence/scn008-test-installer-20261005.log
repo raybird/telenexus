@@ -1,0 +1,5 @@
+
+> telenexus@2.27.4 test:installer
+> bash scripts/test-installer-upgrade.sh
+
+installer upgrade checks passed

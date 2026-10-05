@@ -175,6 +175,8 @@ Chrome 使用 `--no-sandbox`／`--disable-dev-shm-usage`，沒有放寬容器非
 
 launcher 自身若被 SIGKILL 無法執行清理；PID/starttime 檢查不是 pidfd 的原子保障。清理失敗會嘗試寫入產品 data 目錄的 `browser-lifecycle.jsonl`（0600），包含錯誤碼、臨時 root 及剩餘程序身份，不包含 URL／憑證／完整 argv；寫入失敗另記 stderr，不能宣稱已保存。紀錄沒有自動輪替，依部署保存政策管理；禁止以文字回答成功或僅 init=true 取代資源驗收。
 
+2026-10-05：runner／容器終止與單一工作收尾是不同驗收層。Docker stop 先傳遞 SIGTERM，deadline 後強制終止不能保證 application finally 或 audit 執行；容器 teardown 的程序終態須由宿主 PID/starttime 與 cgroup 查核，不以 docker exec 失敗判零。`init` 回收已退出孤兒，不負責刪除 profile；強制終止可能保留 `/tmp/tnb-*` 於已停止容器的可寫層，停止不等於 unlink。現有 runner Compose 未將 `/tmp` 持久化掛載，重建容器與保留／重啟原容器的檔案語意不同；若自訂掛載 `/tmp`，本期不承諾自動清除持久化 profile，也不刪除使用者 volumes。
+
 ### dev/prod 模式說明
 
 - 開發模式以 `npm run docker:dev` 啟動：在 `docker-compose.yml` 上疊 `docker-compose.dev.yml`，把 `telenexus`/`agent-runner` 切到 Dockerfile 的 `dev` stage（`npm run dev` + tsx watch + 唯讀掛載 `./src`）。只用 `docker-compose.yml` 就是 production 路徑。

@@ -1,0 +1,8 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+[Runner] INFO listening port=19110
+[Runner] INFO run_start req=4567d5b2-e28b-444e-a517-885056cd86be task=chat stream=true lane=interactive
+{"event":"runner-response","status":200}
+{"event":"browser-held","content":"[{\"role\":\"tool\",\"tool_call_id\":\"termination-1\",\"content\":\"Navigated to http://127.0.0.1:19112/page.\"},{\"role\":\"tool\",\"tool_call_id\":\"termination-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"SCN008_REAL_CHROME\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:19112/page\\\\\\\"}\\\"\"}]"}
+[Runner] INFO shutdown signal=SIGTERM terminatedChildren=1
+[Runner] INFO run_done req=4567d5b2-e28b-444e-a517-885056cd86be durationMs=3046 provider=opencode stream=true lane=interactive degraded=timeout
+{"event":"runner-response-end","body":"event: start\ndata: {\"provider\":\"opencode\"}\n\nevent: status\ndata: {\"text\":\"開始處理請求...\"}\n\nevent: status\ndata: {\"text\":\"⚙️ 使用工具 telenexus_browser_navigate\"}\n\nevent: status\ndata: {\"text\":\"工具執行完成，等待模型整理回覆...\"}\n\nevent: status\ndata: {\"text\":\"開始處理請求...\"}\n\nevent: status\ndata: {\"text\":\"⚙️ 使用工具 telenexus_browser_evaluate\"}\n\nevent: status\ndata: {\"text\":\"工具執行完成，等待模型整理回覆...\"}\n\nevent: error\ndata: {\"message\":\"✨ 2分鐘內未完成\"}\n\nevent: result\ndata: {\"ok\":true,\"requestId\":\"4567d5b2-e28b-444e-a517-885056cd86be\",\"durationMs\":3046,\"provider\":\"opencode\",\"output\":\"✨ 2分鐘內未完成\",\"structured\":{\"provider\":\"opencode\",\"text\":\"✨ 2分鐘內未完成\",\"failure\":{\"kind\":\"timeout\",\"message\":\"streamChat SIGTERM\"}}}\n\n"}
