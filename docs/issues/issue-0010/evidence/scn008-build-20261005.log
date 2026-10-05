@@ -1,0 +1,5 @@
+
+> telenexus@2.27.4 build
+> tsc && node scripts/copy-web-assets.mjs
+
+[copy-web-assets] copied /home/kevin/Documents/RCodes/moltbot-lite/src/web/public -> /home/kevin/Documents/RCodes/moltbot-lite/dist/web/public

@@ -1,0 +1,5 @@
+FROM ghcr.io/raybird/telenexus@sha256:4fd13c3bbdcc1e6f2dd8cb37cbbdaae3a8c48287928d59c63fa36db2630d8236
+USER root
+RUN npm install --prefix /opt/issue10-mcp --save-exact chrome-devtools-mcp@1.10.1 && npm cache clean --force
+USER node
+ENTRYPOINT ["node"]

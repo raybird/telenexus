@@ -4,6 +4,8 @@
 
 2026-02-07
 
+最後驗證日期：2026-10-04。
+
 ## 1) 設計目標
 
 - 讓 Agent「看得到必要狀態」，但「碰不到高風險原始碼/部署面」。
@@ -143,7 +145,7 @@
 ### 其他放行旗標
 
 - `OPENCODE_YOLO` 預設 `1`（全自動放行），可在 `.env` 設 `0` 收緊。
-- 非 root 下 chromium 必須 `--no-sandbox`；專案不直接啟動瀏覽器（走全域 `agent-browser`），透過 `AGENT_BROWSER_ARGS=--no-sandbox,--disable-dev-shm-usage` 套用。
+- 2026-10-04：Chrome DevTools MCP 使用明確的 `--no-sandbox`／`--disable-dev-shm-usage`；固定版本在受限測試環境無可用原生 sandbox，不把原因泛化成非 root 一律需要此旗標。舊 `AGENT_BROWSER_ARGS` 不再使用。
 
 ### 首次切換到非 root 的一次性遷移
 
@@ -162,6 +164,18 @@
 - 三服務皆加 `security_opt: [no-new-privileges:true]` 與 `cap_drop: [ALL]`;`telenexus`/`agent-runner` 另 `cap_add` entrypoint UID 對齊所需的最小集合(`CHOWN`/`SETUID`/`SETGID`/`FOWNER`/`DAC_OVERRIDE`——`gosu` 是降權不是提權,與 no-new-privileges 相容)。`memoria` 維持 cap_drop ALL 無 cap_add。
 - `memoria` 服務可寫面僅 `/data` volume,已上完整 `read_only: true` + `tmpfs: [/tmp]`。
 - `telenexus` / `agent-runner` 的 `read_only` 仍待可寫路徑稽核(opencode/uvx/npm cache、context 快照寫入點等)後再逐一開白名單,目前未啟用。
+
+### 子程序回收
+
+2026-10-04：開發與 release Compose 的 `telenexus`／`agent-runner` 設定 `init: true`，dev overlay 繼承此設定；保留 runner 的 `pids_limit: 1024`。容器 init 負責回收被收養且已退出的子程序，不能代替工作專屬瀏覽器收尾，也不能關閉仍存活的孤兒 Chrome。此設定變更不會自動重建既有正式容器；維護者需另行核准部署時機。
+
+2026-10-04：新增工作專屬 Chrome DevTools MCP launcher，使用獨立 `/tmp/tnb-*` root／profile、PID 與 starttime 追蹤；只關閉該工作資源，不使用全域 close，不暴露 CDP port、不掛載宿主 browser profile。EOF／SIGTERM／SIGINT／MCP 退出後收尾預算 12 秒；容器 init 回收退出的孤兒。真產品測試以退出後 15 秒的 live／Z／profile／root 為判準。
+
+Chrome 使用 `--no-sandbox`／`--disable-dev-shm-usage`，沒有放寬容器非 root、cap-drop 或 no-new-privileges；**這不是啟用 Chrome sandbox，也不是安全執行任意網站程式碼的保證**。指引僅涵蓋公開唯讀閱讀，認證、表單提交與跨回合 state 不在本期承諾。映像已移除舊 agent-browser，既有正式服務不會自動套用此變更。
+
+launcher 自身若被 SIGKILL 無法執行清理；PID/starttime 檢查不是 pidfd 的原子保障。清理失敗會嘗試寫入產品 data 目錄的 `browser-lifecycle.jsonl`（0600），包含錯誤碼、臨時 root 及剩餘程序身份，不包含 URL／憑證／完整 argv；寫入失敗另記 stderr，不能宣稱已保存。紀錄沒有自動輪替，依部署保存政策管理；禁止以文字回答成功或僅 init=true 取代資源驗收。
+
+2026-10-05：runner／容器終止與單一工作收尾是不同驗收層。Docker stop 先傳遞 SIGTERM，deadline 後強制終止不能保證 application finally 或 audit 執行；容器 teardown 的程序終態須由宿主 PID/starttime 與 cgroup 查核，不以 docker exec 失敗判零。`init` 回收已退出孤兒，不負責刪除 profile；強制終止可能保留 `/tmp/tnb-*` 於已停止容器的可寫層，停止不等於 unlink。現有 runner Compose 未將 `/tmp` 持久化掛載，重建容器與保留／重啟原容器的檔案語意不同；若自訂掛載 `/tmp`，本期不承諾自動清除持久化 profile，也不刪除使用者 volumes。
 
 ### dev/prod 模式說明
 

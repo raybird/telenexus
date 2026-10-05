@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-05",
+  "command": [
+    "docker",
+    "run",
+    "--rm",
+    "--init",
+    "--network",
+    "none",
+    "--cap-drop",
+    "ALL",
+    "--security-opt",
+    "no-new-privileges",
+    "--user",
+    "node",
+    "--entrypoint",
+    "node",
+    "sha256:445ce68d079d87c65a11bde4d9effcad26b2e1b6a0e2a4723a8557428cdbefb0",
+    "-e",
+    "const fs=require(\"fs\"),cp=require(\"child_process\"),crypto=require(\"crypto\");const r={ripgrep:cp.execFileSync(\"rg\",[\"--version\"],{encoding:\"utf8\"}).split(\"\\n\")[0],hashes:{}};for(const p of [\"/app/scripts/sync-skills.mjs\",\"/app/scripts/retired-agent-browser.json\"]){r.hashes[p]=crypto.createHash(\"sha256\").update(fs.readFileSync(p)).digest(\"hex\");}for(const p of [\"/usr/local/bin/agent-browser\",\"/usr/local/lib/node_modules/agent-browser\"]){if(fs.existsSync(p))throw Error(\"legacy exists\");r[p]=\"absent\";}console.log(JSON.stringify(r));"
+  ],
+  "exitCode": 0,
+  "result": {
+    "ripgrep": "ripgrep 13.0.0",
+    "hashes": {
+      "/app/scripts/sync-skills.mjs": "54840cb3f514a53facc027d7a96636028820b242fef650406bca015de8c93fa1",
+      "/app/scripts/retired-agent-browser.json": "760d8630a9d46455155b482b4eae22f0d98c43352b552685deec7979fd5f5acc"
+    },
+    "/usr/local/bin/agent-browser": "absent",
+    "/usr/local/lib/node_modules/agent-browser": "absent"
+  },
+  "stderr": ""
+}

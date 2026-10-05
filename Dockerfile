@@ -34,7 +34,7 @@ ENV HOME=/home/node
 # 保留 python3 (許多 MCP 需要), curl/jq/bash (工具與除錯)
 # make/g++ 供 better-sqlite3 等原生 addon 編譯 (Memoria 需要)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-  python3 python3-venv curl jq bash git unzip \
+  python3 python3-venv curl jq bash git unzip util-linux ripgrep \
   make g++ \
   gosu \
   libglib2.0-0 libnss3 libatk1.0-0 libatk-bridge2.0-0 libdbus-1-3 libcups2 \
@@ -42,9 +42,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libatspi2.0-0 \
   fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
   && rm -rf /var/lib/apt/lists/*
-
-# Puppeteer settings for Docker. Browser runtime is provided by agent-browser.
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 # 依賴清單維持在全域 CLI 之前:不帶 build args 的本機建置下,
 # package.json 一有變動,後面的全域 CLI 與 Chrome 就會重裝。
@@ -56,9 +53,19 @@ ENV UV_INSTALL_DIR=/usr/local/bin
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install global CLI tools (含 pnpm，Memoria 使用)
-RUN npm install -g pnpm opencode-ai@1.18.34 mcp-memory-libsql agent-browser \
+RUN npm install -g pnpm opencode-ai@1.18.34 mcp-memory-libsql \
   && npm cache clean --force
-RUN agent-browser install
+
+# 2026-10-04：網頁閱讀後端使用獨立固定 binary。
+RUN npm install --prefix /usr/local/lib/telenexus/browser --save-exact chrome-devtools-mcp@1.10.1 \
+  && npm cache clean --force
+RUN curl -fL --retry 2 -o /tmp/telenexus-chrome.zip \
+      https://storage.googleapis.com/chrome-for-testing-public/154.0.8037.92/linux64/chrome-linux64.zip \
+  && printf '%s  %s\n' ff43322f335e436b2f4dcdfeeec5db032299e335a7e8c1c618b326e100ce8732 /tmp/telenexus-chrome.zip | sha256sum -c - \
+  && mkdir -p /opt/telenexus/chrome \
+  && unzip -q /tmp/telenexus-chrome.zip -d /opt/telenexus/chrome \
+  && rm /tmp/telenexus-chrome.zip
+COPY scripts/browser-mcp-launcher.mjs /usr/local/lib/telenexus/browser-mcp-launcher.mjs
 
 # ==========================================
 # 非 root 執行：以 root 啟動 entrypoint，runtime 依 PUID/PGID 對齊 node 使用者後

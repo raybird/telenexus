@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-04",
+  "container": "issue10-http-recovery-v1-20261004",
+  "containerId": "0003da37e4ef863755d2f9a190fb78811e2cf4b43becaeb16341416c8c8753a5",
+  "image": "sha256:058cb99a2038b54c3cc5db8e9bae341d3176e868ac4bda4c22ee7a8c755f22f8",
+  "init": true,
+  "runningAtCollection": true,
+  "command": [
+    "docker",
+    "logs",
+    "issue10-http-recovery-v1-20261004"
+  ],
+  "lastSample": {
+    "event": "sample",
+    "phase": "http-recovery",
+    "second": 15,
+    "owned": [],
+    "liveCount": 0,
+    "zombieCount": 0,
+    "profiles": [],
+    "launcherRoots": []
+  },
+  "result": {
+    "event": "measurement-complete",
+    "sameContainer": true,
+    "sameRoot": "/tmp/i10r-puojtE",
+    "sameEnvironment": true,
+    "chromeMissing": true,
+    "works": [
+      {
+        "event": "work-complete",
+        "phase": "js-failure",
+        "toolVerified": true,
+        "memoryVerified": true,
+        "chromeMissing": true,
+        "browserObserved": 0,
+        "cleanupPassed": true,
+        "finalText": "無法完成讀取：[{\"role\":\"tool\",\"tool_call_id\":\"recovery-js-failure\",\"content\":\"Browser was not found at the configured executablePath (/opt/telenexus/chrome/chrome-linux64/chrome)\"}]\n來源：http://127.0.0.1:38429/dynamic",
+        "root": "/tmp/i10r-puojtE",
+        "fixtureUrl": "http://127.0.0.1:38429/dynamic"
+      },
+      {
+        "event": "work-complete",
+        "phase": "http-recovery",
+        "toolVerified": true,
+        "memoryVerified": true,
+        "chromeMissing": true,
+        "browserObserved": 0,
+        "cleanupPassed": true,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"recovery-http-recovery\",\"content\":\"ISSUE10_RECOVERY_HTTP_BODY_20261004\"}]\n來源：http://127.0.0.1:38429/static",
+        "root": "/tmp/i10r-puojtE",
+        "fixtureUrl": "http://127.0.0.1:38429/static"
+      }
+    ],
+    "cleanupPassed": true,
+    "observerStillAlive": true
+  }
+}

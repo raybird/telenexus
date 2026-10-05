@@ -1,0 +1,50 @@
+[
+  {
+    "date": "2026-10-04",
+    "mode": "static",
+    "entry": "structured",
+    "lane": "interactive",
+    "command": [
+      "docker",
+      "run",
+      "--detach",
+      "--init",
+      "--network",
+      "none",
+      "--cap-drop",
+      "ALL",
+      "--security-opt",
+      "no-new-privileges",
+      "--memory",
+      "2g",
+      "--pids-limit",
+      "1024",
+      "--name",
+      "issue10-product-static-structured-interactive-v1-20261004",
+      "--mount",
+      "type=bind,src=/home/kevin/Documents/RCodes/moltbot-lite/docs/issues/issue-0010/evidence,dst=/probe,readonly",
+      "--user",
+      "node",
+      "--entrypoint",
+      "node",
+      "issue10-product:20261004",
+      "/probe/product-opencode-contract.mjs",
+      "static",
+      "structured",
+      "interactive"
+    ],
+    "faultCommand": null,
+    "containerId": "321cd4f18009d9989362297ac18823cbef65eedb25d0f24edb7519abbff09553",
+    "codeHashes": {
+      "product-agent-client.mjs": "e2b7619685d558ff1175d81b8cfed2b2e23b76fac93ca04e7dceef7d88e8beae",
+      "product-opencode-contract.mjs": "9f09d29400f8defe70ecd5962a6ce6131349514955f7591323be4fa888492419",
+      "run-product-matrix.mjs": "9027be01e437fe58fd6a29c516f447828f7026fbdcdc1a16b710961be9070293",
+      "proc-observer.mjs": "195c19d3971e67c19c62ee99f8d10d368fb8bb4849a9127bbda01a3e8f54b9cb",
+      "memory-mcp-fixture.mjs": "241898f5549009652c7e795becb7057d5a64c6ccb19fe53c93821de296fc0536"
+    },
+    "image": "sha256:c515f7d592bba00c5e16b6562c5e4a9c31e7c40ebe45ba7c4d48a50487eee249",
+    "init": true,
+    "runningAtMeasurement": false,
+    "result": null
+  }
+]

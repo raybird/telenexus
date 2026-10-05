@@ -1,0 +1,113 @@
+TAP version 13
+# Subtest: SCN-006 新安裝兩目標不再同步 agent-browser，重跑冪等
+ok 1 - SCN-006 新安裝兩目標不再同步 agent-browser，重跑冪等
+  ---
+  duration_ms: 48.960442
+  type: 'test'
+  ...
+# Subtest: SCN-006 完全相符舊內建技能兩目標改名備份，索引退役且不覆寫
+not ok 2 - SCN-006 完全相符舊內建技能兩目標改名備份，索引退役且不覆寫
+  ---
+  duration_ms: 51.17274
+  type: 'test'
+  location: '/home/kevin/Documents/RCodes/moltbot-lite/tests/skill-browser-migration.test.ts:1:3480'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/kevin/Documents/RCodes/moltbot-lite/tests/skill-browser-migration.test.ts:78:14)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: SCN-006 custom-content 兩目標保留原地、警告且重跑不覆寫
+ok 3 - SCN-006 custom-content 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 49.978893
+  type: 'test'
+  ...
+# Subtest: SCN-006 extra-file 兩目標保留原地、警告且重跑不覆寫
+ok 4 - SCN-006 extra-file 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 49.47602
+  type: 'test'
+  ...
+# Subtest: SCN-006 extra-dir 兩目標保留原地、警告且重跑不覆寫
+ok 5 - SCN-006 extra-dir 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 48.878505
+  type: 'test'
+  ...
+# Subtest: SCN-006 symlink 兩目標保留原地、警告且重跑不覆寫
+ok 6 - SCN-006 symlink 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 48.41347
+  type: 'test'
+  ...
+# Subtest: SCN-006 root-symlink 兩目標保留原地、警告且重跑不覆寫
+ok 7 - SCN-006 root-symlink 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 47.002754
+  type: 'test'
+  ...
+# Subtest: SCN-006 backup-collision 兩目標保留原地、警告且重跑不覆寫
+ok 8 - SCN-006 backup-collision 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 48.632446
+  type: 'test'
+  ...
+# Subtest: SCN-006 target-ancestor-symlink 保留兩目標並警告
+ok 9 - SCN-006 target-ancestor-symlink 保留兩目標並警告
+  ---
+  duration_ms: 48.380436
+  type: 'test'
+  ...
+# Subtest: SCN-006 backup-ancestor-symlink 保留兩目標並警告
+ok 10 - SCN-006 backup-ancestor-symlink 保留兩目標並警告
+  ---
+  duration_ms: 48.568645
+  type: 'test'
+  ...
+# Subtest: SCN-006 local／runner 同時同步只保留一份完整備份，不殘留 builtin
+not ok 11 - SCN-006 local／runner 同時同步只保留一份完整備份，不殘留 builtin
+  ---
+  duration_ms: 50.909983
+  type: 'test'
+  location: '/home/kevin/Documents/RCodes/moltbot-lite/tests/skill-browser-migration.test.ts:1:6432'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/kevin/Documents/RCodes/moltbot-lite/tests/skill-browser-migration.test.ts:156:14)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 9
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 672.624968

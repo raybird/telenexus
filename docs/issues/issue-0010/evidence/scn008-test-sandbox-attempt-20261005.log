@@ -1,0 +1,20 @@
+node:net:1918
+      const error = new UVExceptionWithHostPort(rval, 'listen', address, port);
+                    ^
+
+Error: listen EPERM: operation not permitted /tmp/tsx-1000/47.pipe
+    at Server.setupListenHandle [as _listen2] (node:net:1918:21)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2119:5)
+    at file:///home/kevin/Documents/RCodes/moltbot-lite/node_modules/tsx/dist/cli.mjs:53:31537
+    at new Promise (<anonymous>)
+    at createIpcServer (file:///home/kevin/Documents/RCodes/moltbot-lite/node_modules/tsx/dist/cli.mjs:53:31515)
+    at async file:///home/kevin/Documents/RCodes/moltbot-lite/node_modules/tsx/dist/cli.mjs:55:459 {
+  code: 'EPERM',
+  errno: -1,
+  syscall: 'listen',
+  address: '/tmp/tsx-1000/47.pipe',
+  port: -1
+}
+
+Node.js v22.20.0

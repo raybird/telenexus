@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-05",
+  "command": "node docs/issues/issue-0010/evidence/verify-scn008-observations.mjs",
+  "controlGone": true,
+  "checks": [
+    {
+      "mode": "sigterm",
+      "samples": 16,
+      "chromePositiveControl": 8,
+      "signals": [
+        "15"
+      ],
+      "exitCode": 0,
+      "live": 0,
+      "zombies": 0,
+      "cgroupPids": 0,
+      "profileRemains": false,
+      "passed": true
+    },
+    {
+      "mode": "deadline-force",
+      "samples": 16,
+      "chromePositiveControl": 8,
+      "signals": [
+        "15",
+        "9"
+      ],
+      "exitCode": 137,
+      "live": 0,
+      "zombies": 0,
+      "cgroupPids": 0,
+      "profileRemains": true,
+      "passed": true
+    }
+  ],
+  "passed": true
+}

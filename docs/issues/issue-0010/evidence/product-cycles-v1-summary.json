@@ -1,0 +1,977 @@
+{
+  "date": "2026-10-05",
+  "name": "issue10-product-cycles-v1-20261004",
+  "containerId": "dd552da4a3daab2c85a7c16f05b938c639bb1bf8ee197f4469fd8871af626ce8",
+  "image": "sha256:445ce68d079d87c65a11bde4d9effcad26b2e1b6a0e2a4723a8557428cdbefb0",
+  "init": true,
+  "runningAtMeasurement": true,
+  "codeHashes": {
+    "product-cycle-contract.mjs": "a97e61a4c50e45630617598c6dddbf2d740e4bd53ed75045e25e8fcd6d86397e",
+    "run-product-cycles.mjs": "15b426b767a7d81026bbd4e65e1c2e7b071ded414870f1ff7a13afd74baab158",
+    "product-agent-client.mjs": "e2b7619685d558ff1175d81b8cfed2b2e23b76fac93ca04e7dceef7d88e8beae",
+    "proc-observer.mjs": "195c19d3971e67c19c62ee99f8d10d368fb8bb4849a9127bbda01a3e8f54b9cb",
+    "memory-mcp-fixture.mjs": "241898f5549009652c7e795becb7057d5a64c6ccb19fe53c93821de296fc0536"
+  },
+  "commands": [
+    [
+      "docker",
+      "run",
+      "--detach",
+      "--init",
+      "--network",
+      "none",
+      "--cap-drop",
+      "ALL",
+      "--security-opt",
+      "no-new-privileges",
+      "--user",
+      "node",
+      "--memory",
+      "2g",
+      "--pids-limit",
+      "1024",
+      "--name",
+      "issue10-product-cycles-v1-20261004",
+      "--mount",
+      "type=bind,src=/home/kevin/Documents/RCodes/moltbot-lite/docs/issues/issue-0010/evidence,dst=/probe,readonly",
+      "--entrypoint",
+      "node",
+      "issue10-product:20261004",
+      "/probe/product-cycle-contract.mjs"
+    ],
+    [
+      "docker",
+      "exec",
+      "--user",
+      "root",
+      "issue10-product-cycles-v1-20261004",
+      "mv",
+      "/opt/telenexus/chrome/chrome-linux64/chrome",
+      "/opt/telenexus/chrome/chrome-linux64/chrome-fixture-disabled"
+    ],
+    [
+      "docker",
+      "exec",
+      "--user",
+      "root",
+      "issue10-product-cycles-v1-20261004",
+      "mv",
+      "/opt/telenexus/chrome/chrome-linux64/chrome-fixture-disabled",
+      "/opt/telenexus/chrome/chrome-linux64/chrome"
+    ],
+    [
+      "docker",
+      "exec",
+      "--user",
+      "root",
+      "issue10-product-cycles-v1-20261004",
+      "mv",
+      "/opt/telenexus/chrome/chrome-linux64/chrome",
+      "/opt/telenexus/chrome/chrome-linux64/chrome-fixture-disabled"
+    ],
+    [
+      "docker",
+      "exec",
+      "--user",
+      "root",
+      "issue10-product-cycles-v1-20261004",
+      "mv",
+      "/opt/telenexus/chrome/chrome-linux64/chrome-fixture-disabled",
+      "/opt/telenexus/chrome/chrome-linux64/chrome"
+    ],
+    [
+      "docker",
+      "exec",
+      "--user",
+      "root",
+      "issue10-product-cycles-v1-20261004",
+      "mv",
+      "/opt/telenexus/chrome/chrome-linux64/chrome",
+      "/opt/telenexus/chrome/chrome-linux64/chrome-fixture-disabled"
+    ],
+    [
+      "docker",
+      "exec",
+      "--user",
+      "root",
+      "issue10-product-cycles-v1-20261004",
+      "mv",
+      "/opt/telenexus/chrome/chrome-linux64/chrome-fixture-disabled",
+      "/opt/telenexus/chrome/chrome-linux64/chrome"
+    ],
+    [
+      "docker",
+      "exec",
+      "--user",
+      "root",
+      "issue10-product-cycles-v1-20261004",
+      "mv",
+      "/opt/telenexus/chrome/chrome-linux64/chrome",
+      "/opt/telenexus/chrome/chrome-linux64/chrome-fixture-disabled"
+    ],
+    [
+      "docker",
+      "exec",
+      "--user",
+      "root",
+      "issue10-product-cycles-v1-20261004",
+      "mv",
+      "/opt/telenexus/chrome/chrome-linux64/chrome-fixture-disabled",
+      "/opt/telenexus/chrome/chrome-linux64/chrome"
+    ],
+    [
+      "docker",
+      "exec",
+      "--user",
+      "root",
+      "issue10-product-cycles-v1-20261004",
+      "mv",
+      "/opt/telenexus/chrome/chrome-linux64/chrome",
+      "/opt/telenexus/chrome/chrome-linux64/chrome-fixture-disabled"
+    ],
+    [
+      "docker",
+      "exec",
+      "--user",
+      "root",
+      "issue10-product-cycles-v1-20261004",
+      "mv",
+      "/opt/telenexus/chrome/chrome-linux64/chrome-fixture-disabled",
+      "/opt/telenexus/chrome/chrome-linux64/chrome"
+    ]
+  ],
+  "result": {
+    "event": "measurement-complete",
+    "sameContainer": true,
+    "cycles": [
+      {
+        "event": "cycle-complete",
+        "cycle": 1,
+        "mode": "dynamic",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-1-1\",\"content\":\"Navigated to http://127.0.0.1:33131/dynamic?cycle=1.\"},{\"role\":\"tool\",\"tool_call_id\":\"cycle-1-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_CYCLE_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:33131/dynamic?cycle=1\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=1",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 2,
+        "mode": "dynamic",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-2-1\",\"content\":\"Navigated to http://127.0.0.1:33131/dynamic?cycle=2.\"},{\"role\":\"tool\",\"tool_call_id\":\"cycle-2-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_CYCLE_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:33131/dynamic?cycle=2\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=2",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 3,
+        "mode": "dynamic",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-3-1\",\"content\":\"Navigated to http://127.0.0.1:33131/dynamic?cycle=3.\"},{\"role\":\"tool\",\"tool_call_id\":\"cycle-3-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_CYCLE_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:33131/dynamic?cycle=3\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=3",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 4,
+        "mode": "dynamic",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-4-1\",\"content\":\"Navigated to http://127.0.0.1:33131/dynamic?cycle=4.\"},{\"role\":\"tool\",\"tool_call_id\":\"cycle-4-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_CYCLE_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:33131/dynamic?cycle=4\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=4",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 5,
+        "mode": "dynamic",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-5-1\",\"content\":\"Navigated to http://127.0.0.1:33131/dynamic?cycle=5.\"},{\"role\":\"tool\",\"tool_call_id\":\"cycle-5-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_CYCLE_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:33131/dynamic?cycle=5\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=5",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 6,
+        "mode": "dynamic",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-6-1\",\"content\":\"Navigated to http://127.0.0.1:33131/dynamic?cycle=6.\"},{\"role\":\"tool\",\"tool_call_id\":\"cycle-6-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_CYCLE_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:33131/dynamic?cycle=6\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=6",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 7,
+        "mode": "dynamic",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-7-1\",\"content\":\"Navigated to http://127.0.0.1:33131/dynamic?cycle=7.\"},{\"role\":\"tool\",\"tool_call_id\":\"cycle-7-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_CYCLE_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:33131/dynamic?cycle=7\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=7",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 8,
+        "mode": "dynamic",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-8-1\",\"content\":\"Navigated to http://127.0.0.1:33131/dynamic?cycle=8.\"},{\"role\":\"tool\",\"tool_call_id\":\"cycle-8-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_CYCLE_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:33131/dynamic?cycle=8\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=8",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 9,
+        "mode": "dynamic",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-9-1\",\"content\":\"Navigated to http://127.0.0.1:33131/dynamic?cycle=9.\"},{\"role\":\"tool\",\"tool_call_id\":\"cycle-9-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_CYCLE_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:33131/dynamic?cycle=9\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=9",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 10,
+        "mode": "dynamic",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-10-1\",\"content\":\"Navigated to http://127.0.0.1:33131/dynamic?cycle=10.\"},{\"role\":\"tool\",\"tool_call_id\":\"cycle-10-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_CYCLE_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:33131/dynamic?cycle=10\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=10",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 11,
+        "mode": "dynamic",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-11-1\",\"content\":\"Navigated to http://127.0.0.1:33131/dynamic?cycle=11.\"},{\"role\":\"tool\",\"tool_call_id\":\"cycle-11-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_CYCLE_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:33131/dynamic?cycle=11\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=11",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 12,
+        "mode": "dynamic",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-12-1\",\"content\":\"Navigated to http://127.0.0.1:33131/dynamic?cycle=12.\"},{\"role\":\"tool\",\"tool_call_id\":\"cycle-12-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_CYCLE_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:33131/dynamic?cycle=12\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=12",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 13,
+        "mode": "dynamic",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-13-1\",\"content\":\"Navigated to http://127.0.0.1:33131/dynamic?cycle=13.\"},{\"role\":\"tool\",\"tool_call_id\":\"cycle-13-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_CYCLE_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:33131/dynamic?cycle=13\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=13",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 14,
+        "mode": "dynamic",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-14-1\",\"content\":\"Navigated to http://127.0.0.1:33131/dynamic?cycle=14.\"},{\"role\":\"tool\",\"tool_call_id\":\"cycle-14-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_CYCLE_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:33131/dynamic?cycle=14\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=14",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 15,
+        "mode": "dynamic",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-15-1\",\"content\":\"Navigated to http://127.0.0.1:33131/dynamic?cycle=15.\"},{\"role\":\"tool\",\"tool_call_id\":\"cycle-15-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_CYCLE_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:33131/dynamic?cycle=15\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=15",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 16,
+        "mode": "dynamic",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-16-1\",\"content\":\"Navigated to http://127.0.0.1:33131/dynamic?cycle=16.\"},{\"role\":\"tool\",\"tool_call_id\":\"cycle-16-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_CYCLE_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:33131/dynamic?cycle=16\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=16",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 17,
+        "mode": "dynamic",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-17-1\",\"content\":\"Navigated to http://127.0.0.1:33131/dynamic?cycle=17.\"},{\"role\":\"tool\",\"tool_call_id\":\"cycle-17-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_CYCLE_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:33131/dynamic?cycle=17\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=17",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 18,
+        "mode": "dynamic",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-18-1\",\"content\":\"Navigated to http://127.0.0.1:33131/dynamic?cycle=18.\"},{\"role\":\"tool\",\"tool_call_id\":\"cycle-18-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_CYCLE_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:33131/dynamic?cycle=18\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=18",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 19,
+        "mode": "dynamic",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-19-1\",\"content\":\"Navigated to http://127.0.0.1:33131/dynamic?cycle=19.\"},{\"role\":\"tool\",\"tool_call_id\":\"cycle-19-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_CYCLE_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:33131/dynamic?cycle=19\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=19",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 20,
+        "mode": "dynamic",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "已驗證工具回傳：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-20-1\",\"content\":\"Navigated to http://127.0.0.1:33131/dynamic?cycle=20.\"},{\"role\":\"tool\",\"tool_call_id\":\"cycle-20-2\",\"content\":\"\\\"{\\\\\\\"body\\\\\\\":\\\\\\\"ISSUE10_CYCLE_JS_BODY_20261004\\\\\\\",\\\\\\\"url\\\\\\\":\\\\\\\"http://127.0.0.1:33131/dynamic?cycle=20\\\\\\\"}\\\"\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=20",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 21,
+        "mode": "startupfail",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 0,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "無法完成讀取：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-21-1\",\"content\":\"Browser was not found at the configured executablePath (/opt/telenexus/chrome/chrome-linux64/chrome)\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=21",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 22,
+        "mode": "startupfail",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 0,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "無法完成讀取：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-22-1\",\"content\":\"Browser was not found at the configured executablePath (/opt/telenexus/chrome/chrome-linux64/chrome)\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=22",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 23,
+        "mode": "startupfail",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 0,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "無法完成讀取：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-23-1\",\"content\":\"Browser was not found at the configured executablePath (/opt/telenexus/chrome/chrome-linux64/chrome)\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=23",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 24,
+        "mode": "startupfail",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 0,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "無法完成讀取：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-24-1\",\"content\":\"Browser was not found at the configured executablePath (/opt/telenexus/chrome/chrome-linux64/chrome)\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=24",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 25,
+        "mode": "startupfail",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 0,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "無法完成讀取：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-25-1\",\"content\":\"Browser was not found at the configured executablePath (/opt/telenexus/chrome/chrome-linux64/chrome)\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=25",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 26,
+        "mode": "navigationtimeout",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 10,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "無法完成讀取：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-26-1\",\"content\":\"MCP error -32001: Request timed out\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=26",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 27,
+        "mode": "navigationtimeout",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 9,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "無法完成讀取：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-27-1\",\"content\":\"MCP error -32001: Request timed out\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=27",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 28,
+        "mode": "navigationtimeout",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 9,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "無法完成讀取：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-28-1\",\"content\":\"MCP error -32001: Request timed out\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=28",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 29,
+        "mode": "navigationtimeout",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 9,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "無法完成讀取：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-29-1\",\"content\":\"MCP error -32001: Request timed out\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=29",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 30,
+        "mode": "navigationtimeout",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 10,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "無法完成讀取：[{\"role\":\"tool\",\"tool_call_id\":\"cycle-30-1\",\"content\":\"MCP error -32001: Request timed out\"}]\n來源：http://127.0.0.1:33131/dynamic?cycle=30",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 31,
+        "mode": "cancel",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "⏹️ 任務已被使用者中止。",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 32,
+        "mode": "cancel",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "⏹️ 任務已被使用者中止。",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 33,
+        "mode": "cancel",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "⏹️ 任務已被使用者中止。",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 34,
+        "mode": "cancel",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "⏹️ 任務已被使用者中止。",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 35,
+        "mode": "cancel",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "⏹️ 任務已被使用者中止。",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 36,
+        "mode": "upstreamfail",
+        "verified": false,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "⚠️ 上游回了錯誤 (HTTP 401)，這次請求沒有完成。\n上游訊息：ISSUE10_INJECTED_PROVIDER_FAILURE",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 37,
+        "mode": "upstreamfail",
+        "verified": false,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "⚠️ 上游回了錯誤 (HTTP 401)，這次請求沒有完成。\n上游訊息：ISSUE10_INJECTED_PROVIDER_FAILURE",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 38,
+        "mode": "upstreamfail",
+        "verified": false,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "⚠️ 上游回了錯誤 (HTTP 401)，這次請求沒有完成。\n上游訊息：ISSUE10_INJECTED_PROVIDER_FAILURE",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 39,
+        "mode": "upstreamfail",
+        "verified": false,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "⚠️ 上游回了錯誤 (HTTP 401)，這次請求沒有完成。\n上游訊息：ISSUE10_INJECTED_PROVIDER_FAILURE",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 40,
+        "mode": "upstreamfail",
+        "verified": false,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "⚠️ 上游回了錯誤 (HTTP 401)，這次請求沒有完成。\n上游訊息：ISSUE10_INJECTED_PROVIDER_FAILURE",
+        "productError": null
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 41,
+        "mode": "groupkill",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "",
+        "productError": "Error calling Opencode: Process terminated with signal SIGKILL"
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 42,
+        "mode": "groupkill",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "",
+        "productError": "Error calling Opencode: Process terminated with signal SIGKILL"
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 43,
+        "mode": "groupkill",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "",
+        "productError": "Error calling Opencode: Process terminated with signal SIGKILL"
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 44,
+        "mode": "groupkill",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "",
+        "productError": "Error calling Opencode: Process terminated with signal SIGKILL"
+      },
+      {
+        "event": "cycle-complete",
+        "cycle": 45,
+        "mode": "groupkill",
+        "verified": true,
+        "memoryVerified": true,
+        "cleanupPassed": true,
+        "browserObserved": 8,
+        "cgroupBaseline": 8,
+        "cgroupFinal": 8,
+        "finalText": "",
+        "productError": "Error calling Opencode: Process terminated with signal SIGKILL"
+      }
+    ],
+    "initialCgroup": {
+      "current": 8,
+      "procs": [
+        1,
+        7
+      ]
+    },
+    "finalCgroup": {
+      "current": 8,
+      "procs": [
+        1,
+        7
+      ]
+    },
+    "cgroupTrend": [
+      {
+        "cycle": 1,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 2,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 3,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 4,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 5,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 6,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 7,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 8,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 9,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 10,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 11,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 12,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 13,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 14,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 15,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 16,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 17,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 18,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 19,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 20,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 21,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 22,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 23,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 24,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 25,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 26,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 27,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 28,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 29,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 30,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 31,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 32,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 33,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 34,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 35,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 36,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 37,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 38,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 39,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 40,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 41,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 42,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 43,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 44,
+        "baseline": 8,
+        "final": 8
+      },
+      {
+        "cycle": 45,
+        "baseline": 8,
+        "final": 8
+      }
+    ],
+    "cleanupPassed": true,
+    "observerStillAlive": true
+  }
+}

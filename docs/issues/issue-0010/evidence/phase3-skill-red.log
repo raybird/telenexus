@@ -1,0 +1,216 @@
+TAP version 13
+# Subtest: SCN-006 新安裝兩目標不再同步 agent-browser，重跑冪等
+not ok 1 - SCN-006 新安裝兩目標不再同步 agent-browser，重跑冪等
+  ---
+  duration_ms: 49.574936
+  type: 'test'
+  location: '/home/kevin/Documents/RCodes/moltbot-lite/tests/skill-browser-migration.test.ts:1:2902'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/kevin/Documents/RCodes/moltbot-lite/tests/skill-browser-migration.test.ts:59:14)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: SCN-006 完全相符舊內建技能兩目標改名備份，索引退役且不覆寫
+not ok 2 - SCN-006 完全相符舊內建技能兩目標改名備份，索引退役且不覆寫
+  ---
+  duration_ms: 46.201702
+  type: 'test'
+  location: '/home/kevin/Documents/RCodes/moltbot-lite/tests/skill-browser-migration.test.ts:1:3422'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/kevin/Documents/RCodes/moltbot-lite/tests/skill-browser-migration.test.ts:77:14)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: SCN-006 custom-content 兩目標保留原地、警告且重跑不覆寫
+not ok 3 - SCN-006 custom-content 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 46.276157
+  type: 'test'
+  location: '/home/kevin/Documents/RCodes/moltbot-lite/tests/skill-browser-migration.test.ts:1:4280'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /無法自動遷移|備份已存在/. Input:
+
+    ''
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: ''
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (/home/kevin/Documents/RCodes/moltbot-lite/tests/skill-browser-migration.test.ts:105:14)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-006 extra-file 兩目標保留原地、警告且重跑不覆寫
+not ok 4 - SCN-006 extra-file 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 46.959786
+  type: 'test'
+  location: '/home/kevin/Documents/RCodes/moltbot-lite/tests/skill-browser-migration.test.ts:1:4280'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /無法自動遷移|備份已存在/. Input:
+
+    ''
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: ''
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (/home/kevin/Documents/RCodes/moltbot-lite/tests/skill-browser-migration.test.ts:105:14)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-006 extra-dir 兩目標保留原地、警告且重跑不覆寫
+not ok 5 - SCN-006 extra-dir 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 45.93011
+  type: 'test'
+  location: '/home/kevin/Documents/RCodes/moltbot-lite/tests/skill-browser-migration.test.ts:1:4280'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /無法自動遷移|備份已存在/. Input:
+
+    ''
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: ''
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (/home/kevin/Documents/RCodes/moltbot-lite/tests/skill-browser-migration.test.ts:105:14)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-006 symlink 兩目標保留原地、警告且重跑不覆寫
+not ok 6 - SCN-006 symlink 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 45.616273
+  type: 'test'
+  location: '/home/kevin/Documents/RCodes/moltbot-lite/tests/skill-browser-migration.test.ts:1:4280'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /無法自動遷移|備份已存在/. Input:
+
+    ''
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: ''
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (/home/kevin/Documents/RCodes/moltbot-lite/tests/skill-browser-migration.test.ts:105:14)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-006 root-symlink 兩目標保留原地、警告且重跑不覆寫
+not ok 7 - SCN-006 root-symlink 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 43.832153
+  type: 'test'
+  location: '/home/kevin/Documents/RCodes/moltbot-lite/tests/skill-browser-migration.test.ts:1:4280'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /無法自動遷移|備份已存在/. Input:
+
+    ''
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: ''
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (/home/kevin/Documents/RCodes/moltbot-lite/tests/skill-browser-migration.test.ts:105:14)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-006 backup-collision 兩目標保留原地、警告且重跑不覆寫
+not ok 8 - SCN-006 backup-collision 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 45.757619
+  type: 'test'
+  location: '/home/kevin/Documents/RCodes/moltbot-lite/tests/skill-browser-migration.test.ts:1:4280'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /無法自動遷移|備份已存在/. Input:
+
+    ''
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: ''
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (/home/kevin/Documents/RCodes/moltbot-lite/tests/skill-browser-migration.test.ts:105:14)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 0
+# fail 8
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 516.79593

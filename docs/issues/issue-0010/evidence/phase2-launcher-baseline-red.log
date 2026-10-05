@@ -1,0 +1,154 @@
+TAP version 13
+# Subtest: SCN-003 EOF 轉送原始 stdio，移除真實 profile 與 root
+not ok 1 - SCN-003 EOF 轉送原始 stdio，移除真實 profile 與 root
+  ---
+  duration_ms: 85.057539
+  type: 'test'
+  location: '/home/kevin/Documents/RCodes/moltbot-lite/tests/browser-mcp-launcher.test.ts:18:1642'
+  failureType: 'testCodeFailure'
+  error: |-
+    工作結束後 profile 與完整 root 必須移除
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    finish (/home/kevin/Documents/RCodes/moltbot-lite/tests/browser-mcp-launcher.test.ts:64:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async TestContext.<anonymous> (/home/kevin/Documents/RCodes/moltbot-lite/tests/browser-mcp-launcher.test.ts:76:17)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: SCN-003 子程序非零退出不能被收尾成功掩蓋
+not ok 2 - SCN-003 子程序非零退出不能被收尾成功掩蓋
+  ---
+  duration_ms: 56.153364
+  type: 'test'
+  location: '/home/kevin/Documents/RCodes/moltbot-lite/tests/browser-mcp-launcher.test.ts:18:2098'
+  failureType: 'testCodeFailure'
+  error: |-
+    工作結束後 profile 與完整 root 必須移除
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    finish (/home/kevin/Documents/RCodes/moltbot-lite/tests/browser-mcp-launcher.test.ts:64:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async TestContext.<anonymous> (/home/kevin/Documents/RCodes/moltbot-lite/tests/browser-mcp-launcher.test.ts:84:17)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-005 executable spawn 失敗亦清理已建立 root
+not ok 3 - SCN-005 executable spawn 失敗亦清理已建立 root
+  ---
+  duration_ms: 20.50846
+  type: 'test'
+  location: '/home/kevin/Documents/RCodes/moltbot-lite/tests/browser-mcp-launcher.test.ts:18:2377'
+  failureType: 'testCodeFailure'
+  error: |-
+    工作結束後 profile 與完整 root 必須移除
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    finish (/home/kevin/Documents/RCodes/moltbot-lite/tests/browser-mcp-launcher.test.ts:64:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async TestContext.<anonymous> (/home/kevin/Documents/RCodes/moltbot-lite/tests/browser-mcp-launcher.test.ts:89:17)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-003 SIGTERM 仍回報取消而非成功
+not ok 4 - SCN-003 SIGTERM 仍回報取消而非成功
+  ---
+  duration_ms: 53.59143
+  type: 'test'
+  location: '/home/kevin/Documents/RCodes/moltbot-lite/tests/browser-mcp-launcher.test.ts:18:2608'
+  failureType: 'testCodeFailure'
+  error: |-
+    工作結束後 profile 與完整 root 必須移除
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    finish (/home/kevin/Documents/RCodes/moltbot-lite/tests/browser-mcp-launcher.test.ts:64:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async TestContext.<anonymous> (/home/kevin/Documents/RCodes/moltbot-lite/tests/browser-mcp-launcher.test.ts:97:17)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-003 MCP 被 SIGKILL 後保留失敗結果並清理 profile
+not ok 5 - SCN-003 MCP 被 SIGKILL 後保留失敗結果並清理 profile
+  ---
+  duration_ms: 55.355556
+  type: 'test'
+  location: '/home/kevin/Documents/RCodes/moltbot-lite/tests/browser-mcp-launcher.test.ts:18:2834'
+  failureType: 'testCodeFailure'
+  error: |-
+    工作結束後 profile 與完整 root 必須移除
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    finish (/home/kevin/Documents/RCodes/moltbot-lite/tests/browser-mcp-launcher.test.ts:64:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async TestContext.<anonymous> (/home/kevin/Documents/RCodes/moltbot-lite/tests/browser-mcp-launcher.test.ts:105:17)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-004 A 收尾不影響 B 的程序、profile 或 stdio
+not ok 6 - SCN-004 A 收尾不影響 B 的程序、profile 或 stdio
+  ---
+  duration_ms: 61.150424
+  type: 'test'
+  location: '/home/kevin/Documents/RCodes/moltbot-lite/tests/browser-mcp-launcher.test.ts:18:3531'
+  failureType: 'testCodeFailure'
+  error: |-
+    工作結束後 profile 與完整 root 必須移除
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    finish (/home/kevin/Documents/RCodes/moltbot-lite/tests/browser-mcp-launcher.test.ts:64:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async TestContext.<anonymous> (/home/kevin/Documents/RCodes/moltbot-lite/tests/browser-mcp-launcher.test.ts:131:19)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 0
+# fail 6
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 473.897347

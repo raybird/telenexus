@@ -340,9 +340,14 @@ function isRunnerAuthorized(req: http.IncomingMessage): boolean {
 }
 
 async function executeTask(
-  request: RunnerRequest
+  request: RunnerRequest,
+  signal?: AbortSignal
 ): Promise<{ provider: Provider; output: string; structured?: AgentStructuredResult }> {
-  const options = buildAgentOptions(request, loadProviderConfig().model);
+  signal?.throwIfAborted();
+  const options = {
+    ...buildAgentOptions(request, loadProviderConfig().model),
+    ...(signal ? { signal } : {})
+  };
 
   if (!request.input || !request.task) {
     throw new Error('Invalid request: task and input are required.');
@@ -358,10 +363,15 @@ async function executeTask(
 
 async function executeTaskStream(
   request: RunnerRequest,
-  onEvent: (event: AgentEvent) => Promise<void> | void
+  onEvent: (event: AgentEvent) => Promise<void> | void,
+  signal?: AbortSignal
 ): Promise<{ provider: Provider; output: string; structured?: AgentStructuredResult }> {
+  signal?.throwIfAborted();
   const provider: Provider = 'opencode';
-  const options = buildAgentOptions(request, loadProviderConfig().model);
+  const options = {
+    ...buildAgentOptions(request, loadProviderConfig().model),
+    ...(signal ? { signal } : {})
+  };
 
   if (!request.input || request.task !== 'chat') {
     throw new Error('Invalid stream request: chat task and input are required.');
@@ -421,6 +431,11 @@ const server = http.createServer(async (req, res) => {
       typeof req.headers['x-request-id'] === 'string' ? req.headers['x-request-id'].trim() : '';
     const requestId = callerRequestId || randomUUID();
     const startedAt = Date.now();
+    const controller = new AbortController();
+    const cancelOnDisconnect = (): void => {
+      if (!res.writableEnded) controller.abort();
+    };
+    res.once('close', cancelOnDisconnect);
 
     try {
       if (!isRunnerAuthorized(req)) {
@@ -449,7 +464,8 @@ const server = http.createServer(async (req, res) => {
       const lane: Lane = parsed.lane === 'scheduled' ? 'scheduled' : 'interactive';
       logger.info('run_start', { requestId, task: parsed.task, stream: false, lane });
       emitEvent('runner_request_start', { requestId, task: parsed.task, stream: false, lane });
-      const result = await withLane(lane, () => executeTask(parsed));
+      const result = await withLane(lane, () => executeTask(parsed, controller.signal));
+      controller.signal.throwIfAborted();
       const durationMs = Date.now() - startedAt;
 
       const outcome = deriveRunOutcome(result.structured);
@@ -527,7 +543,9 @@ const server = http.createServer(async (req, res) => {
       });
       logger.warn('run_error', { requestId, durationMs, error: message });
       emitEvent('runner_request_error', { requestId, durationMs, error: message, stream: false });
-      sendJson(res, 500, { ok: false, requestId, durationMs, error: message });
+      if (!res.destroyed) sendJson(res, 500, { ok: false, requestId, durationMs, error: message });
+    } finally {
+      res.off('close', cancelOnDisconnect);
     }
     return;
   }
@@ -537,6 +555,11 @@ const server = http.createServer(async (req, res) => {
       typeof req.headers['x-request-id'] === 'string' ? req.headers['x-request-id'].trim() : '';
     const requestId = callerRequestId || randomUUID();
     const startedAt = Date.now();
+    const controller = new AbortController();
+    const cancelOnDisconnect = (): void => {
+      if (!res.writableEnded) controller.abort();
+    };
+    res.once('close', cancelOnDisconnect);
 
     try {
       if (!isRunnerAuthorized(req)) {
@@ -574,36 +597,41 @@ const server = http.createServer(async (req, res) => {
       });
 
       const result = await withLane(lane, () =>
-        executeTaskStream(parsed, async (event) => {
-          if (event.type === 'start') {
-            writeSseEvent(res, 'start', { provider: event.provider });
-            return;
-          }
-          if (event.type === 'status') {
-            writeSseEvent(res, 'status', { text: event.text });
-            return;
-          }
-          if (event.type === 'reasoning') {
-            writeSseEvent(res, 'reasoning', { text: event.text });
-            return;
-          }
-          if (event.type === 'delta') {
-            writeSseEvent(res, 'delta', { text: event.text });
-            return;
-          }
-          if (event.type === 'usage') {
-            writeSseEvent(res, 'usage', { stats: event.stats });
-            return;
-          }
-          if (event.type === 'error') {
-            writeSseEvent(res, 'error', { message: event.message });
-            return;
-          }
-          if (event.type === 'done') {
-            writeSseEvent(res, 'done', { text: event.text });
-          }
-        })
+        executeTaskStream(
+          parsed,
+          async (event) => {
+            if (event.type === 'start') {
+              writeSseEvent(res, 'start', { provider: event.provider });
+              return;
+            }
+            if (event.type === 'status') {
+              writeSseEvent(res, 'status', { text: event.text });
+              return;
+            }
+            if (event.type === 'reasoning') {
+              writeSseEvent(res, 'reasoning', { text: event.text });
+              return;
+            }
+            if (event.type === 'delta') {
+              writeSseEvent(res, 'delta', { text: event.text });
+              return;
+            }
+            if (event.type === 'usage') {
+              writeSseEvent(res, 'usage', { stats: event.stats });
+              return;
+            }
+            if (event.type === 'error') {
+              writeSseEvent(res, 'error', { message: event.message });
+              return;
+            }
+            if (event.type === 'done') {
+              writeSseEvent(res, 'done', { text: event.text });
+            }
+          },
+          controller.signal
+        )
       );
+      controller.signal.throwIfAborted();
 
       const durationMs = Date.now() - startedAt;
       const outcome = deriveRunOutcome(result.structured);
@@ -696,6 +724,8 @@ const server = http.createServer(async (req, res) => {
       } finally {
         res.end();
       }
+    } finally {
+      res.off('close', cancelOnDisconnect);
     }
     return;
   }

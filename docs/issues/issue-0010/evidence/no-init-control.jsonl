@@ -1,0 +1,9 @@
+{"event":"profile-present","profiles":["profile-Hsau3M"],"profile":"/tmp/issue10-control-6JU6X1/profile-Hsau3M"}
+{"event":"profile-removed","profiles":[]}
+{"event":"target","targetPid":20,"observerPid":1}
+{"event":"sample","second":0,"target":{"pid":20,"comm":"node","state":"R","ppid":1,"pgid":20,"sid":20,"starttime":"22264204","argv":"/usr/local/bin/node -e setTimeout(()=>process.exit(0),1500)"},"zombieCount":0,"observerAlive":true}
+{"event":"sample","second":1,"target":{"pid":20,"comm":"node","state":"S","ppid":1,"pgid":20,"sid":20,"starttime":"22264204","argv":"/usr/local/bin/node -e setTimeout(()=>process.exit(0),1500)"},"zombieCount":0,"observerAlive":true}
+{"event":"sample","second":2,"target":{"pid":20,"comm":"node","state":"Z","ppid":1,"pgid":20,"sid":20,"starttime":"22264204","argv":""},"zombieCount":1,"observerAlive":true}
+{"event":"sample","second":3,"target":{"pid":20,"comm":"node","state":"Z","ppid":1,"pgid":20,"sid":20,"starttime":"22264204","argv":""},"zombieCount":1,"observerAlive":true}
+{"event":"sample","second":4,"target":{"pid":20,"comm":"node","state":"Z","ppid":1,"pgid":20,"sid":20,"starttime":"22264204","argv":""},"zombieCount":1,"observerAlive":true}
+{"event":"measurement-complete","observerStillAlive":true}

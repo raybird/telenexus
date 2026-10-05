@@ -1,0 +1,388 @@
+C /home
+C /home/node
+C /home/node/.cache
+A /home/node/.cache/chrome-devtools-mcp
+A /home/node/.cache/chrome-devtools-mcp/latest.json
+C /home/node/.npm
+C /home/node/.npm/_logs
+A /home/node/.npm/_logs/2026-10-05T12_39_59_155Z-debug-0.log
+A /probe
+C /tmp
+A /tmp/.bcdbe79ebfedfa2f-00000000.so
+A /tmp/scn008
+A /tmp/scn008/ai-config.yaml
+A /tmp/scn008/cache
+A /tmp/scn008/cache/opencode
+A /tmp/scn008/cache/opencode/bin
+A /tmp/scn008/config
+A /tmp/scn008/config/opencode
+A /tmp/scn008/config/opencode/opencode.json
+A /tmp/scn008/config/opencode/.gitignore
+A /tmp/scn008/data
+A /tmp/scn008/state
+A /tmp/scn008/state/opencode
+A /tmp/scn008/state/opencode/locks
+A /tmp/scn008/state/opencode/locks/f824f898a79b58c24253988c6cbc03342d6a52f6.lock
+A /tmp/scn008/state/opencode/locks/f824f898a79b58c24253988c6cbc03342d6a52f6.lock/heartbeat
+A /tmp/scn008/state/opencode/locks/f824f898a79b58c24253988c6cbc03342d6a52f6.lock/meta.json
+A /tmp/scn008/workspace
+A /tmp/scn008/workspace/context
+A /tmp/scn008/workspace/context/events.jsonl
+A /tmp/scn008/workspace/context/runner-status.md
+A /tmp/scn008/xdg-data
+A /tmp/scn008/xdg-data/opencode
+A /tmp/scn008/xdg-data/opencode/repos
+A /tmp/scn008/xdg-data/opencode/log
+A /tmp/scn008/xdg-data/opencode/log/opencode.log
+A /tmp/scn008/xdg-data/opencode/opencode.db
+A /tmp/scn008/xdg-data/opencode/opencode.db-shm
+A /tmp/scn008/xdg-data/opencode/opencode.db-wal
+A /tmp/tnb-pmf2oD
+A /tmp/tnb-pmf2oD/config
+A /tmp/tnb-pmf2oD/config/google-chrome-for-testing
+A /tmp/tnb-pmf2oD/config/google-chrome-for-testing/Crash Reports
+A /tmp/tnb-pmf2oD/config/google-chrome-for-testing/Crash Reports/pending
+A /tmp/tnb-pmf2oD/config/google-chrome-for-testing/Crash Reports/settings.dat
+A /tmp/tnb-pmf2oD/config/google-chrome-for-testing/Crash Reports/attachments
+A /tmp/tnb-pmf2oD/config/google-chrome-for-testing/Crash Reports/completed
+A /tmp/tnb-pmf2oD/config/google-chrome-for-testing/Crash Reports/new
+A /tmp/tnb-pmf2oD/node-compile-cache
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/996086c4
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/de2caf7a
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/2d189c75
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/47f4c8eb
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/5244a2f6
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/2b80aaeb
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/c750d204
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/f3620b98
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/82aab2a4
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/9c76eda3
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/e0b61e81
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/34d66bd2
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/36354dfa
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/5d6fa746
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/6e2af0ae
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/a6197ae0
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/1134cedf
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/14003ba0
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/1400e130
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/aff87990
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/b2413048
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/bff28abc
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/b8af86da
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/bf0630bb
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/e9502cdb
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/0535d717
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/52839e32
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/9eec5070
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/9680544a
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/ac22db77
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/14321a91
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/1b711ba2
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/2d333828
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/88c20709
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/d2cc9f7b
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/e8e2d976
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/0c92995d
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/31af2baa
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/82b0c840
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/49b91afd
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/a2bbb47c
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/a800670b
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/9f164f81
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/c5dca45b
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/ffa931aa
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/557c0551
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/596e3987
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/83cd8344
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/dc7166bc
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/f3cdfa2d
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/3c96d784
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/aa1c21db
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/d3fca832
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/aca69bca
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/cfbd32c3
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/d652d8a3
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/67bd5aa5
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/70ba0036
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/8983e5b2
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/09cc6bf3
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/9f0dcddd
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/6fefea4d
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/8b2837bb
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/a0fc4530
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/e200e7d9
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/1215b633
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/3046aaf2
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/4e2640f8
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/7ff8930f
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/b20c954a
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/bf65294b
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/c115827e
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/0555bc32
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/31503801
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/40194e3b
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/a57eba5c
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/2512a231
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/78b597a2
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/9e3d89b2
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/8d6b6687
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/a01932e9
+A /tmp/tnb-pmf2oD/node-compile-cache/v22.23.3-x64-9de703df-1000/eebc5e81
+A /tmp/tnb-pmf2oD/org.chromium.Chromium.nCuRHt
+A /tmp/tnb-pmf2oD/org.chromium.Chromium.nCuRHt/SingletonCookie
+A /tmp/tnb-pmf2oD/org.chromium.Chromium.nCuRHt/SingletonSocket
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/WidevineCdm
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/WidevineCdm/latest-component-updated-widevine-cdm
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/component_crx_cache
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/ActorSafetyLists
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Variations
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/hyphen-data
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/indigo
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/SSLErrorAssistant
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/SafetyTips
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/SingletonCookie
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/ZxcvbnData
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/AmountExtractionHeuristicRegexes
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/FileTypePolicies
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Local State
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/MEIPreload
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/OptimizationGuideModelsManifest
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/WasmTtsEngine
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/CertificateRevocation
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Last Version
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/PKIMetadata
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/SingletonLock
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/extensions_crx_cache
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/SODA
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/SODALanguagePacks
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/SODALanguagePacks/en-US
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/CaptchaProviders
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/AutofillAiModelCache
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/AutofillAiModelCache/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/AutofillAiModelCache/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Sessions_Encrypted
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/heavy_ad_intervention_opt_out.db-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Extension Rules
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Extension Rules/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Extension Rules/MANIFEST-000001
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Extension Rules/000003.log
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Extension Rules/CURRENT
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Extension Rules/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/GCM Store
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/GCM Store/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/GCM Store/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/GCM Store/MANIFEST-000001
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/GCM Store/000003.log
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/GCM Store/CURRENT
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/History-wal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Login Data For Account-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Reporting and NEL
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/ServerCertificate
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/PreferredApps
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Segmentation Platform
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Segmentation Platform/SignalStorageConfigDB
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Segmentation Platform/SignalStorageConfigDB/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Segmentation Platform/SignalStorageConfigDB/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Segmentation Platform/SegmentInfoDB
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Segmentation Platform/SegmentInfoDB/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Segmentation Platform/SegmentInfoDB/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Segmentation Platform/SignalDB
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Segmentation Platform/SignalDB/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Segmentation Platform/SignalDB/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Web Data-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Affiliation Database-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/DIPS
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/SessionStorage-wal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Shared Dictionary
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Shared Dictionary/cache
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Shared Dictionary/cache/index
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Shared Dictionary/cache/index-dir
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Shared Dictionary/cache/index-dir/the-real-index
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Shared Dictionary/db
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Shared Dictionary/db-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Site Characteristics Database
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Site Characteristics Database/CURRENT
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Site Characteristics Database/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Site Characteristics Database/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Site Characteristics Database/MANIFEST-000001
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Site Characteristics Database/000003.log
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Cookies
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/History-shm
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Login Data-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Reporting and NEL-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/SCT Auditing Pending Reports
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/SessionStorage
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Trust Tokens
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Account Web Data-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Affiliation Database
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/AutofillStrikeDatabase
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/AutofillStrikeDatabase/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/AutofillStrikeDatabase/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Shortcuts-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/commerce_subscription_db
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/commerce_subscription_db/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/commerce_subscription_db/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/BookmarkMergedSurfaceOrdering
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/BudgetDatabase
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/BudgetDatabase/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/BudgetDatabase/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/History
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Network Action Predictor
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Favicons
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Trust Tokens-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/DawnGraphiteCache
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/DawnGraphiteCache/data_0
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/DawnGraphiteCache/data_1
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/DawnGraphiteCache/data_2
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/DawnGraphiteCache/data_3
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/DawnGraphiteCache/index
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/LocalStorage
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/LocalStorage-wal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/chrome_cart_db
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/chrome_cart_db/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/chrome_cart_db/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/declarative_performance_observer.db-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/DIPS-wal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Extension Scripts
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Extension Scripts/000003.log
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Extension Scripts/CURRENT
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Extension Scripts/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Extension Scripts/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Extension Scripts/MANIFEST-000001
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Login Data
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Network Action Predictor-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/README
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/DataSharing
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/DataSharing/DataSharingDB
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/DataSharing/DataSharingDB-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/PersistentOriginTrials
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/PersistentOriginTrials/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/PersistentOriginTrials/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Top Sites-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/declarative_performance_observer.db
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/GPUCache
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/GPUCache/data_2
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/GPUCache/data_3
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/GPUCache/index
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/GPUCache/data_0
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/GPUCache/data_1
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Sync Data
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Sync Data/LevelDB
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Sync Data/LevelDB/CURRENT
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Sync Data/LevelDB/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Sync Data/LevelDB/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Sync Data/LevelDB/MANIFEST-000001
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Sync Data/LevelDB/000003.log
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Top Sites
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/blob_storage
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/blob_storage/7cff44a5-bd38-4b7d-8278-2004eb4284c6
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/discount_infos_db
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/discount_infos_db/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/discount_infos_db/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Account Web Data
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Cache
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Cache/Cache_Data
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Cache/Cache_Data/sqldb2
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Cache/Cache_Data/sqldb2-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Cache/Cache_Data/index
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Cache/Cache_Data/sqldb0
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Cache/Cache_Data/sqldb0-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Cache/Cache_Data/sqldb1
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Cache/Cache_Data/sqldb1-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Cache/No_Vary_Search
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Cache/No_Vary_Search/journal.baj
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Cache/No_Vary_Search/snapshot.baf
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/DawnWebGPUCache
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/DawnWebGPUCache/data_0
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/DawnWebGPUCache/data_1
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/DawnWebGPUCache/data_2
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/DawnWebGPUCache/data_3
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/DawnWebGPUCache/index
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Favicons-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/WebStorage
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/WebStorage/QuotaManager
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/WebStorage/QuotaManager-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/ClientCertificates
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/ClientCertificates/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/ClientCertificates/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/ServerCertificate-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Web Data
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/heavy_ad_intervention_opt_out.db
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/parcel_tracking_db
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/parcel_tracking_db/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/parcel_tracking_db/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Code Cache
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Code Cache/pc
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Extension State
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Extension State/CURRENT
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Extension State/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Extension State/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Extension State/MANIFEST-000001
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Extension State/000003.log
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Login Data For Account
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Shortcuts
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/shared_proto_db
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/shared_proto_db/MANIFEST-000001
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/shared_proto_db/metadata
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/shared_proto_db/metadata/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/shared_proto_db/metadata/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/shared_proto_db/metadata/MANIFEST-000001
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/shared_proto_db/metadata/000003.log
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/shared_proto_db/metadata/CURRENT
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/shared_proto_db/000003.log
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/shared_proto_db/CURRENT
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/shared_proto_db/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/shared_proto_db/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Collaboration
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Collaboration/MessageDB
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Collaboration/MessageDB-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Cookies-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/Sessions
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/discounts_db
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/discounts_db/LOCK
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Default/discounts_db/LOG
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/GPUPersistentCache
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/GPUPersistentCache/GPUCache
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/GPUPersistentCache/GPUCache/BOYI7YJWAMYETP7UTLSRET53S6XBJN22
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/GPUPersistentCache/GPUCache/BOYI7YJWAMYETP7UTLSRET53S6XBJN22/cache.journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/GPUPersistentCache/GPUCache/BOYI7YJWAMYETP7UTLSRET53S6XBJN22/cache.db
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/GPUPersistentCache/GPUCache/BOYI7YJWAMYETP7UTLSRET53S6XBJN22/cache.db-wal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/NativeMessagingHosts
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/OriginTrials
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/PrivacySandboxAttestationsPreloaded
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/first_party_sets.db
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Crowd Deny
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/DictationConnector
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/OnDeviceHeadSuggestModel
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/SingletonSocket
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/first_party_sets.db-journal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/segmentation_platform
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/segmentation_platform/ukm_db
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/segmentation_platform/ukm_db-wal
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/FirstPartySetsPreloaded
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/HistorySearch
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Safe Browsing
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Subresource Filter
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/Subresource Filter/Unindexed Rules
+A /tmp/tnb-pmf2oD/puppeteer_dev_chrome_profile-ysaz7g/TrustTokenKeyCommitments
+A /tmp/tnb-pmf2oD/cache
+A /tmp/tnb-pmf2oD/cache/fontconfig
+A /tmp/tnb-pmf2oD/cache/fontconfig/b47c4e1ecd0709278f4910c18777a504-le64.cache-12
+A /tmp/tnb-pmf2oD/cache/fontconfig/d52a8644073d54c13679302ca1180695-le64.cache-12
+A /tmp/tnb-pmf2oD/cache/fontconfig/3830d5c3ddfd5cd38a049b759396e72e-le64.cache-12
+A /tmp/tnb-pmf2oD/cache/fontconfig/4c599c202bc5c08e2d34565a40eac3b2-le64.cache-12
+A /tmp/tnb-pmf2oD/cache/fontconfig/4d6aee6d44eccb37054d3216e945f618-le64.cache-12
+A /tmp/tnb-pmf2oD/cache/fontconfig/573ec803664ed168555e0e8b6d0f0c7f-le64.cache-12
+A /tmp/tnb-pmf2oD/cache/fontconfig/CACHEDIR.TAG
+A /tmp/tnb-pmf2oD/cache/fontconfig/04aabc0a78ac019cf9454389977116d2-le64.cache-12
+A /tmp/tnb-pmf2oD/cache/fontconfig/7ef2298fde41cc6eeb7af42e48b7d293-le64.cache-12
+A /tmp/tnb-pmf2oD/cache/fontconfig/99e8ed0e538f840c565b6ed5dad60d56-le64.cache-12
+C /usr
+C /usr/sbin
+A /usr/sbin/docker-init

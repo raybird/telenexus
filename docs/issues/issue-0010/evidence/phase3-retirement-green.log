@@ -1,0 +1,22 @@
+TAP version 13
+# Subtest: SCN-006 排程收尾不再呼叫舊全域 browser close
+ok 1 - SCN-006 排程收尾不再呼叫舊全域 browser close
+  ---
+  duration_ms: 1.246218
+  type: 'test'
+  ...
+# Subtest: SCN-006 映像及兩份 compose 不再依賴舊 browser 後端
+ok 2 - SCN-006 映像及兩份 compose 不再依賴舊 browser 後端
+  ---
+  duration_ms: 0.354638
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 156.963372

@@ -1,0 +1,962 @@
+{
+  "codeHashes": {
+    "run-runner-termination.mjs": "5605429887ab9681e05b61cca72a6c32ef50fd03eef5601d884d0a608a3d2472",
+    "runner-termination-fixture.mjs": "61ec6d9fcb04157e65ef77b6158474e8b41295a661556b8a844a80196c6a5060"
+  },
+  "records": [
+    {
+      "scn": "SCN-008",
+      "date": "2026-10-05",
+      "mode": "sigterm",
+      "name": "issue10-scn008-sigterm-v2-20261005",
+      "containerId": "676c4ebe9eeafd6307a56ebee26879ea34f7bb8a929eec9fe494d5be81f44f6f",
+      "image": "sha256:445ce68d079d87c65a11bde4d9effcad26b2e1b6a0e2a4723a8557428cdbefb0",
+      "versions": "v22.23.3\n1.18.34\nGoogle Chrome for Testing 154.0.8037.92 \n309e3a099deb9c55f7caa20b90a05e8ef0c24bd22f6f91572ef3ed86ace8d961  /app/dist/runner.js\neac39aba10a39b4fbdbcc07b12c27bfab38ed685dcd8299506327656f78e65ba  /app/dist/core/opencode.js\n24c0021a768010c07dacad12f4c19bf0a906c4070e70301be1b58d35b158c1f2  /usr/local/lib/telenexus/browser-mcp-launcher.mjs\n",
+      "command": [
+        "docker",
+        "run",
+        "--detach",
+        "--init",
+        "--network",
+        "none",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges",
+        "--user",
+        "node",
+        "--memory",
+        "2g",
+        "--pids-limit",
+        "1024",
+        "--name",
+        "issue10-scn008-sigterm-v2-20261005",
+        "--mount",
+        "type=bind,src=/home/kevin/Documents/RCodes/moltbot-lite/docs/issues/issue-0010/evidence,dst=/probe,readonly",
+        "--env",
+        "APP_PROJECT_DIR=/tmp/scn008",
+        "--env",
+        "RUNNER_PORT=19110",
+        "--env",
+        "RUNNER_SHARED_SECRET=scn008-fixture",
+        "--env",
+        "MODEL_HEALTH_CHECK_ENABLED=false",
+        "--env",
+        "OPENCODE_CONFIG_CONTENT={\"provider\":{\"probe\":{\"npm\":\"@ai-sdk/openai-compatible\",\"options\":{\"baseURL\":\"http://127.0.0.1:19112/v1\",\"apiKey\":\"fixture-only\"},\"models\":{\"contract\":{\"name\":\"SCN008 fixture\",\"limit\":{\"context\":32768,\"output\":4096}}}}},\"model\":\"probe/contract\"}",
+        "--env",
+        "OPENCODE_DISABLE_MODELS_FETCH=1",
+        "--env",
+        "OPENCODE_DISABLE_DEFAULT_PLUGINS=1",
+        "--env",
+        "OPENCODE_TASK_TIMEOUT_MS=120000",
+        "--env",
+        "XDG_CONFIG_HOME=/tmp/scn008/config",
+        "--env",
+        "XDG_CACHE_HOME=/tmp/scn008/cache",
+        "--env",
+        "XDG_DATA_HOME=/tmp/scn008/xdg-data",
+        "--env",
+        "XDG_STATE_HOME=/tmp/scn008/state",
+        "--entrypoint",
+        "/bin/sh",
+        "sha256:445ce68d079d87c65a11bde4d9effcad26b2e1b6a0e2a4723a8557428cdbefb0",
+        "-c",
+        "node /probe/runner-termination-fixture.mjs & exec node /app/dist/runner.js"
+      ],
+      "stopCommand": [
+        "docker",
+        "stop",
+        "--time",
+        "10",
+        "issue10-scn008-sigterm-v2-20261005"
+      ],
+      "durationMs": 3042,
+      "positiveControl": {
+        "runner": {
+          "pid": 1432281,
+          "state": "S",
+          "ppid": 1432266,
+          "starttime": "34208885",
+          "exe": "/usr/local/bin/node",
+          "argv": "node /app/dist/runner.js "
+        },
+        "opencode": {
+          "pid": 1432364,
+          "state": "S",
+          "ppid": 1432281,
+          "starttime": "34208901",
+          "exe": "/usr/local/lib/node_modules/opencode-ai/bin/opencode.exe",
+          "argv": "opencode run --format json --model probe/contract --print-logs --log-level ERROR 使用瀏覽器讀取 http://127.0.0.1:19112/page "
+        },
+        "launcher": {
+          "pid": 1433095,
+          "state": "S",
+          "ppid": 1432364,
+          "starttime": "34209057",
+          "exe": "/usr/local/bin/node",
+          "argv": "node /usr/local/lib/telenexus/browser-mcp-launcher.mjs node /usr/local/lib/telenexus/browser/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js --headless --isolated --slim --no-usage-statistics --no-performance-crux --executable-path=/opt/telenexus/chrome/chrome-linux64/chrome --chrome-arg=--no-sandbox --chrome-arg=--disable-dev-shm-usage "
+        },
+        "chrome": [
+          {
+            "pid": 1433496,
+            "state": "S",
+            "ppid": 1433102,
+            "starttime": "34209142",
+            "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+            "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --allow-pre-commit-input --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-crash-reporter --disable-default-apps --disable-dev-shm-usage --disable-hang-monitor --disable-infobars --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-search-engine-choice-screen --disable-sync --enable-automation --export-tagged-pdf --force-color-profile=srgb --generate-pdf-document-outline --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --disable-features=Translate,AcceptCHFrame,MediaRouter,OptimizationHints,WebUIReloadButton,WebUIOmniboxPopup,WebUIOmniboxAimPopup,ProcessPerSiteUpToMainFrameThreshold,IsolateSandboxedIframes --enable-features=PdfOopif --headless=new --hide-scrollbars --mute-audio --disable-extensions about:blank --no-sandbox --disable-dev-shm-usage --hide-crash-restore-bubble --screen-info={3840x2160} --remote-debugging-pipe --user-data-dir=/tmp/tnb-jwcRWS/puppeteer_dev_chrome_profile-xGFxYq "
+          },
+          {
+            "pid": 1433503,
+            "state": "S",
+            "ppid": 1433496,
+            "starttime": "34209144",
+            "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+            "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=zygote --no-zygote-sandbox --no-sandbox --headless=new --crashpad-handler-pid=101 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-jwcRWS/puppeteer_dev_chrome_profile-xGFxYq --change-stack-guard-on-fork=enable --no-first-run --ozone-platform=headless --ozone-override-screen-size=800,600 --use-angle=swiftshader-webgl "
+          },
+          {
+            "pid": 1433504,
+            "state": "S",
+            "ppid": 1433496,
+            "starttime": "34209144",
+            "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+            "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=zygote --no-sandbox --headless=new --crashpad-handler-pid=101 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-jwcRWS/puppeteer_dev_chrome_profile-xGFxYq --change-stack-guard-on-fork=enable --no-first-run --ozone-platform=headless --ozone-override-screen-size=800,600 --use-angle=swiftshader-webgl "
+          },
+          {
+            "pid": 1433546,
+            "state": "S",
+            "ppid": 1433503,
+            "starttime": "34209147",
+            "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+            "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=gpu-process --gpu-recent-crash-count=0 --no-sandbox --disable-dev-shm-usage --disable-breakpad --headless=new --ozone-platform=headless --use-angle=swiftshader-webgl --crashpad-handler-pid=101 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-jwcRWS/puppeteer_dev_chrome_profile-xGFxYq --change-stack-guard-on-fork=enable --gpu-preferences=YAAAAAAAAAAgAAAEAAAAAAAAAAAAAGAASAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAwAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAMAAAAAQAAAAAAAAAAAAAACAAAAAAAAAAIAAAAAAAAAA== --shared-files --field-trial-handle=3,i,15348321489368772683,12026561222379870450,262144 --enable-features=PdfOopif --disable-features=AcceptCHFrame,IsolateSandboxedIframes,MediaRouter,OptimizationHints,PaintHolding,ProcessPerSiteUpToMainFrameThreshold,Translate,WebUIOmniboxAimPopup,WebUIOmniboxPopup,WebUIReloadButton --variations-seed-version --pseudonymization-salt-handle=7,i,6887434818738709619,528440271468862386,4 --trace-process-track-uuid=3190708988185955192 "
+          },
+          {
+            "pid": 1433583,
+            "state": "S",
+            "ppid": 1433496,
+            "starttime": "34209151",
+            "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+            "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en-US --service-sandbox-type=none --no-sandbox --disable-dev-shm-usage --use-angle=swiftshader-webgl --mute-audio --crashpad-handler-pid=101 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-jwcRWS/puppeteer_dev_chrome_profile-xGFxYq --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,15348321489368772683,12026561222379870450,262144 --enable-features=PdfOopif --disable-features=AcceptCHFrame,IsolateSandboxedIframes,MediaRouter,OptimizationHints,PaintHolding,ProcessPerSiteUpToMainFrameThreshold,Translate,WebUIOmniboxAimPopup,WebUIOmniboxPopup,WebUIReloadButton --variations-seed-version --pseudonymization-salt-handle=7,i,6887434818738709619,528440271468862386,4 --trace-process-track-uuid=3190708989122997041 "
+          },
+          {
+            "pid": 1433600,
+            "state": "S",
+            "ppid": 1433504,
+            "starttime": "34209153",
+            "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+            "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=utility --utility-sub-type=storage.mojom.StorageService --lang=en-US --service-sandbox-type=utility --no-sandbox --disable-dev-shm-usage --use-angle=swiftshader-webgl --mute-audio --crashpad-handler-pid=101 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-jwcRWS/puppeteer_dev_chrome_profile-xGFxYq --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,15348321489368772683,12026561222379870450,262144 --enable-features=PdfOopif --disable-features=AcceptCHFrame,IsolateSandboxedIframes,MediaRouter,OptimizationHints,PaintHolding,ProcessPerSiteUpToMainFrameThreshold,Translate,WebUIOmniboxAimPopup,WebUIOmniboxPopup,WebUIReloadButton --variations-seed-version --pseudonymization-salt-handle=7,i,6887434818738709619,528440271468862386,4 --trace-process-track-uuid=3190708990060038890 "
+          },
+          {
+            "pid": 1433654,
+            "state": "S",
+            "ppid": 1433504,
+            "starttime": "34209157",
+            "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+            "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=renderer --crashpad-handler-pid=101 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-jwcRWS/puppeteer_dev_chrome_profile-xGFxYq --change-stack-guard-on-fork=enable --no-sandbox --disable-dev-shm-usage --disable-background-timer-throttling --disable-breakpad --enable-automation --force-color-profile=srgb --remote-debugging-pipe --allow-pre-commit-input --ozone-platform=headless --disable-gpu-compositing --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=6 --launch-time-ticks=342091570247 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,15348321489368772683,12026561222379870450,262144 --enable-features=PdfOopif --disable-features=AcceptCHFrame,IsolateSandboxedIframes,MediaRouter,OptimizationHints,PaintHolding,ProcessPerSiteUpToMainFrameThreshold,Translate,WebUIOmniboxAimPopup,WebUIOmniboxPopup,WebUIReloadButton --variations-seed-version --pseudonymization-salt-handle=7,i,6887434818738709619,528440271468862386,4 --trace-process-track-uuid=3190708991934122588 "
+          },
+          {
+            "pid": 1433655,
+            "state": "S",
+            "ppid": 1433504,
+            "starttime": "34209157",
+            "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+            "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=renderer --crashpad-handler-pid=101 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-jwcRWS/puppeteer_dev_chrome_profile-xGFxYq --change-stack-guard-on-fork=enable --no-sandbox --disable-dev-shm-usage --disable-background-timer-throttling --disable-breakpad --enable-automation --force-color-profile=srgb --remote-debugging-pipe --allow-pre-commit-input --ozone-platform=headless --disable-gpu-compositing --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=5 --launch-time-ticks=342091571182 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,15348321489368772683,12026561222379870450,262144 --enable-features=PdfOopif --disable-features=AcceptCHFrame,IsolateSandboxedIframes,MediaRouter,OptimizationHints,PaintHolding,ProcessPerSiteUpToMainFrameThreshold,Translate,WebUIOmniboxAimPopup,WebUIOmniboxPopup,WebUIReloadButton --variations-seed-version --pseudonymization-salt-handle=7,i,6887434818738709619,528440271468862386,4 --trace-process-track-uuid=3190708990997080739 "
+          }
+        ],
+        "cgroupPath": "/sys/fs/cgroup/system.slice/docker-676c4ebe9eeafd6307a56ebee26879ea34f7bb8a929eec9fe494d5be81f44f6f.scope/cgroup.procs",
+        "initialCgroupPids": [
+          1432266,
+          1432281,
+          1432282,
+          1432364,
+          1433095,
+          1433102,
+          1433496,
+          1433498,
+          1433500,
+          1433503,
+          1433504,
+          1433546,
+          1433583,
+          1433600,
+          1433654,
+          1433655
+        ]
+      },
+      "tracked": [
+        {
+          "pid": 1432266,
+          "state": "S",
+          "ppid": 1432245,
+          "starttime": "34208882",
+          "exe": "/usr/sbin/docker-init",
+          "argv": "/sbin/docker-init -- /bin/sh -c node /probe/runner-termination-fixture.mjs & exec node /app/dist/runner.js "
+        },
+        {
+          "pid": 1432281,
+          "state": "S",
+          "ppid": 1432266,
+          "starttime": "34208885",
+          "exe": "/usr/local/bin/node",
+          "argv": "node /app/dist/runner.js "
+        },
+        {
+          "pid": 1432282,
+          "state": "S",
+          "ppid": 1432281,
+          "starttime": "34208885",
+          "exe": "/usr/local/bin/node",
+          "argv": "node /probe/runner-termination-fixture.mjs "
+        },
+        {
+          "pid": 1432364,
+          "state": "S",
+          "ppid": 1432281,
+          "starttime": "34208901",
+          "exe": "/usr/local/lib/node_modules/opencode-ai/bin/opencode.exe",
+          "argv": "opencode run --format json --model probe/contract --print-logs --log-level ERROR 使用瀏覽器讀取 http://127.0.0.1:19112/page "
+        },
+        {
+          "pid": 1433095,
+          "state": "S",
+          "ppid": 1432364,
+          "starttime": "34209057",
+          "exe": "/usr/local/bin/node",
+          "argv": "node /usr/local/lib/telenexus/browser-mcp-launcher.mjs node /usr/local/lib/telenexus/browser/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js --headless --isolated --slim --no-usage-statistics --no-performance-crux --executable-path=/opt/telenexus/chrome/chrome-linux64/chrome --chrome-arg=--no-sandbox --chrome-arg=--disable-dev-shm-usage "
+        },
+        {
+          "pid": 1433102,
+          "state": "S",
+          "ppid": 1433095,
+          "starttime": "34209059",
+          "exe": "/usr/local/bin/node",
+          "argv": "chrome-devtools-mcp                                                                                                                                                                                                                                                                                               "
+        },
+        {
+          "pid": 1433280,
+          "state": "S",
+          "ppid": 1433102,
+          "starttime": "34209098",
+          "exe": "/usr/local/bin/node",
+          "argv": "/usr/local/bin/node /usr/local/lib/telenexus/browser/node_modules/chrome-devtools-mcp/build/src/bin/check-latest-version.js /home/node/.cache/chrome-devtools-mcp/latest.json "
+        },
+        {
+          "pid": 1433304,
+          "state": "S",
+          "ppid": 1433280,
+          "starttime": "34209100",
+          "exe": "/usr/bin/dash",
+          "argv": "/bin/sh -c npm config get registry "
+        },
+        {
+          "pid": 1433305,
+          "state": "R",
+          "ppid": 1433304,
+          "starttime": "34209100",
+          "exe": "/usr/local/bin/node",
+          "argv": "npm config get registry                     "
+        },
+        {
+          "pid": 1433496,
+          "state": "S",
+          "ppid": 1433102,
+          "starttime": "34209142",
+          "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+          "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --allow-pre-commit-input --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-crash-reporter --disable-default-apps --disable-dev-shm-usage --disable-hang-monitor --disable-infobars --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-search-engine-choice-screen --disable-sync --enable-automation --export-tagged-pdf --force-color-profile=srgb --generate-pdf-document-outline --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --disable-features=Translate,AcceptCHFrame,MediaRouter,OptimizationHints,WebUIReloadButton,WebUIOmniboxPopup,WebUIOmniboxAimPopup,ProcessPerSiteUpToMainFrameThreshold,IsolateSandboxedIframes --enable-features=PdfOopif --headless=new --hide-scrollbars --mute-audio --disable-extensions about:blank --no-sandbox --disable-dev-shm-usage --hide-crash-restore-bubble --screen-info={3840x2160} --remote-debugging-pipe --user-data-dir=/tmp/tnb-jwcRWS/puppeteer_dev_chrome_profile-xGFxYq "
+        },
+        {
+          "pid": 1433498,
+          "state": "S",
+          "ppid": 1432266,
+          "starttime": "34209144",
+          "exe": "/opt/telenexus/chrome/chrome-linux64/chrome_crashpad_handler",
+          "argv": "/opt/telenexus/chrome/chrome-linux64/chrome_crashpad_handler --monitor-self --monitor-self-annotation=ptype=crashpad-handler --database=/tmp/tnb-jwcRWS/config/google-chrome-for-testing/Crash Reports --annotation=lsb-release=Debian GNU/Linux 12 (bookworm) --annotation=plat=Linux --annotation=prod=Chrome_Linux --annotation=ver=154.0.8037.92 --initial-client-fd=7 --shared-client-connection "
+        },
+        {
+          "pid": 1433500,
+          "state": "S",
+          "ppid": 1432266,
+          "starttime": "34209144",
+          "exe": "/opt/telenexus/chrome/chrome-linux64/chrome_crashpad_handler",
+          "argv": "/opt/telenexus/chrome/chrome-linux64/chrome_crashpad_handler --no-periodic-tasks --monitor-self-annotation=ptype=crashpad-handler --database=/tmp/tnb-jwcRWS/config/google-chrome-for-testing/Crash Reports --annotation=lsb-release=Debian GNU/Linux 12 (bookworm) --annotation=plat=Linux --annotation=prod=Chrome_Linux --annotation=ver=154.0.8037.92 --initial-client-fd=4 --shared-client-connection "
+        },
+        {
+          "pid": 1433503,
+          "state": "S",
+          "ppid": 1433496,
+          "starttime": "34209144",
+          "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+          "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=zygote --no-zygote-sandbox --no-sandbox --headless=new --crashpad-handler-pid=101 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-jwcRWS/puppeteer_dev_chrome_profile-xGFxYq --change-stack-guard-on-fork=enable --no-first-run --ozone-platform=headless --ozone-override-screen-size=800,600 --use-angle=swiftshader-webgl "
+        },
+        {
+          "pid": 1433504,
+          "state": "S",
+          "ppid": 1433496,
+          "starttime": "34209144",
+          "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+          "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=zygote --no-sandbox --headless=new --crashpad-handler-pid=101 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-jwcRWS/puppeteer_dev_chrome_profile-xGFxYq --change-stack-guard-on-fork=enable --no-first-run --ozone-platform=headless --ozone-override-screen-size=800,600 --use-angle=swiftshader-webgl "
+        },
+        {
+          "pid": 1433546,
+          "state": "S",
+          "ppid": 1433503,
+          "starttime": "34209147",
+          "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+          "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=gpu-process --gpu-recent-crash-count=0 --no-sandbox --disable-dev-shm-usage --disable-breakpad --headless=new --ozone-platform=headless --use-angle=swiftshader-webgl --crashpad-handler-pid=101 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-jwcRWS/puppeteer_dev_chrome_profile-xGFxYq --change-stack-guard-on-fork=enable --gpu-preferences=YAAAAAAAAAAgAAAEAAAAAAAAAAAAAGAASAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAwAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAMAAAAAQAAAAAAAAAAAAAACAAAAAAAAAAIAAAAAAAAAA== --shared-files --field-trial-handle=3,i,15348321489368772683,12026561222379870450,262144 --enable-features=PdfOopif --disable-features=AcceptCHFrame,IsolateSandboxedIframes,MediaRouter,OptimizationHints,PaintHolding,ProcessPerSiteUpToMainFrameThreshold,Translate,WebUIOmniboxAimPopup,WebUIOmniboxPopup,WebUIReloadButton --variations-seed-version --pseudonymization-salt-handle=7,i,6887434818738709619,528440271468862386,4 --trace-process-track-uuid=3190708988185955192 "
+        },
+        {
+          "pid": 1433583,
+          "state": "S",
+          "ppid": 1433496,
+          "starttime": "34209151",
+          "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+          "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en-US --service-sandbox-type=none --no-sandbox --disable-dev-shm-usage --use-angle=swiftshader-webgl --mute-audio --crashpad-handler-pid=101 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-jwcRWS/puppeteer_dev_chrome_profile-xGFxYq --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,15348321489368772683,12026561222379870450,262144 --enable-features=PdfOopif --disable-features=AcceptCHFrame,IsolateSandboxedIframes,MediaRouter,OptimizationHints,PaintHolding,ProcessPerSiteUpToMainFrameThreshold,Translate,WebUIOmniboxAimPopup,WebUIOmniboxPopup,WebUIReloadButton --variations-seed-version --pseudonymization-salt-handle=7,i,6887434818738709619,528440271468862386,4 --trace-process-track-uuid=3190708989122997041 "
+        },
+        {
+          "pid": 1433600,
+          "state": "S",
+          "ppid": 1433504,
+          "starttime": "34209153",
+          "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+          "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=utility --utility-sub-type=storage.mojom.StorageService --lang=en-US --service-sandbox-type=utility --no-sandbox --disable-dev-shm-usage --use-angle=swiftshader-webgl --mute-audio --crashpad-handler-pid=101 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-jwcRWS/puppeteer_dev_chrome_profile-xGFxYq --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,15348321489368772683,12026561222379870450,262144 --enable-features=PdfOopif --disable-features=AcceptCHFrame,IsolateSandboxedIframes,MediaRouter,OptimizationHints,PaintHolding,ProcessPerSiteUpToMainFrameThreshold,Translate,WebUIOmniboxAimPopup,WebUIOmniboxPopup,WebUIReloadButton --variations-seed-version --pseudonymization-salt-handle=7,i,6887434818738709619,528440271468862386,4 --trace-process-track-uuid=3190708990060038890 "
+        },
+        {
+          "pid": 1433654,
+          "state": "S",
+          "ppid": 1433504,
+          "starttime": "34209157",
+          "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+          "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=renderer --crashpad-handler-pid=101 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-jwcRWS/puppeteer_dev_chrome_profile-xGFxYq --change-stack-guard-on-fork=enable --no-sandbox --disable-dev-shm-usage --disable-background-timer-throttling --disable-breakpad --enable-automation --force-color-profile=srgb --remote-debugging-pipe --allow-pre-commit-input --ozone-platform=headless --disable-gpu-compositing --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=6 --launch-time-ticks=342091570247 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,15348321489368772683,12026561222379870450,262144 --enable-features=PdfOopif --disable-features=AcceptCHFrame,IsolateSandboxedIframes,MediaRouter,OptimizationHints,PaintHolding,ProcessPerSiteUpToMainFrameThreshold,Translate,WebUIOmniboxAimPopup,WebUIOmniboxPopup,WebUIReloadButton --variations-seed-version --pseudonymization-salt-handle=7,i,6887434818738709619,528440271468862386,4 --trace-process-track-uuid=3190708991934122588 "
+        },
+        {
+          "pid": 1433655,
+          "state": "S",
+          "ppid": 1433504,
+          "starttime": "34209157",
+          "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+          "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=renderer --crashpad-handler-pid=101 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-jwcRWS/puppeteer_dev_chrome_profile-xGFxYq --change-stack-guard-on-fork=enable --no-sandbox --disable-dev-shm-usage --disable-background-timer-throttling --disable-breakpad --enable-automation --force-color-profile=srgb --remote-debugging-pipe --allow-pre-commit-input --ozone-platform=headless --disable-gpu-compositing --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=5 --launch-time-ticks=342091571182 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,15348321489368772683,12026561222379870450,262144 --enable-features=PdfOopif --disable-features=AcceptCHFrame,IsolateSandboxedIframes,MediaRouter,OptimizationHints,PaintHolding,ProcessPerSiteUpToMainFrameThreshold,Translate,WebUIOmniboxAimPopup,WebUIOmniboxPopup,WebUIReloadButton --variations-seed-version --pseudonymization-salt-handle=7,i,6887434818738709619,528440271468862386,4 --trace-process-track-uuid=3190708990997080739 "
+        }
+      ],
+      "samples": [
+        {
+          "second": 0,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 1,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 2,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 3,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 4,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 5,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 6,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 7,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 8,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 9,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 10,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 11,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 12,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 13,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 14,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 15,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        }
+      ],
+      "exitCode": 0,
+      "init": true,
+      "persistentMounts": [
+        {
+          "Type": "bind",
+          "Source": "/home/kevin/Documents/RCodes/moltbot-lite/docs/issues/issue-0010/evidence",
+          "Destination": "/probe",
+          "Mode": "",
+          "RW": false,
+          "Propagation": "rprivate"
+        }
+      ],
+      "writableLayerProfileRemains": false,
+      "passed": true
+    },
+    {
+      "scn": "SCN-008",
+      "date": "2026-10-05",
+      "mode": "deadline-force",
+      "name": "issue10-scn008-deadline-force-v2-20261005",
+      "containerId": "c37fe102d9e260189638f3f34cf1dcaf4a2769d5a12bec5dafb63d79411fa2d3",
+      "image": "sha256:445ce68d079d87c65a11bde4d9effcad26b2e1b6a0e2a4723a8557428cdbefb0",
+      "versions": "v22.23.3\n1.18.34\nGoogle Chrome for Testing 154.0.8037.92 \n309e3a099deb9c55f7caa20b90a05e8ef0c24bd22f6f91572ef3ed86ace8d961  /app/dist/runner.js\neac39aba10a39b4fbdbcc07b12c27bfab38ed685dcd8299506327656f78e65ba  /app/dist/core/opencode.js\n24c0021a768010c07dacad12f4c19bf0a906c4070e70301be1b58d35b158c1f2  /usr/local/lib/telenexus/browser-mcp-launcher.mjs\n",
+      "command": [
+        "docker",
+        "run",
+        "--detach",
+        "--init",
+        "--network",
+        "none",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges",
+        "--user",
+        "node",
+        "--memory",
+        "2g",
+        "--pids-limit",
+        "1024",
+        "--name",
+        "issue10-scn008-deadline-force-v2-20261005",
+        "--mount",
+        "type=bind,src=/home/kevin/Documents/RCodes/moltbot-lite/docs/issues/issue-0010/evidence,dst=/probe,readonly",
+        "--env",
+        "APP_PROJECT_DIR=/tmp/scn008",
+        "--env",
+        "RUNNER_PORT=19110",
+        "--env",
+        "RUNNER_SHARED_SECRET=scn008-fixture",
+        "--env",
+        "MODEL_HEALTH_CHECK_ENABLED=false",
+        "--env",
+        "OPENCODE_CONFIG_CONTENT={\"provider\":{\"probe\":{\"npm\":\"@ai-sdk/openai-compatible\",\"options\":{\"baseURL\":\"http://127.0.0.1:19112/v1\",\"apiKey\":\"fixture-only\"},\"models\":{\"contract\":{\"name\":\"SCN008 fixture\",\"limit\":{\"context\":32768,\"output\":4096}}}}},\"model\":\"probe/contract\"}",
+        "--env",
+        "OPENCODE_DISABLE_MODELS_FETCH=1",
+        "--env",
+        "OPENCODE_DISABLE_DEFAULT_PLUGINS=1",
+        "--env",
+        "OPENCODE_TASK_TIMEOUT_MS=120000",
+        "--env",
+        "XDG_CONFIG_HOME=/tmp/scn008/config",
+        "--env",
+        "XDG_CACHE_HOME=/tmp/scn008/cache",
+        "--env",
+        "XDG_DATA_HOME=/tmp/scn008/xdg-data",
+        "--env",
+        "XDG_STATE_HOME=/tmp/scn008/state",
+        "--entrypoint",
+        "/bin/sh",
+        "sha256:445ce68d079d87c65a11bde4d9effcad26b2e1b6a0e2a4723a8557428cdbefb0",
+        "-c",
+        "node /probe/runner-termination-fixture.mjs & exec node /app/dist/runner.js"
+      ],
+      "stopCommand": [
+        "docker",
+        "stop",
+        "--time",
+        "2",
+        "issue10-scn008-deadline-force-v2-20261005"
+      ],
+      "durationMs": 2082,
+      "positiveControl": {
+        "runner": {
+          "pid": 1434284,
+          "state": "S",
+          "ppid": 1434270,
+          "starttime": "34211152",
+          "exe": "/usr/local/bin/node",
+          "argv": "node /app/dist/runner.js "
+        },
+        "opencode": {
+          "pid": 1434371,
+          "state": "S",
+          "ppid": 1434284,
+          "starttime": "34211168",
+          "exe": "/usr/local/lib/node_modules/opencode-ai/bin/opencode.exe",
+          "argv": "opencode run --format json --model probe/contract --print-logs --log-level ERROR 使用瀏覽器讀取 http://127.0.0.1:19112/page "
+        },
+        "launcher": {
+          "pid": 1435018,
+          "state": "S",
+          "ppid": 1434371,
+          "starttime": "34211320",
+          "exe": "/usr/local/bin/node",
+          "argv": "node /usr/local/lib/telenexus/browser-mcp-launcher.mjs node /usr/local/lib/telenexus/browser/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js --headless --isolated --slim --no-usage-statistics --no-performance-crux --executable-path=/opt/telenexus/chrome/chrome-linux64/chrome --chrome-arg=--no-sandbox --chrome-arg=--disable-dev-shm-usage "
+        },
+        "chrome": [
+          {
+            "pid": 1435438,
+            "state": "S",
+            "ppid": 1435054,
+            "starttime": "34211411",
+            "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+            "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --allow-pre-commit-input --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-crash-reporter --disable-default-apps --disable-dev-shm-usage --disable-hang-monitor --disable-infobars --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-search-engine-choice-screen --disable-sync --enable-automation --export-tagged-pdf --force-color-profile=srgb --generate-pdf-document-outline --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --disable-features=Translate,AcceptCHFrame,MediaRouter,OptimizationHints,WebUIReloadButton,WebUIOmniboxPopup,WebUIOmniboxAimPopup,ProcessPerSiteUpToMainFrameThreshold,IsolateSandboxedIframes --enable-features=PdfOopif --headless=new --hide-scrollbars --mute-audio --disable-extensions about:blank --no-sandbox --disable-dev-shm-usage --hide-crash-restore-bubble --screen-info={3840x2160} --remote-debugging-pipe --user-data-dir=/tmp/tnb-06piBm/puppeteer_dev_chrome_profile-FdjZWv "
+          },
+          {
+            "pid": 1435468,
+            "state": "S",
+            "ppid": 1435438,
+            "starttime": "34211413",
+            "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+            "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=zygote --no-zygote-sandbox --no-sandbox --headless=new --crashpad-handler-pid=102 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-06piBm/puppeteer_dev_chrome_profile-FdjZWv --change-stack-guard-on-fork=enable --no-first-run --ozone-platform=headless --ozone-override-screen-size=800,600 --use-angle=swiftshader-webgl "
+          },
+          {
+            "pid": 1435470,
+            "state": "S",
+            "ppid": 1435438,
+            "starttime": "34211413",
+            "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+            "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=zygote --no-sandbox --headless=new --crashpad-handler-pid=102 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-06piBm/puppeteer_dev_chrome_profile-FdjZWv --change-stack-guard-on-fork=enable --no-first-run --ozone-platform=headless --ozone-override-screen-size=800,600 --use-angle=swiftshader-webgl "
+          },
+          {
+            "pid": 1435498,
+            "state": "S",
+            "ppid": 1435468,
+            "starttime": "34211415",
+            "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+            "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=gpu-process --gpu-recent-crash-count=0 --no-sandbox --disable-dev-shm-usage --disable-breakpad --headless=new --ozone-platform=headless --use-angle=swiftshader-webgl --crashpad-handler-pid=102 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-06piBm/puppeteer_dev_chrome_profile-FdjZWv --change-stack-guard-on-fork=enable --gpu-preferences=YAAAAAAAAAAgAAAEAAAAAAAAAAAAAGAASAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAwAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAMAAAAAQAAAAAAAAAAAAAACAAAAAAAAAAIAAAAAAAAAA== --shared-files --field-trial-handle=3,i,6086348370527038427,16825724416711480381,262144 --enable-features=PdfOopif --disable-features=AcceptCHFrame,IsolateSandboxedIframes,MediaRouter,OptimizationHints,PaintHolding,ProcessPerSiteUpToMainFrameThreshold,Translate,WebUIOmniboxAimPopup,WebUIOmniboxPopup,WebUIReloadButton --variations-seed-version --pseudonymization-salt-handle=7,i,17206022569061685709,6275694794325384194,4 --trace-process-track-uuid=3190708988185955192 "
+          },
+          {
+            "pid": 1435528,
+            "state": "S",
+            "ppid": 1435438,
+            "starttime": "34211419",
+            "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+            "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en-US --service-sandbox-type=none --no-sandbox --disable-dev-shm-usage --use-angle=swiftshader-webgl --mute-audio --crashpad-handler-pid=102 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-06piBm/puppeteer_dev_chrome_profile-FdjZWv --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,6086348370527038427,16825724416711480381,262144 --enable-features=PdfOopif --disable-features=AcceptCHFrame,IsolateSandboxedIframes,MediaRouter,OptimizationHints,PaintHolding,ProcessPerSiteUpToMainFrameThreshold,Translate,WebUIOmniboxAimPopup,WebUIOmniboxPopup,WebUIReloadButton --variations-seed-version --pseudonymization-salt-handle=7,i,17206022569061685709,6275694794325384194,4 --trace-process-track-uuid=3190708989122997041 "
+          },
+          {
+            "pid": 1435564,
+            "state": "S",
+            "ppid": 1435470,
+            "starttime": "34211421",
+            "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+            "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=utility --utility-sub-type=storage.mojom.StorageService --lang=en-US --service-sandbox-type=utility --no-sandbox --disable-dev-shm-usage --use-angle=swiftshader-webgl --mute-audio --crashpad-handler-pid=102 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-06piBm/puppeteer_dev_chrome_profile-FdjZWv --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,6086348370527038427,16825724416711480381,262144 --enable-features=PdfOopif --disable-features=AcceptCHFrame,IsolateSandboxedIframes,MediaRouter,OptimizationHints,PaintHolding,ProcessPerSiteUpToMainFrameThreshold,Translate,WebUIOmniboxAimPopup,WebUIOmniboxPopup,WebUIReloadButton --variations-seed-version --pseudonymization-salt-handle=7,i,17206022569061685709,6275694794325384194,4 --trace-process-track-uuid=3190708990060038890 "
+          },
+          {
+            "pid": 1435590,
+            "state": "S",
+            "ppid": 1435470,
+            "starttime": "34211425",
+            "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+            "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=renderer --crashpad-handler-pid=102 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-06piBm/puppeteer_dev_chrome_profile-FdjZWv --change-stack-guard-on-fork=enable --no-sandbox --disable-dev-shm-usage --disable-background-timer-throttling --disable-breakpad --enable-automation --force-color-profile=srgb --remote-debugging-pipe --allow-pre-commit-input --ozone-platform=headless --disable-gpu-compositing --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=6 --launch-time-ticks=342114253629 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,6086348370527038427,16825724416711480381,262144 --enable-features=PdfOopif --disable-features=AcceptCHFrame,IsolateSandboxedIframes,MediaRouter,OptimizationHints,PaintHolding,ProcessPerSiteUpToMainFrameThreshold,Translate,WebUIOmniboxAimPopup,WebUIOmniboxPopup,WebUIReloadButton --variations-seed-version --pseudonymization-salt-handle=7,i,17206022569061685709,6275694794325384194,4 --trace-process-track-uuid=3190708991934122588 "
+          },
+          {
+            "pid": 1435591,
+            "state": "S",
+            "ppid": 1435470,
+            "starttime": "34211425",
+            "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+            "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=renderer --crashpad-handler-pid=102 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-06piBm/puppeteer_dev_chrome_profile-FdjZWv --change-stack-guard-on-fork=enable --no-sandbox --disable-dev-shm-usage --disable-background-timer-throttling --disable-breakpad --enable-automation --force-color-profile=srgb --remote-debugging-pipe --allow-pre-commit-input --ozone-platform=headless --disable-gpu-compositing --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=5 --launch-time-ticks=342114254548 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,6086348370527038427,16825724416711480381,262144 --enable-features=PdfOopif --disable-features=AcceptCHFrame,IsolateSandboxedIframes,MediaRouter,OptimizationHints,PaintHolding,ProcessPerSiteUpToMainFrameThreshold,Translate,WebUIOmniboxAimPopup,WebUIOmniboxPopup,WebUIReloadButton --variations-seed-version --pseudonymization-salt-handle=7,i,17206022569061685709,6275694794325384194,4 --trace-process-track-uuid=3190708990997080739 "
+          }
+        ],
+        "cgroupPath": "/sys/fs/cgroup/system.slice/docker-c37fe102d9e260189638f3f34cf1dcaf4a2769d5a12bec5dafb63d79411fa2d3.scope/cgroup.procs",
+        "initialCgroupPids": [
+          1434270,
+          1434284,
+          1434285,
+          1434371,
+          1435018,
+          1435054,
+          1435438,
+          1435458,
+          1435461,
+          1435468,
+          1435470,
+          1435498,
+          1435528,
+          1435564,
+          1435590,
+          1435591
+        ]
+      },
+      "tracked": [
+        {
+          "pid": 1434270,
+          "state": "S",
+          "ppid": 1434248,
+          "starttime": "34211149",
+          "exe": "/usr/sbin/docker-init",
+          "argv": "/sbin/docker-init -- /bin/sh -c node /probe/runner-termination-fixture.mjs & exec node /app/dist/runner.js "
+        },
+        {
+          "pid": 1434284,
+          "state": "S",
+          "ppid": 1434270,
+          "starttime": "34211152",
+          "exe": "/usr/local/bin/node",
+          "argv": "node /app/dist/runner.js "
+        },
+        {
+          "pid": 1434285,
+          "state": "S",
+          "ppid": 1434284,
+          "starttime": "34211152",
+          "exe": "/usr/local/bin/node",
+          "argv": "node /probe/runner-termination-fixture.mjs "
+        },
+        {
+          "pid": 1434371,
+          "state": "S",
+          "ppid": 1434284,
+          "starttime": "34211168",
+          "exe": "/usr/local/lib/node_modules/opencode-ai/bin/opencode.exe",
+          "argv": "opencode run --format json --model probe/contract --print-logs --log-level ERROR 使用瀏覽器讀取 http://127.0.0.1:19112/page "
+        },
+        {
+          "pid": 1435018,
+          "state": "S",
+          "ppid": 1434371,
+          "starttime": "34211320",
+          "exe": "/usr/local/bin/node",
+          "argv": "node /usr/local/lib/telenexus/browser-mcp-launcher.mjs node /usr/local/lib/telenexus/browser/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js --headless --isolated --slim --no-usage-statistics --no-performance-crux --executable-path=/opt/telenexus/chrome/chrome-linux64/chrome --chrome-arg=--no-sandbox --chrome-arg=--disable-dev-shm-usage "
+        },
+        {
+          "pid": 1435054,
+          "state": "S",
+          "ppid": 1435018,
+          "starttime": "34211322",
+          "exe": "/usr/local/bin/node",
+          "argv": "chrome-devtools-mcp                                                                                                                                                                                                                                                                                               "
+        },
+        {
+          "pid": 1435214,
+          "state": "R",
+          "ppid": 1435054,
+          "starttime": "34211362",
+          "exe": "/usr/local/bin/node",
+          "argv": "/usr/local/bin/node /usr/local/lib/telenexus/browser/node_modules/chrome-devtools-mcp/build/src/bin/check-latest-version.js /home/node/.cache/chrome-devtools-mcp/latest.json "
+        },
+        {
+          "pid": 1435221,
+          "state": "S",
+          "ppid": 1435214,
+          "starttime": "34211364",
+          "exe": "/usr/bin/dash",
+          "argv": "/bin/sh -c npm config get registry "
+        },
+        {
+          "pid": 1435222,
+          "state": "R",
+          "ppid": 1435221,
+          "starttime": "34211364",
+          "exe": "/usr/local/bin/node",
+          "argv": "npm                                         "
+        },
+        {
+          "pid": 1435438,
+          "state": "S",
+          "ppid": 1435054,
+          "starttime": "34211411",
+          "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+          "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --allow-pre-commit-input --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-crash-reporter --disable-default-apps --disable-dev-shm-usage --disable-hang-monitor --disable-infobars --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-search-engine-choice-screen --disable-sync --enable-automation --export-tagged-pdf --force-color-profile=srgb --generate-pdf-document-outline --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --disable-features=Translate,AcceptCHFrame,MediaRouter,OptimizationHints,WebUIReloadButton,WebUIOmniboxPopup,WebUIOmniboxAimPopup,ProcessPerSiteUpToMainFrameThreshold,IsolateSandboxedIframes --enable-features=PdfOopif --headless=new --hide-scrollbars --mute-audio --disable-extensions about:blank --no-sandbox --disable-dev-shm-usage --hide-crash-restore-bubble --screen-info={3840x2160} --remote-debugging-pipe --user-data-dir=/tmp/tnb-06piBm/puppeteer_dev_chrome_profile-FdjZWv "
+        },
+        {
+          "pid": 1435458,
+          "state": "S",
+          "ppid": 1434270,
+          "starttime": "34211413",
+          "exe": "/opt/telenexus/chrome/chrome-linux64/chrome_crashpad_handler",
+          "argv": "/opt/telenexus/chrome/chrome-linux64/chrome_crashpad_handler --monitor-self --monitor-self-annotation=ptype=crashpad-handler --database=/tmp/tnb-06piBm/config/google-chrome-for-testing/Crash Reports --annotation=lsb-release=Debian GNU/Linux 12 (bookworm) --annotation=plat=Linux --annotation=prod=Chrome_Linux --annotation=ver=154.0.8037.92 --initial-client-fd=7 --shared-client-connection "
+        },
+        {
+          "pid": 1435461,
+          "state": "S",
+          "ppid": 1434270,
+          "starttime": "34211413",
+          "exe": "/opt/telenexus/chrome/chrome-linux64/chrome_crashpad_handler",
+          "argv": "/opt/telenexus/chrome/chrome-linux64/chrome_crashpad_handler --no-periodic-tasks --monitor-self-annotation=ptype=crashpad-handler --database=/tmp/tnb-06piBm/config/google-chrome-for-testing/Crash Reports --annotation=lsb-release=Debian GNU/Linux 12 (bookworm) --annotation=plat=Linux --annotation=prod=Chrome_Linux --annotation=ver=154.0.8037.92 --initial-client-fd=4 --shared-client-connection "
+        },
+        {
+          "pid": 1435468,
+          "state": "S",
+          "ppid": 1435438,
+          "starttime": "34211413",
+          "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+          "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=zygote --no-zygote-sandbox --no-sandbox --headless=new --crashpad-handler-pid=102 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-06piBm/puppeteer_dev_chrome_profile-FdjZWv --change-stack-guard-on-fork=enable --no-first-run --ozone-platform=headless --ozone-override-screen-size=800,600 --use-angle=swiftshader-webgl "
+        },
+        {
+          "pid": 1435470,
+          "state": "S",
+          "ppid": 1435438,
+          "starttime": "34211413",
+          "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+          "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=zygote --no-sandbox --headless=new --crashpad-handler-pid=102 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-06piBm/puppeteer_dev_chrome_profile-FdjZWv --change-stack-guard-on-fork=enable --no-first-run --ozone-platform=headless --ozone-override-screen-size=800,600 --use-angle=swiftshader-webgl "
+        },
+        {
+          "pid": 1435498,
+          "state": "S",
+          "ppid": 1435468,
+          "starttime": "34211415",
+          "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+          "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=gpu-process --gpu-recent-crash-count=0 --no-sandbox --disable-dev-shm-usage --disable-breakpad --headless=new --ozone-platform=headless --use-angle=swiftshader-webgl --crashpad-handler-pid=102 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-06piBm/puppeteer_dev_chrome_profile-FdjZWv --change-stack-guard-on-fork=enable --gpu-preferences=YAAAAAAAAAAgAAAEAAAAAAAAAAAAAGAASAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAwAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAMAAAAAQAAAAAAAAAAAAAACAAAAAAAAAAIAAAAAAAAAA== --shared-files --field-trial-handle=3,i,6086348370527038427,16825724416711480381,262144 --enable-features=PdfOopif --disable-features=AcceptCHFrame,IsolateSandboxedIframes,MediaRouter,OptimizationHints,PaintHolding,ProcessPerSiteUpToMainFrameThreshold,Translate,WebUIOmniboxAimPopup,WebUIOmniboxPopup,WebUIReloadButton --variations-seed-version --pseudonymization-salt-handle=7,i,17206022569061685709,6275694794325384194,4 --trace-process-track-uuid=3190708988185955192 "
+        },
+        {
+          "pid": 1435528,
+          "state": "S",
+          "ppid": 1435438,
+          "starttime": "34211419",
+          "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+          "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en-US --service-sandbox-type=none --no-sandbox --disable-dev-shm-usage --use-angle=swiftshader-webgl --mute-audio --crashpad-handler-pid=102 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-06piBm/puppeteer_dev_chrome_profile-FdjZWv --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,6086348370527038427,16825724416711480381,262144 --enable-features=PdfOopif --disable-features=AcceptCHFrame,IsolateSandboxedIframes,MediaRouter,OptimizationHints,PaintHolding,ProcessPerSiteUpToMainFrameThreshold,Translate,WebUIOmniboxAimPopup,WebUIOmniboxPopup,WebUIReloadButton --variations-seed-version --pseudonymization-salt-handle=7,i,17206022569061685709,6275694794325384194,4 --trace-process-track-uuid=3190708989122997041 "
+        },
+        {
+          "pid": 1435564,
+          "state": "S",
+          "ppid": 1435470,
+          "starttime": "34211421",
+          "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+          "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=utility --utility-sub-type=storage.mojom.StorageService --lang=en-US --service-sandbox-type=utility --no-sandbox --disable-dev-shm-usage --use-angle=swiftshader-webgl --mute-audio --crashpad-handler-pid=102 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-06piBm/puppeteer_dev_chrome_profile-FdjZWv --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,6086348370527038427,16825724416711480381,262144 --enable-features=PdfOopif --disable-features=AcceptCHFrame,IsolateSandboxedIframes,MediaRouter,OptimizationHints,PaintHolding,ProcessPerSiteUpToMainFrameThreshold,Translate,WebUIOmniboxAimPopup,WebUIOmniboxPopup,WebUIReloadButton --variations-seed-version --pseudonymization-salt-handle=7,i,17206022569061685709,6275694794325384194,4 --trace-process-track-uuid=3190708990060038890 "
+        },
+        {
+          "pid": 1435590,
+          "state": "S",
+          "ppid": 1435470,
+          "starttime": "34211425",
+          "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+          "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=renderer --crashpad-handler-pid=102 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-06piBm/puppeteer_dev_chrome_profile-FdjZWv --change-stack-guard-on-fork=enable --no-sandbox --disable-dev-shm-usage --disable-background-timer-throttling --disable-breakpad --enable-automation --force-color-profile=srgb --remote-debugging-pipe --allow-pre-commit-input --ozone-platform=headless --disable-gpu-compositing --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=6 --launch-time-ticks=342114253629 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,6086348370527038427,16825724416711480381,262144 --enable-features=PdfOopif --disable-features=AcceptCHFrame,IsolateSandboxedIframes,MediaRouter,OptimizationHints,PaintHolding,ProcessPerSiteUpToMainFrameThreshold,Translate,WebUIOmniboxAimPopup,WebUIOmniboxPopup,WebUIReloadButton --variations-seed-version --pseudonymization-salt-handle=7,i,17206022569061685709,6275694794325384194,4 --trace-process-track-uuid=3190708991934122588 "
+        },
+        {
+          "pid": 1435591,
+          "state": "S",
+          "ppid": 1435470,
+          "starttime": "34211425",
+          "exe": "/opt/telenexus/chrome/chrome-linux64/chrome",
+          "argv": "/opt/telenexus/chrome/chrome-linux64/chrome --type=renderer --crashpad-handler-pid=102 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/tmp/tnb-06piBm/puppeteer_dev_chrome_profile-FdjZWv --change-stack-guard-on-fork=enable --no-sandbox --disable-dev-shm-usage --disable-background-timer-throttling --disable-breakpad --enable-automation --force-color-profile=srgb --remote-debugging-pipe --allow-pre-commit-input --ozone-platform=headless --disable-gpu-compositing --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=5 --launch-time-ticks=342114254548 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,6086348370527038427,16825724416711480381,262144 --enable-features=PdfOopif --disable-features=AcceptCHFrame,IsolateSandboxedIframes,MediaRouter,OptimizationHints,PaintHolding,ProcessPerSiteUpToMainFrameThreshold,Translate,WebUIOmniboxAimPopup,WebUIOmniboxPopup,WebUIReloadButton --variations-seed-version --pseudonymization-salt-handle=7,i,17206022569061685709,6275694794325384194,4 --trace-process-track-uuid=3190708990997080739 "
+        }
+      ],
+      "samples": [
+        {
+          "second": 0,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 1,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 2,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 3,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 4,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 5,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 6,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 7,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 8,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 9,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 10,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 11,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 12,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 13,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 14,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        },
+        {
+          "second": 15,
+          "remaining": [],
+          "live": 0,
+          "zombies": 0,
+          "cgroupExists": false,
+          "cgroupPids": []
+        }
+      ],
+      "exitCode": 137,
+      "init": true,
+      "persistentMounts": [
+        {
+          "Type": "bind",
+          "Source": "/home/kevin/Documents/RCodes/moltbot-lite/docs/issues/issue-0010/evidence",
+          "Destination": "/probe",
+          "Mode": "",
+          "RW": false,
+          "Propagation": "rprivate"
+        }
+      ],
+      "writableLayerProfileRemains": true,
+      "passed": true
+    }
+  ]
+}

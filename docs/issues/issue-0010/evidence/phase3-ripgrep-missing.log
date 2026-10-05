@@ -1,0 +1,14 @@
+timestamp=2026-10-05T03:25:57.150Z level=INFO run=7b89b4fd message="creating instance" directory=/tmp
+timestamp=2026-10-05T03:25:57.152Z level=INFO run=7b89b4fd message=fromDirectory directory=/tmp
+timestamp=2026-10-05T03:25:57.162Z level=INFO run=7b89b4fd message=bootstrapping directory=/tmp
+timestamp=2026-10-05T03:25:57.168Z level=INFO run=7b89b4fd message=loading path=/home/node/.config/opencode/config.json
+timestamp=2026-10-05T03:25:57.168Z level=INFO run=7b89b4fd message=loading path=/home/node/.config/opencode/opencode.json
+timestamp=2026-10-05T03:25:57.169Z level=INFO run=7b89b4fd message=loading path=/home/node/.config/opencode/opencode.jsonc
+timestamp=2026-10-05T03:25:57.234Z level=INFO run=7b89b4fd message="all LSPs are disabled"
+timestamp=2026-10-05T03:25:57.235Z level=INFO run=7b89b4fd message="all formatters are disabled"
+timestamp=2026-10-05T03:25:57.235Z level=INFO run=7b89b4fd message=init
+timestamp=2026-10-05T03:25:57.237Z level=INFO run=7b89b4fd message="downloading ripgrep" url=https://github.com/BurntSushi/ripgrep/releases/download/15.1.0/ripgrep-15.1.0-x86_64-unknown-linux-musl.tar.gz
+timestamp=2026-10-05T03:25:57.340Z level=INFO run=7b89b4fd message="disposing instance" directory=/tmp
+[91m[1mError: [0mUnexpected error
+
+ripgrep execution failed

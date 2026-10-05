@@ -105,6 +105,8 @@ Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per
 
 ### Configuration
 
+2026-10-04：公開網頁閱讀先用 webfetch，JS 正文使用內建 `telenexus_browser`。`src/core/opencode.ts` 只合併工作 env；`scripts/browser-mcp-launcher.mjs` 管理各工作 MCP／Chrome／profile 收尾，容器 init 回收退出的孤兒。取消沿 HTTP 傳至 runner，使用者取消不觸發 local fallback。設定覆寫與安全限制見 `docs/configuration-reference.md`、`docs/runtime-boundary-and-security.md`。
+
 - **`ai-config.yaml`**: Runtime AI provider selection (opencode), model override, passthrough command whitelist, chat prompt assembly config
 - **`.env`**: Telegram token, allowed user ID, runner settings, web console settings, Memoria sync options, error alerter / schedule timeout knobs (`ERROR_ALERT_THRESHOLD`, `ERROR_ALERT_WINDOW_MS`, `ERROR_ALERT_COOLDOWN_MS`, `SCHEDULE_TASK_TIMEOUT_MS`)
 - **`skills/`**: Skill definitions synced to workspace on startup via `scripts/sync-skills.mjs`; also generates `workspace/context/skills-summary.md` (one-line-per-skill index injected into full prompts)

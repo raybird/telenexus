@@ -1,0 +1,16 @@
+node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+AssertionError [ERR_ASSERTION]: 必須讀到預期真工具失敗原因，非其他環境錯誤
+    at Server.<anonymous> (file:///probe/opencode-contract.mjs:57:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: '[{"role":"tool","tool_call_id":"probe-call-1","content":"Protocol error (Target.setDiscoverTargets): Target closed\\nCause: "}]',
+  expected: /timed out|timeout/i,
+  operator: 'match',
+  diff: 'simple'
+}
+
+Node.js v22.23.3

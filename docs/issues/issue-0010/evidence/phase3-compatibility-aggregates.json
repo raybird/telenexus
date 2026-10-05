@@ -1,0 +1,184 @@
+[
+  {
+    "container": "runtelenexus-telenexus-1",
+    "date": "2026-10-04",
+    "dbPath": "/home/node/.local/share/opencode/opencode.db",
+    "dbIdentity": {
+      "device": 66306,
+      "inode": 20510987
+    },
+    "window": {
+      "from": "2026-09-04T00:00:00+08:00",
+      "untilExclusive": "2026-10-05T00:00:00+08:00",
+      "fromEpochMs": 1788451200000,
+      "untilEpochMs": 1791129600000
+    },
+    "partCount": {
+      "count": 58687,
+      "earliest": 1771818120321,
+      "latest": 1791096042382
+    },
+    "messageCount": 16702,
+    "totalToolPartsInWindow": 2175,
+    "limit": 20000,
+    "inspectedToolParts": 2175,
+    "truncated": false,
+    "toolCounts": {
+      "bash": 1507,
+      "read": 31,
+      "grep": 6,
+      "task": 3,
+      "webfetch": 308,
+      "websearch": 279,
+      "skill": 27,
+      "write": 4,
+      "glob": 4,
+      "todowrite": 6
+    },
+    "toolPartsWithoutStringCommand": 669,
+    "browserCandidateParts": 75,
+    "candidateRegexCategories": {
+      "stateSave": 0,
+      "stateLoad": 0,
+      "loginRelated": 0,
+      "fill": 0,
+      "click": 2,
+      "explicitSession": 5,
+      "readOnly": 66,
+      "other": 7
+    },
+    "recognizableInvocations": 112,
+    "fixedOperationCounts": {
+      "open": 33,
+      "wait": 19,
+      "get": 39,
+      "close": 6,
+      "eval": 2,
+      "snapshot": 7,
+      "scroll": 1,
+      "screenshot": 1,
+      "click": 2,
+      "--version": 2
+    },
+    "clickContextAggregates": {
+      "snapshotLookupLimitPerClick": 50,
+      "lookup": {
+        "refTargets": 2,
+        "snapshotRows": 4,
+        "stringOutputs": 4,
+        "targetRefMatches": 0,
+        "truncatedLookups": 0
+      },
+      "roles": {
+        "link": 0,
+        "button": 0,
+        "input": 0,
+        "unknown": 2
+      },
+      "statuses": {
+        "completed": 2,
+        "error": 0,
+        "other": 0
+      }
+    },
+    "sessionAggregates": {
+      "withBrowserCandidates": 14,
+      "multipleBrowserCalls": 14,
+      "multipleAssistantMessages": 14,
+      "multiplePrecedingUserTurns": 0,
+      "missingPrecedingUserParts": 0,
+      "durationOverOneHour": 0
+    }
+  },
+  {
+    "container": "runtelenexus-agent-runner-1",
+    "date": "2026-10-04",
+    "dbPath": "/home/node/.local/share/opencode/opencode.db",
+    "dbIdentity": {
+      "device": 66306,
+      "inode": 20510987
+    },
+    "window": {
+      "from": "2026-09-04T00:00:00+08:00",
+      "untilExclusive": "2026-10-05T00:00:00+08:00",
+      "fromEpochMs": 1788451200000,
+      "untilEpochMs": 1791129600000
+    },
+    "partCount": {
+      "count": 58687,
+      "earliest": 1771818120321,
+      "latest": 1791096042382
+    },
+    "messageCount": 16702,
+    "totalToolPartsInWindow": 2175,
+    "limit": 20000,
+    "inspectedToolParts": 2175,
+    "truncated": false,
+    "toolCounts": {
+      "bash": 1507,
+      "read": 31,
+      "grep": 6,
+      "task": 3,
+      "webfetch": 308,
+      "websearch": 279,
+      "skill": 27,
+      "write": 4,
+      "glob": 4,
+      "todowrite": 6
+    },
+    "toolPartsWithoutStringCommand": 669,
+    "browserCandidateParts": 75,
+    "candidateRegexCategories": {
+      "stateSave": 0,
+      "stateLoad": 0,
+      "loginRelated": 0,
+      "fill": 0,
+      "click": 2,
+      "explicitSession": 5,
+      "readOnly": 66,
+      "other": 7
+    },
+    "recognizableInvocations": 112,
+    "fixedOperationCounts": {
+      "open": 33,
+      "wait": 19,
+      "get": 39,
+      "close": 6,
+      "eval": 2,
+      "snapshot": 7,
+      "scroll": 1,
+      "screenshot": 1,
+      "click": 2,
+      "--version": 2
+    },
+    "clickContextAggregates": {
+      "snapshotLookupLimitPerClick": 50,
+      "lookup": {
+        "refTargets": 2,
+        "snapshotRows": 4,
+        "stringOutputs": 4,
+        "targetRefMatches": 0,
+        "truncatedLookups": 0
+      },
+      "roles": {
+        "link": 0,
+        "button": 0,
+        "input": 0,
+        "unknown": 2
+      },
+      "statuses": {
+        "completed": 2,
+        "error": 0,
+        "other": 0
+      }
+    },
+    "sessionAggregates": {
+      "withBrowserCandidates": 14,
+      "multipleBrowserCalls": 14,
+      "multipleAssistantMessages": 14,
+      "multiplePrecedingUserTurns": 0,
+      "missingPrecedingUserParts": 0,
+      "durationOverOneHour": 0
+    }
+  }
+]

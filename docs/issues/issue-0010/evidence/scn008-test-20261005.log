@@ -1,0 +1,2544 @@
+
+> telenexus@2.27.4 test
+> tsx --test "tests/**/*.test.ts"
+
+TAP version 13
+# Subtest: loadChatPromptConfig default prompt text uses current TeleNexus wording
+ok 1 - loadChatPromptConfig default prompt text uses current TeleNexus wording
+  ---
+  duration_ms: 1.852677
+  type: 'test'
+  ...
+# Subtest: 同一天內持續 append 到同一個檔案
+ok 2 - 同一天內持續 append 到同一個檔案
+  ---
+  duration_ms: 3.161139
+  type: 'test'
+  ...
+# Subtest: 跨日時把舊內容輪替成帶日期的檔名，主檔重新開始
+ok 3 - 跨日時把舊內容輪替成帶日期的檔名，主檔重新開始
+  ---
+  duration_ms: 1.851484
+  type: 'test'
+  ...
+# Subtest: 輪替時清掉超過保留期的舊檔，保留期內的留著
+ok 4 - 輪替時清掉超過保留期的舊檔，保留期內的留著
+  ---
+  duration_ms: 1.545917
+  type: 'test'
+  ...
+# Subtest: 清除只針對自己的輪替檔，不動同目錄的其他檔案
+ok 5 - 清除只針對自己的輪替檔，不動同目錄的其他檔案
+  ---
+  duration_ms: 1.004175
+  type: 'test'
+  ...
+# Subtest: 目錄不存在時會自動建立
+ok 6 - 目錄不存在時會自動建立
+  ---
+  duration_ms: 0.651991
+  type: 'test'
+  ...
+# Subtest: 保留天數可調整
+ok 7 - 保留天數可調整
+  ---
+  duration_ms: 1.882481
+  type: 'test'
+  ...
+# Subtest: SCN-003 EOF 轉送原始 stdio，移除真實 profile 與 root
+ok 8 - SCN-003 EOF 轉送原始 stdio，移除真實 profile 與 root
+  ---
+  duration_ms: 250.013332
+  type: 'test'
+  ...
+# Subtest: SCN-003 子程序非零退出不能被收尾成功掩蓋
+ok 9 - SCN-003 子程序非零退出不能被收尾成功掩蓋
+  ---
+  duration_ms: 180.943936
+  type: 'test'
+  ...
+# Subtest: SCN-005 executable spawn 失敗亦清理已建立 root
+ok 10 - SCN-005 executable spawn 失敗亦清理已建立 root
+  ---
+  duration_ms: 146.187712
+  type: 'test'
+  ...
+# Subtest: SCN-003 SIGTERM 仍回報取消而非成功
+ok 11 - SCN-003 SIGTERM 仍回報取消而非成功
+  ---
+  duration_ms: 179.086749
+  type: 'test'
+  ...
+# Subtest: SCN-003 MCP 被 SIGKILL 後保留失敗結果並清理 profile
+ok 12 - SCN-003 MCP 被 SIGKILL 後保留失敗結果並清理 profile
+  ---
+  duration_ms: 192.83332
+  type: 'test'
+  ...
+# Subtest: SCN-003 子程序停止回應 EOF 時限本工作強制收尾
+ok 13 - SCN-003 子程序停止回應 EOF 時限本工作強制收尾
+  ---
+  duration_ms: 3627.467366
+  type: 'test'
+  ...
+# Subtest: SCN-004 A 收尾不影響 B 的程序、profile 或 stdio
+ok 14 - SCN-004 A 收尾不影響 B 的程序、profile 或 stdio
+  ---
+  duration_ms: 188.483478
+  type: 'test'
+  ...
+# Subtest: SCN-003 收尾失敗須留下不含正文與參數的持久紀錄
+ok 15 - SCN-003 收尾失敗須留下不含正文與參數的持久紀錄
+  ---
+  duration_ms: 102.825048
+  type: 'test'
+  ...
+# Subtest: SCN-006 排程收尾不再呼叫舊全域 browser close
+ok 16 - SCN-006 排程收尾不再呼叫舊全域 browser close
+  ---
+  duration_ms: 1.440997
+  type: 'test'
+  ...
+# Subtest: SCN-006 映像及兩份 compose 不再依賴舊 browser 後端
+ok 17 - SCN-006 映像及兩份 compose 不再依賴舊 browser 後端
+  ---
+  duration_ms: 0.433665
+  type: 'test'
+  ...
+# Subtest: streamChat 成功時會呼叫 onRunFinished
+ok 18 - streamChat 成功時會呼叫 onRunFinished
+  ---
+  duration_ms: 1.091011
+  type: 'test'
+  ...
+# Subtest: streamChat 失敗時仍會呼叫 onRunFinished
+ok 19 - streamChat 失敗時仍會呼叫 onRunFinished
+  ---
+  duration_ms: 0.61133
+  type: 'test'
+  ...
+# Subtest: onRunFinished 拿得到原本的 options,收尾才判斷得出是不是排程
+ok 20 - onRunFinished 拿得到原本的 options,收尾才判斷得出是不是排程
+  ---
+  duration_ms: 0.190256
+  type: 'test'
+  ...
+# Subtest: CliAgentBase 的預設 onRunFinished 是 no-op,不影響既有子類
+ok 21 - CliAgentBase 的預設 onRunFinished 是 no-op,不影響既有子類
+  ---
+  duration_ms: 0.277753
+  type: 'test'
+  ...
+# Subtest: /abort cancels the running task
+ok 22 - /abort cancels the running task
+  ---
+  duration_ms: 22.455268
+  type: 'test'
+  ...
+# Subtest: /abort on idle returns info message
+ok 23 - /abort on idle returns info message
+  ---
+  duration_ms: 1.405365
+  type: 'test'
+  ...
+# [interaction-guard] INFO start userId=u_guard1 kind=add_schedule
+# [interaction-guard] INFO clear userId=u_guard1 reason=test-cleanup
+# [interaction-guard] INFO start userId=u_guard2 kind=add_schedule
+# Subtest: blocks non-whitelisted command during interaction
+ok 24 - blocks non-whitelisted command during interaction
+  ---
+  duration_ms: 4.655272
+  type: 'test'
+  ...
+# [interaction-guard] INFO clear userId=u_guard2 reason=abort
+# Subtest: allows /abort during interaction
+ok 25 - allows /abort during interaction
+  ---
+  duration_ms: 4.535742
+  type: 'test'
+  ...
+# Subtest: no guard: normal command passes through
+ok 26 - no guard: normal command passes through
+  ---
+  duration_ms: 1.346948
+  type: 'test'
+  ...
+# Subtest: writeContextSnapshots writes prompt session status snapshot
+ok 27 - writeContextSnapshots writes prompt session status snapshot
+  ---
+  duration_ms: 35.244251
+  type: 'test'
+  ...
+# Subtest: SCN-002 dev/runtime 共用 base 固定安裝 MCP 與獨立 Chrome
+ok 28 - SCN-002 dev/runtime 共用 base 固定安裝 MCP 與獨立 Chrome
+  ---
+  duration_ms: 0.972789
+  type: 'test'
+  ...
+# Subtest: release compose differs from dev compose only in build: vs image:
+ok 29 - release compose differs from dev compose only in build: vs image:
+  ---
+  duration_ms: 1.473752
+  type: 'test'
+  ...
+# Subtest: docker-compose.yml enables init for both execution services
+ok 30 - docker-compose.yml enables init for both execution services
+  ---
+  duration_ms: 4.397914
+  type: 'test'
+  ...
+# Subtest: docker-compose.release.yml enables init for both execution services
+ok 31 - docker-compose.release.yml enables init for both execution services
+  ---
+  duration_ms: 3.047044
+  type: 'test'
+  ...
+# Subtest: default build target (last stage) is the production image
+ok 32 - default build target (last stage) is the production image
+  ---
+  duration_ms: 1.851133
+  type: 'test'
+  ...
+# Subtest: build args are declared before the first RUN of the shared base stage
+ok 33 - build args are declared before the first RUN of the shared base stage
+  ---
+  duration_ms: 0.687832
+  type: 'test'
+  ...
+# Subtest: runtime image installs production dependencies instead of copying builder node_modules
+ok 34 - runtime image installs production dependencies instead of copying builder node_modules
+  ---
+  duration_ms: 0.279097
+  type: 'test'
+  ...
+# Subtest: runtime image avoids installing both system Chromium and agent-browser Chrome
+ok 35 - runtime image avoids installing both system Chromium and agent-browser Chrome
+  ---
+  duration_ms: 0.208143
+  type: 'test'
+  ...
+# Subtest: DynamicAIAgent streamChat uses local opencode streamChat when provider is opencode
+ok 36 - DynamicAIAgent streamChat uses local opencode streamChat when provider is opencode
+  ---
+  duration_ms: 5.555778
+  type: 'test'
+  ...
+# [DynamicAgent] INFO execute provider=opencode model=nvidia/minimaxai/minimax-m2.7 preferRunner=true
+# Subtest: SCN-003 chat 已取消的工作不送 runner 請求
+ok 37 - SCN-003 chat 已取消的工作不送 runner 請求
+  ---
+  duration_ms: 13.789433
+  type: 'test'
+  ...
+# Subtest: SCN-003 chat 取消 runner HTTP 請求，且不轉回 local
+ok 38 - SCN-003 chat 取消 runner HTTP 請求，且不轉回 local
+  ---
+  duration_ms: 38.338861
+  type: 'test'
+  ...
+# Subtest: SCN-003 stream 已取消的工作不送 runner 請求
+ok 39 - SCN-003 stream 已取消的工作不送 runner 請求
+  ---
+  duration_ms: 0.979386
+  type: 'test'
+  ...
+# Subtest: SCN-003 stream 取消 runner HTTP 請求，且不轉回 local
+ok 40 - SCN-003 stream 取消 runner HTTP 請求，且不轉回 local
+  ---
+  duration_ms: 23.905264
+  type: 'test'
+  ...
+# Subtest: DynamicAIAgent streamChat consumes runner SSE stream
+ok 41 - DynamicAIAgent streamChat consumes runner SSE stream
+  ---
+  duration_ms: 27.5744
+  type: 'test'
+  ...
+# Subtest: 連續事件只會收斂成一次 leading + 一次 trailing snapshot
+ok 42 - 連續事件只會收斂成一次 leading + 一次 trailing snapshot
+  ---
+  duration_ms: 162.311877
+  type: 'test'
+  ...
+# Subtest: 間隔足夠的事件仍各自立即寫出
+ok 43 - 間隔足夠的事件仍各自立即寫出
+  ---
+  duration_ms: 52.613201
+  type: 'test'
+  ...
+# Subtest: 非觸發類事件不會寫出 snapshot
+ok 44 - 非觸發類事件不會寫出 snapshot
+  ---
+  duration_ms: 51.110607
+  type: 'test'
+  ...
+# Subtest: unsubscribe 會取消尚未寫出的 trailing snapshot
+ok 45 - unsubscribe 會取消尚未寫出的 trailing snapshot
+  ---
+  duration_ms: 120.339112
+  type: 'test'
+  ...
+# Subtest: cancel rejects current task with EABORTED and aborts signal
+ok 46 - cancel rejects current task with EABORTED and aborts signal
+  ---
+  duration_ms: 31.971689
+  type: 'test'
+  ...
+# Subtest: cancel clears pending tasks
+ok 47 - cancel clears pending tasks
+  ---
+  duration_ms: 23.765315
+  type: 'test'
+  ...
+# Subtest: cancel on idle user is a no-op
+ok 48 - cancel on idle user is a no-op
+  ---
+  duration_ms: 0.295489
+  type: 'test'
+  ...
+# [interaction-guard] INFO start userId=u1 kind=add_schedule
+# [interaction-guard] INFO clear userId=u1 reason=state_replaced
+# [interaction-guard] INFO start userId=u1 kind=rename
+# [interaction-guard] INFO start userId=u1 kind=add_schedule
+# [interaction-guard] INFO start userId=u1 kind=k
+# Subtest: start sets state and clears prior
+ok 49 - start sets state and clears prior
+  ---
+  duration_ms: 2.699663
+  type: 'test'
+  ...
+# Subtest: isCommandAllowed honors allowedCommands
+ok 50 - isCommandAllowed honors allowedCommands
+  ---
+  duration_ms: 0.562467
+  type: 'test'
+  ...
+# [interaction-guard] INFO expired userId=u1 kind=k
+# [interaction-guard] INFO start userId=u1 kind=k
+# [interaction-guard] INFO clear userId=u1 reason=done
+# Subtest: expiresInMs auto-clears
+ok 51 - expiresInMs auto-clears
+  ---
+  duration_ms: 61.003996
+  type: 'test'
+  ...
+# Subtest: clear removes state
+ok 52 - clear removes state
+  ---
+  duration_ms: 0.287824
+  type: 'test'
+  ...
+# Subtest: recallWithMeta 解析 Memoria 1.x envelope(data[] + meta.recall_id)
+ok 53 - recallWithMeta 解析 Memoria 1.x envelope(data[] + meta.recall_id)
+  ---
+  duration_ms: 14.364339
+  type: 'test'
+  ...
+# Subtest: recallWithMeta 相容舊版頂層 hits[] 回應
+ok 54 - recallWithMeta 相容舊版頂層 hits[] 回應
+  ---
+  duration_ms: 3.124301
+  type: 'test'
+  ...
+# [MemoriaRecall] WARN recall_failed err=connect ECONNREFUSED 127.0.0.1:1
+# Subtest: recallWithMeta 連線失敗時回空結果不 throw
+ok 55 - recallWithMeta 連線失敗時回空結果不 throw
+  ---
+  duration_ms: 1.918694
+  type: 'test'
+  ...
+# Subtest: recall 維持舊介面,回傳 snippets 陣列
+ok 56 - recall 維持舊介面,回傳 snippets 陣列
+  ---
+  duration_ms: 2.316072
+  type: 'test'
+  ...
+# Subtest: reportRecallOutcome POST 到 /v1/recall/:id/outcome 並回傳 true
+ok 57 - reportRecallOutcome POST 到 /v1/recall/:id/outcome 並回傳 true
+  ---
+  duration_ms: 2.127539
+  type: 'test'
+  ...
+# [MemoriaRecall] WARN recall_outcome_failed recallId=rt_abc123 err=recall outcome failed: HTTP 400 {"ok":false,"error":"bad payload"}
+# Subtest: reportRecallOutcome 收到非 2xx 時回傳 false
+ok 58 - reportRecallOutcome 收到非 2xx 時回傳 false
+  ---
+  duration_ms: 3.184325
+  type: 'test'
+  ...
+# Subtest: tokenCoverage 與 Memoria SDK 語意一致(CJK 連續字串為單一 token)
+ok 59 - tokenCoverage 與 Memoria SDK 語意一致(CJK 連續字串為單一 token)
+  ---
+  duration_ms: 0.401283
+  type: 'test'
+  ...
+# Subtest: buildReuseOutcome 產生 per-hit 覆蓋率並以最大值為 utility_score
+ok 60 - buildReuseOutcome 產生 per-hit 覆蓋率並以最大值為 utility_score
+  ---
+  duration_ms: 0.248033
+  type: 'test'
+  ...
+# Subtest: buildReuseOutcome 空 hits 時 utility_score 為 0
+ok 61 - buildReuseOutcome 空 hits 時 utility_score 為 0
+  ---
+  duration_ms: 0.378008
+  type: 'test'
+  ...
+# Subtest: recallWithMeta 讀出 route_mode / confidence_basis 並記進遙測
+ok 62 - recallWithMeta 讀出 route_mode / confidence_basis 並記進遙測
+  ---
+  duration_ms: 3.472571
+  type: 'test'
+  ...
+# Subtest: confidence=null(無法判斷)不會被當成 0 塞進平均
+ok 63 - confidence=null(無法判斷)不會被當成 0 塞進平均
+  ---
+  duration_ms: 16.857059
+  type: 'test'
+  ...
+# [MemoriaRecall] WARN recall_degraded routeMode=vector_unavailable hits=1
+# Subtest: 語意索引退回字面召回時標記 DEGRADED
+ok 64 - 語意索引退回字面召回時標記 DEGRADED
+  ---
+  duration_ms: 3.133554
+  type: 'test'
+  ...
+# Subtest: 舊版沒有 meta 時退回 unknown,而不是假裝路由正常
+ok 65 - 舊版沒有 meta 時退回 unknown,而不是假裝路由正常
+  ---
+  duration_ms: 3.544145
+  type: 'test'
+  ...
+# Subtest: recall 失敗也留下軌跡(route=error),不會靜靜消失
+ok 66 - recall 失敗也留下軌跡(route=error),不會靜靜消失
+  ---
+  duration_ms: 1.613297
+  type: 'test'
+  ...
+# [MemoriaRecall] WARN recall_failed err=connect ECONNREFUSED 127.0.0.1:1
+# [MemoriaSync] Enabled. endpoint=http://127.0.0.1:37317
+# [MemoriaSync] Hook queue polling disabled (hook-free mode).
+# Subtest: remember payload 的 summary 是可搜尋內容,不是 metadata
+ok 67 - remember payload 的 summary 是可搜尋內容,不是 metadata
+  ---
+  duration_ms: 43.889233
+  type: 'test'
+  ...
+# [MemoriaSync] Synced session telenexus_1791204486231_a534cb58
+# [MemoriaSync] Enabled. endpoint=http://127.0.0.1:40681
+# [MemoriaSync] Hook queue polling disabled (hook-free mode).
+# Subtest: remember payload 的 scope 與召回端一致(user:<id>)
+ok 68 - remember payload 的 scope 與召回端一致(user:<id>)
+  ---
+  duration_ms: 8.436688
+  type: 'test'
+  ...
+# [MemoriaSync] Synced session telenexus_1791204486245_78c2189f
+# [MemoriaSync] Enabled. endpoint=http://127.0.0.1:42495
+# [MemoriaSync] Hook queue polling disabled (hook-free mode).
+# Subtest: 排程輪次寫進 scheduler 分區,不與真人對話同一個 scope
+ok 69 - 排程輪次寫進 scheduler 分區,不與真人對話同一個 scope
+  ---
+  duration_ms: 4.297799
+  type: 'test'
+  ...
+# [MemoriaSync] Synced session telenexus_1791204486253_3d039088
+# [MemoriaSync] Enabled. endpoint=http://127.0.0.1:38633
+# [MemoriaSync] Hook queue polling disabled (hook-free mode).
+# Subtest: web console 的對話算真人對話,仍走 user 分區
+ok 70 - web console 的對話算真人對話,仍走 user 分區
+  ---
+  duration_ms: 3.670748
+  type: 'test'
+  ...
+# [MemoriaSync] Synced session telenexus_1791204486257_1e22f24a
+# [MemoriaSync] Enabled. endpoint=http://127.0.0.1:45061
+# [MemoriaSync] Hook queue polling disabled (hook-free mode).
+# Subtest: 診斷用的 metadata 移到事件層,沒有隨 summary 一起消失
+ok 71 - 診斷用的 metadata 移到事件層,沒有隨 summary 一起消失
+  ---
+  duration_ms: 4.933067
+  type: 'test'
+  ...
+# [MemoriaSync] Synced session telenexus_1791204486261_b802e501
+# [MemoriaSync] Enabled. endpoint=http://127.0.0.1:38953
+# [MemoriaSync] Hook queue polling disabled (hook-free mode).
+# Subtest: decision 意圖會多送一個 DecisionMade 事件
+ok 72 - decision 意圖會多送一個 DecisionMade 事件
+  ---
+  duration_ms: 4.701357
+  type: 'test'
+  ...
+# [MemoriaSync] Synced session telenexus_1791204486267_3c510936
+# [MemoriaSync] Enabled. endpoint=http://127.0.0.1:40947
+# [MemoriaSync] Hook queue polling disabled (hook-free mode).
+# Subtest: rule 也走 DecisionMade,且 impact_level 為 high
+ok 73 - rule 也走 DecisionMade,且 impact_level 為 high
+  ---
+  duration_ms: 3.462978
+  type: 'test'
+  ...
+# [MemoriaSync] Synced session telenexus_1791204486270_cfa26d40
+# [MemoriaSync] Enabled. endpoint=http://127.0.0.1:39507
+# [MemoriaSync] Hook queue polling disabled (hook-free mode).
+# Subtest: skill 意圖走 SkillLearned,欄位名符合 Memoria 的 parseSkillEvent
+ok 74 - skill 意圖走 SkillLearned,欄位名符合 Memoria 的 parseSkillEvent
+  ---
+  duration_ms: 3.177596
+  type: 'test'
+  ...
+# [MemoriaSync] Synced session telenexus_1791204486274_dee5fd8a
+# [MemoriaSync] Enabled. endpoint=http://127.0.0.1:41451
+# [MemoriaSync] Hook queue polling disabled (hook-free mode).
+# [MemoriaSync] Synced session telenexus_1791204486277_b525b825
+# [MemoriaSync] Enabled. endpoint=http://127.0.0.1:43093
+# [MemoriaSync] Hook queue polling disabled (hook-free mode).
+# [MemoriaSync] Synced session telenexus_1791204486282_ee373267
+# [MemoriaSync] Enabled. endpoint=http://127.0.0.1:37975
+# [MemoriaSync] Hook queue polling disabled (hook-free mode).
+# [MemoriaSync] Synced session telenexus_1791204486285_53a00581
+# [MemoriaSync] Enabled. endpoint=http://127.0.0.1:43407
+# [MemoriaSync] Hook queue polling disabled (hook-free mode).
+# Subtest: 不夠格的意圖不寫入,寧可少也不要污染語料
+ok 75 - 不夠格的意圖不寫入,寧可少也不要污染語料
+  ---
+  duration_ms: 13.642351
+  type: 'test'
+  ...
+# [MemoriaSync] Synced session telenexus_1791204486287_1582dd15
+# [MemoriaSync] Enabled. endpoint=http://127.0.0.1:35729
+# [MemoriaSync] Hook queue polling disabled (hook-free mode).
+# [MemoriaSync] Enabled. endpoint=http://127.0.0.1:33819
+# [MemoriaSync] Hook queue polling disabled (hook-free mode).
+# Subtest: 夠格的意圖也接進 summary —— Memoria 的 snippet 只取 summary,不接就會配到卻看不到
+ok 76 - 夠格的意圖也接進 summary —— Memoria 的 snippet 只取 summary,不接就會配到卻看不到
+  ---
+  duration_ms: 6.391051
+  type: 'test'
+  ...
+# [MemoriaSync] Synced session telenexus_1791204486292_0ef9de37
+# Subtest: 不夠格的意圖不會污染 summary
+ok 77 - 不夠格的意圖不會污染 summary
+  ---
+  duration_ms: 5.154445
+  type: 'test'
+  ...
+# [MemoriaSync] Synced session telenexus_1791204486298_19ef85f7
+# [MemoriaSync] Enabled. endpoint=http://127.0.0.1:41147
+# [MemoriaSync] Hook queue polling disabled (hook-free mode).
+# Subtest: 沒有意圖時維持原本的兩個事件
+ok 78 - 沒有意圖時維持原本的兩個事件
+  ---
+  duration_ms: 4.569811
+  type: 'test'
+  ...
+# [MemoriaSync] Synced session telenexus_1791204486303_75ec2eff
+# [MemoriaSync] Enabled. endpoint=http://127.0.0.1:38941
+# [MemoriaSync] Hook queue polling disabled (hook-free mode).
+# Subtest: 過長的訊息在 summary 裡會被截斷
+ok 79 - 過長的訊息在 summary 裡會被截斷
+  ---
+  duration_ms: 4.736142
+  type: 'test'
+  ...
+# [MemoriaSync] Synced session telenexus_1791204486307_1ba5f0ff
+# [MemoriaSync] Enabled. endpoint=http://127.0.0.1:59999
+# [MemoriaSync] Hook queue polling disabled (hook-free mode).
+# [MemoriaSync] Disabled by MEMORIA_SYNC_ENABLED.
+# [MemoriaSync] Enabled. endpoint=http://127.0.0.1:33597
+# [MemoriaSync] Hook queue polling disabled (hook-free mode).
+# Subtest: MemoriaSyncBridge is available (not disabled) in auto mode with an endpoint
+ok 80 - MemoriaSyncBridge is available (not disabled) in auto mode with an endpoint
+  ---
+  duration_ms: 4.147082
+  type: 'test'
+  ...
+# Subtest: MemoriaSyncBridge is disabled when mode=off
+ok 81 - MemoriaSyncBridge is disabled when mode=off
+  ---
+  duration_ms: 0.454609
+  type: 'test'
+  ...
+# [MemoriaSync] Synced session telenexus_1791204486233_601c8526
+# Subtest: MemoriaSyncBridge POSTs to /v1/remember and notifies status change after success
+ok 82 - MemoriaSyncBridge POSTs to /v1/remember and notifies status change after success
+  ---
+  duration_ms: 17.348749
+  type: 'test'
+  ...
+# [MemoryBackfillWorker] manual skipped. no new archive sessions.
+# [MemoryBackfillWorker] manual completed. mode=dry-run scanned=1 candidates=0 written=0 duplicates=0
+# [MemoryBackfillWorker] manual failed: Error: memory backfill timeout after 10ms
+#     at MemoryBackfillWorker.runBackfill (/home/kevin/Documents/RCodes/moltbot-lite/tests/memory-backfill-worker.test.ts:67:15)
+#     at MemoryBackfillWorker.runOnce (/home/kevin/Documents/RCodes/moltbot-lite/src/services/memory-backfill-worker.ts:240:33)
+#     at TestContext.<anonymous> (/home/kevin/Documents/RCodes/moltbot-lite/tests/memory-backfill-worker.test.ts:73:16)
+#     at Test.runInAsyncScope (node:async_hooks:214:14)
+#     at Test.run (node:internal/test_runner/test:1047:25)
+#     at Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+#     at Test.postRun (node:internal/test_runner/test:1173:19)
+#     at Test.run (node:internal/test_runner/test:1101:12)
+#     at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+# [MemoryBackfillWorker] manual completed. mode=dry-run scanned=1 candidates=0 written=0 duplicates=0
+# Subtest: MemoryBackfillWorker skips run when no new archive sessions exist
+ok 83 - MemoryBackfillWorker skips run when no new archive sessions exist
+  ---
+  duration_ms: 1.467275
+  type: 'test'
+  ...
+# Subtest: MemoryBackfillWorker runs backfill and calls onAfterRun when work exists
+ok 84 - MemoryBackfillWorker runs backfill and calls onAfterRun when work exists
+  ---
+  duration_ms: 0.298789
+  type: 'test'
+  ...
+# Subtest: MemoryBackfillWorker releases inFlight after timeout-like failure
+ok 85 - MemoryBackfillWorker releases inFlight after timeout-like failure
+  ---
+  duration_ms: 2.49955
+  type: 'test'
+  ...
+# Subtest: extractCandidatesFromSession rejects noisy rule text with markdown table
+ok 86 - extractCandidatesFromSession rejects noisy rule text with markdown table
+  ---
+  duration_ms: 3.879048
+  type: 'test'
+  ...
+# Subtest: extractCandidatesFromSession keeps clean high-signal rule text
+ok 87 - extractCandidatesFromSession keeps clean high-signal rule text
+  ---
+  duration_ms: 1.456353
+  type: 'test'
+  ...
+# Subtest: extractCandidatesFromSession captures multiple high-signal candidates in one session
+ok 88 - extractCandidatesFromSession captures multiple high-signal candidates in one session
+  ---
+  duration_ms: 0.773059
+  type: 'test'
+  ...
+# Subtest: extractCandidatesFromSession keeps more than one candidate of the same type when both are high-signal
+ok 89 - extractCandidatesFromSession keeps more than one candidate of the same type when both are high-signal
+  ---
+  duration_ms: 0.466602
+  type: 'test'
+  ...
+# Subtest: runMemoryBackfillDryRun reports telemetry for candidate hits and rejection reasons
+ok 90 - runMemoryBackfillDryRun reports telemetry for candidate hits and rejection reasons
+  ---
+  duration_ms: 51.660336
+  type: 'test'
+  ...
+# Subtest: collectMemoryHealthReport reports cross-db consistency drift
+ok 91 - collectMemoryHealthReport reports cross-db consistency drift
+  ---
+  duration_ms: 113.420393
+  type: 'test'
+  ...
+# Subtest: 一致性稽核以 LIKE 預篩後，結果與逐列 regex 掃描等價
+ok 92 - 一致性稽核以 LIKE 預篩後，結果與逐列 regex 掃描等價
+  ---
+  duration_ms: 64.911146
+  type: 'test'
+  ...
+# Subtest: parseMemoryIntent extracts trailing structured block and cleans response
+ok 93 - parseMemoryIntent extracts trailing structured block and cleans response
+  ---
+  duration_ms: 1.751768
+  type: 'test'
+  ...
+# Subtest: parseMemoryIntent ignores invalid block and leaves response unchanged
+ok 94 - parseMemoryIntent ignores invalid block and leaves response unchanged
+  ---
+  duration_ms: 0.202352
+  type: 'test'
+  ...
+# Subtest: memory intent telemetry stores and formats observations
+ok 95 - memory intent telemetry stores and formats observations
+  ---
+  duration_ms: 14.77525
+  type: 'test'
+  ...
+# [memory] DEBUG summary-search.completed userId=user-a query=release limit=2 minImpactLevel=1 tokenCount=1 ftsCandidates=1 summaryFtsCandidates=1 summaryCandidates=1 results=2
+# [memory] DEBUG summary-search.completed userId=user-a query=scheduler limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=1 summaryCandidates=1 results=1
+# [memory] DEBUG summary-search.completed userId=user-a query=release limit=2 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=1 summaryCandidates=1 results=1
+# [memory] DEBUG summary-search.completed userId=user-a query=runner limit=5 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=runner limit=5 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=1 summaryCandidates=1 results=1
+# [memory] DEBUG summary-search.completed userId=user-a query=release limit=2 minImpactLevel=1 tokenCount=1 ftsCandidates=1 summaryFtsCandidates=1 summaryCandidates=1 results=2
+# Subtest: MemoryManager returns paged history with total/offset/limit
+ok 96 - MemoryManager returns paged history with total/offset/limit
+  ---
+  duration_ms: 20.463844
+  type: 'test'
+  ...
+# Subtest: MemoryManager searchSummaries prefers summary and tag matches over content-only matches
+ok 97 - MemoryManager searchSummaries prefers summary and tag matches over content-only matches
+  ---
+  duration_ms: 14.807237
+  type: 'test'
+  ...
+# Subtest: MemoryManager searchSummaries can find summary/tag matches when content FTS misses
+ok 98 - MemoryManager searchSummaries can find summary/tag matches when content FTS misses
+  ---
+  duration_ms: 15.255014
+  type: 'test'
+  ...
+# Subtest: MemoryManager searchSummaries can find tag-only matches via summary FTS index
+ok 99 - MemoryManager searchSummaries can find tag-only matches via summary FTS index
+  ---
+  duration_ms: 7.918639
+  type: 'test'
+  ...
+# Subtest: MemoryManager keeps summary FTS index in sync after metadata update
+ok 100 - MemoryManager keeps summary FTS index in sync after metadata update
+  ---
+  duration_ms: 21.863764
+  type: 'test'
+  ...
+# Subtest: MemoryManager searchSummaries keeps high-signal summary matches ahead of newer weak matches
+ok 101 - MemoryManager searchSummaries keeps high-signal summary matches ahead of newer weak matches
+  ---
+  duration_ms: 8.950993
+  type: 'test'
+  ...
+# Subtest: SAR 的 summary 查詢會採用部分索引
+ok 102 - SAR 的 summary 查詢會採用部分索引
+  ---
+  duration_ms: 8.672044
+  type: 'test'
+  ...
+# [message-pipeline] INFO message.received req=f19c9fd1-b2df-45ee-b818-aabbc36d2395 platform=telegram sender=Raybird userId=user-a attachments=1 content=使用者上傳了一張圖片
+# [message-pipeline] INFO message.received req=c139ba55-f3ea-4ea7-b48f-926a6800ae5d platform=telegram sender=Raybird userId=user-a attachments=0 content=幫我分析這張圖片
+# [message-pipeline] INFO agent.selected mode=local bucket=4 canaryPercent=100 whitelistMatched=true userId=user-a
+# [message-pipeline] INFO prompt.sent req=c139ba55-f3ea-4ea7-b48f-926a6800ae5d userId=user-a length=86 mode=full reason=periodic-full memoryContextLength=42 memoryContextSectionCount=3
+# [message-pipeline] INFO response.received req=c139ba55-f3ea-4ea7-b48f-926a6800ae5d userId=user-a length=5 directives=2
+# [message-pipeline] INFO message.received req=2a3b01ed-139b-472c-9b19-8d19272ddf03 platform=telegram sender=Raybird userId=user-a attachments=0 content=這次會失敗
+# [message-pipeline] INFO agent.selected mode=local bucket=49 canaryPercent=100 whitelistMatched=true userId=user-a
+# [message-pipeline] INFO prompt.sent req=2a3b01ed-139b-472c-9b19-8d19272ddf03 userId=user-a length=12 mode=full reason=periodic-full memoryContextLength=0 memoryContextSectionCount=0
+# [message-pipeline] ERROR message.failed userId=user-a error=boom
+# [message-pipeline] INFO message.received req=388aaabf-95e8-43b8-85e1-f92fea32e5a5 platform=telegram sender=Raybird userId=user-a attachments=0 content=第一則，會卡住
+# [message-pipeline] INFO agent.selected mode=local bucket=12 canaryPercent=100 whitelistMatched=true userId=user-a
+# [message-pipeline] INFO prompt.sent req=388aaabf-95e8-43b8-85e1-f92fea32e5a5 userId=user-a length=14 mode=full reason=periodic-full memoryContextLength=0 memoryContextSectionCount=0
+# Subtest: message pipeline merges pending images and only auto-sends files from workspace/temp
+ok 103 - message pipeline merges pending images and only auto-sends files from workspace/temp
+  ---
+  duration_ms: 20.746482
+  type: 'test'
+  ...
+# Subtest: message pipeline reports agent errors and still delivers fallback response
+ok 104 - message pipeline reports agent errors and still delivers fallback response
+  ---
+  duration_ms: 12.204979
+  type: 'test'
+  ...
+# [message-pipeline] INFO message.received req=68ecbb51-e88b-462c-b90e-47b23bd55f4b platform=telegram sender=Raybird userId=user-a attachments=0 content=第二則，應顯示排隊
+# [message-pipeline.preflight] INFO queue.notice userId=user-a chatId=chat-1 ahead=1 currentSource=chat
+# [message-pipeline] INFO agent.selected mode=local bucket=34 canaryPercent=100 whitelistMatched=true userId=user-a
+# [message-pipeline] INFO prompt.sent req=68ecbb51-e88b-462c-b90e-47b23bd55f4b userId=user-a length=16 mode=compact reason=compact-followup memoryContextLength=0 memoryContextSectionCount=0
+# [message-pipeline] INFO response.received req=388aaabf-95e8-43b8-85e1-f92fea32e5a5 userId=user-a length=14 directives=0
+# [message-pipeline] INFO response.received req=68ecbb51-e88b-462c-b90e-47b23bd55f4b userId=user-a length=14 directives=0
+# [message-pipeline] INFO message.received req=5a9c4395-195f-4ff5-ac34-a852048ad789 platform=telegram sender=Raybird userId=user-a attachments=0 content=應走 runner
+# [message-pipeline] INFO agent.selected mode=runner bucket=34 canaryPercent=100 whitelistMatched=true userId=user-a
+# [message-pipeline] INFO prompt.sent req=5a9c4395-195f-4ff5-ac34-a852048ad789 userId=user-a length=16 mode=full reason=periodic-full memoryContextLength=0 memoryContextSectionCount=0
+# [message-pipeline] INFO response.received req=5a9c4395-195f-4ff5-ac34-a852048ad789 userId=user-a length=15 directives=0
+# [message-pipeline] INFO message.received req=64722a32-21fe-49fe-8bf0-ddf098200236 platform=telegram sender=Raybird userId=user-a attachments=0 content=先幫我整理重點
+# [message-pipeline] INFO agent.selected mode=local bucket=8 canaryPercent=100 whitelistMatched=true userId=user-a
+# [message-pipeline] INFO prompt.sent req=64722a32-21fe-49fe-8bf0-ddf098200236 userId=user-a length=17 mode=full reason=periodic-full memoryContextLength=20 memoryContextSectionCount=1
+# [message-pipeline] INFO response.received req=64722a32-21fe-49fe-8bf0-ddf098200236 userId=user-a length=2 directives=0
+# [message-pipeline] INFO message.received req=ff3519f5-7882-4ca4-8d24-8a91cb3eca08 platform=telegram sender=Raybird userId=user-a attachments=0 content=再講詳細一點？
+# [message-pipeline] INFO agent.selected mode=local bucket=65 canaryPercent=100 whitelistMatched=true userId=user-a
+# [message-pipeline] INFO prompt.sent req=ff3519f5-7882-4ca4-8d24-8a91cb3eca08 userId=user-a length=20 mode=minimal reason=minimal-followup memoryContextLength=0 memoryContextSectionCount=0
+# [message-pipeline] INFO response.received req=ff3519f5-7882-4ca4-8d24-8a91cb3eca08 userId=user-a length=2 directives=0
+# [message-pipeline] INFO message.received req=3274087a-0556-4e03-9934-aa65d569ba34 platform=telegram sender=Raybird userId=user-a attachments=0 content=第一輪先建立 session
+# [message-pipeline] INFO agent.selected mode=local bucket=26 canaryPercent=0 whitelistMatched=true userId=user-a
+# [message-pipeline] INFO prompt.sent req=3274087a-0556-4e03-9934-aa65d569ba34 userId=user-a length=24 mode=full reason=periodic-full memoryContextLength=30 memoryContextSectionCount=1
+# [message-pipeline] INFO response.received req=3274087a-0556-4e03-9934-aa65d569ba34 userId=user-a length=2 directives=0
+# [message-pipeline] INFO message.received req=0bbdbfe6-bc92-49d1-b7ea-c29f69a80899 platform=telegram sender=Raybird userId=user-a attachments=0 content=請繼續
+# [message-pipeline] INFO agent.selected mode=local bucket=7 canaryPercent=0 whitelistMatched=true userId=user-a
+# [message-pipeline] INFO prompt.sent req=0bbdbfe6-bc92-49d1-b7ea-c29f69a80899 userId=user-a length=16 mode=compact reason=compact-followup memoryContextLength=0 memoryContextSectionCount=0
+# [message-pipeline] INFO response.received req=0bbdbfe6-bc92-49d1-b7ea-c29f69a80899 userId=user-a length=2 directives=0
+# [message-pipeline] INFO message.received req=8a4cf9f7-e958-483d-a6c4-6d7ef12368bb platform=telegram sender=Raybird userId=user-a attachments=0 content=補充更多細節與背景說明，包含目前狀態與已知限制。
+# [message-pipeline] INFO agent.selected mode=local bucket=88 canaryPercent=0 whitelistMatched=true userId=user-a
+# [message-pipeline] INFO prompt.sent req=8a4cf9f7-e958-483d-a6c4-6d7ef12368bb userId=user-a length=37 mode=compact reason=compact-followup memoryContextLength=0 memoryContextSectionCount=0
+# [message-pipeline] INFO response.received req=8a4cf9f7-e958-483d-a6c4-6d7ef12368bb userId=user-a length=2 directives=0
+# [message-pipeline] INFO message.received req=af0ffb98-fe5c-48cb-932f-eb8ee7cf689a platform=telegram sender=Raybird userId=user-a attachments=0 content=第一輪先建立 session
+# [message-pipeline] INFO agent.selected mode=local bucket=67 canaryPercent=0 whitelistMatched=true userId=user-a
+# [message-pipeline] INFO prompt.sent req=af0ffb98-fe5c-48cb-932f-eb8ee7cf689a userId=user-a length=24 mode=full reason=periodic-full memoryContextLength=30 memoryContextSectionCount=1
+# [message-pipeline] INFO response.received req=af0ffb98-fe5c-48cb-932f-eb8ee7cf689a userId=user-a length=2 directives=0
+# [message-pipeline] INFO message.received req=2f8b8cf7-02c2-4319-98a3-7d009f5b4170 platform=telegram sender=Raybird userId=user-a attachments=0 content=現在 release SOP 是什麼？
+# [message-pipeline] INFO agent.selected mode=local bucket=86 canaryPercent=0 whitelistMatched=true userId=user-a
+# [message-pipeline] INFO prompt.sent req=2f8b8cf7-02c2-4319-98a3-7d009f5b4170 userId=user-a length=32 mode=compact reason=compact-followup memoryContextLength=80 memoryContextSectionCount=2
+# [message-pipeline] INFO response.received req=2f8b8cf7-02c2-4319-98a3-7d009f5b4170 userId=user-a length=2 directives=0
+# [message-pipeline] INFO message.received req=0e1e1d38-f190-4a29-81b1-41c4eddeb5b5 platform=telegram sender=Raybird userId=user-a attachments=0 content=請整理這輪策略
+# [message-pipeline] INFO agent.selected mode=local bucket=82 canaryPercent=0 whitelistMatched=true userId=user-a
+# [message-pipeline] INFO prompt.sent req=0e1e1d38-f190-4a29-81b1-41c4eddeb5b5 userId=user-a length=17 mode=full reason=periodic-full memoryContextLength=20 memoryContextSectionCount=1
+# [message-pipeline] INFO response.received req=0e1e1d38-f190-4a29-81b1-41c4eddeb5b5 userId=user-a length=5 directives=0
+# [message-pipeline] INFO message.received req=f264e86b-e1d0-4136-96c2-f6eff81565ef platform=telegram sender=Raybird userId=user-a attachments=0 content=這個做法記下來
+# [message-pipeline] INFO agent.selected mode=local bucket=61 canaryPercent=0 whitelistMatched=true userId=user-a
+# [message-pipeline] INFO prompt.sent req=f264e86b-e1d0-4136-96c2-f6eff81565ef userId=user-a length=7 mode=full reason=periodic-full memoryContextLength=0 memoryContextSectionCount=0
+# [message-pipeline] INFO response.received req=f264e86b-e1d0-4136-96c2-f6eff81565ef userId=user-a length=5 directives=0
+# [message-pipeline] INFO message.received req=2a0c9fcb-cbe9-42b6-8ef2-1aec35fad7a0 platform=telegram sender=Raybird userId=user-a attachments=0 content=更新快照測試
+# [message-pipeline] INFO agent.selected mode=local bucket=36 canaryPercent=0 whitelistMatched=true userId=user-a
+# [message-pipeline] INFO prompt.sent req=2a0c9fcb-cbe9-42b6-8ef2-1aec35fad7a0 userId=user-a length=16 mode=full reason=periodic-full memoryContextLength=0 memoryContextSectionCount=0
+# [message-pipeline] INFO response.received req=2a0c9fcb-cbe9-42b6-8ef2-1aec35fad7a0 userId=user-a length=2 directives=0
+# [message-pipeline] INFO message.received req=65287024-890b-4a76-9348-e2fe87779209 platform=telegram sender=Raybird userId=user-a attachments=0 content=請開始串流
+# [message-pipeline] INFO agent.selected mode=local bucket=85 canaryPercent=0 whitelistMatched=true userId=user-a
+# [telegram-stream] INFO stream.started chatId=chat-1 display=draft editThrottleMs=1 minDeltaChars=1 forceFlushMs=1 earlyFlushChars=1 maxEditFailures=3
+# [message-pipeline] INFO prompt.sent req=65287024-890b-4a76-9348-e2fe87779209 userId=user-a length=12 mode=full reason=periodic-full memoryContextLength=0 memoryContextSectionCount=0
+# [message-pipeline] INFO response.received req=65287024-890b-4a76-9348-e2fe87779209 userId=user-a length=11 directives=0
+# [telegram-stream] INFO stream.finalizing chatId=chat-1 display=draft textLength=11 sawDelta=true streamingDisabled=false
+# [telegram-stream] INFO stream.finalized-via-new-message chatId=chat-1 textLength=11
+# [message-pipeline] INFO message.received req=9a7f82af-72c6-43a8-b905-dc68e41b1e31 platform=telegram sender=Raybird userId=user-a attachments=0 content=群組也開始串流
+# [message-pipeline] INFO agent.selected mode=local bucket=25 canaryPercent=0 whitelistMatched=true userId=user-a
+# [telegram-stream] INFO stream.started chatId=group-1 display=message editThrottleMs=1 minDeltaChars=1 forceFlushMs=1 earlyFlushChars=1 maxEditFailures=3
+# [message-pipeline] INFO prompt.sent req=9a7f82af-72c6-43a8-b905-dc68e41b1e31 userId=user-a length=14 mode=compact reason=compact-followup memoryContextLength=0 memoryContextSectionCount=0
+# [message-pipeline] INFO response.received req=9a7f82af-72c6-43a8-b905-dc68e41b1e31 userId=user-a length=11 directives=0
+# [telegram-stream] INFO stream.finalizing chatId=group-1 display=message textLength=11 sawDelta=true streamingDisabled=false
+# [telegram-stream] INFO stream.finalized-via-new-message chatId=group-1 textLength=11
+# [message-pipeline] INFO message.received req=7b24aacf-ce11-4fec-8069-7c84ecefb74c platform=telegram sender=Raybird userId=user-a attachments=0 content=調整排程
+# [message-pipeline] INFO agent.selected mode=local bucket=47 canaryPercent=100 whitelistMatched=true userId=user-a
+# [message-pipeline] INFO prompt.sent req=7b24aacf-ce11-4fec-8069-7c84ecefb74c userId=user-a length=11 mode=full reason=periodic-full memoryContextLength=10 memoryContextSectionCount=1
+# [message-pipeline] INFO response.received req=7b24aacf-ce11-4fec-8069-7c84ecefb74c userId=user-a length=12 directives=0
+# Subtest: message pipeline sends queue notice when another task is already running
+ok 105 - message pipeline sends queue notice when another task is already running
+  ---
+  duration_ms: 52.499797
+  type: 'test'
+  ...
+# Subtest: message pipeline can route selected users to runner agent
+ok 106 - message pipeline can route selected users to runner agent
+  ---
+  duration_ms: 11.528576
+  type: 'test'
+  ...
+# Subtest: message pipeline uses minimal prompt mode for short follow-up messages
+ok 107 - message pipeline uses minimal prompt mode for short follow-up messages
+  ---
+  duration_ms: 12.074071
+  type: 'test'
+  ...
+# Subtest: message pipeline keeps compact mode but skips memory context for simple follow-up
+ok 108 - message pipeline keeps compact mode but skips memory context for simple follow-up
+  ---
+  duration_ms: 10.423145
+  type: 'test'
+  ...
+# Subtest: message pipeline keeps memory context in compact mode for historical rule lookup
+ok 109 - message pipeline keeps memory context in compact mode for historical rule lookup
+  ---
+  duration_ms: 13.601332
+  type: 'test'
+  ...
+# Subtest: message pipeline observes memory intent and strips marker from delivered response
+ok 110 - message pipeline observes memory intent and strips marker from delivered response
+  ---
+  duration_ms: 20.891035
+  type: 'test'
+  ...
+# Subtest: memory intent 會隨 Memoria 同步一起送出,且不夾帶原始標記
+ok 111 - memory intent 會隨 Memoria 同步一起送出,且不夾帶原始標記
+  ---
+  duration_ms: 16.089098
+  type: 'test'
+  ...
+# Subtest: message pipeline refreshes snapshots immediately after successful response
+ok 112 - message pipeline refreshes snapshots immediately after successful response
+  ---
+  duration_ms: 22.631288
+  type: 'test'
+  ...
+# Subtest: message pipeline uses native Telegram drafts for private chats
+ok 113 - message pipeline uses native Telegram drafts for private chats
+  ---
+  duration_ms: 11.277152
+  type: 'test'
+  ...
+# Subtest: memoria recall outcome:回覆完成後回報 reuse 覆蓋率到 /v1/recall/:id/outcome
+ok 114 - memoria recall outcome:回覆完成後回報 reuse 覆蓋率到 /v1/recall/:id/outcome
+  ---
+  duration_ms: 75.862964
+  type: 'test'
+  ...
+# Subtest: classifyFailure 認得下架與 EOL 兩種樣式
+ok 115 - classifyFailure 認得下架與 EOL 兩種樣式
+  ---
+  duration_ms: 2.238538
+  type: 'test'
+  ...
+# Subtest: classifyFailure 對無法歸因的錯誤回 unknown,不猜成模型下架
+ok 116 - classifyFailure 對無法歸因的錯誤回 unknown,不猜成模型下架
+  ---
+  duration_ms: 0.254359
+  type: 'test'
+  ...
+# Subtest: classifyFailure 認得上游限流，不歸到 unknown
+ok 117 - classifyFailure 認得上游限流，不歸到 unknown
+  ---
+  duration_ms: 0.146856
+  type: 'test'
+  ...
+# Subtest: classifyFailure 不被輸出裡的數字 429 誤判成限流
+ok 118 - classifyFailure 不被輸出裡的數字 429 誤判成限流
+  ---
+  duration_ms: 0.406473
+  type: 'test'
+  ...
+# Subtest: 探測「重試多次但最終成功」要判成降級，不能算健康
+ok 119 - 探測「重試多次但最終成功」要判成降級，不能算健康
+  ---
+  duration_ms: 1.145856
+  type: 'test'
+  ...
+# Subtest: AC-7 相同簽章連續失敗只在第一次推播,直到提醒間隔過後
+ok 120 - AC-7 相同簽章連續失敗只在第一次推播,直到提醒間隔過後
+  ---
+  duration_ms: 0.199156
+  type: 'test'
+  ...
+# Subtest: AC-8 失敗簽章改變時立刻推播
+ok 121 - AC-8 失敗簽章改變時立刻推播
+  ---
+  duration_ms: 0.105581
+  type: 'test'
+  ...
+# Subtest: AC-9 恢復時推播,且帶得出故障持續時間
+ok 122 - AC-9 恢復時推播,且帶得出故障持續時間
+  ---
+  duration_ms: 0.16469
+  type: 'test'
+  ...
+# Subtest: 健康到健康不推播
+ok 123 - 健康到健康不推播
+  ---
+  duration_ms: 0.263679
+  type: 'test'
+  ...
+# Subtest: failureSignature 只受類別與訊息前段影響
+ok 124 - failureSignature 只受類別與訊息前段影響
+  ---
+  duration_ms: 0.380329
+  type: 'test'
+  ...
+# Subtest: AC-1 模型失效時推播,內容點名模型
+ok 125 - AC-1 模型失效時推播,內容點名模型
+  ---
+  duration_ms: 0.672576
+  type: 'test'
+  ...
+# Subtest: AC-2 模型可用時不推播
+ok 126 - AC-2 模型可用時不推播
+  ---
+  duration_ms: 0.38105
+  type: 'test'
+  ...
+# Subtest: AC-3 失敗時以 model-health scope 記錄 runtime issue
+ok 127 - AC-3 失敗時以 model-health scope 記錄 runtime issue
+  ---
+  duration_ms: 0.447657
+  type: 'test'
+  ...
+# Subtest: AC-4 啟動不被永不完成的檢查阻塞
+ok 128 - AC-4 啟動不被永不完成的檢查阻塞
+  ---
+  duration_ms: 30.533102
+  type: 'test'
+  ...
+# Subtest: AC-5 無法歸因的錯誤照樣推播,但不得宣稱模型已下架
+ok 129 - AC-5 無法歸因的錯誤照樣推播,但不得宣稱模型已下架
+  ---
+  duration_ms: 0.584362
+  type: 'test'
+  ...
+# Subtest: AC-6 停用時完全不執行檢查
+ok 130 - AC-6 停用時完全不執行檢查
+  ---
+  duration_ms: 0.263032
+  type: 'test'
+  ...
+# Subtest: AC-10 失敗狀態跨重啟存活,重啟後不重複推首次告警
+ok 131 - AC-10 失敗狀態跨重啟存活,重啟後不重複推首次告警
+  ---
+  duration_ms: 0.760623
+  type: 'test'
+  ...
+# Subtest: AC-11 週期內有真實成功流量時跳過 ping
+ok 132 - AC-11 週期內有真實成功流量時跳過 ping
+  ---
+  duration_ms: 0.404026
+  type: 'test'
+  ...
+# Subtest: 流量豁免只在週期內有效,過期仍會 ping
+ok 133 - 流量豁免只在週期內有效,過期仍會 ping
+  ---
+  duration_ms: 0.466112
+  type: 'test'
+  ...
+# Subtest: 無 connector 時(runner 端)不推播但仍記錄
+ok 134 - 無 connector 時(runner 端)不推播但仍記錄
+  ---
+  duration_ms: 0.580186
+  type: 'test'
+  ...
+# Subtest: 推播失敗不得讓檢查拋出
+ok 135 - 推播失敗不得讓檢查拋出
+  ---
+  duration_ms: 0.480798
+  type: 'test'
+  ...
+# Subtest: 未設定 model 時視為不檢查
+ok 136 - 未設定 model 時視為不檢查
+  ---
+  duration_ms: 0.223733
+  type: 'test'
+  ...
+# Subtest: HealthState 型別可被引用
+ok 137 - HealthState 型別可被引用
+  ---
+  duration_ms: 0.103961
+  type: 'test'
+  ...
+# Subtest: resolveModel 拋錯不得讓檢查逸出例外(避免 bootstrap 內的 unhandled rejection)
+ok 138 - resolveModel 拋錯不得讓檢查逸出例外(避免 bootstrap 內的 unhandled rejection)
+  ---
+  duration_ms: 0.410739
+  type: 'test'
+  ...
+# Subtest: 第 1 層:帶 upstreamInvalid 的 opencode_done 不算真實成功流量
+ok 139 - 第 1 層:帶 upstreamInvalid 的 opencode_done 不算真實成功流量
+  ---
+  duration_ms: 0.129531
+  type: 'test'
+  ...
+# Subtest: 第 2 層:exit 0 但 stderr 有下架訊號,必須判成 model-invalid
+ok 140 - 第 2 層:exit 0 但 stderr 有下架訊號,必須判成 model-invalid
+  ---
+  duration_ms: 0.357144
+  type: 'test'
+  ...
+# Subtest: 第 3 層:classifyFailure 認得結構化的 statusCode 410
+ok 141 - 第 3 層:classifyFailure 認得結構化的 statusCode 410
+  ---
+  duration_ms: 0.110172
+  type: 'test'
+  ...
+# Subtest: 乾淨的 exit 0 仍然判健康(不得因為修 bug 而全面誤報)
+ok 142 - 乾淨的 exit 0 仍然判健康(不得因為修 bug 而全面誤報)
+  ---
+  duration_ms: 0.842105
+  type: 'test'
+  ...
+# Subtest: 限流優先於下架判定:被節流時上游沒機會回下架訊息
+ok 143 - 限流優先於下架判定:被節流時上游沒機會回下架訊息
+  ---
+  duration_ms: 0.138579
+  type: 'test'
+  ...
+# Subtest: 市場數據裡的 410 不得被誤判成模型下架
+ok 144 - 市場數據裡的 410 不得被誤判成模型下架
+  ---
+  duration_ms: 0.120688
+  type: 'test'
+  ...
+# Subtest: 非 0 exit 且無結構化訊號時,仍誠實回 unknown
+ok 145 - 非 0 exit 且無結構化訊號時,仍誠實回 unknown
+  ---
+  duration_ms: 0.106028
+  type: 'test'
+  ...
+# Subtest: 端到端:假成功不更新豁免視窗,探針因此仍會執行
+ok 146 - 端到端:假成功不更新豁免視窗,探針因此仍會執行
+  ---
+  duration_ms: 0.748989
+  type: 'test'
+  ...
+# Subtest: 英文內容裡的 gone 不得被誤判成模型下架
+ok 147 - 英文內容裡的 gone 不得被誤判成模型下架
+  ---
+  duration_ms: 0.216001
+  type: 'test'
+  ...
+# Subtest: 收緊裸 Gone 之後,真實下架 stderr 仍判得出來
+ok 148 - 收緊裸 Gone 之後,真實下架 stderr 仍判得出來
+  ---
+  duration_ms: 0.149668
+  type: 'test'
+  ...
+# Subtest: 裸 Gone 誤觸的那一刻,正確的結構化欄位就躺在旁邊
+ok 149 - 裸 Gone 誤觸的那一刻,正確的結構化欄位就躺在旁邊
+  ---
+  duration_ms: 0.117157
+  type: 'test'
+  ...
+# Subtest: SCN-003 探針把上游 426 判為不健康並帶出狀態碼(1.15.10 exit 0)
+ok 150 - SCN-003 探針把上游 426 判為不健康並帶出狀態碼(1.15.10 exit 0)
+  ---
+  duration_ms: 1.574531
+  type: 'test'
+  ...
+# Subtest: SCN-003 探針把上游 426 判為不健康並帶出狀態碼(1.18.34 exit 1)
+ok 151 - SCN-003 探針把上游 426 判為不健康並帶出狀態碼(1.18.34 exit 1)
+  ---
+  duration_ms: 0.361891
+  type: 'test'
+  ...
+# Subtest: SCN-003 426 的告警含狀態碼並指出要升級 opencode,不說成模型下架
+ok 152 - SCN-003 426 的告警含狀態碼並指出要升級 opencode,不說成模型下架
+  ---
+  duration_ms: 1.850348
+  type: 'test'
+  ...
+# Subtest: SCN-003 帶上游錯誤的 opencode_done 不豁免探測
+ok 153 - SCN-003 帶上游錯誤的 opencode_done 不豁免探測
+  ---
+  duration_ms: 0.551914
+  type: 'test'
+  ...
+# Subtest: SCN-003 狀態碼改變時簽章不同,視為新的故障立即推播
+ok 154 - SCN-003 狀態碼改變時簽章不同,視為新的故障立即推播
+  ---
+  duration_ms: 1.193874
+  type: 'test'
+  ...
+# Subtest: SCN-004 410 的 error 事件判為模型失效(1.18 的 stderr 只剩 Gone)
+ok 155 - SCN-004 410 的 error 事件判為模型失效(1.18 的 stderr 只剩 Gone)
+  ---
+  duration_ms: 0.776558
+  type: 'test'
+  ...
+# Subtest: SCN-004 模型不存在:error 事件沒有狀態碼時仍由 stderr 判為模型失效
+ok 156 - SCN-004 模型不存在:error 事件沒有狀態碼時仍由 stderr 判為模型失效
+  ---
+  duration_ms: 0.680865
+  type: 'test'
+  ...
+# Subtest: 同一個故障在不同時間探測,簽章相同(不因 log 的時間戳與 run id 而改變)
+ok 157 - 同一個故障在不同時間探測,簽章相同(不因 log 的時間戳與 run id 而改變)
+  ---
+  duration_ms: 0.519331
+  type: 'test'
+  ...
+# Subtest: 持續被限流時,命中次數不同仍是同一個簽章
+ok 158 - 持續被限流時,命中次數不同仍是同一個簽章
+  ---
+  duration_ms: 0.534714
+  type: 'test'
+  ...
+# Subtest: SCN-004 探測期間被限流多次仍判為限流(1.18 的 stderr)
+ok 159 - SCN-004 探測期間被限流多次仍判為限流(1.18 的 stderr)
+  ---
+  duration_ms: 0.493205
+  type: 'test'
+  ...
+# Subtest: SCN-003 未列舉的狀態碼一樣不健康,告警帶狀態碼且不猜成模型下架
+ok 160 - SCN-003 未列舉的狀態碼一樣不健康,告警帶狀態碼且不猜成模型下架
+  ---
+  duration_ms: 0.54653
+  type: 'test'
+  ...
+# Subtest: SCN-005 正常回合判為健康,即使回覆文字提到 426 與 error
+ok 161 - SCN-005 正常回合判為健康,即使回覆文字提到 426 與 error
+  ---
+  duration_ms: 0.686781
+  type: 'test'
+  ...
+# Subtest: SCN-003 defaultProbe 以 JSON 格式執行,拿得到 error 事件
+ok 162 - SCN-003 defaultProbe 以 JSON 格式執行,拿得到 error 事件
+  ---
+  duration_ms: 22.337608
+  type: 'test'
+  ...
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=/tmp/tn-browser-config-7XJXNq/workspace
+# Subtest: SCN-002 子程序設定加入固定、工作專屬 browser MCP，不改父程序環境
+ok 163 - SCN-002 子程序設定加入固定、工作專屬 browser MCP，不改父程序環境
+  ---
+  duration_ms: 2.854102
+  type: 'test'
+  ...
+# Subtest: SCN-006 合併 JSONC inline 設定，保留 provider、memory、自訂 MCP 與工具權限
+ok 164 - SCN-006 合併 JSONC inline 設定，保留 provider、memory、自訂 MCP 與工具權限
+  ---
+  duration_ms: 5.22506
+  type: 'test'
+  ...
+# [Opencode] INFO done outputLen=72
+# [Opencode] INFO reply len=15
+# Subtest: SCN-002 non-stream 真 OpencodeAgent 子程序收到 browser 設定
+ok 165 - SCN-002 non-stream 真 OpencodeAgent 子程序收到 browser 設定
+  ---
+  duration_ms: 38.185469
+  type: 'test'
+  ...
+# [Opencode] WARN browser.custom-config-preserved builtinCleanup=false
+# Subtest: SCN-002 stream 真 OpencodeAgent 子程序收到 browser 設定
+ok 166 - SCN-002 stream 真 OpencodeAgent 子程序收到 browser 設定
+  ---
+  duration_ms: 36.08347
+  type: 'test'
+  ...
+# Subtest: SCN-006 同名自訂 browser 設定保持原樣，不覆寫或重複註冊
+ok 167 - SCN-006 同名自訂 browser 設定保持原樣，不覆寫或重複註冊
+  ---
+  duration_ms: 0.826425
+  type: 'test'
+  ...
+# Subtest: 無效 inline 設定如實失敗，不靜默丟失原設定或印出內容
+ok 168 - 無效 inline 設定如實失敗，不靜默丟失原設定或印出內容
+  ---
+  duration_ms: 2.178798
+  type: 'test'
+  ...
+# Subtest: bash gets 💻 prefix and command target
+ok 169 - bash gets 💻 prefix and command target
+  ---
+  duration_ms: 1.295303
+  type: 'test'
+  ...
+# Subtest: read gets 📖 prefix and path target
+ok 170 - read gets 📖 prefix and path target
+  ---
+  duration_ms: 0.250857
+  type: 'test'
+  ...
+# Subtest: grep gets 🔍 prefix and pattern target
+ok 171 - grep gets 🔍 prefix and pattern target
+  ---
+  duration_ms: 0.153309
+  type: 'test'
+  ...
+# Subtest: glob gets 📁 prefix
+ok 172 - glob gets 📁 prefix
+  ---
+  duration_ms: 0.196293
+  type: 'test'
+  ...
+# Subtest: skill gets 🧩 prefix
+ok 173 - skill gets 🧩 prefix
+  ---
+  duration_ms: 0.150377
+  type: 'test'
+  ...
+# Subtest: edit gets ✏️ prefix
+ok 174 - edit gets ✏️ prefix
+  ---
+  duration_ms: 0.12919
+  type: 'test'
+  ...
+# Subtest: write gets ✏️ prefix
+ok 175 - write gets ✏️ prefix
+  ---
+  duration_ms: 0.181285
+  type: 'test'
+  ...
+# Subtest: unknown tool falls back to ⚙️
+ok 176 - unknown tool falls back to ⚙️
+  ---
+  duration_ms: 0.139917
+  type: 'test'
+  ...
+# Subtest: interpretEvent surfaces tool_use status with emoji
+ok 177 - interpretEvent surfaces tool_use status with emoji
+  ---
+  duration_ms: 0.432402
+  type: 'test'
+  ...
+# Subtest: interpretEvent surfaces reasoning text separately from answer text
+ok 178 - interpretEvent surfaces reasoning text separately from answer text
+  ---
+  duration_ms: 0.439502
+  type: 'test'
+  ...
+# Subtest: interpretEvent keeps answer text out of the reasoning channel
+ok 179 - interpretEvent keeps answer text out of the reasoning channel
+  ---
+  duration_ms: 0.113875
+  type: 'test'
+  ...
+# Subtest: buildChatArgs 一律帶上 --print-logs,否則 429 fail-fast 攔不到任何東西
+ok 180 - buildChatArgs 一律帶上 --print-logs,否則 429 fail-fast 攔不到任何東西
+  ---
+  duration_ms: 1.196777
+  type: 'test'
+  ...
+# Subtest: buildChatArgs 對 passthrough 指令同樣帶上 log 旗標
+ok 181 - buildChatArgs 對 passthrough 指令同樣帶上 log 旗標
+  ---
+  duration_ms: 0.201685
+  type: 'test'
+  ...
+# Subtest: stderr 429 pattern 命中 opencode 真實錯誤格式
+ok 182 - stderr 429 pattern 命中 opencode 真實錯誤格式
+  ---
+  duration_ms: 0.62707
+  type: 'test'
+  ...
+# Subtest: stderr 429 pattern 不被 prompt 裡的數字 429 誤觸
+ok 183 - stderr 429 pattern 不被 prompt 裡的數字 429 誤觸
+  ---
+  duration_ms: 0.400427
+  type: 'test'
+  ...
+# Subtest: deriveRunOutcome：沒有 failure 就是成功
+ok 184 - deriveRunOutcome：沒有 failure 就是成功
+  ---
+  duration_ms: 0.839749
+  type: 'test'
+  ...
+# Subtest: deriveRunOutcome：逾時與限流要記成失敗,不能算進成功率
+ok 185 - deriveRunOutcome：逾時與限流要記成失敗,不能算進成功率
+  ---
+  duration_ms: 0.196273
+  type: 'test'
+  ...
+# Subtest: OpencodeAgent parseStreamLine maps JSON tool events to status updates
+ok 186 - OpencodeAgent parseStreamLine maps JSON tool events to status updates
+  ---
+  duration_ms: 2.129973
+  type: 'test'
+  ...
+# Subtest: parseOpencodeJsonOutput collects text events and finish stats
+ok 187 - parseOpencodeJsonOutput collects text events and finish stats
+  ---
+  duration_ms: 2.299775
+  type: 'test'
+  ...
+# Subtest: parseOpencodeJsonOutput returns null for non-json output
+ok 188 - parseOpencodeJsonOutput returns null for non-json output
+  ---
+  duration_ms: 0.21182
+  type: 'test'
+  ...
+# Subtest: parseOpencodeJsonOutput returns null when no text event exists
+ok 189 - parseOpencodeJsonOutput returns null when no text event exists
+  ---
+  duration_ms: 0.166585
+  type: 'test'
+  ...
+# [Opencode] INFO summarize_start
+# [Opencode] ERROR summarize_failed err=Opencode upstream rate-limited (HTTP 429); aborted before internal backoff retries.
+# Subtest: summarize 遇到上游 429 會快速中止，不會掛到逾時
+ok 190 - summarize 遇到上游 429 會快速中止，不會掛到逾時
+  ---
+  duration_ms: 12.797735
+  type: 'test'
+  ...
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=/tmp/telenexus-upstream-error-t01gKQ/workspace
+# Subtest: SCN-001 interpretEvent 從 error 事件取出狀態碼、名稱與訊息
+ok 191 - SCN-001 interpretEvent 從 error 事件取出狀態碼、名稱與訊息
+  ---
+  duration_ms: 2.330293
+  type: 'test'
+  ...
+# Subtest: SCN-001 沒有 statusCode 的 error 事件一樣被辨識
+ok 192 - SCN-001 沒有 statusCode 的 error 事件一樣被辨識
+  ---
+  duration_ms: 0.261599
+  type: 'test'
+  ...
+# [Opencode] INFO done outputLen=736
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# Subtest: SCN-001 非串流:上游 426 的回合被判為失敗(1.15.10 exit 0)
+ok 193 - SCN-001 非串流:上游 426 的回合被判為失敗(1.15.10 exit 0)
+  ---
+  duration_ms: 20.77889
+  type: 'test'
+  ...
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=/tmp/telenexus-upstream-error-t01gKQ/workspace
+# Subtest: SCN-001 串流:上游 426 的回合被判為失敗(1.15.10 exit 0)
+ok 194 - SCN-001 串流:上游 426 的回合被判為失敗(1.15.10 exit 0)
+  ---
+  duration_ms: 10.579026
+  type: 'test'
+  ...
+# [Opencode] INFO done outputLen=736
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=/tmp/telenexus-upstream-error-t01gKQ/workspace
+# Subtest: SCN-002 串流與非串流對同一份輸出的判定一致(1.15.10 exit 0)
+ok 195 - SCN-002 串流與非串流對同一份輸出的判定一致(1.15.10 exit 0)
+  ---
+  duration_ms: 17.564278
+  type: 'test'
+  ...
+# [Opencode] ERROR execution_failed err=Process exited with code 1 code=1 stdout={"type":"error","timestamp":1790838791067,"sessionID":"ses_f09b0a8b5ffee5DdG2kNnL0Tpv","error":{"name":"APIError","data":{"message":"mock: client upgrade required","statusCode":426,"isRetryable":false,"responseHeaders":{"connection":"keep-alive","content-type":"application/json","date":"Thu, 01 Oct 2026 07:13:11 GMT","keep-alive":"timeout=5","transfer-encoding":"chunked"},"responseBody":"{\\"type\\":\\"error\\",\\"error\\":{\\"type\\":\\"UpgradeRequired\\",\\"message\\":\\"mock: client upgrade required\\"}}", stderr=timestamp=2026-10-01T07:13:10.602Z level=ERROR run=c8162f1b message="stream error" providerID=mock modelID=s426 session.id=ses_f09b0a8b5ffee5DdG2kNnL0Tpv small=true agent=title mode=primary error.error="AI_APICallError: mock: client upgrade required" timestamp=2026-10-01T07:13:11.053Z level=ERROR run=c8162f1b message="stream error" providerID=mock modelID=s426 session.id=ses_f09b0a8b5ffee5DdG2kNnL0Tpv small=false agent=build mode=primary error.error="AI_APICallError: mock: client upgrade require
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# Subtest: SCN-001 非串流:上游 426 的回合被判為失敗(1.18.34 exit 1)
+ok 196 - SCN-001 非串流:上游 426 的回合被判為失敗(1.18.34 exit 1)
+  ---
+  duration_ms: 9.40872
+  type: 'test'
+  ...
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=/tmp/telenexus-upstream-error-t01gKQ/workspace
+# Subtest: SCN-001 串流:上游 426 的回合被判為失敗(1.18.34 exit 1)
+ok 197 - SCN-001 串流:上游 426 的回合被判為失敗(1.18.34 exit 1)
+  ---
+  duration_ms: 7.802967
+  type: 'test'
+  ...
+# [Opencode] ERROR execution_failed err=Process exited with code 1 code=1 stdout={"type":"error","timestamp":1790838791067,"sessionID":"ses_f09b0a8b5ffee5DdG2kNnL0Tpv","error":{"name":"APIError","data":{"message":"mock: client upgrade required","statusCode":426,"isRetryable":false,"responseHeaders":{"connection":"keep-alive","content-type":"application/json","date":"Thu, 01 Oct 2026 07:13:11 GMT","keep-alive":"timeout=5","transfer-encoding":"chunked"},"responseBody":"{\\"type\\":\\"error\\",\\"error\\":{\\"type\\":\\"UpgradeRequired\\",\\"message\\":\\"mock: client upgrade required\\"}}", stderr=timestamp=2026-10-01T07:13:10.602Z level=ERROR run=c8162f1b message="stream error" providerID=mock modelID=s426 session.id=ses_f09b0a8b5ffee5DdG2kNnL0Tpv small=true agent=title mode=primary error.error="AI_APICallError: mock: client upgrade required" timestamp=2026-10-01T07:13:11.053Z level=ERROR run=c8162f1b message="stream error" providerID=mock modelID=s426 session.id=ses_f09b0a8b5ffee5DdG2kNnL0Tpv small=false agent=build mode=primary error.error="AI_APICallError: mock: client upgrade require
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=/tmp/telenexus-upstream-error-t01gKQ/workspace
+# Subtest: SCN-002 串流與非串流對同一份輸出的判定一致(1.18.34 exit 1)
+ok 198 - SCN-002 串流與非串流對同一份輸出的判定一致(1.18.34 exit 1)
+  ---
+  duration_ms: 14.949882
+  type: 'test'
+  ...
+# [Opencode] ERROR execution_failed err=Process exited with code 1 code=1 stdout={"type":"error","timestamp":1790839107861,"sessionID":"ses_f09abd40effepan3qyD82ad9zP","error":{"name":"APIError","data":{"message":"Gone: {\\"title\\":\\"Gone\\",\\"status\\":410,\\"detail\\":\\"mock: model has reached its end of life\\"}","statusCode":410,"isRetryable":false,"responseHeaders":{"connection":"keep-alive","content-type":"application/json","date":"Thu, 01 Oct 2026 07:18:27 GMT","keep-alive":"timeout=5","transfer-encoding":"chunked"},"responseBody":"{\\"title\\":\\"Gone\\",\\"status\\":410,\\"detai
+# [CliAgent] WARN upstream_error provider=opencode statusCode=410 name=APIError
+# [CliAgent] WARN upstream_error provider=opencode statusCode=410 name=APIError
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=/tmp/telenexus-upstream-error-t01gKQ/workspace
+# Subtest: SCN-004 410 的 error 事件帶出狀態碼(1.18 的 stderr 已不含 410)
+ok 199 - SCN-004 410 的 error 事件帶出狀態碼(1.18 的 stderr 已不含 410)
+  ---
+  duration_ms: 11.350073
+  type: 'test'
+  ...
+# [Opencode] ERROR execution_failed err=Process exited with code 1 code=1 stdout={"type":"step_start","timestamp":1790838770287,"sessionID":"ses_f09b0ff6cffevnDpBWcg79Sse9","part":{"id":"prt_0f64f0a67001WYRscg3chquA2u","messageID":"msg_0f64f02bb001ONhxges2chmFrZ","sessionID":"ses_f09b0ff6cffevnDpBWcg79Sse9","type":"step-start"}} {"type":"text","timestamp":1790838770319,"sessionID":"ses_f09b0ff6cffevnDpBWcg79Sse9","part":{"id":"prt_0f64f0a6b001SuupacXHkABl59","messageID":"msg_0f64f02bb001ONhxges2chmFrZ","sessionID":"ses_f09b0ff6cffevnDpBWcg79Sse9","type":"text","text":"OK","t
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# Subtest: SCN-001 已經產出的文字保留在上游錯誤說明之前
+ok 200 - SCN-001 已經產出的文字保留在上游錯誤說明之前
+  ---
+  duration_ms: 12.485626
+  type: 'test'
+  ...
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# Subtest: SCN-001 串流回呼有延遲時,同一批到達的 error 事件不會被漏掉(text 之後,exit 0)
+ok 201 - SCN-001 串流回呼有延遲時,同一批到達的 error 事件不會被漏掉(text 之後,exit 0)
+  ---
+  duration_ms: 206.372983
+  type: 'test'
+  ...
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# Subtest: SCN-001 串流回呼有延遲時,同一批到達的 error 事件不會被漏掉(text 之後,exit 1)
+ok 202 - SCN-001 串流回呼有延遲時,同一批到達的 error 事件不會被漏掉(text 之後,exit 1)
+  ---
+  duration_ms: 209.799644
+  type: 'test'
+  ...
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# [CliAgent] WARN upstream_error provider=opencode statusCode=426 name=APIError
+# Subtest: SCN-001 串流回呼有延遲時,工具呼叫之後同批到達的 error 事件不會被漏掉
+ok 203 - SCN-001 串流回呼有延遲時,工具呼叫之後同批到達的 error 事件不會被漏掉
+  ---
+  duration_ms: 511.571603
+  type: 'test'
+  ...
+# Subtest: 串流回呼有延遲時,正常回合不會被當成空輸出
+ok 204 - 串流回呼有延遲時,正常回合不會被當成空輸出
+  ---
+  duration_ms: 254.05625
+  type: 'test'
+  ...
+# Subtest: 回呼不返回、行程卡住時,逾時仍會結束回合
+ok 205 - 回呼不返回、行程卡住時,逾時仍會結束回合
+  ---
+  duration_ms: 1502.66566
+  type: 'test'
+  ...
+# Subtest: 回呼不返回、行程已正常結束時,逾時仍會結束回合
+ok 206 - 回呼不返回、行程已正常結束時,逾時仍會結束回合
+  ---
+  duration_ms: 1504.03142
+  type: 'test'
+  ...
+# Subtest: 回呼不返回、行程卡住時,使用者中止仍會結束回合
+ok 207 - 回呼不返回、行程卡住時,使用者中止仍會結束回合
+  ---
+  duration_ms: 301.986912
+  type: 'test'
+  ...
+# Subtest: 回呼不返回、行程已正常結束時,使用者中止仍會結束回合
+ok 208 - 回呼不返回、行程已正常結束時,使用者中止仍會結束回合
+  ---
+  duration_ms: 300.323786
+  type: 'test'
+  ...
+# Subtest: 使用者中止不必等排隊中的回呼跑完
+ok 209 - 使用者中止不必等排隊中的回呼跑完
+  ---
+  duration_ms: 150.531305
+  type: 'test'
+  ...
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=/tmp/telenexus-upstream-error-t01gKQ/workspace
+# Subtest: 回呼在收尾期間丟例外時回合失敗,不會被記為成功
+ok 210 - 回呼在收尾期間丟例外時回合失敗,不會被記為成功
+  ---
+  duration_ms: 52.922427
+  type: 'test'
+  ...
+# [Opencode] ERROR execution_failed err=Process exited with code 1 code=1
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=/tmp/telenexus-upstream-error-t01gKQ/workspace
+# Subtest: opencode 自己失敗(exit 1 且沒有 error 事件)仍然丟出例外,不留下成功事件
+ok 211 - opencode 自己失敗(exit 1 且沒有 error 事件)仍然丟出例外,不留下成功事件
+  ---
+  duration_ms: 2.334775
+  type: 'test'
+  ...
+# [Opencode] INFO done outputLen=1024
+# [Opencode] INFO reply len=101
+# [Opencode] INFO execute model=default
+# [Opencode] INFO start cmd=opencode run --format json --print-logs --log-level ERROR <prompt> cwd=/tmp/telenexus-upstream-error-t01gKQ/workspace
+# Subtest: SCN-005 回覆內容提到 426、error、429 的正常回合不受影響
+ok 212 - SCN-005 回覆內容提到 426、error、429 的正常回合不受影響
+  ---
+  duration_ms: 4.493667
+  type: 'test'
+  ...
+# Subtest: SCN-004 限流樣式認得 opencode 1.18 的 stderr
+ok 213 - SCN-004 限流樣式認得 opencode 1.18 的 stderr
+  ---
+  duration_ms: 0.159105
+  type: 'test'
+  ...
+# Subtest: SCN-004 限流樣式認得限流字樣的常見變形
+ok 214 - SCN-004 限流樣式認得限流字樣的常見變形
+  ---
+  duration_ms: 0.129929
+  type: 'test'
+  ...
+# Subtest: SCN-004 限流樣式不被其他上游錯誤、標題代理或模型名誤觸
+ok 215 - SCN-004 限流樣式不被其他上游錯誤、標題代理或模型名誤觸
+  ---
+  duration_ms: 0.179343
+  type: 'test'
+  ...
+# [Opencode] ERROR execution_failed err=Opencode upstream rate-limited (HTTP 429); aborted before internal backoff retries. code=ERATELIMIT stderr=timestamp=2026-10-01T07:13:31.602Z level=ERROR run=9aad31bd message="stream error" providerID=mock modelID=s429 session.id=ses_f09b057c2ffe1puWr4UY8XYRlz small=false agent=build mode=primary error.error="AI_APICallError: mock: rate limit exceeded" timestamp=2026-10-01T07:13:33.728Z level=ERROR run=9aad31bd message="stream error" providerID=mock modelID=s429 session.id=ses_f09b057c2ffe1puWr4UY8XYRlz small=false agent=build mode=primary error.error="AI_APICallError: mock: rate limit exceeded" time
+# [Opencode] WARN rate_limit
+# Subtest: SCN-004 non-stream:1.18 的 429 仍快速中止並判為限流
+ok 216 - SCN-004 non-stream:1.18 的 429 仍快速中止並判為限流
+  ---
+  duration_ms: 2.367452
+  type: 'test'
+  ...
+# [opencode] streamChat fail-fast on upstream 429.
+# Subtest: SCN-004 stream:1.18 的 429 仍快速中止並判為限流
+ok 217 - SCN-004 stream:1.18 的 429 仍快速中止並判為限流
+  ---
+  duration_ms: 3.695346
+  type: 'test'
+  ...
+# Subtest: initialize sends placeholder and pins it
+ok 218 - initialize sends placeholder and pins it
+  ---
+  duration_ms: 1.418502
+  type: 'test'
+  ...
+# Subtest: update is throttled
+ok 219 - update is throttled
+  ---
+  duration_ms: 0.626744
+  type: 'test'
+  ...
+# Subtest: update skips unchanged payload
+ok 220 - update skips unchanged payload
+  ---
+  duration_ms: 0.328052
+  type: 'test'
+  ...
+# Subtest: SCN-007 上游 426 標示為不可用並列出狀態碼,不是空輸出(1.15.10 exit 0)
+ok 221 - SCN-007 上游 426 標示為不可用並列出狀態碼,不是空輸出(1.15.10 exit 0)
+  ---
+  duration_ms: 43.024118
+  type: 'test'
+  ...
+# Subtest: SCN-007 上游 426 標示為不可用並列出狀態碼,不是空輸出(1.18.34 exit 1)
+ok 222 - SCN-007 上游 426 標示為不可用並列出狀態碼,不是空輸出(1.18.34 exit 1)
+  ---
+  duration_ms: 49.16353
+  type: 'test'
+  ...
+# Subtest: SCN-007 表格輸出列出狀態碼與處置方向
+ok 223 - SCN-007 表格輸出列出狀態碼與處置方向
+  ---
+  duration_ms: 42.928231
+  type: 'test'
+  ...
+# Subtest: SCN-007 410 的 error 事件標示為已下架
+ok 224 - SCN-007 410 的 error 事件標示為已下架
+  ---
+  duration_ms: 45.662496
+  type: 'test'
+  ...
+# Subtest: SCN-007 未列舉的狀態碼標示為上游錯誤
+ok 225 - SCN-007 未列舉的狀態碼標示為上游錯誤
+  ---
+  duration_ms: 39.568974
+  type: 'test'
+  ...
+# Subtest: SCN-007 模型不存在仍由 stderr 判定
+ok 226 - SCN-007 模型不存在仍由 stderr 判定
+  ---
+  duration_ms: 45.533486
+  type: 'test'
+  ...
+# Subtest: SCN-007 認得 opencode 1.18 stderr 裡的限流
+ok 227 - SCN-007 認得 opencode 1.18 stderr 裡的限流
+  ---
+  duration_ms: 41.988438
+  type: 'test'
+  ...
+# Subtest: SCN-005 正常回合標示為可用,即使回覆文字提到 426 與 error
+ok 228 - SCN-005 正常回合標示為可用,即使回覆文字提到 426 與 error
+  ---
+  duration_ms: 43.777092
+  type: 'test'
+  ...
+# Subtest: 限流樣式與 src/core/rate-limit.ts 的那一份完全相同
+ok 229 - 限流樣式與 src/core/rate-limit.ts 的那一份完全相同
+  ---
+  duration_ms: 0.690153
+  type: 'test'
+  ...
+# Subtest: abort signal kills child and rejects with EABORTED
+ok 230 - abort signal kills child and rejects with EABORTED
+  ---
+  duration_ms: 102.383166
+  type: 'test'
+  ...
+# Subtest: completed-before-abort does not reject
+ok 231 - completed-before-abort does not reject
+  ---
+  duration_ms: 5.15981
+  type: 'test'
+  ...
+# Subtest: timeout kills descendants, not just the direct child
+ok 232 - timeout kills descendants, not just the direct child
+  ---
+  duration_ms: 355.800812
+  type: 'test'
+  ...
+# Subtest: abort signal kills descendants
+ok 233 - abort signal kills descendants
+  ---
+  duration_ms: 250.802962
+  type: 'test'
+  ...
+# Subtest: abortOnStderr kills descendants (429 fail-fast path)
+ok 234 - abortOnStderr kills descendants (429 fail-fast path)
+  ---
+  duration_ms: 2.575165
+  type: 'test'
+  ...
+# Subtest: terminateAllChildren kills tracked descendants at shutdown
+ok 235 - terminateAllChildren kills tracked descendants at shutdown
+  ---
+  duration_ms: 302.449428
+  type: 'test'
+  ...
+# Subtest: finished children are untracked (no stale kills, no leak)
+ok 236 - finished children are untracked (no stale kills, no leak)
+  ---
+  duration_ms: 2.538957
+  type: 'test'
+  ...
+# Subtest: SIGTERM-ignoring child is escalated to SIGKILL
+ok 237 - SIGTERM-ignoring child is escalated to SIGKILL
+  ---
+  duration_ms: 5322.993204
+  type: 'test'
+  ...
+# [memory] DEBUG summary-search.completed userId=user-a query=release limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=1 summaryCandidates=1 results=1
+# [memory] DEBUG summary-search.completed userId=user-a query=sop limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=sop limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=是什麼 limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=是什麼 limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=之前 limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=之前 limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=opencode limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=1 summaryFtsCandidates=1 summaryCandidates=1 results=1
+# [memory] DEBUG summary-search.completed userId=user-a query=常出錯是怎麼處理的 limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=常出錯是怎麼處理的 limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=release limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=1 summaryFtsCandidates=1 summaryCandidates=1 results=1
+# [memory] DEBUG summary-search.completed userId=user-a query=rollback limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=rollback limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=8 summaryCandidates=8 results=3
+# Subtest: shouldSummarize returns true for text longer than 200 chars
+ok 238 - shouldSummarize returns true for text longer than 200 chars
+  ---
+  duration_ms: 1.266521
+  type: 'test'
+  ...
+# Subtest: shouldSummarize returns true for text containing code fences
+ok 239 - shouldSummarize returns true for text containing code fences
+  ---
+  duration_ms: 0.23209
+  type: 'test'
+  ...
+# Subtest: shouldSummarize returns true for text containing tool_result
+ok 240 - shouldSummarize returns true for text containing tool_result
+  ---
+  duration_ms: 0.147312
+  type: 'test'
+  ...
+# Subtest: shouldSummarize returns true for text with 6 or more newlines
+ok 241 - shouldSummarize returns true for text with 6 or more newlines
+  ---
+  duration_ms: 0.13363
+  type: 'test'
+  ...
+# Subtest: shouldSummarize returns false for short simple text
+ok 242 - shouldSummarize returns false for short simple text
+  ---
+  duration_ms: 0.128617
+  type: 'test'
+  ...
+# Subtest: shouldSummarize returns false for text just under thresholds
+ok 243 - shouldSummarize returns false for text just under thresholds
+  ---
+  duration_ms: 0.142276
+  type: 'test'
+  ...
+# Subtest: buildChatPrompt minimal mode keeps only short session reminder and user message
+ok 244 - buildChatPrompt minimal mode keeps only short session reminder and user message
+  ---
+  duration_ms: 0.503932
+  type: 'test'
+  ...
+# Subtest: buildChatPrompt includes capability hint for non-minimal modes when provided
+ok 245 - buildChatPrompt includes capability hint for non-minimal modes when provided
+  ---
+  duration_ms: 0.135107
+  type: 'test'
+  ...
+# Subtest: buildMemoryContext keeps older canonical anchor available for matching query
+ok 246 - buildMemoryContext keeps older canonical anchor available for matching query
+  ---
+  duration_ms: 29.678032
+  type: 'test'
+  ...
+# Subtest: buildMemoryContext keeps high-signal release anchor ahead of newer weak release note
+ok 247 - buildMemoryContext keeps high-signal release anchor ahead of newer weak release note
+  ---
+  duration_ms: 14.163075
+  type: 'test'
+  ...
+# Subtest: buildMemoryContext does not duplicate anchor into semantic section
+ok 248 - buildMemoryContext does not duplicate anchor into semantic section
+  ---
+  duration_ms: 8.663756
+  type: 'test'
+  ...
+# Subtest: buildMemoryContext keeps anchor and minimum recent lines under heavy budget pressure
+ok 249 - buildMemoryContext keeps anchor and minimum recent lines under heavy budget pressure
+  ---
+  duration_ms: 11.80706
+  type: 'test'
+  ...
+# Subtest: buildMemoryContext keeps at least one semantic item under heavy budget pressure
+ok 250 - buildMemoryContext keeps at least one semantic item under heavy budget pressure
+  ---
+  duration_ms: 15.555121
+  type: 'test'
+  ...
+# Subtest: buildMemoryContext includes SAR wrapper and core section for opencode regression case
+ok 251 - buildMemoryContext includes SAR wrapper and core section for opencode regression case
+  ---
+  duration_ms: 11.589924
+  type: 'test'
+  ...
+# Subtest: buildMemoryContext resolves web chat history canonical rule
+ok 252 - buildMemoryContext resolves web chat history canonical rule
+  ---
+  duration_ms: 6.914608
+  type: 'test'
+  ...
+# Subtest: buildMemoryContext resolves scheduler CLI canonical rule
+ok 253 - buildMemoryContext resolves scheduler CLI canonical rule
+  ---
+  duration_ms: 9.615743
+  type: 'test'
+  ...
+# Subtest: buildMemoryContext resolves alias query normalization for release workflow
+ok 254 - buildMemoryContext resolves alias query normalization for release workflow
+  ---
+  duration_ms: 16.525644
+  type: 'test'
+  ...
+# Subtest: buildMemoryContext resolves alias query normalization for opencode compress recovery
+ok 255 - buildMemoryContext resolves alias query normalization for opencode compress recovery
+  ---
+  duration_ms: 8.157131
+  type: 'test'
+  ...
+# [memory] DEBUG summary-search.completed userId=user-a query=幫我看一下排程設定 limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=幫我看一下排程設定 limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# Subtest: 中文原句原樣送出,呼叫端不切詞
+ok 256 - 中文原句原樣送出,呼叫端不切詞
+  ---
+  duration_ms: 22.851293
+  type: 'test'
+  ...
+# [memory] DEBUG summary-search.completed userId=user-a query=docker limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=docker limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=升級之後 limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=升級之後 limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=bot limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=bot limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=沒回應怎麼辦 limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=沒回應怎麼辦 limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# Subtest: 中英數混排也原樣送出,不做關鍵字抽取替換
+ok 257 - 中英數混排也原樣送出,不做關鍵字抽取替換
+  ---
+  duration_ms: 10.234245
+  type: 'test'
+  ...
+# Subtest: 極短輸入同樣原樣送出
+ok 258 - 極短輸入同樣原樣送出
+  ---
+  duration_ms: 25.963808
+  type: 'test'
+  ...
+# Subtest: prompt session telemetry stores and formats recent traces
+ok 259 - prompt session telemetry stores and formats recent traces
+  ---
+  duration_ms: 19.980987
+  type: 'test'
+  ...
+# Subtest: compact memory injection policy stays off for simple follow-up and on for historical lookup
+ok 260 - compact memory injection policy stays off for simple follow-up and on for historical lookup
+  ---
+  duration_ms: 0.559605
+  type: 'test'
+  ...
+# Subtest: parseArgs supports bump, message, and dry-run
+ok 261 - parseArgs supports bump, message, and dry-run
+  ---
+  duration_ms: 1.010074
+  type: 'test'
+  ...
+# Subtest: isAllowedReleaseBranch accepts main and release branches
+ok 262 - isAllowedReleaseBranch accepts main and release branches
+  ---
+  duration_ms: 0.185705
+  type: 'test'
+  ...
+# Subtest: validateReadmeVersionBadge checks package version alignment
+ok 263 - validateReadmeVersionBadge checks package version alignment
+  ---
+  duration_ms: 0.945104
+  type: 'test'
+  ...
+# Subtest: updateReadmeVersionBadge rewrites badge version in place
+ok 264 - updateReadmeVersionBadge rewrites badge version in place
+  ---
+  duration_ms: 1.311364
+  type: 'test'
+  ...
+# Subtest: updateReadmeVersionBadge returns null when badge is missing
+ok 265 - updateReadmeVersionBadge returns null when badge is missing
+  ---
+  duration_ms: 0.257491
+  type: 'test'
+  ...
+# Subtest: lane=scheduled 轉成 fromScheduler
+ok 266 - lane=scheduled 轉成 fromScheduler
+  ---
+  duration_ms: 0.963591
+  type: 'test'
+  ...
+# Subtest: lane=interactive 不設 fromScheduler
+ok 267 - lane=interactive 不設 fromScheduler
+  ---
+  duration_ms: 0.162924
+  type: 'test'
+  ...
+# Subtest: 沒有 lane 時不設 fromScheduler
+ok 268 - 沒有 lane 時不設 fromScheduler
+  ---
+  duration_ms: 0.147973
+  type: 'test'
+  ...
+# Subtest: request 的 model 優先於設定檔的 model
+ok 269 - request 的 model 優先於設定檔的 model
+  ---
+  duration_ms: 0.207672
+  type: 'test'
+  ...
+# Subtest: 完全沒有選項時回傳 undefined,維持呼叫端既有語意
+ok 270 - 完全沒有選項時回傳 undefined,維持呼叫端既有語意
+  ---
+  duration_ms: 0.148898
+  type: 'test'
+  ...
+# Subtest: 其餘旗標與 lane 並存,互不吃掉
+ok 271 - 其餘旗標與 lane 並存,互不吃掉
+  ---
+  duration_ms: 0.81909
+  type: 'test'
+  ...
+# Subtest: SCN-003 runner /run 斷線會停止真正執行中的子程序
+ok 272 - SCN-003 runner /run 斷線會停止真正執行中的子程序
+  ---
+  duration_ms: 338.964591
+  type: 'test'
+  ...
+# Subtest: SCN-003 runner /run/stream 斷線會停止真正執行中的子程序
+ok 273 - SCN-003 runner /run/stream 斷線會停止真正執行中的子程序
+  ---
+  duration_ms: 292.210255
+  type: 'test'
+  ...
+# [memory] DEBUG summary-search.completed userId=user-empty query=任意查詢 limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-empty query=任意查詢 limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# Subtest: [SAR recall] opencode rate-limit 直接查詢
+ok 274 - [SAR recall] opencode rate-limit 直接查詢
+  ---
+  duration_ms: 17.949487
+  type: 'test'
+  ...
+# Subtest: [SAR recall] opencode compress 別名展開
+ok 275 - [SAR recall] opencode compress 別名展開
+  ---
+  duration_ms: 9.511792
+  type: 'test'
+  ...
+# Subtest: [SAR recall] RESOURCE_EXHAUSTED 別名展開
+ok 276 - [SAR recall] RESOURCE_EXHAUSTED 別名展開
+  ---
+  duration_ms: 16.644324
+  type: 'test'
+  ...
+# Subtest: [SAR recall] release SOP 直接查詢
+ok 277 - [SAR recall] release SOP 直接查詢
+  ---
+  duration_ms: 8.00361
+  type: 'test'
+  ...
+# Subtest: [SAR recall] 發版流程別名展開
+ok 278 - [SAR recall] 發版流程別名展開
+  ---
+  duration_ms: 7.727649
+  type: 'test'
+  ...
+# Subtest: [SAR recall] 發布流程別名展開
+ok 279 - [SAR recall] 發布流程別名展開
+  ---
+  duration_ms: 6.774041
+  type: 'test'
+  ...
+# Subtest: [SAR recall] scheduler CLI 直接查詢
+ok 280 - [SAR recall] scheduler CLI 直接查詢
+  ---
+  duration_ms: 7.060063
+  type: 'test'
+  ...
+# Subtest: [SAR recall] 排程管理查詢
+ok 281 - [SAR recall] 排程管理查詢
+  ---
+  duration_ms: 7.132134
+  type: 'test'
+  ...
+# Subtest: [SAR recall] web chat history cursor 查詢
+ok 282 - [SAR recall] web chat history cursor 查詢
+  ---
+  duration_ms: 7.047925
+  type: 'test'
+  ...
+# Subtest: [SAR recall] web chat history offset pagination 查詢
+ok 283 - [SAR recall] web chat history offset pagination 查詢
+  ---
+  duration_ms: 8.251618
+  type: 'test'
+  ...
+# Subtest: [SAR isolation] release 查詢 anchor 不含 scheduler
+ok 284 - [SAR isolation] release 查詢 anchor 不含 scheduler
+  ---
+  duration_ms: 6.308378
+  type: 'test'
+  ...
+# Subtest: [SAR isolation] scheduler 查詢 anchor 不含 release
+ok 285 - [SAR isolation] scheduler 查詢 anchor 不含 release
+  ---
+  duration_ms: 16.909968
+  type: 'test'
+  ...
+# Subtest: [SAR isolation] opencode 查詢 anchor 不含 web chat
+ok 286 - [SAR isolation] opencode 查詢 anchor 不含 web chat
+  ---
+  duration_ms: 23.66156
+  type: 'test'
+  ...
+# Subtest: [SAR isolation] web chat 查詢 anchor 不含 opencode
+ok 287 - [SAR isolation] web chat 查詢 anchor 不含 opencode
+  ---
+  duration_ms: 9.423194
+  type: 'test'
+  ...
+# Subtest: [SAR structure] context 包含 SAR wrapper 標題
+ok 288 - [SAR structure] context 包含 SAR wrapper 標題
+  ---
+  duration_ms: 13.359493
+  type: 'test'
+  ...
+# Subtest: [SAR structure] 同一規則不重複出現於不同區塊
+ok 289 - [SAR structure] 同一規則不重複出現於不同區塊
+  ---
+  duration_ms: 11.453101
+  type: 'test'
+  ...
+# Subtest: [SAR structure] context 總長度不超過 budget 上限
+ok 290 - [SAR structure] context 總長度不超過 budget 上限
+  ---
+  duration_ms: 13.766604
+  type: 'test'
+  ...
+# Subtest: [SAR structure] 無相關記憶時回傳空字串
+ok 291 - [SAR structure] 無相關記憶時回傳空字串
+  ---
+  duration_ms: 10.849858
+  type: 'test'
+  ...
+# Subtest: extractKeywords removes stopwords and keeps unique tokens
+ok 292 - extractKeywords removes stopwords and keeps unique tokens
+  ---
+  duration_ms: 2.560465
+  type: 'test'
+  ...
+# Subtest: assessAiResponse retries obvious execution stubs
+ok 293 - assessAiResponse retries obvious execution stubs
+  ---
+  duration_ms: 0.474338
+  type: 'test'
+  ...
+# Subtest: assessAiResponse accepts concrete bullet results
+ok 294 - assessAiResponse accepts concrete bullet results
+  ---
+  duration_ms: 0.205105
+  type: 'test'
+  ...
+# Subtest: hasUserActivitySinceLastReflection detects no new user reply after follow-up
+ok 295 - hasUserActivitySinceLastReflection detects no new user reply after follow-up
+  ---
+  duration_ms: 0.208168
+  type: 'test'
+  ...
+# Subtest: scheduler prompt builders keep core task wording
+ok 296 - scheduler prompt builders keep core task wording
+  ---
+  duration_ms: 0.480218
+  type: 'test'
+  ...
+# [scheduler] INFO job.started scheduleId=1 name=daily-report cron=0 9 * * 1-5 timezone=Asia/Taipei
+# [scheduler] INFO job.started scheduleId=1 name=global-market-report cron=30 8 * * 1-5 timezone=Asia/Taipei
+# [scheduler] INFO schedule.updated scheduleId=1 userId=user-a
+# [scheduler] INFO shutdown.started jobs=1 systemJobs=0
+# [scheduler] INFO shutdown.job-stopped scheduleId=1
+# [scheduler] INFO silence-timer.reset userId=user-a nextTriggerMinutes=30
+# [scheduler] INFO silence-timer.scheduled userId=user-a seq=1 source=message-reset delayMs=1800000 activeTimers=1
+# [scheduler] INFO reflection.triggered userId=user-a type=silence sourceTimerSeq=n/a
+# [scheduler] INFO reflection.reschedule userId=user-a delayMinutes=30
+# [scheduler] INFO silence-timer.cleared userId=user-a
+# [scheduler] INFO silence-timer.scheduled userId=user-a seq=2 source=reflection-recur delayMs=1800000 activeTimers=1
+# [scheduler] INFO shutdown.started jobs=0 systemJobs=0
+# [scheduler] INFO reflection.triggered userId=user-a type=silence sourceTimerSeq=n/a
+# [scheduler] INFO reflection.reschedule userId=user-a delayMinutes=30
+# [scheduler] INFO silence-timer.scheduled userId=user-a seq=1 source=reflection-recur delayMs=1800000 activeTimers=1
+# [scheduler] INFO reflection.triggered userId=user-a type=silence sourceTimerSeq=n/a
+# [scheduler] INFO reflection.skipped.no-new-activity userId=user-a
+# [scheduler] INFO shutdown.started jobs=0 systemJobs=0
+# [scheduler] INFO reflection.triggered userId=user-a type=manual sourceTimerSeq=n/a
+# [scheduler] INFO shutdown.started jobs=0 systemJobs=0
+# [scheduler] INFO job.started scheduleId=1 name=daily-report cron=0 9 * * 1-5 timezone=Asia/Taipei
+# [scheduler] INFO task.completed scheduleId=1 responseLength=2
+# [scheduler] INFO shutdown.started jobs=1 systemJobs=0
+# [scheduler] INFO shutdown.job-stopped scheduleId=1
+# Subtest: Scheduler validates cron input and supports schedule update
+ok 297 - Scheduler validates cron input and supports schedule update
+  ---
+  duration_ms: 51.209817
+  type: 'test'
+  ...
+# Subtest: Scheduler keeps only one silence timer when reflection re-schedules
+ok 298 - Scheduler keeps only one silence timer when reflection re-schedules
+  ---
+  duration_ms: 22.163454
+  type: 'test'
+  ...
+# Subtest: Scheduler skips repeated silence reflection when no user reply after follow-up
+ok 299 - Scheduler skips repeated silence reflection when no user reply after follow-up
+  ---
+  duration_ms: 11.339655
+  type: 'test'
+  ...
+# Subtest: Scheduler reflection writes memory metadata and enqueues memoria sync
+ok 300 - Scheduler reflection writes memory metadata and enqueues memoria sync
+  ---
+  duration_ms: 6.12755
+  type: 'test'
+  ...
+# Subtest: Scheduler executeTask enqueues scheduler output into memoria sync
+ok 301 - Scheduler executeTask enqueues scheduler output into memoria sync
+  ---
+  duration_ms: 10.586867
+  type: 'test'
+  ...
+# Subtest: SCN-006 新安裝兩目標不再同步 agent-browser，重跑冪等
+ok 302 - SCN-006 新安裝兩目標不再同步 agent-browser，重跑冪等
+  ---
+  duration_ms: 89.043059
+  type: 'test'
+  ...
+# Subtest: SCN-006 完全相符舊內建技能兩目標改名備份，索引退役且不覆寫
+ok 303 - SCN-006 完全相符舊內建技能兩目標改名備份，索引退役且不覆寫
+  ---
+  duration_ms: 82.517112
+  type: 'test'
+  ...
+# Subtest: SCN-006 custom-content 兩目標保留原地、警告且重跑不覆寫
+ok 304 - SCN-006 custom-content 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 94.626183
+  type: 'test'
+  ...
+# Subtest: SCN-006 extra-file 兩目標保留原地、警告且重跑不覆寫
+ok 305 - SCN-006 extra-file 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 79.443207
+  type: 'test'
+  ...
+# Subtest: SCN-006 prototype-file 兩目標保留原地、警告且重跑不覆寫
+ok 306 - SCN-006 prototype-file 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 64.573286
+  type: 'test'
+  ...
+# Subtest: SCN-006 extra-dir 兩目標保留原地、警告且重跑不覆寫
+ok 307 - SCN-006 extra-dir 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 61.537336
+  type: 'test'
+  ...
+# Subtest: SCN-006 symlink 兩目標保留原地、警告且重跑不覆寫
+ok 308 - SCN-006 symlink 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 52.946016
+  type: 'test'
+  ...
+# Subtest: SCN-006 root-symlink 兩目標保留原地、警告且重跑不覆寫
+ok 309 - SCN-006 root-symlink 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 50.235751
+  type: 'test'
+  ...
+# Subtest: SCN-006 backup-collision 兩目標保留原地、警告且重跑不覆寫
+ok 310 - SCN-006 backup-collision 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 57.412594
+  type: 'test'
+  ...
+# Subtest: SCN-006 target-ancestor-symlink 保留兩目標並警告
+ok 311 - SCN-006 target-ancestor-symlink 保留兩目標並警告
+  ---
+  duration_ms: 53.919166
+  type: 'test'
+  ...
+# Subtest: SCN-006 backup-ancestor-symlink 保留兩目標並警告
+ok 312 - SCN-006 backup-ancestor-symlink 保留兩目標並警告
+  ---
+  duration_ms: 56.35203
+  type: 'test'
+  ...
+# Subtest: SCN-006 local／runner 同時同步只保留一份完整備份，不殘留 builtin
+ok 313 - SCN-006 local／runner 同時同步只保留一份完整備份，不殘留 builtin
+  ---
+  duration_ms: 55.444705
+  type: 'test'
+  ...
+# Subtest: inferSummaryMetadata marks release SOP as critical with release tag
+ok 314 - inferSummaryMetadata marks release SOP as critical with release tag
+  ---
+  duration_ms: 2.753273
+  type: 'test'
+  ...
+# Subtest: inferSummaryMetadata marks chat history cursor fix as important web memory
+ok 315 - inferSummaryMetadata marks chat history cursor fix as important web memory
+  ---
+  duration_ms: 0.807367
+  type: 'test'
+  ...
+# Subtest: inferSummaryMetadata keeps generic content at impact level 1
+ok 316 - inferSummaryMetadata keeps generic content at impact level 1
+  ---
+  duration_ms: 1.088691
+  type: 'test'
+  ...
+# [telegram-stream] INFO stream.started chatId=123 display=message editThrottleMs=0 minDeltaChars=40 forceFlushMs=0 earlyFlushChars=120 maxEditFailures=3
+# [telegram-stream] INFO stream.first-delta chatId=123 chunkLength=5 bufferLength=5
+# [telegram-stream] INFO stream.flush chatId=123 force=true deltaChars=5 elapsedMs=1 bufferLength=5 previewLength=16 consecutiveEditFailures=0
+# [telegram-stream] INFO stream.finalizing chatId=123 display=message textLength=8 sawDelta=true streamingDisabled=false
+# [telegram-stream] INFO stream.finalized-via-edit chatId=123 textLength=8
+# [telegram-stream] INFO stream.started chatId=123 display=message editThrottleMs=1000 minDeltaChars=40 forceFlushMs=2500 earlyFlushChars=120 maxEditFailures=3
+# [telegram-stream] INFO stream.finalizing chatId=123 display=message textLength=6 sawDelta=true streamingDisabled=false
+# [telegram-stream] INFO stream.finalized-via-new-message chatId=123 textLength=6
+# [telegram-stream] INFO stream.started chatId=123 display=message editThrottleMs=1000 minDeltaChars=40 forceFlushMs=2500 earlyFlushChars=120 maxEditFailures=3
+# [telegram-stream] INFO stream.finalizing chatId=123 display=message textLength=2 sawDelta=false streamingDisabled=false
+# [telegram-stream] INFO stream.finalized-via-new-message chatId=123 textLength=2
+# [telegram-stream] INFO stream.started chatId=123 display=message editThrottleMs=1000 minDeltaChars=40 forceFlushMs=2500 earlyFlushChars=120 maxEditFailures=3
+# [telegram-stream] INFO stream.finalizing chatId=123 display=message textLength=4 sawDelta=false streamingDisabled=false
+# [telegram-stream] INFO stream.finalized-via-new-message chatId=123 textLength=4
+# [telegram-stream] INFO stream.started chatId=123 display=draft editThrottleMs=1000 minDeltaChars=40 forceFlushMs=2500 earlyFlushChars=120 maxEditFailures=3
+# [telegram-stream] INFO stream.finalizing chatId=123 display=draft textLength=4 sawDelta=false streamingDisabled=false
+# [telegram-stream] INFO stream.finalized-via-new-message chatId=123 textLength=4
+# [telegram-stream] WARN draft.start-failed chatId=123 draftId=89 error=draft unsupported
+# [telegram-stream] INFO stream.started chatId=123 display=message editThrottleMs=1000 minDeltaChars=40 forceFlushMs=2500 earlyFlushChars=120 maxEditFailures=3
+# [telegram-stream] INFO stream.finalizing chatId=123 display=message textLength=15 sawDelta=false streamingDisabled=false
+# [telegram-stream] INFO stream.finalized-via-new-message chatId=123 textLength=15
+# [telegram-stream] INFO stream.started chatId=123 display=draft editThrottleMs=1000 minDeltaChars=40 forceFlushMs=2500 earlyFlushChars=120 maxEditFailures=3
+# [telegram-stream] WARN draft.update-failed-fallback chatId=123 error=draft expired
+# [telegram-stream] INFO stream.finalizing chatId=123 display=message textLength=19 sawDelta=false streamingDisabled=false
+# [telegram-stream] INFO stream.finalized-via-new-message chatId=123 textLength=19
+# [telegram-stream] INFO stream.started chatId=123 display=draft editThrottleMs=1000 minDeltaChars=40 forceFlushMs=2500 earlyFlushChars=120 maxEditFailures=3
+# [telegram-stream] INFO stream.finalizing chatId=123 display=draft textLength=4 sawDelta=false streamingDisabled=false
+# [telegram-stream] INFO stream.finalized-via-new-message chatId=123 textLength=4
+# [telegram-stream] INFO stream.started chatId=123 display=draft editThrottleMs=1000 minDeltaChars=40 forceFlushMs=2500 earlyFlushChars=120 maxEditFailures=3
+# [telegram-stream] WARN stream.failed chatId=123 display=draft fallbackLength=7 sawDelta=false streamingDisabled=false
+# [telegram-stream] INFO stream.started chatId=123 display=message editThrottleMs=1000 minDeltaChars=40 forceFlushMs=2500 earlyFlushChars=120 maxEditFailures=3
+# [telegram-stream] INFO stream.finalizing chatId=123 display=message textLength=7 sawDelta=false streamingDisabled=false
+# [telegram-stream] WARN stream.finalize-failed chatId=123 error=final delivery failed
+# Subtest: finalize uses markdown-v2 formatMode (edit-in-place path)
+ok 317 - finalize uses markdown-v2 formatMode (edit-in-place path)
+  ---
+  duration_ms: 2.333473
+  type: 'test'
+  ...
+# Subtest: reasoning mode renders thinking, then deletes placeholder and sends a new final answer
+ok 318 - reasoning mode renders thinking, then deletes placeholder and sends a new final answer
+  ---
+  duration_ms: 1.460078
+  type: 'test'
+  ...
+# Subtest: reasoning mode falls back to edit-in-place when connector cannot delete
+ok 319 - reasoning mode falls back to edit-in-place when connector cannot delete
+  ---
+  duration_ms: 0.502819
+  type: 'test'
+  ...
+# Subtest: reasoning mode renders tool status in the progress display
+ok 320 - reasoning mode renders tool status in the progress display
+  ---
+  duration_ms: 0.537136
+  type: 'test'
+  ...
+# Subtest: native draft reuses one id and sends the final answer as a normal message
+ok 321 - native draft reuses one id and sends the final answer as a normal message
+  ---
+  duration_ms: 0.72534
+  type: 'test'
+  ...
+# Subtest: native draft start failure falls back to one persistent progress message
+ok 322 - native draft start failure falls back to one persistent progress message
+  ---
+  duration_ms: 0.525793
+  type: 'test'
+  ...
+# Subtest: midstream native draft failure transitions to fallback only once
+ok 323 - midstream native draft failure transitions to fallback only once
+  ---
+  duration_ms: 0.848327
+  type: 'test'
+  ...
+# Subtest: native draft bounds long reasoning without broken UTF-16 pairs
+ok 324 - native draft bounds long reasoning without broken UTF-16 pairs
+  ---
+  duration_ms: 0.919135
+  type: 'test'
+  ...
+# Subtest: native draft failure path sends errors as normal messages
+ok 325 - native draft failure path sends errors as normal messages
+  ---
+  duration_ms: 0.88538
+  type: 'test'
+  ...
+# Subtest: failed final delivery keeps fallback progress available for recovery
+ok 326 - failed final delivery keeps fallback progress available for recovery
+  ---
+  duration_ms: 1.306194
+  type: 'test'
+  ...
+# Subtest: short text returns single chunk
+ok 327 - short text returns single chunk
+  ---
+  duration_ms: 1.154321
+  type: 'test'
+  ...
+# Subtest: splits at paragraph boundary
+ok 328 - splits at paragraph boundary
+  ---
+  duration_ms: 0.241174
+  type: 'test'
+  ...
+# Subtest: does not break inside fenced code block
+ok 329 - does not break inside fenced code block
+  ---
+  duration_ms: 0.156299
+  type: 'test'
+  ...
+# Subtest: hard split a single oversized line
+ok 330 - hard split a single oversized line
+  ---
+  duration_ms: 0.169762
+  type: 'test'
+  ...
+# Subtest: escape special chars: _*[]()~`>\#+-=|{}.!
+ok 331 - escape special chars: _*[]()~`>\#+-=|{}.!
+  ---
+  duration_ms: 1.904477
+  type: 'test'
+  ...
+# Subtest: escape preserves CJK and ASCII alphanumerics
+ok 332 - escape preserves CJK and ASCII alphanumerics
+  ---
+  duration_ms: 0.227871
+  type: 'test'
+  ...
+# Subtest: code escape only handles ` and \\
+ok 333 - code escape only handles ` and \\
+  ---
+  duration_ms: 0.220483
+  type: 'test'
+  ...
+# Subtest: plain paragraph escapes specials
+ok 334 - plain paragraph escapes specials
+  ---
+  duration_ms: 5.668517
+  type: 'test'
+  ...
+# Subtest: bold via **
+ok 335 - bold via **
+  ---
+  duration_ms: 2.102854
+  type: 'test'
+  ...
+# Subtest: italic via _
+ok 336 - italic via _
+  ---
+  duration_ms: 0.98324
+  type: 'test'
+  ...
+# Subtest: inline code
+ok 337 - inline code
+  ---
+  duration_ms: 1.071766
+  type: 'test'
+  ...
+# Subtest: fenced code with language
+ok 338 - fenced code with language
+  ---
+  duration_ms: 1.388109
+  type: 'test'
+  ...
+# Subtest: heading -> bold line
+ok 339 - heading -> bold line
+  ---
+  duration_ms: 0.793812
+  type: 'test'
+  ...
+# Subtest: bullet list
+ok 340 - bullet list
+  ---
+  duration_ms: 1.94416
+  type: 'test'
+  ...
+# Subtest: link
+ok 341 - link
+  ---
+  duration_ms: 2.286561
+  type: 'test'
+  ...
+# Subtest: blockquote
+ok 342 - blockquote
+  ---
+  duration_ms: 1.029855
+  type: 'test'
+  ...
+# Subtest: falls back to escaped plain text on parse error
+ok 343 - falls back to escaped plain text on parse error
+  ---
+  duration_ms: 1.040437
+  type: 'test'
+  ...
+# Subtest: parseBool returns fallback for undefined
+ok 344 - parseBool returns fallback for undefined
+  ---
+  duration_ms: 1.264422
+  type: 'test'
+  ...
+# Subtest: parseBool returns fallback for empty string
+ok 345 - parseBool returns fallback for empty string
+  ---
+  duration_ms: 0.223602
+  type: 'test'
+  ...
+# Subtest: parseBool parses truthy values
+ok 346 - parseBool parses truthy values
+  ---
+  duration_ms: 0.172803
+  type: 'test'
+  ...
+# Subtest: parseBool parses falsy values
+ok 347 - parseBool parses falsy values
+  ---
+  duration_ms: 0.227274
+  type: 'test'
+  ...
+# Subtest: parseBool returns fallback for unrecognized string
+ok 348 - parseBool returns fallback for unrecognized string
+  ---
+  duration_ms: 0.134784
+  type: 'test'
+  ...
+# Subtest: parsePositiveInt returns fallback for undefined
+ok 349 - parsePositiveInt returns fallback for undefined
+  ---
+  duration_ms: 0.140709
+  type: 'test'
+  ...
+# Subtest: parsePositiveInt returns fallback for empty string
+ok 350 - parsePositiveInt returns fallback for empty string
+  ---
+  duration_ms: 0.188117
+  type: 'test'
+  ...
+# Subtest: parsePositiveInt parses valid positive integers
+ok 351 - parsePositiveInt parses valid positive integers
+  ---
+  duration_ms: 0.142108
+  type: 'test'
+  ...
+# Subtest: parsePositiveInt returns fallback for zero or negative
+ok 352 - parsePositiveInt returns fallback for zero or negative
+  ---
+  duration_ms: 0.310078
+  type: 'test'
+  ...
+# Subtest: parsePositiveInt returns fallback for non-numeric string
+ok 353 - parsePositiveInt returns fallback for non-numeric string
+  ---
+  duration_ms: 0.402271
+  type: 'test'
+  ...
+# Subtest: parseNumber returns fallback for undefined
+ok 354 - parseNumber returns fallback for undefined
+  ---
+  duration_ms: 0.159643
+  type: 'test'
+  ...
+# Subtest: parseNumber returns fallback for empty string
+ok 355 - parseNumber returns fallback for empty string
+  ---
+  duration_ms: 0.104472
+  type: 'test'
+  ...
+# Subtest: parseNumber parses valid numbers
+ok 356 - parseNumber parses valid numbers
+  ---
+  duration_ms: 0.098756
+  type: 'test'
+  ...
+# Subtest: parseNumber returns fallback for non-numeric string
+ok 357 - parseNumber returns fallback for non-numeric string
+  ---
+  duration_ms: 0.900165
+  type: 'test'
+  ...
+# Subtest: parseString returns fallback for undefined
+ok 358 - parseString returns fallback for undefined
+  ---
+  duration_ms: 0.123001
+  type: 'test'
+  ...
+# Subtest: parseString returns fallback for empty or whitespace-only string
+ok 359 - parseString returns fallback for empty or whitespace-only string
+  ---
+  duration_ms: 0.094862
+  type: 'test'
+  ...
+# Subtest: parseString returns trimmed value for valid string
+ok 360 - parseString returns trimmed value for valid string
+  ---
+  duration_ms: 0.093737
+  type: 'test'
+  ...
+# Subtest: toErrorMessage formats Error objects
+ok 361 - toErrorMessage formats Error objects
+  ---
+  duration_ms: 1.048648
+  type: 'test'
+  ...
+# Subtest: toErrorMessage returns string as-is
+ok 362 - toErrorMessage returns string as-is
+  ---
+  duration_ms: 0.150367
+  type: 'test'
+  ...
+# Subtest: toErrorMessage stringifies other types
+ok 363 - toErrorMessage stringifies other types
+  ---
+  duration_ms: 0.147969
+  type: 'test'
+  ...
+# Subtest: recordRuntimeIssue stores issues up to limit
+ok 364 - recordRuntimeIssue stores issues up to limit
+  ---
+  duration_ms: 2.501052
+  type: 'test'
+  ...
+# Subtest: recordRuntimeIssue 的 dedupe 不會因陣列順序被打亂而失效
+ok 365 - recordRuntimeIssue 的 dedupe 不會因陣列順序被打亂而失效
+  ---
+  duration_ms: 0.426642
+  type: 'test'
+  ...
+# Subtest: recordRuntimeIssue 超出視窗後仍會建立新筆
+ok 366 - recordRuntimeIssue 超出視窗後仍會建立新筆
+  ---
+  duration_ms: 0.260958
+  type: 'test'
+  ...
+# Subtest: parsePromptSessionRequests parses recent request lines
+ok 367 - parsePromptSessionRequests parses recent request lines
+  ---
+  duration_ms: 1.432703
+  type: 'test'
+  ...
+# Subtest: parseMemoryIntentRequests parses recent intent lines
+ok 368 - parseMemoryIntentRequests parses recent intent lines
+  ---
+  duration_ms: 0.367453
+  type: 'test'
+  ...
+# Subtest: toStructuredStatus includes prompt session structured fields
+ok 369 - toStructuredStatus includes prompt session structured fields
+  ---
+  duration_ms: 1.260658
+  type: 'test'
+  ...
+# [Web] Local server listening at http://127.0.0.1:39231
+# [message-pipeline] INFO message.received req=cbac6309-0f93-4082-a03f-2dfb0131d375 platform=console sender=Local Web User userId=web-user attachments=0 content=test stream
+# [message-pipeline] INFO agent.selected mode=local bucket=15 canaryPercent=0 whitelistMatched=true userId=web-user
+# [message-pipeline] INFO prompt.sent req=cbac6309-0f93-4082-a03f-2dfb0131d375 userId=web-user length=18 mode=full reason=periodic-full memoryContextLength=0 memoryContextSectionCount=0
+# [message-pipeline] INFO response.received req=cbac6309-0f93-4082-a03f-2dfb0131d375 userId=web-user length=11 directives=0
+# Subtest: web chat stream emits chunks before done and keeps final reply aligned
+ok 370 - web chat stream emits chunks before done and keeps final reply aligned
+  ---
+  duration_ms: 36.040482
+  type: 'test'
+  ...
+1..370
+# tests 370
+# suites 0
+# pass 370
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8254.169595

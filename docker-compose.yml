@@ -5,6 +5,7 @@ x-common-config: &common-config
       APP_GIT_SHA: ${APP_GIT_SHA:-unknown}
       APP_BUILD_TIME: ${APP_BUILD_TIME:-unknown}
   env_file: .env
+  init: true
   restart: unless-stopped
   # 降權:禁止透過 setuid 提權,並丟棄所有 Linux capabilities，
   # 只保留 entrypoint 做 runtime UID 對齊 (usermod/chown) 與 gosu 降權所需的最小集合。
@@ -52,8 +53,6 @@ x-common-env: &common-env
   OPENCODE_YOLO: ${OPENCODE_YOLO:-1}
   # builtin skills 同步目標：專案層 (保證載入) + 全域層 (seed 持久化全域設定)
   OPENCODE_SKILLS_DIRS: ${OPENCODE_SKILLS_DIRS:-/app/workspace/.opencode/skills,/home/node/.config/opencode/skills}
-  # 非 root 執行 chromium 必須 --no-sandbox；agent-browser 讀此 env 套用啟動參數
-  AGENT_BROWSER_ARGS: ${AGENT_BROWSER_ARGS:---no-sandbox,--disable-dev-shm-usage}
 
 services:
   telenexus:

@@ -1,0 +1,24 @@
+[9:9:1004/034154.675460:FATAL:content/browser/zygote_host/zygote_host_impl_linux.cc:129] No usable sandbox! If you are running on Ubuntu 23.10+ or another Linux distro that has disabled unprivileged user namespaces with AppArmor, see https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md. Otherwise see https://chromium.googlesource.com/chromium/src/+/main/docs/linux/suid_sandbox_development.md for more information on developing with the (older) SUID sandbox. If you want to live dangerously and need an immediate workaround, you can try using --no-sandbox.
+Received signal 6
+#0 0x5f36602a2783 (/home/node/.agent-browser/browsers/chrome-154.0.8037.92/chrome+0x6949782)
+#1 0x5f3665141594 (/home/node/.agent-browser/browsers/chrome-154.0.8037.92/chrome+0xb7e8593)
+#2 0x78150960b050 (/usr/lib/x86_64-linux-gnu/libc.so.6+0x3c04f)
+#3 0x5f3665138435 (/home/node/.agent-browser/browsers/chrome-154.0.8037.92/chrome+0xb7df434)
+#4 0x5f36650f979d (/home/node/.agent-browser/browsers/chrome-154.0.8037.92/chrome+0xb7a079c)
+#5 0x5f36650f972e (/home/node/.agent-browser/browsers/chrome-154.0.8037.92/chrome+0xb7a072d)
+#6 0x5f3660002c83 (/home/node/.agent-browser/browsers/chrome-154.0.8037.92/chrome+0x66a9c82)
+#7 0x5f365f74cc19 (/home/node/.agent-browser/browsers/chrome-154.0.8037.92/chrome+0x5df3c18)
+#8 0x5f365f34befb (/home/node/.agent-browser/browsers/chrome-154.0.8037.92/chrome+0x59f2efa)
+#9 0x5f36642d7d98 (/home/node/.agent-browser/browsers/chrome-154.0.8037.92/chrome+0xa97ed97)
+#10 0x5f365f819ab3 (/home/node/.agent-browser/browsers/chrome-154.0.8037.92/chrome+0x5ec0ab2)
+#11 0x5f365f819340 (/home/node/.agent-browser/browsers/chrome-154.0.8037.92/chrome+0x5ec033f)
+#12 0x7815095f624a (/usr/lib/x86_64-linux-gnu/libc.so.6+0x27249)
+  r8: 00000c80000a025d  r9: 0000000000000001 r10: 0000000000000008 r11: 0000000000000246
+ r12: 0000000000000006 r13: 00000c80000a0000 r14: 000000000000025d r15: 00007ffe408660f8
+  di: 0000000000000009  si: 0000000000000009  bp: 0000781508274300  bx: 0000000000000009
+  dx: 0000000000000006  ax: 0000000000000000  cx: 0000781509659eec  sp: 00007ffe40865a50
+  ip: 0000781509659eec efl: 0000000000000246 cgf: 002b000000000033 erf: 0000000000000000
+ trp: 0000000000000000 msk: 0000000000000000 cr2: 0000000000000000
+[end of stack trace]
+timeout: the monitored command dumped core
+Aborted
