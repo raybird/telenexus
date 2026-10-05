@@ -2,6 +2,24 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.28.0 — 2026-10-05
+
+### 網頁閱讀後端替換與工作專屬回收（#10）
+
+- 一般公開文件優先使用 HTTP／webfetch，需要 JavaScript 渲染才啟動固定版本 Chrome DevTools MCP／Chrome。
+- 每個工作獨立 MCP、Chrome 與臨時 profile；正常、失敗、取消及逾時均由程式收尾，不使用全域 close。runner 取消沿 HTTP 傳遞，不轉回 local fallback。
+- 兩個執行服務啟用 Compose init，回收退出的孤兒程序；工作清理失敗保留 audit。
+- 退役 agent-browser 套件與專用環境變數；完整指紋符合的舊內建技能移至可復原備份，客製內容、認證、文字 session 與自訂 MCP 保留。
+- 新後端限定公開網頁閱讀，不承諾舊版登入、完整表單自動化、自動點擊或跨回合 browser profile。
+
+2026-10-05 驗證涵蓋 SCN-001～008、45 輪生命週期與四組併發取消。真 runner 持有 Chrome 時，正常 Docker stop／SIGTERM 及 deadline 強制終止的宿主程序查核均無殘留；強制終止仍可能留下停止容器可寫層的 `/tmp/tnb-*`，不代表 application cleanup／unlink 成功。
+
+升級需先排空工作、備份使用者設定，再**重建** `telenexus`／`agent-runner` 才能套用 init；一般 restart 不會新增 init。不得以清空 data、workspace 或 OpenCode volumes 作為遷移方式。操作與限制見 [安裝指南](docs/installation.md)、[SCN-008 證據](docs/issues/issue-0010/evidence/scn008-report.md)。
+
+### 發版流程
+
+- Release workflow 更新至 `actions/checkout@v7`。既有 GitHub Actions 僅在版本 tag 時建映像與 bundle，沒有 PR／push 測試 checks；本機測試證據不能描述為 branch checks 通過。
+
 ## 2.27.4 — 2026-10-01
 
 ### opencode 被免費層以 426 拒絕，兩週沒有任何告警
