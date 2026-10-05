@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-05",
+  "command": [
+    "docker",
+    "build",
+    "--progress=plain",
+    "-t",
+    "issue10-product:20261004",
+    "."
+  ],
+  "codeHashes": {
+    "Dockerfile": "362706085f485d72458bc66599ebff734442a084ac44693f3c9f6a0678c6243f",
+    "package.json": "7a0d37d34abc1c22734d415b40d06a59fa1331e8e4fa0e0d7434c3a24dc0ab2c",
+    "package-lock.json": "7d8e621f6baa2dc726a8efc0a713d992384819867099853e2c634ff187378b49",
+    "scripts/browser-mcp-launcher.mjs": "24c0021a768010c07dacad12f4c19bf0a906c4070e70301be1b58d35b158c1f2",
+    "src/core/opencode.ts": "b9ccea151c4d51618cce7e21e39976ccbb99478d75cd0a8f92cc1c2e77c09e7a",
+    "src/core/agent.ts": "3ad1ba6665efe580057cd23b18b070bb09665a8ca8e81838e3fb383b47a122d7",
+    "src/runner.ts": "2a2b69dacbdcd1fe8e11e5625f2e7f20f1d23907d8e1db26faf7e8cdb4837712"
+  },
+  "exitCode": 0,
+  "imageId": "sha256:445ce68d079d87c65a11bde4d9effcad26b2e1b6a0e2a4723a8557428cdbefb0",
+  "dateNote": "build helper historical stamp corrected to actual collection date"
+}

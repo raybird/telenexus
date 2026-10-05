@@ -1,0 +1,275 @@
+[
+    {
+        "Id": "118dacf2d928b42bd54ad16a4d74432a04cc8e3c1c1954e0cbcdf8230c08764f",
+        "Created": "2026-10-04T13:03:44.406759444Z",
+        "Path": "node",
+        "Args": [
+            "/probe/product-migration-contract.mjs",
+            "legacy"
+        ],
+        "State": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 1,
+            "Error": "",
+            "StartedAt": "2026-10-04T13:03:44.428584255Z",
+            "FinishedAt": "2026-10-04T13:04:44.575523797Z"
+        },
+        "Image": "sha256:a4a3620bb9bc290476cae7358901f7fe79142cb0c338fa6dc43b97e4b1d261b9",
+        "ResolvConfPath": "/var/lib/docker/containers/118dacf2d928b42bd54ad16a4d74432a04cc8e3c1c1954e0cbcdf8230c08764f/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/118dacf2d928b42bd54ad16a4d74432a04cc8e3c1c1954e0cbcdf8230c08764f/hostname",
+        "HostsPath": "/var/lib/docker/containers/118dacf2d928b42bd54ad16a4d74432a04cc8e3c1c1954e0cbcdf8230c08764f/hosts",
+        "LogPath": "/var/lib/docker/containers/118dacf2d928b42bd54ad16a4d74432a04cc8e3c1c1954e0cbcdf8230c08764f/118dacf2d928b42bd54ad16a4d74432a04cc8e3c1c1954e0cbcdf8230c08764f-json.log",
+        "Name": "/issue10-migration-legacy-v1-20261004",
+        "RestartCount": 0,
+        "Driver": "overlay2",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "docker-default",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": null,
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "none",
+            "PortBindings": {},
+            "RestartPolicy": {
+                "Name": "no",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": [
+                "ALL"
+            ],
+            "CgroupnsMode": "private",
+            "Dns": [],
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": null,
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": [
+                "no-new-privileges"
+            ],
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 2147483648,
+            "NanoCpus": 0,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": [],
+            "BlkioDeviceReadBps": [],
+            "BlkioDeviceWriteBps": [],
+            "BlkioDeviceReadIOps": [],
+            "BlkioDeviceWriteIOps": [],
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": [],
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 4294967296,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": 1024,
+            "Ulimits": [],
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "Mounts": [
+                {
+                    "Type": "bind",
+                    "Source": "/home/kevin/Documents/RCodes/moltbot-lite/docs/issues/issue-0010/evidence",
+                    "Target": "/probe",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/home/kevin/Documents/RCodes/moltbot-lite/skills",
+                    "Target": "/app/skills",
+                    "ReadOnly": true
+                },
+                {
+                    "Type": "bind",
+                    "Source": "/tmp/issue10-legacy-20261004-kIYcPP",
+                    "Target": "/legacy",
+                    "ReadOnly": true
+                }
+            ],
+            "MaskedPaths": [
+                "/proc/asound",
+                "/proc/acpi",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/sys/firmware",
+                "/sys/devices/virtual/powercap",
+                "/sys/devices/system/cpu/cpu0/thermal_throttle",
+                "/sys/devices/system/cpu/cpu1/thermal_throttle",
+                "/sys/devices/system/cpu/cpu2/thermal_throttle",
+                "/sys/devices/system/cpu/cpu3/thermal_throttle",
+                "/sys/devices/system/cpu/cpu4/thermal_throttle",
+                "/sys/devices/system/cpu/cpu5/thermal_throttle",
+                "/sys/devices/system/cpu/cpu6/thermal_throttle",
+                "/sys/devices/system/cpu/cpu7/thermal_throttle",
+                "/sys/devices/system/cpu/cpu8/thermal_throttle",
+                "/sys/devices/system/cpu/cpu9/thermal_throttle",
+                "/sys/devices/system/cpu/cpu10/thermal_throttle",
+                "/sys/devices/system/cpu/cpu11/thermal_throttle"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ],
+            "Init": true
+        },
+        "GraphDriver": {
+            "Data": {
+                "ID": "118dacf2d928b42bd54ad16a4d74432a04cc8e3c1c1954e0cbcdf8230c08764f",
+                "LowerDir": "/var/lib/docker/overlay2/7a5f7414be53dc1b78629c95491024907a218614b5b917edb600a1d0ffe9d699-init/diff:/var/lib/docker/overlay2/ekha7pmksg7yq18xd8ishwu73/diff:/var/lib/docker/overlay2/09m1n6sprootdqpea0d2zktep/diff:/var/lib/docker/overlay2/p4eit8c3jksgj8fvrcjft3amk/diff:/var/lib/docker/overlay2/q6puxw7eku1w56z2m6o5r3xsd/diff:/var/lib/docker/overlay2/fksgi25059cfmd040h7umgmso/diff:/var/lib/docker/overlay2/srzpen2nbslmepk2rfys0d46x/diff:/var/lib/docker/overlay2/0ykofulor1byf3pnsv0vikl19/diff:/var/lib/docker/overlay2/zjjx562dtstwzeo0849lk9et4/diff:/var/lib/docker/overlay2/ze9ufyvo7xcei0bcuz7ls80i8/diff:/var/lib/docker/overlay2/luep0v11joumrfw8vmulkdapy/diff:/var/lib/docker/overlay2/obnci28600zfnogwgxfbeekz8/diff:/var/lib/docker/overlay2/jggz2f9o4zwbygtumwgtdltfz/diff:/var/lib/docker/overlay2/05wsvo4r2elzli25fl98255mb/diff:/var/lib/docker/overlay2/cap8zxe9gc1rtpfp1se2er2n0/diff:/var/lib/docker/overlay2/rrer3pp3kqmwgtl33zgasycjw/diff:/var/lib/docker/overlay2/1mfrljzyixjzmv90gyhbl0azh/diff:/var/lib/docker/overlay2/rgsqon26tltpeed3cj1ytvvlx/diff:/var/lib/docker/overlay2/6c7e5176b8f4075725736668c43cf1c97b9b346c4aba85e6af1acbc42c3f3116/diff:/var/lib/docker/overlay2/ecf754584addaa9c1a5600a32d6750c9444124016cd01545ea28b93ea6aec909/diff:/var/lib/docker/overlay2/c70a67d4c1ebf067e4506e18408a7bfa6383b56237665c5f57cef5a73400856a/diff:/var/lib/docker/overlay2/84468b83566ca0026619daaf62c772e00f5632c0015f61b02cc5289b25554ad9/diff:/var/lib/docker/overlay2/e31e4b9c4fe7c3f23894b779a8bc70ff02efc8316a944e7802822dc088f6c143/diff",
+                "MergedDir": "/var/lib/docker/overlay2/7a5f7414be53dc1b78629c95491024907a218614b5b917edb600a1d0ffe9d699/merged",
+                "UpperDir": "/var/lib/docker/overlay2/7a5f7414be53dc1b78629c95491024907a218614b5b917edb600a1d0ffe9d699/diff",
+                "WorkDir": "/var/lib/docker/overlay2/7a5f7414be53dc1b78629c95491024907a218614b5b917edb600a1d0ffe9d699/work"
+            },
+            "Name": "overlay2"
+        },
+        "Mounts": [
+            {
+                "Type": "bind",
+                "Source": "/home/kevin/Documents/RCodes/moltbot-lite/docs/issues/issue-0010/evidence",
+                "Destination": "/probe",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/home/kevin/Documents/RCodes/moltbot-lite/skills",
+                "Destination": "/app/skills",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/tmp/issue10-legacy-20261004-kIYcPP",
+                "Destination": "/legacy",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            }
+        ],
+        "Config": {
+            "Hostname": "118dacf2d928",
+            "Domainname": "",
+            "User": "node",
+            "AttachStdin": false,
+            "AttachStdout": false,
+            "AttachStderr": false,
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "NODE_VERSION=22.23.3",
+                "YARN_VERSION=1.22.22",
+                "HOME=/home/node",
+                "UV_INSTALL_DIR=/usr/local/bin",
+                "NODE_ENV=production",
+                "APP_PROJECT_DIR=/app",
+                "APP_GIT_SHA=unknown",
+                "APP_BUILD_TIME=unknown"
+            ],
+            "Cmd": [
+                "/probe/product-migration-contract.mjs",
+                "legacy"
+            ],
+            "Image": "issue10-product:20261004",
+            "Volumes": null,
+            "WorkingDir": "/app",
+            "Entrypoint": [
+                "node"
+            ],
+            "OnBuild": null,
+            "Labels": {}
+        },
+        "NetworkSettings": {
+            "Bridge": "",
+            "SandboxID": "",
+            "SandboxKey": "",
+            "Ports": {},
+            "HairpinMode": false,
+            "LinkLocalIPv6Address": "",
+            "LinkLocalIPv6PrefixLen": 0,
+            "SecondaryIPAddresses": null,
+            "SecondaryIPv6Addresses": null,
+            "EndpointID": "",
+            "Gateway": "",
+            "GlobalIPv6Address": "",
+            "GlobalIPv6PrefixLen": 0,
+            "IPAddress": "",
+            "IPPrefixLen": 0,
+            "IPv6Gateway": "",
+            "MacAddress": "",
+            "Networks": {
+                "none": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": null,
+                    "MacAddress": "",
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "00d08851b2bd0675a2f3d0d49a440ef047b1571731eeb7eda6f9dee7cb2d654a",
+                    "EndpointID": "",
+                    "Gateway": "",
+                    "IPAddress": "",
+                    "IPPrefixLen": 0,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": null
+                }
+            }
+        }
+    }
+]

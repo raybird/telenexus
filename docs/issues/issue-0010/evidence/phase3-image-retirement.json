@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-04",
+  "image": "sha256:c5ccc64de963ea1e9a2b6701eab54dbefdcfc81609f9098de2c2db3559944fca",
+  "runtimeChecks": {
+    "/usr/local/bin/agent-browser": "absent",
+    "/usr/local/lib/node_modules/agent-browser": "absent"
+  },
+  "sourceAndRuntimeHashes": {
+    "scripts/sync-skills.mjs": "54840cb3f514a53facc027d7a96636028820b242fef650406bca015de8c93fa1",
+    "scripts/retired-agent-browser.json": "760d8630a9d46455155b482b4eae22f0d98c43352b552685deec7979fd5f5acc"
+  },
+  "limits": "isolated --init --network none --cap-drop ALL --security-opt no-new-privileges --user node; no formal mounts",
+  "result": "PASS"
+}

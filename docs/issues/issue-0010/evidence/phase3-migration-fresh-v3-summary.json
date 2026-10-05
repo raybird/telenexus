@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-05",
+  "container": "issue10-migration-fresh-v3-20261004",
+  "containerId": "19941273d931b086c544ab458368b0141ecf3bdf6817448ddd419531f52894a2",
+  "image": "sha256:445ce68d079d87c65a11bde4d9effcad26b2e1b6a0e2a4723a8557428cdbefb0",
+  "init": true,
+  "runningAtCollection": true,
+  "command": [
+    "docker",
+    "logs",
+    "issue10-migration-fresh-v3-20261004"
+  ],
+  "lastSample": {
+    "event": "sample",
+    "second": 15,
+    "owned": [],
+    "roots": [],
+    "liveCount": 0,
+    "zombieCount": 0
+  },
+  "result": {
+    "event": "measurement-complete",
+    "scn": "SCN-006",
+    "mode": "fresh",
+    "sessionIds": [
+      "ses_ef5e5f3cdffedzvxaNJZecxAkD"
+    ],
+    "historyVerified": true,
+    "nativeSkillsVerified": true,
+    "oldSkillPositiveControl": false,
+    "authPreserved": true,
+    "configPreserved": true,
+    "customSkillsPreserved": true,
+    "browserObserved": 0,
+    "cleanupPassed": true,
+    "observerStillAlive": true
+  }
+}

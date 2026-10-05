@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-05",
+  "image": "sha256:445ce68d079d87c65a11bde4d9effcad26b2e1b6a0e2a4723a8557428cdbefb0",
+  "sameContainer": "dd552da4a3daab2c85a7c16f05b938c639bb1bf8ee197f4469fd8871af626ce8",
+  "modes": {
+    "dynamic": 20,
+    "startupfail": 5,
+    "navigationtimeout": 5,
+    "cancel": 5,
+    "upstreamfail": 5,
+    "groupkill": 5
+  },
+  "finalSamples": 45,
+  "liveMaxAt15": 0,
+  "zombieMaxAt15": 0,
+  "profileMaxAt15": 0,
+  "rootMaxAt15": 0,
+  "initialCgroup": 8,
+  "finalCgroup": 8,
+  "all45BaselinesAndFinals": 8,
+  "trend": "flat; no accumulation",
+  "observerAlive": true,
+  "result": "PASS"
+}

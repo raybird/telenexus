@@ -10,7 +10,7 @@
 - `telenexus_browser` 是內建命名空間；若 inline 設定已明確定義同名 entry，保留自訂設定並記 `browser.custom-config-preserved`，不承諾自訂 entry 的內建收尾保障。持久設定的同名 entry 不屬此 inline 保留判斷，請避免命名衝突。
 - 每個工作使用獨立臨時 root／profile；內建 launcher 負責 EOF／信號／子程序退出的收尾。`TELENEXUS_BROWSER_AUDIT_FILE` 是產品內部注入的 `APP_PROJECT_DIR/data/browser-lifecycle.jsonl` 路徑，不是新增的使用者設定旋鈕。
 - 清理失敗寫入該 JSONL（只記錯誤碼與程序身份，不記 URL／token）；無自動輪替，維護者需依部署的 log 保存政策管理。記錄存在代表需要查核，不代表清理成功。
-- runner 連線在回覆完成前中斷會取消工作；使用者取消不再觸發 local fallback。舊 agent-browser 尚待相容性／遷移 gate 後退役，不能把此階段當成替換已全部完成。
+- runner 連線在回覆完成前中斷會取消工作；使用者取消不再觸發 local fallback。映像不再安裝 agent-browser，舊全域 close 與 `AGENT_BROWSER_ARGS` 已退役；升級的技能保留／備份政策見安裝指南，不代表正式部署已切換。
 
 ## 推薦基線（單人使用）
 

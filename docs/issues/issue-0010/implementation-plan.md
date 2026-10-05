@@ -1,6 +1,6 @@
 # 實作計畫 — Issue 0010
 
-建立日期：2026-10-04。本檔是階段、進度與後續 Task／證據的唯一來源；README 及 GitHub 只提供入口／快照。使用者於 2026-10-04 核准規劃並以 /dev-cycle 授權推進；Task 已拆解，尚未執行。
+建立日期：2026-10-04。本檔是階段、進度與後續 Task／證據的唯一來源；README 及 GitHub 只提供入口／快照。使用者於 2026-10-04 核准規劃並以 /dev-cycle 授權推進；2026-10-05 已完成 Phase 0～3，Phase 4 執行中。
 
 ## 設計方案
 
@@ -122,8 +122,9 @@
 - 相依：T2.3；實際依賴有核准範圍外缺口時先處理決策。責任驗收：SCN-006。
 - 完成判準：新安裝／升級 fixture 各遷移兩次，認證、memory／自訂 MCP、文字 -c 延續、客製技能不變；內建舊指引不再載入，客製舊版明列保留／備份；映像不再依賴 agent-browser。
 - 驗證：遷移紅綠、idempotence 及資料前後獨立清單；修改技能前用 writing-rules，不清空 volume。
-- 狀態：⏳ 2026-10-04 唯讀盤點完成，退役前的互動用途待確認。
-- 證據：[相容性盤點](evidence/phase3-compatibility-audit.md)，限定窗口 2175 工具 parts 中有 2 次完成的 click，用途無法由 @ref 判定；未觀察到登入／state save-load／跨使用者回合，不等於不存在。已詢問是否接受依已核准公開閱讀範圍替換、不保證沿用自動點擊；尚未取得回答，保留舊後端及全域 close，不標 SCN-006 通過。
+- 狀態：✅ 2026-10-05 已完成。
+- 證據：[相容性盤點](evidence/phase3-compatibility-audit.md)，限定窗口 2175 工具 parts 中有 2 次完成的 click，用途無法由 @ref 判定；未觀察到登入／state save-load／跨使用者回合，不等於不存在。2026-10-04 使用者「確認」接受公開閱讀範圍、不保證沿用舊自動點擊，TBD-2 已解除；遷移與退役尚待測試，不標 SCN-006 通過。
+- 最終證據：2026-10-05 [產品遷移報告](evidence/phase3-product-report.md)，新安裝／升級各同步兩次、真原生技能讀取及同 session `-c` 延續、認證／MCP／客製 bytes 保留；12 項安全遷移與映像退役通過，補齊真實探測發現的 ripgrep 依賴。SCN-006 通過，正式切換未執行。
 
 ### T4.1 — 重複生命週期與完整回歸
 
@@ -131,8 +132,8 @@
 - 相依：T3.1。責任驗收：SCN-007；最終整合支援 SCN-001～006。
 - 完成判準：每輪 15 秒內完成工作活程序、browser Z 與 profile 均為零，無 cgroup 累積趨勢；兩工作互不干擾；全部相關測試與專案 gate 通過。
 - 驗證：沿用 T0.1 正／負對照驗證取數管道，保存每輪命令／task ID／PID 起始時間／實際數值，不能只看 healthy 或 cgroup。
-- 狀態：📝 待實作。
-- 證據：執行時填入。
+- 狀態：✅ 2026-10-05 已完成。
+- 證據：[Phase 4 回歸](evidence/phase4-report.md)：同一存活容器 45／45、每轮 15 秒 live／Z／profile／root=0；45 輪 cgroup baseline/final、初始與最後均 8，沒有累積。新版四組 local／runner 並行矩陣 4／4；370 tests、build、lint、installer exit 0。
 
 ### T4.2 — 常青文件與交付範圍
 
@@ -140,8 +141,8 @@
 - 相依：T4.1。交付整合支援 SCN-001～007。
 - 完成判準：文件符合實作且無不存在連結；Proof of Test 每個 Scenario 有有效證據，review artifact 可追溯；不自行 merge／發版／操作正式服務。
 - 驗證：文件靜態／人工查核、GitNexus detect_changes、create-pr 及獨立 review；文件不改行為時採等價證據。
-- 狀態：📝 待實作。
-- 證據：執行時填入。
+- 狀態：⏳ 2026-10-05 文件與靜態查核完成，待固定交付範圍 PR 與獨立最終 review。
+- 證據：[Phase 4 回歸](evidence/phase4-report.md) 的常青文件與限制；正式服務未操作，不自行 merge／發版。
 
 ## 測試策略與驗收映射
 

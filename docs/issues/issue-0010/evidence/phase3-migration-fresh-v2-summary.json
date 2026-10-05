@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-04",
+  "container": "issue10-migration-fresh-v2-20261004",
+  "containerId": "5699310b52e0eb23581edd9189339b0d788e2b2eccd7455bacad71f57b614c01",
+  "image": "sha256:c5ccc64de963ea1e9a2b6701eab54dbefdcfc81609f9098de2c2db3559944fca",
+  "init": true,
+  "runningAtCollection": true,
+  "command": [
+    "docker",
+    "logs",
+    "issue10-migration-fresh-v2-20261004"
+  ],
+  "result": null
+}

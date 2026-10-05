@@ -1,6 +1,6 @@
 # 安裝與升級指南
 
-> 最後更新：2026-07-08
+> 最後更新：2026-10-04
 
 TeleNexus 提供兩種安裝方式：**一鍵安裝**（下載預建映像，推薦）與**從原始碼安裝**（開發用，見 README）。本文說明一鍵安裝的機制、升級與回滾。
 
@@ -53,6 +53,23 @@ curl -fsSL https://raw.githubusercontent.com/raybird/telenexus/main/scripts/inst
 `--upgrade` 會重新下載最新 bundle 覆蓋部署檔（`.env`、`ai-config.yaml`、`data/`、`workspace/` 完整保留），然後 `docker compose pull` 拉新映像並 `--force-recreate` 換上。
 
 ## 指定版本與回滾
+
+### 網頁工具切換邊界（2026-10-04）
+
+新映像使用固定 Chrome DevTools MCP／Chrome，公開文件先走 HTTP，JS 正文才按需渲染。agent-browser 套件、下載步驟、`AGENT_BROWSER_ARGS` 及全域 close 已退役；不承諾沿用登入、自動點擊、完整表單或跨回合 browser profile。聊天文字 session、認證與 memory／自訂 MCP 仍保留。
+
+部署切換需維護者另行核准，本次開發不自動操作正式環境：
+
+技能同步啟動時會比對舊內建 `agent-browser` 的完整 10 檔 SHA-256 與目錄集合；完全相同且無 symlink 者，從各 `OPENCODE_SKILLS_DIRS` 移至其父目錄的 `retired-skills/agent-browser-04f5f2d`，保留完整備份但退出預設技能探索。重跑不新增備份，也不從升級解壓殘留的唯讀 source 重新同步舊技能。
+
+有客製內容、額外檔案／目錄、symlink 或既有備份碰撞時，原地保留並警告「無法自動遷移／備份已存在，舊後端不可用」；客製舊技能仍可能被載入，維護者應自行評估改寫，不把保留等同新後端可執行。其他位置的副本與自訂 OpenCode skill paths 不會被自動掃描或刪除。新 `web-reading` 遵循既有「只補缺少目錄」策略，不覆寫同名客製版本。
+
+1. 排空聊天與排程工作，記錄原映像／Compose 配置及程序基線。
+2. 備份部署設定、workspace 技能與 OpenCode volumes；保留認證、文字 session、排程及 Memoria 資料。
+3. 套用新映像與兩份一致的 Compose 配置，**重建** `telenexus`／`agent-runner` 才能套用 `init: true`；一般 restart 不會新增 init。Memoria 不需因瀏覽器替換而重建。
+4. 確認兩服務 inspect Init=true，普通 HTTP／JS 閱讀可用，工作結束後 15 秒 live／Z／臨時 profile=0；healthy 不能替代這些判準。
+
+回退時復原舊映像與所需工具設定，但保留兩執行服務的 init；需要還原技能時先比對備份與目標，避免覆寫客製內容。一般指定舊 bundle 的操作可能帶回沒有 init 的 Compose，應由維護者查核後再套用。不要刪除使用者資料以「清乾淨」。
 
 ```bash
 # 安裝/升級到指定版本

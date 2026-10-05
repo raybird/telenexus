@@ -174,7 +174,7 @@ docker compose exec agent-runner node scripts/probe-models.mjs --all  # 探測�
 
 ## 本機開發
 
-開發時預設在容器內執行服務：工具鏈與正式映像相同（opencode、agent-browser、uv、Memoria），原始碼由主機掛載，存檔即重載。
+開發時預設在容器內執行服務：工具鏈與正式映像相同（opencode、Chrome DevTools MCP、固定 Chrome、uv、Memoria），原始碼由主機掛載，存檔即重載。
 
 ```bash
 npm run docker:dev   # 以 dev stage 啟動 telenexus、agent-runner、memoria（tsx watch）

@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-04",
+  "container": "issue10-migration-legacy-v2-20261004",
+  "containerId": "fd222d01cbc8fb4acb2d8df8f84750c8d06ce62a6559c313501ed6d39a1329da",
+  "image": "sha256:c5ccc64de963ea1e9a2b6701eab54dbefdcfc81609f9098de2c2db3559944fca",
+  "init": true,
+  "runningAtCollection": true,
+  "command": [
+    "docker",
+    "logs",
+    "issue10-migration-legacy-v2-20261004"
+  ],
+  "result": null
+}

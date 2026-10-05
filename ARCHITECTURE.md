@@ -1,5 +1,7 @@
 ## 架構概覽
 
+最後驗證日期：2026-10-04。
+
 TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram bot。
 
 系統主要由四層組成：
@@ -42,6 +44,9 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
   - 內建 runner circuit breaker、passthrough command 改寫
 - `src/core/opencode.ts`
   - 封裝 Opencode CLI 呼叫；stream / non-stream 路徑均透過 `opencode-event-parser` 解析事件
+  - 聊天工作 env 合併固定 Chrome DevTools MCP，不覆寫持久設定；公開網頁先 webfetch，JS 才按需使用工作專屬瀏覽器
+- `scripts/browser-mcp-launcher.mjs`
+  - 工作專屬 MCP／Chrome／臨時 profile 所有權與退出收尾；容器 init 回收退出的孤兒，沒有全域 browser close
 - `src/core/opencode-event-parser.ts`
   - 共用 `interpretEvent()` dispatch table；兩條路徑從同一份 schema 取 text / statusText / stats，以及上游 `error` 事件的狀態碼（`upstreamError`）
 - `src/core/cli-agent-base.ts`
@@ -55,6 +60,7 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
   - `agent-runner` HTTP 服務
   - 接收 `/run` 任務，實際執行 chat / summarize
   - 維護 runner audit 與 runner status
+  - 回覆完成前的 HTTP 斷線會中止工作，連同 client AbortSignal 傳遞，使用者取消不轉 local fallback
 
 ### 記憶與長期脈絡
 

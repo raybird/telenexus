@@ -1,0 +1,16 @@
+[Opencode] ERROR execution_failed err=Process timed out code=ETIMEDOUT stderr=timestamp=2026-10-04T13:03:46.911Z level=ERROR run=129a56d9 message="stream error" providerID=probe modelID=contract session.id=ses_ef8fc9a83ffeKgw18qGOKiX3C2 small=false agent=build mode=primary error.error="AI_APICallError: Internal Server Error" timestamp=2026-10-04T13:03:49.061Z level=ERROR run=129a56d9 message="stream error" providerID=probe modelID=contract session.id=ses_ef8fc9a83ffeKgw18qGOKiX3C2 small=false agent=build mode=primary error.error="AI_APICallError: Internal Server Error" ti
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: 原生探索必須保留 custom skill
+    at file:///probe/product-migration-contract.mjs:175:8 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v22.23.3

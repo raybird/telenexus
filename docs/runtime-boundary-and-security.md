@@ -145,7 +145,7 @@
 ### 其他放行旗標
 
 - `OPENCODE_YOLO` 預設 `1`（全自動放行），可在 `.env` 設 `0` 收緊。
-- 非 root 下 chromium 必須 `--no-sandbox`；專案不直接啟動瀏覽器（走全域 `agent-browser`），透過 `AGENT_BROWSER_ARGS=--no-sandbox,--disable-dev-shm-usage` 套用。
+- 2026-10-04：Chrome DevTools MCP 使用明確的 `--no-sandbox`／`--disable-dev-shm-usage`；固定版本在受限測試環境無可用原生 sandbox，不把原因泛化成非 root 一律需要此旗標。舊 `AGENT_BROWSER_ARGS` 不再使用。
 
 ### 首次切換到非 root 的一次性遷移
 
@@ -171,7 +171,7 @@
 
 2026-10-04：新增工作專屬 Chrome DevTools MCP launcher，使用獨立 `/tmp/tnb-*` root／profile、PID 與 starttime 追蹤；只關閉該工作資源，不使用全域 close，不暴露 CDP port、不掛載宿主 browser profile。EOF／SIGTERM／SIGINT／MCP 退出後收尾預算 12 秒；容器 init 回收退出的孤兒。真產品測試以退出後 15 秒的 live／Z／profile／root 為判準。
 
-Chrome 使用 `--no-sandbox`／`--disable-dev-shm-usage`，沒有放寬容器非 root、cap-drop 或 no-new-privileges；**這不是啟用 Chrome sandbox，也不是安全執行任意網站程式碼的保證**。指引僅涵蓋公開唯讀閱讀，認證、表單提交與跨回合 state 不在本期承諾。舊 agent-browser 暫留至安全遷移完成。
+Chrome 使用 `--no-sandbox`／`--disable-dev-shm-usage`，沒有放寬容器非 root、cap-drop 或 no-new-privileges；**這不是啟用 Chrome sandbox，也不是安全執行任意網站程式碼的保證**。指引僅涵蓋公開唯讀閱讀，認證、表單提交與跨回合 state 不在本期承諾。映像已移除舊 agent-browser，既有正式服務不會自動套用此變更。
 
 launcher 自身若被 SIGKILL 無法執行清理；PID/starttime 檢查不是 pidfd 的原子保障。清理失敗會嘗試寫入產品 data 目錄的 `browser-lifecycle.jsonl`（0600），包含錯誤碼、臨時 root 及剩餘程序身份，不包含 URL／憑證／完整 argv；寫入失敗另記 stderr，不能宣稱已保存。紀錄沒有自動輪替，依部署保存政策管理；禁止以文字回答成功或僅 init=true 取代資源驗收。
 

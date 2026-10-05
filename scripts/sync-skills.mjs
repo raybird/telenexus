@@ -1,5 +1,8 @@
 import fs from 'fs';
 import path from 'path';
+import { createHash } from 'crypto';
+
+const retiredBrowser = JSON.parse(fs.readFileSync(new URL('./retired-agent-browser.json', import.meta.url), 'utf8'));
 
 const sourceDir = process.env.BUILTIN_SKILLS_DIR || '/app/skills';
 // 支援多個同步目標：OPENCODE_SKILLS_DIRS (逗號分隔) 優先，
@@ -19,13 +22,99 @@ function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
 }
 
+function pathHasSymlink(candidate) {
+  let current = path.resolve(candidate);
+  while (true) {
+    try {
+      if (fs.lstatSync(current).isSymbolicLink()) return true;
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) return false;
+    current = parent;
+  }
+}
+
+function matchesRetiredBrowser(candidate) {
+  if (pathHasSymlink(candidate)) return false;
+  const files = Object.create(null);
+  const directories = [];
+  function scan(dir, prefix = '') {
+    if (!fs.lstatSync(dir).isDirectory()) return false;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+      const item = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        directories.push(relative);
+        if (!scan(item, relative)) return false;
+      } else if (entry.isFile()) {
+        files[relative] = createHash('sha256').update(fs.readFileSync(item)).digest('hex');
+      } else return false;
+    }
+    return true;
+  }
+  if (!scan(candidate)) return false;
+  const expectedFiles = Object.keys(retiredBrowser.files).sort();
+  return JSON.stringify(Object.keys(files).sort()) === JSON.stringify(expectedFiles) &&
+    expectedFiles.every((name) => files[name] === retiredBrowser.files[name]) &&
+    JSON.stringify(directories.sort()) === JSON.stringify([...retiredBrowser.directories].sort());
+}
+
+function retireBuiltinBrowser(targetDir) {
+  const candidate = path.join(targetDir, 'agent-browser');
+  const backup = path.join(path.dirname(targetDir), 'retired-skills', `agent-browser-${retiredBrowser.id}`);
+  function anotherWorkerFinished() {
+    try {
+      fs.lstatSync(candidate);
+      return false;
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      return fs.existsSync(backup) && matchesRetiredBrowser(backup);
+    }
+  }
+  try {
+    fs.lstatSync(candidate);
+  } catch (error) {
+    if (error.code === 'ENOENT') return;
+    throw error;
+  }
+  let matches = false;
+  try {
+    matches = matchesRetiredBrowser(candidate);
+  } catch (error) {
+    if (error.code === 'ENOENT' && anotherWorkerFinished()) return;
+    throw error;
+  }
+  if (anotherWorkerFinished()) return;
+  if (pathHasSymlink(backup) || !matches) {
+    console.warn(`[SkillSync] agent-browser 無法自動遷移，已保留 ${candidate}；請人工確認自訂內容，舊瀏覽器後端不可用。`);
+    return;
+  }
+  try {
+    fs.lstatSync(backup);
+    console.warn(`[SkillSync] agent-browser 備份已存在，保留 ${candidate} 與 ${backup}；舊瀏覽器後端不可用。`);
+    return;
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  ensureDir(path.dirname(backup));
+  try {
+    fs.renameSync(candidate, backup);
+    console.log(`[SkillSync] Retired builtin agent-browser: ${backup}`);
+  } catch (error) {
+    if (error.code === 'ENOENT' && anotherWorkerFinished()) return;
+    throw error;
+  }
+}
+
 function syncBuiltinSkills() {
+  targetDirs.forEach(ensureDir);
+  targetDirs.forEach(retireBuiltinBrowser);
   if (!fs.existsSync(sourceDir)) {
     console.log(`[SkillSync] Builtin skills source not found: ${sourceDir}`);
     return;
   }
-
-  targetDirs.forEach(ensureDir);
 
   const entries = fs.readdirSync(sourceDir, { withFileTypes: true });
   let copied = 0;
@@ -33,6 +122,7 @@ function syncBuiltinSkills() {
 
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
+    if (entry.name === 'agent-browser') continue;
 
     const src = path.join(sourceDir, entry.name);
 

@@ -1,0 +1,20 @@
+{
+  "id": "04f5f2d",
+  "sourceCommit": "9d6b8d32833828d8fea261f29f0ee0f59131f750",
+  "directories": [
+    "references",
+    "templates"
+  ],
+  "files": {
+    "SKILL.md": "3f99a9aa21daf24a4b1964fcb3f1df7a424562a09b7f58003ddbbd8f8b254426",
+    "references/authentication.md": "c821ebcfd621f9b786e7f7cde14b283b1dd8fdfd69df65d148a1d4decf0a0353",
+    "references/commands.md": "1d1a9ca833867c2c1942ca8f000690c1e95fff3cbb9e35230a8ed705cd0ebac6",
+    "references/proxy-support.md": "52eafa9ec8d8fb30417364565c7b447d582e1db60ef8d62b8ec6e94d00197500",
+    "references/session-management.md": "2ce531bf105aaf827a907a4e255e00321eef5994ca0e21e41c28489c0a8efebb",
+    "references/snapshot-refs.md": "6a9fda02203cff88c4bce0c1834fc9e492c03fa75cef0fc2800e28b92f4e1133",
+    "references/video-recording.md": "c2c12bd8c44e5d36fbb94cfc376180d47507d3c26a7ee8876b892fc700dcf332",
+    "templates/authenticated-session.sh": "470999dc7d073464adbf556d2486665889b9ca933f8122cab2073e83a4583a60",
+    "templates/capture-workflow.sh": "bf3f3a2f8413773891d9fa400d2a2fddf6d73ffc7a9b2fa00f797f944171c3d5",
+    "templates/form-automation.sh": "b86836986d339f736b15ca78cf3d566e845a6293ae25a5b00aa520b837572650"
+  }
+}

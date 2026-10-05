@@ -1,0 +1,97 @@
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 5.35kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/node:22-slim
+#2 DONE 0.7s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 472B done
+#3 DONE 0.0s
+
+#4 [builder 1/7] FROM docker.io/library/node:22-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 1.84MB 0.2s done
+#5 DONE 0.2s
+
+#6 [builder 2/7] WORKDIR /app
+#6 CACHED
+
+#7 [builder 3/7] RUN apt-get update && apt-get install -y --no-install-recommends   python3 make g++ python3-pip   && rm -rf /var/lib/apt/lists/*
+#7 CACHED
+
+#8 [builder 4/7] COPY package.json package-lock.json ./
+#8 CACHED
+
+#9 [builder 5/7] RUN npm ci
+#9 CACHED
+
+#10 [builder 6/7] COPY . .
+#10 DONE 0.7s
+
+#11 [builder 7/7] RUN npm run build
+#11 0.178 
+#11 0.178 > telenexus@2.27.4 build
+#11 0.178 > tsc && node scripts/copy-web-assets.mjs
+#11 0.178 
+#11 2.085 [copy-web-assets] copied /app/src/web/public -> /app/dist/web/public
+#11 DONE 2.1s
+
+#12 [base  4/11] COPY package.json package-lock.json ./
+#12 CACHED
+
+#13 [base  6/11] RUN npm install -g pnpm opencode-ai@1.18.34 mcp-memory-libsql   && npm cache clean --force
+#13 CACHED
+
+#14 [base  7/11] RUN npm install --prefix /usr/local/lib/telenexus/browser --save-exact chrome-devtools-mcp@1.10.1   && npm cache clean --force
+#14 CACHED
+
+#15 [base  9/11] COPY scripts/browser-mcp-launcher.mjs /usr/local/lib/telenexus/browser-mcp-launcher.mjs
+#15 CACHED
+
+#16 [base  8/11] RUN curl -fL --retry 2 -o /tmp/telenexus-chrome.zip       https://storage.googleapis.com/chrome-for-testing-public/154.0.8037.92/linux64/chrome-linux64.zip   && printf '%s  %s\n' ff43322f335e436b2f4dcdfeeec5db032299e335a7e8c1c618b326e100ce8732 /tmp/telenexus-chrome.zip | sha256sum -c -   && mkdir -p /opt/telenexus/chrome   && unzip -q /tmp/telenexus-chrome.zip -d /opt/telenexus/chrome   && rm /tmp/telenexus-chrome.zip
+#16 CACHED
+
+#17 [base  5/11] RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+#17 CACHED
+
+#18 [base 11/11] RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+#18 CACHED
+
+#19 [base  3/11] RUN apt-get update && apt-get install -y --no-install-recommends   python3 python3-venv curl jq bash git unzip util-linux   make g++   gosu   libglib2.0-0 libnss3 libatk1.0-0 libatk-bridge2.0-0 libdbus-1-3 libcups2   libxkbcommon0 libasound2 libgbm1 libcairo2 libpango-1.0-0   libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libatspi2.0-0   fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1   && rm -rf /var/lib/apt/lists/*
+#19 CACHED
+
+#20 [base 10/11] COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+#20 CACHED
+
+#21 [stage-3 1/7] RUN npm ci --omit=dev && npm cache clean --force
+#21 CACHED
+
+#22 [stage-3 2/7] COPY --from=builder /app/dist ./dist
+#22 CACHED
+
+#23 [stage-3 3/7] COPY workspace ./workspace
+#23 DONE 0.4s
+
+#24 [stage-3 4/7] COPY --from=builder /app/scripts ./scripts
+#24 DONE 0.0s
+
+#25 [stage-3 5/7] COPY debug-container.sh ./
+#25 DONE 0.0s
+
+#26 [stage-3 6/7] RUN chmod +x debug-container.sh
+#26 DONE 0.1s
+
+#27 [stage-3 7/7] RUN mkdir -p       /app/data /app/workspace       /home/node/.config/opencode/skills       /home/node/.local/share/opencode   && chown -R node:node /app /home/node
+#27 DONE 5.3s
+
+#28 exporting to image
+#28 exporting layers
+#28 exporting layers 0.7s done
+#28 writing image sha256:c5ccc64de963ea1e9a2b6701eab54dbefdcfc81609f9098de2c2db3559944fca done
+#28 naming to docker.io/library/issue10-product:20261004 done
+#28 DONE 0.7s
