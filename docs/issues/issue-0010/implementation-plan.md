@@ -60,7 +60,7 @@
 
 ## Task 清單與相依
 
-以下 Task 於 2026-10-04 拆解。SCN 的責任 Task 為 T2.1→001、T2.2→002／003／005、T2.3→004、T3.1→006、T4.1→007，集合完整且不重複；T0／T1／T4.2 提供必要支援與交付證據。
+以下 Task 於 2026-10-04 拆解，2026-10-05 補 T4.3。SCN 的責任 Task 為 T2.1→001、T2.2→002／003／005、T2.3→004、T3.1→006、T4.1→007、T4.3→008，集合完整且不重複；T0／T1／T4.2 提供必要支援與交付證據。
 
 ### T0.1 — 觀測器對照與固定測試環境
 
@@ -144,6 +144,15 @@
 - 狀態：✅ 2026-10-05 已完成。
 - 證據：[Phase 4 回歸](evidence/phase4-report.md) 的常青文件與限制；[PR #11](https://github.com/raybird/telenexus/pull/11)、[a0af7ea 獨立 PASS](review-a0af7ea.md)。狀態文件收尾產生新 HEAD 後，另按該 HEAD 報告查核有效性，不因相同產品來源自動沿用舊 PASS；正式服務未操作，不自行 merge／發版。
 
+### T4.3 — runner／container termination 補驗與第二輪交付
+
+- 產出與最小範圍：SCN-008 固定規格、隔離 Docker 真 runner termination fixture、宿主程序追蹤 raw／摘要／限制、重跑 final gate，更新 PR Proof of Test；無證據顯示產品 bug 前不改產品實作。
+- 相依：T4.1／T4.2 的既有產品與證據；2026-10-05 使用者明確要求新增 SCN-008，先提交新規格。責任驗收：SCN-008。
+- 完成判準：真 MCP／Chrome descendant 活著時，Docker stop/SIGTERM 正常終止與 graceful deadline 後強制終止皆有真 signal／退出證據；宿主 PID/starttime 查核 15 秒內無 leaked/orphan/persistent Z，不能只看容器 stopped 或 exec 不可用。application／init／teardown 責任及 profile 限制照實記錄。
+- 驗證：最大未知為整條容器 termination 路徑，以真 runner→OpenCode→MCP→Chrome 整合及宿主存活程序正對照直接降低風險；fixture／文件不改產品行為時以 characterization／靜態證據，不製造假紅燈。發現產品 bug 時先保存目標失敗再最小修復。依序重跑 build／完整 test／lint／installer；GitHub checks 為空與本機 gate 分開揭露。
+- 狀態：⏳ 2026-10-05 補驗中；舊 PASS 不涵蓋新增 SCN-008，待第二輪 review。
+- 證據：待真實執行後回填；禁止提前宣稱通過或自行合併／發版／操作正式服務。
+
 ## 測試策略與驗收映射
 
 | Scenario | 外迴圈／實機層 | 內迴圈／靜態層 |
@@ -155,6 +164,7 @@
 | SCN-005 | 缺 binary／MCP 啟動失敗後再讀普通文件 | 錯誤傳遞及部分啟動收尾 |
 | SCN-006 | 新安裝／升級／重複遷移複本；-c 延續 | 設定合併、客製技能保護、映像依賴及 compose parity |
 | SCN-007 | 45 次固定循環、init/no-init 對照 | /proc 解析以已知 Z／活／已消失程序測試 |
+| SCN-008 | 真 runner 持有 Chrome 時 Docker stop/SIGTERM／deadline 強制終止；宿主 PID/starttime 與容器 cgroup 終態 | 宿主存活程序正對照；沿用已知 Z 觀測器，不以 init 設定存在代替整合 |
 
 有整合與底層不同失敗面時保留雙迴圈紅綠；若同層可合併需說明沒有漏掉另一層，不能只 mock browser 關閉。無重構則記 no-op。規劃文件本身不改可執行行為，以連結／Scenario／metadata 靜態檢查為等價證據。
 

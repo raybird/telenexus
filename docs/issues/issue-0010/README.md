@@ -113,6 +113,20 @@ Feature: 可回收且隔離的網頁閱讀工具
     Then 每輪收尾 15 秒內瀏覽器相關殭屍數回到零
     And 已完成工作的存活程序與臨時 profile 殘留數為零
     And cgroup PID 數沒有隨完成輪次累積成長
+
+  @SCN-008
+  Scenario Outline: runner 容器終止不留下瀏覽器程序
+    Given 啟用 init 的隔離 runner 容器正在持有真實 MCP 與 Chrome descendant
+    And 宿主觀測器已用該存活程序的 PID 與啟動時間確認取數有效
+    When 對該容器執行 <終止路徑>
+    Then 終止完成後 15 秒內沒有該工作仍存活的 MCP 或瀏覽器程序
+    And 沒有該容器留下的 orphan 或 persistent zombie
+    And 證據包含終止前程序樹、實際 signal、退出狀態及宿主程序身分的終止後查核
+    And 如實區分 application cleanup、init 回收及 container teardown 的責任與限制
+    Examples:
+      | 終止路徑 |
+      | Docker stop 傳遞 SIGTERM 的正常終止 |
+      | graceful deadline 到期後強制終止 |
 ```
 
 SCN-003 的「啟動失敗」包含尚未建立完整瀏覽器的情況，仍檢查部分資源。SCN-007 以 fresh container 起始，執行 20 次正常及五種非正常結果各 5 次，共 45 次；期間每秒取樣，工作結束後給予固定 15 秒收尾窗。失敗列包含啟動失敗、導覽逾時、取消、上游失敗、強制終止。
@@ -120,9 +134,11 @@ SCN-003 的「啟動失敗」包含尚未建立完整瀏覽器的情況，仍檢
 ## Gherkin 核准紀錄
 
 - **核准 commit**: d345ba1bc3f391bd2038f8ca0341ccbf742490d0
+- **SCN-008 核准 commit**: 待提交；2026-10-05 新增規格，原 SCN-001～007 基線不變。
 - **需求來源**: 使用者於 2026-10-04 對話：「那能規劃新方案用來替換 agent -browser 造成的 殭屍進程 在github 開 issue」。
 - **核准來源**: 使用者於 2026-10-04 對話：「那文件規劃核准」。
 - **核准範圍**: 文件集合、既有 SCN-001～007、分階段計畫與本期相容性取捨；未新增或修改 Scenario 語意。2026-10-04 使用者另以 /dev-cycle 授權推進；正式服務操作、發版與部署仍需另行授權。
+- **SCN-008 核准來源**: 2026-10-05 使用者審查 PR #11 明確要求：「runner 容器正在持有 MCP/Chrome descendant 時，Docker stop / SIGTERM，以及 graceful deadline 後強制終止，不能留下 orphan / leaked process / persistent zombie。」並要求補規格、真實 integration evidence 及 final gate。2026-10-05 查核 GitHub issue body／comments 尚無該新增條目，因此採本次對話為來源，不宣稱 tracker 既有文字已同步。
 
 | Scenario | 核准日期 | 狀態 |
 | --- | --- | --- |
@@ -133,6 +149,7 @@ SCN-003 的「啟動失敗」包含尚未建立完整瀏覽器的情況，仍檢
 | SCN-005 | 2026-10-04 | 已核准 |
 | SCN-006 | 2026-10-04 | 已核准 |
 | SCN-007 | 2026-10-04 | 已核准 |
+| SCN-008 | 2026-10-05 | 已核准 |
 
 ## 步驟概要
 
@@ -146,6 +163,8 @@ Phase 0 契約探測 → Phase 1 容器回收 → Phase 2 工具與生命週期 
 - **首要驗證**：規格核准後，先在隔離測試容器完成固定版本 OpenCode → MCP → Chrome 契約探測，以受控靜態／JS 頁面與強制終止案例測得真實結果；先用 no-init 已知殭屍對照組驗證觀測器，再比較 init 組。
 - **選擇理由**：最大未知是外部程序契約；單元 mock、旗標存在或容器 healthy 回答不了實際退出及隔離行為。探測未通過就停止替換，不先大改實作。
 - **完成證據**：記錄版本／平台、命令、退出結果、每秒程序樹與 /proc state、task ID／PID／啟動時間、profile 前後清單；成功與故意失敗對照能被區分。15 秒內無本工作存活 MCP／Chrome、無留下的 browser zombie／profile，另一併發工作不受影響。
+
+2026-10-05 SCN-008 補驗的最大未知為 runner 收到 SIGTERM、Docker graceful deadline 強制終止時整條 descendant 路徑；原 init 對照與單一 OpenCode 清理不等價。維持 High 風險，先做真實 runner 容器 termination 整合探測：終止前確認真 Chrome 活著，宿主按 PID/starttime 追蹤終止後身分與容器 cgroup。強制終止不保證 application finally／profile unlink；須記錄容器程序全滅及 ephemeral／persistent 儲存語意，不將容器停止冒充應用層成功清理。
 
 ## 待確認事項
 
@@ -166,6 +185,7 @@ Phase 0 契約探測 → Phase 1 容器回收 → Phase 2 工具與生命週期 
 | 2026-10-04 | 使用者以 /dev-cycle 授權推進；完成 Task 拆解，準備提交核准基線與執行 Phase 0 | - |
 | 2026-10-04 | 使用者以「確認」接受公開網頁閱讀替換、不保證舊自動點擊；解除 TBD-2 退役前決策，保留客製資料與原驗收規格 | - |
 | 2026-10-05 | SCN-001～007、45 輪及完整 gate 通過；建立 PR #11，初次獨立審查 PASS，交付有效性依對應 HEAD 報告 | [PR #11](https://github.com/raybird/telenexus/pull/11) |
+| 2026-10-05 | 使用者 REQUEST CHANGES：新增已核准 SCN-008，原 PASS 不涵蓋新規格；補 runner／container termination 與 final gate，完成後交第二輪 review，不合併 | 使用者對話 |
 
 ---
 
@@ -175,4 +195,4 @@ Phase 0 契約探測 → Phase 1 容器回收 → Phase 2 工具與生命週期 
 
 **風險**: High
 
-**狀態**: 2026-10-05 交付完成，PR #11 等待合併；有效審查以對應 HEAD 報告為準
+**狀態**: 2026-10-05 PR #11 REQUEST CHANGES；SCN-008 補驗與第二輪交付審查中，不合併
