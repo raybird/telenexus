@@ -48,10 +48,10 @@
 #11 ...
 
 #12 [builder 7/7] RUN npm run build
-#12 0.179 
+#12 0.179
 #12 0.179 > telenexus@2.27.4 build
 #12 0.179 > tsc && node scripts/copy-web-assets.mjs
-#12 0.179 
+#12 0.179
 #12 2.114 [copy-web-assets] copied /app/src/web/public -> /app/dist/web/public
 #12 DONE 2.1s
 
@@ -1060,9 +1060,9 @@
 #14 DONE 4.1s
 
 #15 [base  6/11] RUN npm install -g pnpm opencode-ai@1.18.34 mcp-memory-libsql   && npm cache clean --force
-#15 11.99 
+#15 11.99
 #15 11.99 added 31 packages in 12s
-#15 11.99 
+#15 11.99
 #15 11.99 1 package is looking for funding
 #15 11.99   run `npm fund` for details
 #15 11.99 npm notice
@@ -1074,7 +1074,7 @@
 #15 DONE 12.4s
 
 #16 [base  7/11] RUN npm install --prefix /usr/local/lib/telenexus/browser --save-exact chrome-devtools-mcp@1.10.1   && npm cache clean --force
-#16 1.864 
+#16 1.864
 #16 1.864 added 1 package in 2s
 #16 1.928 npm warn using --force Recommended protections disabled.
 #16 DONE 2.1s
@@ -1096,17 +1096,17 @@
 #20 DONE 0.1s
 
 #21 [stage-3 1/7] RUN npm ci --omit=dev && npm cache clean --force
-#21 2.307 
+#21 2.307
 #21 2.307 added 101 packages, and audited 102 packages in 2s
-#21 2.308 
+#21 2.308
 #21 2.308 44 packages are looking for funding
 #21 2.308   run `npm fund` for details
-#21 2.309 
+#21 2.309
 #21 2.309 1 high severity vulnerability
-#21 2.309 
+#21 2.309
 #21 2.309 To address all issues, run:
 #21 2.309   npm audit fix
-#21 2.309 
+#21 2.309
 #21 2.309 Run `npm audit` for details.
 #21 2.368 npm warn using --force Recommended protections disabled.
 #21 DONE 2.5s

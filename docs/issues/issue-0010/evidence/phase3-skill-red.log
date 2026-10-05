@@ -8,9 +8,9 @@ not ok 1 - SCN-006 新安裝兩目標不再同步 agent-browser，重跑冪等
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
-    
+
     true !== false
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: false
@@ -32,9 +32,9 @@ not ok 2 - SCN-006 完全相符舊內建技能兩目標改名備份，索引退�
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
-    
+
     true !== false
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: false
@@ -58,9 +58,9 @@ not ok 3 - SCN-006 custom-content 兩目標保留原地、警告且重跑不覆�
   failureType: 'testCodeFailure'
   error: |-
     The input did not match the regular expression /無法自動遷移|備份已存在/. Input:
-    
+
     ''
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:
@@ -84,9 +84,9 @@ not ok 4 - SCN-006 extra-file 兩目標保留原地、警告且重跑不覆寫
   failureType: 'testCodeFailure'
   error: |-
     The input did not match the regular expression /無法自動遷移|備份已存在/. Input:
-    
+
     ''
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:
@@ -110,9 +110,9 @@ not ok 5 - SCN-006 extra-dir 兩目標保留原地、警告且重跑不覆寫
   failureType: 'testCodeFailure'
   error: |-
     The input did not match the regular expression /無法自動遷移|備份已存在/. Input:
-    
+
     ''
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:
@@ -136,9 +136,9 @@ not ok 6 - SCN-006 symlink 兩目標保留原地、警告且重跑不覆寫
   failureType: 'testCodeFailure'
   error: |-
     The input did not match the regular expression /無法自動遷移|備份已存在/. Input:
-    
+
     ''
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:
@@ -162,9 +162,9 @@ not ok 7 - SCN-006 root-symlink 兩目標保留原地、警告且重跑不覆寫
   failureType: 'testCodeFailure'
   error: |-
     The input did not match the regular expression /無法自動遷移|備份已存在/. Input:
-    
+
     ''
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:
@@ -188,9 +188,9 @@ not ok 8 - SCN-006 backup-collision 兩目標保留原地、警告且重跑不�
   failureType: 'testCodeFailure'
   error: |-
     The input did not match the regular expression /無法自動遷移|備份已存在/. Input:
-    
+
     ''
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:

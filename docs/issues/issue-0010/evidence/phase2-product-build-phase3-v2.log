@@ -34,10 +34,10 @@
 #10 DONE 0.7s
 
 #11 [builder 7/7] RUN npm run build
-#11 0.178 
+#11 0.178
 #11 0.178 > telenexus@2.27.4 build
 #11 0.178 > tsc && node scripts/copy-web-assets.mjs
-#11 0.178 
+#11 0.178
 #11 2.085 [copy-web-assets] copied /app/src/web/public -> /app/dist/web/public
 #11 DONE 2.1s
 

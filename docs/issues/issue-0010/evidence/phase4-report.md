@@ -24,4 +24,6 @@
 
 ## 限制
 
+2026-10-05 暫存後完整 whitespace 查核發現工具輸出中的 CR／行尾空白；提交前的工作區查核未涵蓋當時未追蹤的 logs。後續僅對本階段新增 `.log` 做行尾空白正規化，保留訊息、結果與 exit，不改 JSONL、歷史 logs、legacy fixture bytes 或產品來源；重新查核完整交付 diff，不把第一次查核當成全範圍通過。
+
 證據為固定 linux/amd64 工具／版本與隔離容器；fake provider 只驅動工具流程，不代表真模型自主路由品質。Chrome 使用 no-sandbox，容器硬化不是瀏覽器 sandbox。launcher 自身 SIGKILL、stat/kill TOCTOU、自訂同名 backend 或技能路徑及並行人工修改遷移資料，仍有已揭露限制。這些不擴張為新的保證。獨立最終 review 與 PR 在本報告產生時尚待完成。

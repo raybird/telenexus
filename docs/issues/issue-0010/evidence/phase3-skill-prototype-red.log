@@ -8,9 +8,9 @@ not ok 1 - SCN-006 prototype-file 兩目標保留原地、警告且重跑不覆�
   failureType: 'testCodeFailure'
   error: |-
     The input did not match the regular expression /無法自動遷移|備份已存在/. Input:
-    
+
     ''
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:

@@ -14,9 +14,9 @@ not ok 2 - SCN-006 完全相符舊內建技能兩目標改名備份，索引退�
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
-    
+
     true !== false
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: false
@@ -88,9 +88,9 @@ not ok 11 - SCN-006 local／runner 同時同步只保留一份完整備份，不
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
-    
+
     true !== false
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: false
