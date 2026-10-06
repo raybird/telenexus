@@ -61,7 +61,7 @@ interface ChatSessionStore {
 
 聊天回合結束後，以結果的 `sessionId` 更新綁定。這同時涵蓋 SCN-002：首次對話與 `/new` 都開新 session，回合結束後改綁。升級後的第一則聊天沒有綁定，會開新 session；這一回合照 SCN-006 注入「近期對話」。
 
-session 不存在時（SCN-003）的偵測方式由步驟 1 決定（TBD-1）。偵測到時清除綁定，以新 session 重跑一次，並記 `recordRuntimeIssue('chat-session:missing', …)`。本機 fallback 與 runner 的 opencode 資料若不共用，綁定的 id 在本機一定不存在，也走同一條路。
+session 不存在時（SCN-003），opencode 不到一秒就以 exit 1 結束，stdout 沒有事件，stderr 含 `Session not found`（步驟 1）。以這三個條件偵測，不靠推測。偵測到時清除綁定，以新 session 重跑一次，並記 `recordRuntimeIssue('chat-session:missing', …)`。本機 fallback 與 runner 的 opencode 資料若不共用，綁定的 id 在本機一定不存在，也走同一條路。
 
 `tool_only` 追問改用原回合結果的 `sessionId`，以 `-s` 送出（SCN-004）。追蹤提醒改帶 `forceNewSession: true`（SCN-005）。
 
@@ -76,11 +76,12 @@ session 不存在時（SCN-003）的偵測方式由步驟 1 決定（TBD-1）。
 
 ## 實作步驟
 
-1. 📝 **契約探測：opencode 1.18.34 的 `-s` 行為**（SCN-001、SCN-002、SCN-003）
+1. ✅ **契約探測：opencode 1.18.34 的 `-s` 行為**（SCN-001、SCN-002、SCN-003）
    - 產出：`evidence/step1-session-flag-probe.md`；TBD-1 的結論。
    - 相依：無。
    - 方式：用正式映像以 `docker run` 隔離啟動（暫存資料目錄、不掛 named volume、不發佈 port、不帶 Telegram token），沿用 issue 0008 的做法。
    - 完成判準：四種情況各有實際事件輸出與 exit code：`-s` 有效 id、`-s` 不存在的 id、`-s` 已用 `opencode session delete` 刪除的 id、`-s` 執行期間另一個 session 被更新。有效 id 的回合能引用前一回合的內容，事件的 `sessionID` 與指定的相同，opencode.db 中只有該 session 的使用者訊息數加一。證據檔已去敏（無本機絕對路徑、無完整容器 ID）。
+   - 完成證據（2026-10-06）：[evidence/step1-session-flag-probe.md](./evidence/step1-session-flag-probe.md)。`-s` 有效 id 接續並帶入歷史（回覆引用先前的代號），並行下仍落在指定 session，只有它的使用者訊息數加一；不存在與已刪除的 id 都是 exit 1、無事件、stderr `Session not found`。對照組 `-c` 接到最後建立的 session。
 2. 📝 **聊天 session 綁定存放**（SCN-001、SCN-002）
    - 產出：`chat-session-store.ts` 與單元測試。
    - 相依：無（可與步驟 1 並行）。
@@ -152,7 +153,7 @@ session 不存在時（SCN-003）的偵測方式由步驟 1 決定（TBD-1）。
 ## 檢查清單
 
 - [x] SCN-003～006 已核准（2026-10-06）
-- [ ] 步驟 1 的證據確定了 TBD-1
+- [x] 步驟 1 的證據確定了 TBD-1
 - [ ] `src/` 中沒有任何路徑再產生 `-c`
 - [ ] TBD-2、TBD-3 有結論與證據
 - [ ] 證據檔已去敏
