@@ -82,10 +82,11 @@ session 不存在時（SCN-003），opencode 不到一秒就以 exit 1 結束，
    - 方式：用正式映像以 `docker run` 隔離啟動（暫存資料目錄、不掛 named volume、不發佈 port、不帶 Telegram token），沿用 issue 0008 的做法。
    - 完成判準：四種情況各有實際事件輸出與 exit code：`-s` 有效 id、`-s` 不存在的 id、`-s` 已用 `opencode session delete` 刪除的 id、`-s` 執行期間另一個 session 被更新。有效 id 的回合能引用前一回合的內容，事件的 `sessionID` 與指定的相同，opencode.db 中只有該 session 的使用者訊息數加一。證據檔已去敏（無本機絕對路徑、無完整容器 ID）。
    - 完成證據（2026-10-06）：[evidence/step1-session-flag-probe.md](./evidence/step1-session-flag-probe.md)。`-s` 有效 id 接續並帶入歷史（回覆引用先前的代號），並行下仍落在指定 session，只有它的使用者訊息數加一；不存在與已刪除的 id 都是 exit 1、無事件、stderr `Session not found`。對照組 `-c` 接到最後建立的 session。
-2. 📝 **聊天 session 綁定存放**（SCN-001、SCN-002）
+2. ✅ **聊天 session 綁定存放**（SCN-001、SCN-002）
    - 產出：`chat-session-store.ts` 與單元測試。
    - 相依：無（可與步驟 1 並行）。
    - 完成判準：讀寫、清除、檔案不存在、檔案毀損都有測試；毀損時視為沒有綁定，並記 runtime issue。先紅後綠，期望值寫死。
+   - 完成證據（2026-10-06）：紅燈 [evidence/step2-red.txt](./evidence/step2-red.txt)（空殼實作，6 項中 5 項失敗於行為斷言）；綠燈 [evidence/step2-green.txt](./evidence/step2-green.txt)（6/6 通過，build、eslint exit 0）。另涵蓋值不是非空字串、內容不是物件、寫入失敗三種情況。重構為 no-op。
 3. 📝 **聊天與 passthrough 改用綁定的 session**（SCN-001、SCN-002、SCN-003）
    - 產出：`opencode.ts`、`agent.ts`、`runner.ts`、`message-pipeline*.ts` 的變更與測試。
    - 相依：步驟 1、2。

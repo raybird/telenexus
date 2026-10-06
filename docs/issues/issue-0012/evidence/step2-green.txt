@@ -1,0 +1,19 @@
+# 步驟 2 綠燈：實作 ChatSessionStore 後，2026-10-06
+$ npx tsx --test tests/chat-session-store.test.ts
+ok 1 - SCN-002: 狀態檔不存在時沒有綁定，也不算異常
+ok 2 - SCN-001: 綁定寫入後重新載入仍在，各使用者互不影響
+ok 3 - SCN-002: clear 只清除該使用者，且寫回檔案
+ok 4 - 狀態檔毀損時視為沒有綁定，記 runtime issue，之後仍可寫入
+ok 5 - 狀態檔內容不是物件，或值不是非空字串時忽略該筆
+ok 6 - 寫入失敗時記 runtime issue，本次行程內仍回傳新綁定
+# tests 6
+# pass 6
+# fail 0
+exit=0
+
+$ npm run build
+exit=0
+$ npx eslint src/services/chat-session-store.ts
+exit=0
+
+重構：code-simplify 檢查為 no-op（讀檔、解析、寫檔三段，無重複或可合併處），沿用上方綠燈。
