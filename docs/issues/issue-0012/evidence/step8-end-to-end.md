@@ -2,7 +2,7 @@
 
 - **日期**：2026-10-07
 - **對應**：SCN-001、SCN-002、SCN-003、SCN-006
-- **映像**：以分支 `feat/issue-0012-chat-session-binding` 在 `f75fafc` 時建置的正式映像（`docker build`，Dockerfile 最後一個 stage；opencode 1.18.34）。
+- **映像**：以分支 `feat/issue-0012-chat-session-binding` 在 `f75fafc`（rebase 到流程契約 2.1 的 main 後為 `596b82a`，程式內容相同）時建置的正式映像（`docker build`，Dockerfile 最後一個 stage；opencode 1.18.34）。
 - **環境**：`docker run` 單一容器啟動 telenexus：暫存的 `data`／`workspace`／`ai-config.yaml`、不掛 named volume、不發佈 port，安全設定與 `docker-compose.yml` 相同。`CHAT_USE_RUNNER_PERCENT=0`，聊天在同一個容器內執行。`TELEGRAM_TOKEN` 是假值：Telegram 回 401，`bootstrap()` 只記錄錯誤，在那之前就已監聽的 Web Console 照常運作，不會與正式的 bot 搶 polling。Memoria 同步與召回都關閉。模型是 `opencode/big-pickle`。驗證完容器、映像與暫存目錄都已移除。
 - **驅動方式**：在容器內以 Web Console 的 `POST /api/chat`（non-stream 路徑）與 `POST /api/chat/stream`（stream 路徑）送訊息。排程以 `opencode run --format json`（不帶接續參數）模擬，與排程任務在 opencode 層的行為相同：開一個新 session，成為「最後被更新的 session」。
 
