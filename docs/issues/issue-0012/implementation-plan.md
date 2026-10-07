@@ -105,11 +105,12 @@ session 不存在時（SCN-003），opencode 不到一秒就以 exit 1 結束，
    - 方式：先在 repo 之外的 `moltbot.db` 複本上，比較新規則與現行查詢的結果，量出誤判的筆數。複本含私人對話，不進版控，用完即刪。
    - 完成判準：測試涵蓋聊天與排程交錯、只有排程、聊天中途插入排程輸出（記錄為已知限制）、空表。期望值是寫死的案例。盤點記錄複本的時間範圍、總筆數、新規則排除的排程輸出數、誤判數與判定理由；TBD-3 有結論。
    - 完成證據（2026-10-07）：盤點 [evidence/step5-recent-conversation-inventory.md](./evidence/step5-recent-conversation-inventory.md)：3,186 筆中 297 個聊天回合，確定誤判 9 筆（3.0%，最壞 4.7%）；最近 10 筆在現行規則下全是排程輸出，新規則下全是聊天。紅燈 [evidence/step5-red.txt](./evidence/step5-red.txt)（6 項中 5 項失敗）；綠燈 [evidence/step5-green.txt](./evidence/step5-green.txt)，完整測試 413/413。TBD-3 結論：不新增來源欄位。
-6. 📝 **Memoria confidence 門檻**（SCN-008）
+6. ✅ **Memoria confidence 門檻**（SCN-008）
    - 產出：`memoria-recall.ts`、`builder.ts` 的變更與測試；`.env.example` 新設定；`evidence/step6-confidence-sampling.md`。
    - 相依：無。
    - 方式：在隔離的 Memoria 執行個體上載入正式資料的快照複本，以措辭不同的中文問句抽樣，題目先凍結再跑（沿用 `builder.ts` 註解中 1.28.0 評估的做法）。每題記錄 confidence、basis 與每筆結果是否相關，用來決定預設值與 null 的處理。
    - 完成判準：TBD-2 有結論，理由寫在證據檔中。低於門檻、等於門檻、高於門檻、confidence 為 null、未設定門檻都有測試。低於門檻時改用本機語意摘要，`memoria_recall` 事件帶有被丟棄的標記。先紅後綠。
+   - 完成證據（2026-10-07）：抽樣 [evidence/step6-confidence-sampling.md](./evidence/step6-confidence-sampling.md)：12 題凍結問題，無關問題最高 0.143、相關問題最低 0.25（R4 除外），預設門檻取 0.2；null 照常注入。紅燈 [evidence/step6-red.txt](./evidence/step6-red.txt)（10 項中 5 項失敗）；綠燈 [evidence/step6-green.txt](./evidence/step6-green.txt)，完整測試 423/423。門檻在 `MemoriaRecallClient.recallWithMeta()` 套用，`builder.ts` 不需修改：被擋下時回傳 0 筆，沿用既有的本機語意摘要退路。
 7. 📝 **接續時省略近期對話**（SCN-006）
    - 產出：`builder.ts`、`main.ts`、`message-pipeline*.ts` 的變更與測試。
    - 相依：步驟 3、5。
@@ -161,7 +162,7 @@ session 不存在時（SCN-003），opencode 不到一秒就以 exit 1 結束，
 - [x] SCN-003～006 已核准（2026-10-06）
 - [x] 步驟 1 的證據確定了 TBD-1
 - [x] `src/` 中沒有任何路徑再產生 `-c`（2026-10-07）
-- [ ] TBD-2、TBD-3 有結論與證據（TBD-3 已於 2026-10-07 完成）
+- [x] TBD-2、TBD-3 有結論與證據（2026-10-07）
 - [ ] 證據檔已去敏
 - [ ] `Dockerfile`、`docker-compose*.yml` 沒有變更
 - [ ] 改 symbol 前跑過 GitNexus impact，並另外用 grep 數過呼叫點
