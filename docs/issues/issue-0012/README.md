@@ -160,7 +160,7 @@ Feature: 聊天接續自己的 session，記憶注入只放相關內容
 
 | 日期 | 豁免項目 | 使用者原話 | 殘餘風險 |
 |------|---------|-----------|---------|
-| 2026-10-06 | 不開 PR；改由獨立 subagent 在本機審查 `main..HEAD`，合併由使用者執行 | 交付方式選「分支＋本機獨立審查」 | 沒有 GitHub 上的審查紀錄；審查報告存於本目錄 |
+| 2026-10-06 | 不開 PR；改由獨立 subagent 在本機審查 `main..HEAD`，合併由使用者執行 | 交付方式選「分支＋本機獨立審查」 | 沒有 GitHub 上的審查紀錄；審查報告存於本目錄。2026-10-07 使用者改為要求開 PR（#13），本機審查方式不變 |
 
 ## Timeline
 
@@ -171,9 +171,13 @@ Feature: 聊天接續自己的 session，記憶注入只放相關內容
 | 2026-10-07 | main 的流程規範更新至 dev-rules-kit 4.5.0（流程契約 2.1，`7a485a5`），分支 rebase 到其上；核准基準 `856c486` 未受影響 | - |
 | 2026-10-07 | 獨立審查 e94635b：RETURN TO execute-task（[review-e94635b.md](./review-e94635b.md)）；兩項 `需決策` 經逐題確認（TBD-5、TBD-6） | - |
 | 2026-10-07 | 獨立審查 abd28e3：PASS（[review-abd28e3.md](./review-abd28e3.md)）；使用者要求 SHOULD FIX 一併修完（計畫步驟 10），修正後重審 | - |
+| 2026-10-07 | 獨立審查 c1a87f4：PASS（[review-c1a87f4.md](./review-c1a87f4.md)），報告提交 `986205d` | - |
+| 2026-10-07 | 使用者改為要求開 PR，建立 [PR #13](https://github.com/raybird/telenexus/pull/13)（`801fe35..986205d`）；審查仍是上列本機報告 | - |
+| 2026-10-07 | PR #13 以 squash 合併進 main（`0e7defd`），GitHub issue #12 關閉 | - |
 
 ---
 **建立日期**: 2026-10-06  
 **分級**: Medium — 跨 telenexus 與 agent-runner 兩個服務，不改資料庫 schema  
 **風險**: Medium\
-**狀態**: 待審查
+**狀態**: 已完成\
+**完成日期**: 2026-10-07（PR #13 合併）
