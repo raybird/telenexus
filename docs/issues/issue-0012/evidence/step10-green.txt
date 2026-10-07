@@ -1,0 +1,16 @@
+# 步驟 10 綠燈（審查 abd28e3 的 SHOULD FIX），2026-10-07
+$ npx tsx --test tests/web-prompt-reason-label.test.ts
+ok 1 - 新增的 new-session 有顯示文字
+ok 2 - pipeline 會產生的每個 prompt 選擇原因都有顯示文字,不會露出原始字串
+# tests 2
+# pass 2
+# fail 0
+
+$ npm run test
+# tests 439
+# pass 439
+# fail 0
+exit=0
+$ npm run build → exit=0；npm run lint → exit=0
+
+重構：code-simplify 檢查為 no-op（一個 case）。

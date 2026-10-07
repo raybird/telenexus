@@ -138,6 +138,13 @@ session 不存在時（SCN-003），opencode 不到一秒就以 exit 1 結束，
    - 完成判準：minimal 與短訊息 compact 回合在「沒有綁定」與「session-missing 重組」兩種情況下都以 full 組裝，期望值寫死；`/new` 回合結果沒有 sessionId 時，下一則不帶 `-s`；新增的持久力測試在拿掉對應條件時會失敗（記錄突變結果）；`npm run build`、`npm run test`、`npm run lint` 都是 exit 0。
    - 完成證據（2026-10-07）：紅燈 [evidence/step9-red.txt](./evidence/step9-red.txt)（新行為 5 項失敗）；綠燈與突變驗證 [evidence/step9-green.txt](./evidence/step9-green.txt)：3 項持久力測試各自擋下對應的突變；完整測試 437/437，build、lint 皆 exit 0。
 
+10. ✅ **審查 abd28e3 的 SHOULD FIX**（SCN-006 的可觀察面）
+   - 產出：`src/web/server.ts` 的 `humanizePromptReason()` 補上 `new-session`；`getWebAppHtml()` 匯出供測試；`tests/web-prompt-reason-label.test.ts`。
+   - 相依：步驟 9。
+   - 依據：使用者 2026-10-07 要求「should fix 一併修完」。實際的前端（`src/web/public/app`）不顯示 prompt 選擇原因，只有 `server.ts` 的備援頁有這段；以 grep 確認全專案只有這一處列舉這些原因。
+   - 完成判準：測試從頁面 HTML 抽出 `humanizePromptReason()` 實際執行，pipeline 會產生的每個原因都有顯示文字；`npm run build`、`npm run test`、`npm run lint` 都是 exit 0。
+   - 完成證據（2026-10-07）：紅燈 [evidence/step10-red.txt](./evidence/step10-red.txt)（`new-session` 原樣露出）；綠燈 [evidence/step10-green.txt](./evidence/step10-green.txt)，完整測試 439/439。
+
 ## 使用方式對照
 
 | 情境 | 變更前 | 變更後 |

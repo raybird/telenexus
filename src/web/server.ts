@@ -539,7 +539,7 @@ export function toStructuredStatus(snapshots: SnapshotSet): Record<string, unkno
   };
 }
 
-function getWebAppHtml(options: WebServerOptions): string {
+export function getWebAppHtml(options: WebServerOptions): string {
   const errorThreshold = Number.isFinite(options.alertErrorThreshold)
     ? Math.max(0, Math.floor(options.alertErrorThreshold))
     : 1;
@@ -1147,6 +1147,8 @@ function getWebAppHtml(options: WebServerOptions): string {
         switch (reason) {
           case 'force-new-session':
             return '強制新 Session';
+          case 'new-session':
+            return '開新 Session';
           case 'periodic-full':
             return '週期性完整校正';
           case 'compact-followup':
