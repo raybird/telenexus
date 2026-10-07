@@ -2,6 +2,27 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.29.0 — 2026-10-07
+
+### 聊天接續自己的 session（#12）
+
+聊天原本以 `opencode run -c` 接續「最後被更新的 session」。排程、摘要呼叫與追蹤提醒都會建立或更新 session，所以下一則聊天常接進排程或摘要的 session，前文也跟著錯置。
+
+- TeleNexus 為每位使用者記住聊天 session（`data/chat-session-state.json`），聊天與 passthrough 指令以 `-s <id>` 接續；首次對話與 `/new` 開新 session 後改綁。
+- 綁定的 session 不存在時，回合改開新 session 重跑一次並照常回覆，記一筆 `chat-session:missing` runtime issue。
+- `tool_only` 追問送進該回合自己的 session；追蹤提醒改開新 session。
+
+### 記憶注入只放相關內容
+
+- 接續自己的 session 時不再注入「近期對話」（session 已有前文）；開新 session 的回合一律以 full 組裝並注入。
+- 「近期對話」只取聊天訊息，不再列出排程輸出。舊規則下正式資料的近期對話 10 則全是排程輸出。
+- Memoria 召回的 confidence 低於 `MEMORIA_RECALL_MIN_CONFIDENCE`（預設 `0.2`）時不注入；confidence 為 null 照常注入。
+
+### 升級注意
+
+- 升級後每位使用者的第一則聊天沒有綁定，會開一個新 session（注入近期對話），之後才開始接續。
+- `MEMORIA_RECALL_MIN_CONFIDENCE` 為選填，不設定即使用預設值；說明見 [設定參考](docs/configuration-reference.md)。
+
 ## 2.28.0 — 2026-10-05
 
 ### 網頁閱讀後端替換與工作專屬回收（#10）
