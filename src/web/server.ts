@@ -17,7 +17,7 @@ import { resolveContextDir } from '../utils/paths.js';
 import { getRecentIssues } from '../utils/errors.js';
 import { collectMemoryHealthReport } from '../services/memory-health.js';
 import { getRecentMemoryBackfillReports } from '../services/memory-backfill.js';
-import type { PromptBuildResult, PromptMode } from '../core/prompt-build.js';
+import type { BuildPromptFn } from '../core/prompt-build.js';
 
 type WebServerOptions = {
   enabled: boolean;
@@ -37,11 +37,7 @@ type WebServerOptions = {
   chatRunnerPercent: number;
   chatRunnerOnlyUsers: Set<string>;
   shouldSummarize: (content: string) => boolean;
-  buildPrompt: (
-    userMessage: string,
-    userId: string,
-    mode?: PromptMode
-  ) => Promise<string | PromptBuildResult> | string | PromptBuildResult;
+  buildPrompt: BuildPromptFn;
   enqueueMemoriaSync?: (turn: MemoriaSyncTurn) => void;
   /** 與 Telegram pipeline 共用的聊天 session 綁定(issue 0012)。 */
   chatSessionStore?: ChatSessionStore;

@@ -30,7 +30,7 @@ import type { Scheduler } from './scheduler.js';
 import { parseBool, parsePositiveInt } from '../utils/env.js';
 import { TelegramStreamRenderer } from './telegram-stream-renderer.js';
 import { randomUUID } from 'crypto';
-import type { PromptBuildResult, PromptMode } from './prompt-build.js';
+import type { BuildPromptFn } from './prompt-build.js';
 import { recordPromptSessionTrace } from '../services/prompt-session-telemetry.js';
 import type { PromptTelemetry } from './message-pipeline-chat.js';
 import { parseMemoryIntent } from './memory-intent.js';
@@ -51,11 +51,7 @@ type MessagePipelineOptions = {
   chatRunnerPercent: number;
   chatRunnerOnlyUsers: Set<string>;
   shouldSummarize: (content: string) => boolean;
-  buildPrompt: (
-    userMessage: string,
-    userId: string,
-    mode?: PromptMode
-  ) => Promise<string | PromptBuildResult> | string | PromptBuildResult;
+  buildPrompt: BuildPromptFn;
   enqueueMemoriaSync?: (turn: MemoriaSyncTurn) => void;
   /**
    * 每位使用者的聊天 session 綁定(issue 0012)。Telegram 與 Web 的 pipeline 要共用同一個實例:
@@ -212,12 +208,19 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         shouldSummarize: options.shouldSummarize
       });
 
-      const { promptForAgent, telemetry, memoriaRecall } = await preparePromptForAgent({
-        context,
-        fullPromptEvery,
-        fullPromptCounterByUser,
-        buildPrompt: options.buildPrompt
-      });
+      const sessionStore = options.chatSessionStore;
+      // prompt 在排隊前組好,所以這裡先依目前的綁定決定要不要放「近期對話」;
+      // 實際送出前會再讀一次綁定,兩者不一致時以「不接續」重組。
+      const continuingSession =
+        !context.forceNewSession && Boolean(sessionStore?.get(context.userId));
+      const { promptForAgent, telemetry, memoriaRecall, rebuildForNewSession } =
+        await preparePromptForAgent({
+          context,
+          fullPromptEvery,
+          fullPromptCounterByUser,
+          buildPrompt: options.buildPrompt,
+          continuingSession
+        });
       promptLength = promptForAgent.length;
       promptTelemetry = telemetry;
 
@@ -249,7 +252,10 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
             }
           };
 
-          const runTurn = async (sessionId?: string): Promise<AgentStructuredResult> => {
+          const runTurn = async (
+            prompt: string,
+            sessionId?: string
+          ): Promise<AgentStructuredResult> => {
             const turnOpts: AIAgentOptions = {
               isPassthroughCommand: context.isPassthroughCommand,
               forceNewSession: context.forceNewSession,
@@ -257,27 +263,28 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
               autoRecoveryNotice: true
             };
             if ((streamResponse || telegramStreamRenderer) && context.activeAgent.streamChat) {
-              return context.activeAgent.streamChat(
-                promptForAgent,
-                { ...turnOpts, signal },
-                eventHandler
-              );
+              return context.activeAgent.streamChat(prompt, { ...turnOpts, signal }, eventHandler);
             }
             if (context.activeAgent.chatStructured) {
-              return context.activeAgent.chatStructured(promptForAgent, turnOpts);
+              return context.activeAgent.chatStructured(prompt, turnOpts);
             }
             return {
               provider: 'opencode',
-              text: await context.activeAgent.chat(promptForAgent, turnOpts)
+              text: await context.activeAgent.chat(prompt, turnOpts)
             };
           };
+          // 開新 session 時 prompt 要含「近期對話」:以接續組裝的版本在新 session 裡沒有上下文。
+          const promptForNewSession = async (): Promise<string> =>
+            rebuildForNewSession ? rebuildForNewSession() : promptForAgent;
 
           // 以綁定的 session 接續;/new 時 forceNewSession 優先,開新 session 後改綁。
-          const sessionStore = options.chatSessionStore;
           const boundSessionId = context.forceNewSession
             ? undefined
             : sessionStore?.get(context.userId);
-          let result = await runTurn(boundSessionId);
+          let result = await runTurn(
+            boundSessionId ? promptForAgent : await promptForNewSession(),
+            boundSessionId
+          );
           if (result.failure?.kind === 'session-missing') {
             // opencode 沒有送出任何請求、也沒有發事件給畫面,直接改開新 session 重跑。
             sessionStore?.clear(context.userId);
@@ -285,7 +292,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
               'chat-session:missing',
               new Error(`bound session ${boundSessionId} not found; started a new session`)
             );
-            result = await runTurn();
+            result = await runTurn(await promptForNewSession());
           }
           if (result.sessionId) {
             sessionStore?.set(context.userId, result.sessionId);

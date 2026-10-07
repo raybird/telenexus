@@ -77,11 +77,18 @@ function createMessage(content: string, raw?: unknown): UnifiedMessage {
 }
 
 type Call = { sessionId: string | undefined; forceNewSession: boolean };
+type PromptBuild = { mode: string; continuingSession: boolean };
 
 /** 依序回傳 results 的假 agent,記下每次呼叫帶的 session 選項。 */
-function createScriptedAgent(results: AgentStructuredResult[]): { agent: AIAgent; calls: Call[] } {
+function createScriptedAgent(results: AgentStructuredResult[]): {
+  agent: AIAgent;
+  calls: Call[];
+  prompts: string[];
+} {
   const calls: Call[] = [];
-  const next = (options?: AIAgentOptions): AgentStructuredResult => {
+  const prompts: string[] = [];
+  const next = (options?: AIAgentOptions, prompt = ''): AgentStructuredResult => {
+    prompts.push(prompt);
     calls.push({
       sessionId: options?.sessionId,
       forceNewSession: options?.forceNewSession === true
@@ -91,14 +98,14 @@ function createScriptedAgent(results: AgentStructuredResult[]): { agent: AIAgent
     return result;
   };
   const agent: AIAgent = {
-    async chat(_prompt, options) {
-      return next(options).text;
+    async chat(prompt, options) {
+      return next(options, prompt).text;
     },
-    async chatStructured(_prompt, options) {
-      return next(options);
+    async chatStructured(prompt, options) {
+      return next(options, prompt);
     },
-    async streamChat(_prompt, options, onEvent: (event: AgentEvent) => Promise<void> | void) {
-      const result = next(options);
+    async streamChat(prompt, options, onEvent: (event: AgentEvent) => Promise<void> | void) {
+      const result = next(options, prompt);
       // 與真正的 agent 相同:session-missing 不發任何事件。
       if (result.failure?.kind !== 'session-missing') {
         await onEvent({ type: 'done', text: result.text });
@@ -109,7 +116,7 @@ function createScriptedAgent(results: AgentStructuredResult[]): { agent: AIAgent
       return `summary:${text}`;
     }
   };
-  return { agent, calls };
+  return { agent, calls, prompts };
 }
 
 function createPipeline(options: {
@@ -118,6 +125,7 @@ function createPipeline(options: {
   store: ChatSessionStore;
   runtimeIssues?: string[];
   passthrough?: boolean;
+  promptBuilds?: PromptBuild[];
 }) {
   return createMessagePipeline({
     connector: options.connector,
@@ -144,8 +152,10 @@ function createPipeline(options: {
     shouldSummarize() {
       return false;
     },
-    buildPrompt(userMessage) {
-      return `PROMPT:${userMessage}`;
+    buildPrompt(userMessage, _userId, mode = 'full', buildOptions) {
+      const continuingSession = buildOptions?.continuingSession === true;
+      options.promptBuilds?.push({ mode, continuingSession });
+      return `PROMPT:${userMessage}|continuing=${continuingSession}`;
     },
     recordRuntimeIssue(scope) {
       options.runtimeIssues?.push(scope);
@@ -265,5 +275,92 @@ test('SCN-001 [passthrough]: passthrough 指令接續綁定的 session,不改綁
 
     assert.deepEqual(calls, [{ sessionId: 'ses_1', forceNewSession: false }]);
     assert.equal(store.get('user-a'), 'ses_1');
+  });
+});
+
+test('SCN-006: 接續綁定的 session 時,prompt 以「接續」組裝;首次與 /new 不是', async () => {
+  await withTempProject(async (dir) => {
+    const { connector } = createConnector();
+    const store = new ChatSessionStore(path.join(dir, 'data', 'chat-session-state.json'));
+    const promptBuilds: PromptBuild[] = [];
+    const { agent, prompts } = createScriptedAgent([
+      reply('一', 'ses_1'),
+      reply('二', 'ses_1'),
+      reply('三', 'ses_2')
+    ]);
+    const pipeline = createPipeline({ connector, agent, store, promptBuilds });
+
+    await pipeline(createMessage('第一則訊息,沒有綁定'));
+    await pipeline(createMessage('第二則訊息,接續 ses_1'));
+    await pipeline(createMessage('/new'));
+    await pipeline(createMessage('第三則訊息,/new 之後'));
+
+    assert.deepEqual(
+      promptBuilds.map((item) => item.continuingSession),
+      [false, true, false]
+    );
+    assert.deepEqual(prompts, [
+      'PROMPT:第一則訊息,沒有綁定|continuing=false',
+      'PROMPT:第二則訊息,接續 ses_1|continuing=true',
+      'PROMPT:第三則訊息,/new 之後|continuing=false'
+    ]);
+  });
+});
+
+test('SCN-006: full 與 compact 模式都依接續狀態組裝', async () => {
+  const saved = process.env.CHAT_FULL_PROMPT_EVERY;
+  // 每回合都是 full,第二回合就能同時驗證「full + 接續」。
+  process.env.CHAT_FULL_PROMPT_EVERY = '1';
+  try {
+    await withTempProject(async (dir) => {
+      const { connector } = createConnector();
+      const store = new ChatSessionStore(path.join(dir, 'data', 'chat-session-state.json'));
+      store.set('user-a', 'ses_1');
+      const promptBuilds: PromptBuild[] = [];
+      const { agent } = createScriptedAgent([reply('一', 'ses_1')]);
+      const pipeline = createPipeline({ connector, agent, store, promptBuilds });
+      await pipeline(createMessage('full 模式下接續綁定的 session'));
+      assert.deepEqual(promptBuilds, [{ mode: 'full', continuingSession: true }]);
+    });
+  } finally {
+    if (saved === undefined) delete process.env.CHAT_FULL_PROMPT_EVERY;
+    else process.env.CHAT_FULL_PROMPT_EVERY = saved;
+  }
+
+  await withTempProject(async (dir) => {
+    const { connector } = createConnector();
+    const store = new ChatSessionStore(path.join(dir, 'data', 'chat-session-state.json'));
+    const promptBuilds: PromptBuild[] = [];
+    const { agent } = createScriptedAgent([reply('一', 'ses_1'), reply('二', 'ses_1')]);
+    const pipeline = createPipeline({ connector, agent, store, promptBuilds });
+    await pipeline(
+      createMessage('第一則訊息,這是一段夠長的內容所以不會被判成極短的追問,會走 full')
+    );
+    await pipeline(
+      createMessage('第二則訊息之前的規則是什麼,這一則夠長而且有關鍵字,所以會走 compact 模式')
+    );
+    assert.deepEqual(promptBuilds, [
+      { mode: 'full', continuingSession: false },
+      { mode: 'compact', continuingSession: true }
+    ]);
+  });
+});
+
+test('SCN-006: 綁定的 session 不存在而改開新 session 時,以「不接續」重新組裝 prompt', async () => {
+  await withTempProject(async (dir) => {
+    const { connector } = createConnector();
+    const store = new ChatSessionStore(path.join(dir, 'data', 'chat-session-state.json'));
+    store.set('user-a', 'ses_gone');
+    const promptBuilds: PromptBuild[] = [];
+    const { agent, prompts } = createScriptedAgent([SESSION_MISSING, reply('回覆', 'ses_fresh')]);
+    const pipeline = createPipeline({ connector, agent, store, promptBuilds });
+
+    await pipeline(createMessage('哈囉'));
+
+    assert.deepEqual(
+      promptBuilds.map((item) => item.continuingSession),
+      [true, false]
+    );
+    assert.deepEqual(prompts, ['PROMPT:哈囉|continuing=true', 'PROMPT:哈囉|continuing=false']);
   });
 });

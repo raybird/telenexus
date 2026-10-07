@@ -111,10 +111,11 @@ session 不存在時（SCN-003），opencode 不到一秒就以 exit 1 結束，
    - 方式：在隔離的 Memoria 執行個體上載入正式資料的快照複本，以措辭不同的中文問句抽樣，題目先凍結再跑（沿用 `builder.ts` 註解中 1.28.0 評估的做法）。每題記錄 confidence、basis 與每筆結果是否相關，用來決定預設值與 null 的處理。
    - 完成判準：TBD-2 有結論，理由寫在證據檔中。低於門檻、等於門檻、高於門檻、confidence 為 null、未設定門檻都有測試。低於門檻時改用本機語意摘要，`memoria_recall` 事件帶有被丟棄的標記。先紅後綠。
    - 完成證據（2026-10-07）：抽樣 [evidence/step6-confidence-sampling.md](./evidence/step6-confidence-sampling.md)：12 題凍結問題，無關問題最高 0.143、相關問題最低 0.25（R4 除外），預設門檻取 0.2；null 照常注入。紅燈 [evidence/step6-red.txt](./evidence/step6-red.txt)（10 項中 5 項失敗）；綠燈 [evidence/step6-green.txt](./evidence/step6-green.txt)，完整測試 423/423。門檻在 `MemoriaRecallClient.recallWithMeta()` 套用，`builder.ts` 不需修改：被擋下時回傳 0 筆，沿用既有的本機語意摘要退路。
-7. 📝 **接續時省略近期對話**（SCN-006）
+7. ✅ **接續時省略近期對話**（SCN-006）
    - 產出：`builder.ts`、`main.ts`、`message-pipeline*.ts` 的變更與測試。
    - 相依：步驟 3、5。
    - 完成判準：接續綁定的 session 時，記憶區塊沒有「近期對話」段；首次、`/new`、改綁三種情況都有該段。full 與 compact 模式各有測試。先紅後綠。
+   - 完成證據（2026-10-07）：紅燈 [evidence/step7-red.txt](./evidence/step7-red.txt)（13 項中 5 項失敗）；綠燈 [evidence/step7-green.txt](./evidence/step7-green.txt)，完整測試 429/429。prompt 在排隊前組裝，所以 pipeline 先依當下的綁定決定是否接續，送出前再讀一次綁定；兩者不一致或 session 不存在時，以「不接續」重組（含近期對話）再送。重組時會再做一次 Memoria 召回，UFL 回報沿用第一次的 recall。
 8. 📝 **實地驗證、常青文件與交付檢查**（全部 Scenario）
    - 產出：`evidence/step8-end-to-end.md`；常青文件更新。
    - 相依：步驟 1～7。

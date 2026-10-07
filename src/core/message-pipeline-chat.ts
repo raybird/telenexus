@@ -4,7 +4,12 @@ import type { MemoriaSyncTurn } from './memoria-sync.js';
 import type { MemoryIntent } from './memory-intent.js';
 import type { MemoryManager } from './memory.js';
 import type { MessagePipelineContext } from './message-pipeline-context.js';
-import type { MemoriaRecallMeta, PromptBuildResult, PromptMode } from './prompt-build.js';
+import type {
+  BuildPromptFn,
+  MemoriaRecallMeta,
+  PromptBuildResult,
+  PromptMode
+} from './prompt-build.js';
 import { normalizePromptBuildResult, shouldIncludeMemoryContext } from './prompt-build.js';
 import { inferSummaryMetadata } from './summary-metadata.js';
 import { buildAttachmentPrompt, extractFileDirectives } from './message-pipeline-helpers.js';
@@ -13,11 +18,9 @@ type PreparePromptOptions = {
   context: MessagePipelineContext;
   fullPromptEvery: number;
   fullPromptCounterByUser: Map<string, number>;
-  buildPrompt: (
-    userMessage: string,
-    userId: string,
-    mode?: PromptMode
-  ) => Promise<string | PromptBuildResult> | string | PromptBuildResult;
+  buildPrompt: BuildPromptFn;
+  /** 這一回合接續綁定的聊天 session(issue 0012)。 */
+  continuingSession: boolean;
 };
 
 export type PromptTelemetry = {
@@ -126,10 +129,16 @@ export async function preparePromptForAgent(options: PreparePromptOptions): Prom
   promptForAgent: string;
   telemetry: PromptTelemetry;
   memoriaRecall?: MemoriaRecallMeta;
+  /**
+   * 以「不接續」重新組裝同一則訊息的 prompt(同一個模式,不推進 full prompt 計數)。
+   * 只在以接續組裝、而實際改開新 session 時需要;passthrough 或本來就不接續時沒有。
+   */
+  rebuildForNewSession?: () => Promise<string>;
 }> {
   const { context } = options;
   let promptForAgent = context.msg.content.trim();
   let memoriaRecall: MemoriaRecallMeta | undefined;
+  let rebuildForNewSession: (() => Promise<string>) | undefined;
   let telemetry: PromptTelemetry = {
     promptMode: 'passthrough',
     promptSelectionReason: 'passthrough-command',
@@ -153,10 +162,20 @@ export async function preparePromptForAgent(options: PreparePromptOptions): Prom
       : shouldUseMinimal
         ? 'minimal'
         : 'compact';
-    const promptResult = normalizePromptBuildResult(
-      await options.buildPrompt(context.msg.content, context.userId, promptMode),
-      promptMode
-    );
+    const attachmentPrompt = buildAttachmentPrompt(context.msg.attachments);
+    const withAttachments = (prompt: string): string =>
+      attachmentPrompt ? `${prompt}\n\n${attachmentPrompt}` : prompt;
+    const build = async (continuingSession: boolean): Promise<PromptBuildResult> =>
+      normalizePromptBuildResult(
+        await options.buildPrompt(context.msg.content, context.userId, promptMode, {
+          continuingSession
+        }),
+        promptMode
+      );
+    const promptResult = await build(options.continuingSession);
+    if (options.continuingSession) {
+      rebuildForNewSession = async () => withAttachments((await build(false)).prompt);
+    }
     promptForAgent = promptResult.prompt;
     memoriaRecall = promptResult.memoriaRecall;
     telemetry = {
@@ -173,13 +192,15 @@ export async function preparePromptForAgent(options: PreparePromptOptions): Prom
       memoryContextSectionCount: promptResult.memoryContextSectionCount
     };
     options.fullPromptCounterByUser.set(context.userId, currentCounter + 1);
-    const attachmentPrompt = buildAttachmentPrompt(context.msg.attachments);
-    if (attachmentPrompt) {
-      promptForAgent = `${promptForAgent}\n\n${attachmentPrompt}`;
-    }
+    promptForAgent = withAttachments(promptForAgent);
   }
 
-  return { promptForAgent, telemetry, ...(memoriaRecall ? { memoriaRecall } : {}) };
+  return {
+    promptForAgent,
+    telemetry,
+    ...(memoriaRecall ? { memoriaRecall } : {}),
+    ...(rebuildForNewSession ? { rebuildForNewSession } : {})
+  };
 }
 
 export function persistModelResponse(options: PersistModelResponseOptions): number | undefined {

@@ -29,6 +29,7 @@ import { addEventHook } from './services/event-bus.js';
 import {
   shouldIncludeMemoryContext,
   type MemoriaRecallMeta,
+  type PromptBuildOptions,
   type PromptBuildResult,
   type PromptMode
 } from './core/prompt-build.js';
@@ -207,7 +208,8 @@ async function bootstrap() {
   const buildPromptFn = async (
     userMessage: string,
     userId: string,
-    mode: PromptMode = 'full'
+    mode: PromptMode = 'full',
+    buildOptions: PromptBuildOptions = {}
   ): Promise<PromptBuildResult> => {
     const promptConfig = loadChatPromptConfig();
     let memoriaRecallMeta: MemoriaRecallMeta | undefined;
@@ -224,7 +226,9 @@ async function bootstrap() {
                 }
                 return result.snippets;
               }
-            : null
+            : null,
+          // 接續綁定的 session 時最近幾回合已在 session 裡(issue 0012)。
+          { includeRecentConversation: buildOptions.continuingSession !== true }
         )
       : '';
     const memoriaStatus = memoriaSync.getStatus();
