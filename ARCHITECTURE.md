@@ -111,6 +111,9 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 - `src/services/error-alerter.ts`
   - 滑動視窗統計 per scope 錯誤頻率，超過閾值即推 Telegram 給 `ALLOWED_USER_ID`
   - 環境變數：`ERROR_ALERT_THRESHOLD` / `ERROR_ALERT_WINDOW_MS` / `ERROR_ALERT_COOLDOWN_MS`
+- `src/services/chat-session-store.ts`
+  - 每位使用者的聊天 opencode session 綁定，存於 `data/chat-session-state.json`；只有 telenexus 讀寫，Telegram 與 Web Console 的 pipeline 共用同一個實例
+  - 聊天以 `-s <id>` 接續綁定的 session，不用 `-c`（`-c` 接的是最後被更新的 session，排程與健康探針都會搶走它）
 - `src/services/interaction-guard.ts`
   - Per-user in-memory 多步驟互動狀態；`start / getState / isCommandAllowed / clear`
   - `CommandRouter` dispatch 前諮詢；`/abort` 自動 clear
@@ -125,10 +128,10 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 1. 使用者從 Telegram 或 Web Console 發送訊息
 2. 訊息被轉成 `UnifiedMessage`
 3. `CommandRouter` 先諮詢 `InteractionGuard`（封鎖多步驟流程中的非白名單指令），再處理命令型輸入；未命中才進一般聊天
-4. `message-pipeline` 寫入 user message，決定 prompt mode
-5. `buildPrompt` 視情況注入 memory context 與 Memoria capability hint
-6. `DynamicAIAgent` 依 `ai-config.yaml` 選 provider，並決定走 runner 或 local
-7. 回覆經正規化後送回 connector，並持久化到記憶
+4. `message-pipeline` 寫入 user message，決定 prompt mode，並讀取該使用者綁定的聊天 session
+5. `buildPrompt` 視情況注入 memory context 與 Memoria capability hint；接續綁定的 session 時不放「近期對話」
+6. `DynamicAIAgent` 依 `ai-config.yaml` 選 provider，並決定走 runner 或 local；以 `-s` 接續綁定的 session，綁定的 session 不存在時改開新 session 重跑
+7. 回覆經正規化後送回 connector，並持久化到記憶；綁定更新為這一回合的 session
 8. 成功回合可觸發 memory intent telemetry、prompt session telemetry、Memoria sync
 
 ### 2. 排程任務

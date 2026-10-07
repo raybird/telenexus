@@ -18,6 +18,7 @@ import { recordRuntimeIssue, getRecentIssues } from './utils/errors.js';
 import { writeContextSnapshots, writeSchedulerHealth } from './services/context-snapshots.js';
 import { resolveContextDir, resolveModelHealthStatePath } from './utils/paths.js';
 import { startModelHealthCheck, isRealSuccessEvent } from './services/model-health-check.js';
+import { ChatSessionStore } from './services/chat-session-store.js';
 import { loadAiConfig } from './core/config-loader.js';
 import { MemoryBackfillWorker } from './services/memory-backfill-worker.js';
 import { startErrorAlerter } from './services/error-alerter.js';
@@ -28,6 +29,7 @@ import { addEventHook } from './services/event-bus.js';
 import {
   shouldIncludeMemoryContext,
   type MemoriaRecallMeta,
+  type PromptBuildOptions,
   type PromptBuildResult,
   type PromptMode
 } from './core/prompt-build.js';
@@ -206,7 +208,8 @@ async function bootstrap() {
   const buildPromptFn = async (
     userMessage: string,
     userId: string,
-    mode: PromptMode = 'full'
+    mode: PromptMode = 'full',
+    buildOptions: PromptBuildOptions = {}
   ): Promise<PromptBuildResult> => {
     const promptConfig = loadChatPromptConfig();
     let memoriaRecallMeta: MemoriaRecallMeta | undefined;
@@ -223,7 +226,9 @@ async function bootstrap() {
                 }
                 return result.snippets;
               }
-            : null
+            : null,
+          // 接續綁定的 session 時最近幾回合已在 session 裡(issue 0012)。
+          { includeRecentConversation: buildOptions.continuingSession !== true }
         )
       : '';
     const memoriaStatus = memoriaSync.getStatus();
@@ -279,6 +284,9 @@ async function bootstrap() {
     onAfterRun: writeContextSnapshotsFn
   });
 
+  // Telegram 與 Web 的 pipeline 共用同一個實例:它每次寫入都把整份綁定寫回檔案。
+  const chatSessionStore = new ChatSessionStore();
+
   const handleIncomingMessage = createMessagePipeline({
     connector: telegram,
     commandRouter,
@@ -292,6 +300,7 @@ async function bootstrap() {
     shouldSummarize,
     buildPrompt: buildPromptFn,
     enqueueMemoriaSync: enqueueMemoriaSyncFn,
+    chatSessionStore,
     recordRuntimeIssue,
     writeContextSnapshots: writeContextSnapshotsFn
   });
@@ -323,6 +332,7 @@ async function bootstrap() {
     shouldSummarize,
     buildPrompt: buildPromptFn,
     enqueueMemoriaSync: enqueueMemoriaSyncFn,
+    chatSessionStore,
     recordRuntimeIssue,
     writeContextSnapshots: writeContextSnapshotsFn
   });

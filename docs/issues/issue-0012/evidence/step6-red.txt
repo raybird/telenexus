@@ -1,0 +1,16 @@
+# 步驟 6 紅燈（SCN-008，實作前），2026-10-07
+$ npx tsx --test tests/memoria-recall-threshold.test.ts
+not ok 1 - SCN-008: 預設門檻,0.143(無關問題的最高值) → 不注入
+ok 2 - SCN-008: 預設門檻,等於 0.2 → 注入
+ok 3 - SCN-008: 預設門檻,0.25(相關問題的最低值) → 注入
+ok 4 - SCN-008: 預設門檻,confidence 為 null → 注入
+ok 5 - SCN-008: 門檻設為 0(停用) → 注入
+not ok 6 - SCN-008: 門檻設為 0.5 → 不注入
+not ok 7 - SCN-008: 門檻設定無效時用預設值 → 不注入
+ok 8 - SCN-008: 門檻超過 1 時用預設值 → 注入
+not ok 9 - SCN-008: 丟棄時 memoria_recall 事件帶有標記與門檻
+not ok 10 - SCN-008: 信心過低時,「相關歷史摘要」不含 Memoria 的結果
+# tests 10
+# pass 5
+# fail 5
+exit=1

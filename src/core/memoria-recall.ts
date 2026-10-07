@@ -85,6 +85,19 @@ function getRecallTopK(): number {
   return parsePositiveInt(process.env.MEMORIA_RECALL_TOP_K, 5);
 }
 
+/**
+ * confidence 低於這個值的召回結果不注入 prompt(issue 0012)。預設 0.2 取自正式資料快照的抽樣:
+ * 無關問題最高 0.143、相關問題最低 0.25。設為 0 等於停用;不是 0～1 的數字時用預設值。
+ */
+const DEFAULT_RECALL_MIN_CONFIDENCE = 0.2;
+
+function getRecallMinConfidence(): number {
+  const raw = process.env.MEMORIA_RECALL_MIN_CONFIDENCE?.trim();
+  if (!raw) return DEFAULT_RECALL_MIN_CONFIDENCE;
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 && value <= 1 ? value : DEFAULT_RECALL_MIN_CONFIDENCE;
+}
+
 export class MemoriaRecallClient {
   private readonly endpoint: string;
   private readonly timeoutMs: number;
@@ -139,6 +152,10 @@ export class MemoriaRecallClient {
       const recallId = parsed.meta?.recall_id;
       const meta = interpretRecallMeta(parsed.meta);
       const latencyMs = Date.now() - startedAt;
+      // null 代表該路由無法判斷匹配品質,不能當成 0 擋掉。
+      const minConfidence = getRecallMinConfidence();
+      const droppedLowConfidence =
+        rawHits.length > 0 && meta.confidence !== null && meta.confidence < minConfidence;
 
       recordMemoriaRecallTrace({
         timestamp: startedAt,
@@ -154,7 +171,10 @@ export class MemoriaRecallClient {
         confidence: meta.confidence,
         confidence_basis: meta.confidenceBasis,
         hit_count: rawHits.length,
-        latency_ms: latencyMs
+        latency_ms: latencyMs,
+        ...(droppedLowConfidence
+          ? { dropped_low_confidence: true, min_confidence: minConfidence }
+          : {})
       });
       // 語意索引服務不了、實際端出字面結果時要出聲——這種降級不講就是靜默降級。
       if (isDegradedRoute(meta.routeMode)) {
@@ -163,6 +183,15 @@ export class MemoriaRecallClient {
           `memoria:recall-degraded:${meta.routeMode}`,
           new Error(`Memoria 語意召回不可用,已退回字面召回 (route_mode=${meta.routeMode})`)
         );
+      }
+
+      if (droppedLowConfidence) {
+        logger.info('recall_dropped_low_confidence', {
+          confidence: meta.confidence,
+          minConfidence,
+          hits: rawHits.length
+        });
+        return { snippets: [], hits: [], meta };
       }
 
       return { snippets, hits, meta, ...(recallId ? { recallId } : {}) };
@@ -356,7 +385,8 @@ export function getMemoriaRecallClient(): MemoriaRecallClient | null {
     logger.info('initialized', {
       endpoint: getRecallEndpoint(),
       topK: getRecallTopK(),
-      timeoutMs: getRecallTimeoutMs()
+      timeoutMs: getRecallTimeoutMs(),
+      minConfidence: getRecallMinConfidence()
     });
   }
   return _singleton;

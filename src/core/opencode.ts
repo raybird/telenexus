@@ -36,6 +36,7 @@ export function parseOpencodeJsonOutput(stdout: string): AgentStructuredResult |
   const events: OpencodeEvent[] = [];
   const textParts: string[] = [];
   let stats: Record<string, unknown> | undefined;
+  let sessionId: string | undefined;
 
   for (const line of lines) {
     const event = parseEventLine(line);
@@ -51,6 +52,9 @@ export function parseOpencodeJsonOutput(stdout: string): AgentStructuredResult |
     }
     if (interpreted.stats) {
       stats = interpreted.stats;
+    }
+    if (interpreted.sessionId) {
+      sessionId = interpreted.sessionId;
     }
   }
 
@@ -71,6 +75,10 @@ export function parseOpencodeJsonOutput(stdout: string): AgentStructuredResult |
   };
   if (stats) {
     result.stats = stats;
+  }
+  // 聊天回合結束後以它更新 session 綁定(issue 0012);串流路徑在 cli-agent-base 取得同一個值。
+  if (sessionId) {
+    result.sessionId = sessionId;
   }
   return result;
 }
@@ -104,6 +112,19 @@ const OPENCODE_RATE_LIMIT_ABORT = {
 
 const OPENCODE_RATE_LIMIT_MESSAGE =
   '⏳ Opencode 上游配額已達上限 (HTTP 429)，本次任務已快速中止以避免長時間退避重試。請稍後再試或錯開排程時間。';
+
+/**
+ * `-s` 指定的 session 不存在時,opencode 1.18.34 以 exit 1 結束、stdout 沒有任何事件,
+ * stderr 是 `Error: Session not found`(含 ANSI 色碼,但這段字是連續的)。從未存在與已刪除的
+ * session 相同,不到一秒就失敗,沒有送出上游請求(issue 0012 步驟 1 實測)。
+ */
+const OPENCODE_SESSION_NOT_FOUND_PATTERN = /Session not found/;
+
+function buildSessionMissingResult(): AgentStructuredResult {
+  return buildTextOnlyStructuredResult('opencode', 'Opencode 找不到要接續的 session。', {
+    failure: { kind: 'session-missing', message: 'Session not found' }
+  });
+}
 /**
  * 逾時訊息的分鐘數要跟實際 timeout 一致。
  *
@@ -160,7 +181,11 @@ export class OpencodeAgent extends CliAgentBase {
     return {
       ...env,
       OPENCODE_CONFIG_CONTENT: JSON.stringify(config),
-      TELENEXUS_BROWSER_AUDIT_FILE: path.join(resolveProjectDir(), 'data', 'browser-lifecycle.jsonl')
+      TELENEXUS_BROWSER_AUDIT_FILE: path.join(
+        resolveProjectDir(),
+        'data',
+        'browser-lifecycle.jsonl'
+      )
     };
   }
 
@@ -171,6 +196,10 @@ export class OpencodeAgent extends CliAgentBase {
     // 它認不得 opencode 1.18 的 `Rate limit exceeded`,而且會被舊版回吐的 request body 誤觸。
     rateLimitPattern: UPSTREAM_RATE_LIMIT_PATTERN,
     rateLimitMessage: OPENCODE_RATE_LIMIT_MESSAGE,
+    sessionMissing: {
+      pattern: OPENCODE_SESSION_NOT_FOUND_PATTERN,
+      buildResult: buildSessionMissingResult
+    },
     timeoutMessage: buildTimeoutMessage(),
     streamTimeoutMs: getOpencodeTaskTimeoutMs()
   };
@@ -297,8 +326,10 @@ export class OpencodeAgent extends CliAgentBase {
     const forceNewSession = options?.forceNewSession === true;
     const isPassthrough = options?.isPassthroughCommand === true;
     const args = ['run'];
-    if (!forceNewSession) {
-      args.push('-c');
+    // 不用 `-c`:它接的是「最後被更新的 session」,排程、摘要與健康探針都會搶走它(issue 0012)。
+    // 沒有指定 session 就開新的。
+    if (!forceNewSession && options?.sessionId) {
+      args.push('-s', options.sessionId);
     }
     if (!isPassthrough && format) {
       args.push('--format', format);
@@ -504,6 +535,18 @@ ${text}
         return buildTextOnlyStructuredResult('opencode', buildTimeoutMessage(), {
           failure: { kind: 'timeout', message }
         });
+      }
+
+      // passthrough 也適用:它同樣以 -s 接續綁定的 session。
+      if (
+        isProcessError &&
+        typeof error.code === 'number' &&
+        !options?.forceNewSession &&
+        Boolean(options?.sessionId) &&
+        !(error.stdout || '').trim() &&
+        OPENCODE_SESSION_NOT_FOUND_PATTERN.test(error.stderr || '')
+      ) {
+        return buildSessionMissingResult();
       }
 
       // opencode 1.18 起上游錯誤以 exit 1 結束,error 事件仍在 stdout。有事件就是上游錯誤,

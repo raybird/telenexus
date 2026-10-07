@@ -7,6 +7,7 @@ export type RunnerOptionSource = {
   model?: string;
   isPassthroughCommand?: boolean;
   forceNewSession?: boolean;
+  sessionId?: string;
   autoRecoveryNotice?: boolean;
   lane?: 'interactive' | 'scheduled';
 };
@@ -29,6 +30,7 @@ export function buildAgentOptions(
     ...(model ? { model } : {}),
     ...(source.isPassthroughCommand ? { isPassthroughCommand: true } : {}),
     ...(source.forceNewSession ? { forceNewSession: true } : {}),
+    ...(source.sessionId ? { sessionId: source.sessionId } : {}),
     ...(source.autoRecoveryNotice ? { autoRecoveryNotice: true } : {}),
     ...(source.lane === 'scheduled' ? { fromScheduler: true } : {})
   };

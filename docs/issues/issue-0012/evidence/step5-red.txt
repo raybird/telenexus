@@ -1,0 +1,12 @@
+# 步驟 5 紅燈（SCN-007，實作前），2026-10-07
+$ npx tsx --test tests/recent-conversation-chat-only.test.ts
+not ok 1 - SCN-007: 聊天與排程交錯時,只列出聊天訊息與它的回覆
+not ok 2 - SCN-007: 只有排程輸出時,近期對話是空的
+ok 3 - SCN-007: 沒有任何訊息時回傳空陣列
+not ok 4 - SCN-007: limit 取最近的聊天訊息,依時間先後排列
+not ok 5 - SCN-007: 前一筆的判斷只看同一位使用者
+not ok 6 - SCN-007 已知限制: 聊天回合進行中寫入的排程輸出會被當成回覆
+# tests 6
+# pass 1
+# fail 5
+exit=1

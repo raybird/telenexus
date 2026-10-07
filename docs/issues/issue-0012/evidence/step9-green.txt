@@ -1,0 +1,53 @@
+# 步驟 9 綠燈（審查 e94635b 的修正），2026-10-07
+$ npx tsx --test tests/message-pipeline-session.test.ts tests/chat-session-args.test.ts
+ok 1 - SCN-001 [stream]: 有綁定的 session 時以 -s 接續,不用 -c
+ok 2 - SCN-002 [stream]: /new(forceNewSession)時不帶接續參數,即使有綁定
+ok 3 - SCN-002 [stream]: 沒有綁定時開新 session,不用 -c
+ok 4 - SCN-003 [stream]: 綁定的 session 不存在時回傳 session-missing,不發事件
+ok 5 - SCN-003 [stream]: 其他 exit 1 的錯誤維持原本的失敗方式
+ok 6 - SCN-001 [non-stream]: 有綁定的 session 時以 -s 接續,不用 -c
+ok 7 - SCN-002 [non-stream]: /new(forceNewSession)時不帶接續參數,即使有綁定
+ok 8 - SCN-002 [non-stream]: 沒有綁定時開新 session,不用 -c
+ok 9 - SCN-003 [non-stream]: 綁定的 session 不存在時回傳 session-missing,不發事件
+ok 10 - SCN-003 [non-stream]: 其他 exit 1 的錯誤維持原本的失敗方式
+ok 11 - SCN-001 [passthrough]: passthrough 指令也接續綁定的 session
+ok 12 - SCN-003 [passthrough]: passthrough 遇到 session 不存在也回傳 session-missing
+ok 13 - SCN-003: session-missing 在 runner audit 記為失敗
+ok 14 - SCN-001: runner 請求的 sessionId 傳給 agent
+ok 15 - SCN-003 [stream]: 有事件輸出時,即使 stderr 含 Session not found 也不判為 session-missing
+ok 16 - SCN-003 [stream]: 沒有指定 session 時不判為 session-missing
+ok 17 - SCN-003 [non-stream]: 有事件輸出時,即使 stderr 含 Session not found 也不判為 session-missing
+ok 18 - SCN-003 [non-stream]: 沒有指定 session 時不判為 session-missing
+ok 19 - SCN-001/002 [non-stream]: 首次對話開新 session 並綁定,之後以它接續
+ok 20 - SCN-002 [non-stream]: /new 之後開新 session 並改綁
+ok 21 - SCN-003 [non-stream]: 綁定的 session 不存在時改開新 session 重跑,回覆使用者並改綁
+ok 22 - SCN-001/002 [stream]: 首次對話開新 session 並綁定,之後以它接續
+ok 23 - SCN-002 [stream]: /new 之後開新 session 並改綁
+ok 24 - SCN-003 [stream]: 綁定的 session 不存在時改開新 session 重跑,回覆使用者並改綁
+ok 25 - SCN-001 [passthrough]: passthrough 指令接續綁定的 session,不改綁
+ok 26 - SCN-006: 接續綁定的 session 時,prompt 以「接續」組裝;首次與 /new 不是
+ok 27 - SCN-006: full 與 compact 模式都依接續狀態組裝
+ok 28 - SCN-006: 綁定的 session 不存在而改開新 session 時,以「不接續」重新組裝 prompt
+ok 29 - TBD-5: 沒有綁定的回合一律以 full 組裝,即使訊息是極短的追問
+ok 30 - TBD-5: 綁定失效而重組時以 full 組裝,即使原本是 minimal
+ok 31 - TBD-6: /new 之後的回合沒有拿到 session 時,下一則不會接回舊 session
+ok 32 - SCN-003: 改開新 session 重跑也沒拿到 session 時,失效的綁定已被清除
+# tests 32
+# pass 32
+# fail 0
+
+## 突變驗證（持久力測試，實作前就成立）
+一次拿掉一個條件，只跑對應測試，跑完還原原始碼：
+- M1 拿掉 src/core/cli-agent-base.ts 的 parsedLineCount === 0 → 「[stream] 有事件輸出時…不判為 session-missing」失敗（1 fail / 1 pass）
+- M2 拿掉 src/core/opencode.ts 的 !(error.stdout || '').trim() → 「[non-stream] 有事件輸出時…」失敗（1 fail / 1 pass）
+- M3 拿掉 src/core/message-pipeline.ts session-missing 分支的 sessionStore?.clear() → 「改開新 session 重跑也沒拿到 session 時，失效的綁定已被清除」失敗（1 fail）
+
+$ npm run test
+# tests 437
+# pass 437
+# fail 0
+exit=0
+$ npm run build → exit=0；npm run lint → exit=0
+測試暫存目錄：修正後重跑 chat-session-store 與 memoria-recall-threshold，/tmp 中殘留 0 個。
+
+重構：code-simplify 檢查為 no-op。

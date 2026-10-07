@@ -4,8 +4,11 @@ export type AgentProvider = 'opencode';
  * 降級原因。使用者中止(EABORTED)不算 —— 那是使用者的意思,不是系統故障。
  *
  * `upstream-error`:opencode 回了 `error` 事件,上游沒有服務這次請求。
+ *
+ * `session-missing`:以 `-s` 指定要接續的 session 不存在(被刪除或從未存在)。opencode 不送出
+ * 任何請求就結束,呼叫端應清除綁定、改開新 session 重跑(issue 0012)。
  */
-export type AgentFailureKind = 'timeout' | 'rate-limit' | 'upstream-error';
+export type AgentFailureKind = 'timeout' | 'rate-limit' | 'upstream-error' | 'session-missing';
 
 export type AgentFailure = {
   kind: AgentFailureKind;

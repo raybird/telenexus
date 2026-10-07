@@ -1,0 +1,31 @@
+# 步驟 3a 紅燈：opencode 參數與 session-missing 判定（實作前），2026-10-07
+$ npx tsx --test tests/chat-session-args.test.ts
+not ok 1 - SCN-001 [stream]: 有綁定的 session 時以 -s 接續,不用 -c
+  expected: 'ses_bound'
+ok 2 - SCN-002 [stream]: /new(forceNewSession)時不帶接續參數,即使有綁定
+not ok 3 - SCN-002 [stream]: 沒有綁定時開新 session,不用 -c
+  expected: false
+  actual: true
+not ok 4 - SCN-003 [stream]: 綁定的 session 不存在時回傳 session-missing,不發事件
+  error: 'Error calling opencode: exit=1'
+ok 5 - SCN-003 [stream]: 其他 exit 1 的錯誤維持原本的失敗方式
+not ok 6 - SCN-001 [non-stream]: 有綁定的 session 時以 -s 接續,不用 -c
+  expected: 'ses_bound'
+ok 7 - SCN-002 [non-stream]: /new(forceNewSession)時不帶接續參數,即使有綁定
+not ok 8 - SCN-002 [non-stream]: 沒有綁定時開新 session,不用 -c
+  expected: false
+  actual: true
+not ok 9 - SCN-003 [non-stream]: 綁定的 session 不存在時回傳 session-missing,不發事件
+  error: 'Error calling Opencode: Process exited with code 1'
+ok 10 - SCN-003 [non-stream]: 其他 exit 1 的錯誤維持原本的失敗方式
+not ok 11 - SCN-001 [passthrough]: passthrough 指令也接續綁定的 session
+  expected: 'ses_bound'
+not ok 12 - SCN-003 [passthrough]: passthrough 遇到 session 不存在也回傳 session-missing
+  error: 'Error calling Opencode: Process exited with code 1'
+ok 13 - SCN-003: session-missing 在 runner audit 記為失敗
+not ok 14 - SCN-001: runner 請求的 sessionId 傳給 agent
+  expected: 'ses_bound'
+# tests 14
+# pass 5
+# fail 9
+exit=1

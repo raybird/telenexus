@@ -1,6 +1,6 @@
 import type { Connector, UnifiedMessage } from '../types/index.js';
-import type { AIAgent } from './agent.js';
-import type { AgentEvent } from './agent-result.js';
+import type { AIAgent, AIAgentOptions } from './agent.js';
+import type { AgentEvent, AgentStructuredResult } from './agent-result.js';
 import type { CommandRouter } from './command-router.js';
 import { executionQueue } from './execution-queue.js';
 import {
@@ -30,13 +30,14 @@ import type { Scheduler } from './scheduler.js';
 import { parseBool, parsePositiveInt } from '../utils/env.js';
 import { TelegramStreamRenderer } from './telegram-stream-renderer.js';
 import { randomUUID } from 'crypto';
-import type { PromptBuildResult, PromptMode } from './prompt-build.js';
+import type { BuildPromptFn } from './prompt-build.js';
 import { recordPromptSessionTrace } from '../services/prompt-session-telemetry.js';
 import type { PromptTelemetry } from './message-pipeline-chat.js';
 import { parseMemoryIntent } from './memory-intent.js';
 import { recordMemoryIntentTrace } from '../services/memory-intent-telemetry.js';
 import { emitEvent } from '../services/event-bus.js';
 import { buildReuseOutcome, reportRecallOutcome } from './memoria-recall.js';
+import type { ChatSessionStore } from '../services/chat-session-store.js';
 
 type MessagePipelineOptions = {
   connector: Connector;
@@ -50,12 +51,13 @@ type MessagePipelineOptions = {
   chatRunnerPercent: number;
   chatRunnerOnlyUsers: Set<string>;
   shouldSummarize: (content: string) => boolean;
-  buildPrompt: (
-    userMessage: string,
-    userId: string,
-    mode?: PromptMode
-  ) => Promise<string | PromptBuildResult> | string | PromptBuildResult;
+  buildPrompt: BuildPromptFn;
   enqueueMemoriaSync?: (turn: MemoriaSyncTurn) => void;
+  /**
+   * 每位使用者的聊天 session 綁定(issue 0012)。Telegram 與 Web 的 pipeline 要共用同一個實例:
+   * 它每次寫入都把整份綁定寫回檔案,兩個實例會互相覆寫。沒有提供時每一回合都開新 session。
+   */
+  chatSessionStore?: ChatSessionStore;
   recordRuntimeIssue: (scope: string, error: unknown) => void;
   writeContextSnapshots: () => void;
 };
@@ -206,12 +208,22 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         shouldSummarize: options.shouldSummarize
       });
 
-      const { promptForAgent, telemetry, memoriaRecall } = await preparePromptForAgent({
-        context,
-        fullPromptEvery,
-        fullPromptCounterByUser,
-        buildPrompt: options.buildPrompt
-      });
+      const sessionStore = options.chatSessionStore;
+      // prompt 在排隊前組好,所以這裡先依目前的綁定決定要不要放「近期對話」;
+      // 實際送出前會再讀一次綁定。組裝時接續、送出時沒有綁定,就以「不接續」重組。
+      // 反方向(組裝時沒有綁定、送出時前一則已綁定)刻意保留:以 -s 接續又帶近期對話,只是內容重複。
+      const continuingSession =
+        !context.forceNewSession && Boolean(sessionStore?.get(context.userId));
+      const opensNewSession = Boolean(sessionStore) && !continuingSession;
+      const { promptForAgent, telemetry, memoriaRecall, rebuildForNewSession } =
+        await preparePromptForAgent({
+          context,
+          fullPromptEvery,
+          fullPromptCounterByUser,
+          buildPrompt: options.buildPrompt,
+          continuingSession,
+          opensNewSession
+        });
       promptLength = promptForAgent.length;
       promptTelemetry = telemetry;
 
@@ -243,27 +255,56 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
             }
           };
 
-          const baseOpts = {
-            isPassthroughCommand: context.isPassthroughCommand,
-            forceNewSession: context.forceNewSession,
-            autoRecoveryNotice: true,
-            signal
+          const runTurn = async (
+            prompt: string,
+            sessionId?: string
+          ): Promise<AgentStructuredResult> => {
+            const turnOpts: AIAgentOptions = {
+              isPassthroughCommand: context.isPassthroughCommand,
+              forceNewSession: context.forceNewSession,
+              ...(sessionId ? { sessionId } : {}),
+              autoRecoveryNotice: true
+            };
+            if ((streamResponse || telegramStreamRenderer) && context.activeAgent.streamChat) {
+              return context.activeAgent.streamChat(prompt, { ...turnOpts, signal }, eventHandler);
+            }
+            if (context.activeAgent.chatStructured) {
+              return context.activeAgent.chatStructured(prompt, turnOpts);
+            }
+            return {
+              provider: 'opencode',
+              text: await context.activeAgent.chat(prompt, turnOpts)
+            };
           };
+          // 開新 session 時 prompt 要含「近期對話」:以接續組裝的版本在新 session 裡沒有上下文。
+          const promptForNewSession = async (): Promise<string> =>
+            rebuildForNewSession ? rebuildForNewSession() : promptForAgent;
 
-          if ((streamResponse || telegramStreamRenderer) && context.activeAgent.streamChat) {
-            const result = await context.activeAgent.streamChat(
-              promptForAgent,
-              baseOpts,
-              eventHandler
-            );
-            return result.text;
+          // 以綁定的 session 接續;/new 時 forceNewSession 優先,開新 session 後改綁。
+          // /new 先清掉舊綁定:這一回合若逾時、限流或被中止而拿不到 session,下一則也不會接回舊的。
+          if (context.forceNewSession) {
+            sessionStore?.clear(context.userId);
           }
-
-          return context.activeAgent.chat(promptForAgent, {
-            isPassthroughCommand: context.isPassthroughCommand,
-            forceNewSession: context.forceNewSession,
-            autoRecoveryNotice: true
-          });
+          const boundSessionId = context.forceNewSession
+            ? undefined
+            : sessionStore?.get(context.userId);
+          let result = await runTurn(
+            boundSessionId ? promptForAgent : await promptForNewSession(),
+            boundSessionId
+          );
+          if (result.failure?.kind === 'session-missing') {
+            // opencode 沒有送出任何請求、也沒有發事件給畫面,直接改開新 session 重跑。
+            sessionStore?.clear(context.userId);
+            options.recordRuntimeIssue(
+              'chat-session:missing',
+              new Error(`bound session ${boundSessionId} not found; started a new session`)
+            );
+            result = await runTurn(await promptForNewSession());
+          }
+          if (result.sessionId) {
+            sessionStore?.set(context.userId, result.sessionId);
+          }
+          return result.text;
         }
       );
 

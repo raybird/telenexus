@@ -541,13 +541,26 @@ export class MemoryManager {
     }));
   }
 
+  /**
+   * 最近的聊天訊息(使用者訊息與它的回覆),不含排程輸出。
+   *
+   * 排程輸出也以 role=model 寫進這張表,沒有對應的 user 列,文字也沒有一致的前綴(issue 0012)。
+   * 所以 model 只有在同一使用者的前一筆是 user 時才算聊天回覆。已知限制:聊天回合進行中剛好有
+   * 排程寫入時,排程輸出會被當成回覆;正式資料上約 3% 的回合如此
+   * (docs/issues/issue-0012/evidence/step5-recent-conversation-inventory.md)。
+   */
   getRecentConversation(userId: string, limit: number = 10): ChatMessage[] {
     const safeLimit = Math.max(1, Math.min(50, limit));
     const stmt = this.db.prepare(`
       SELECT role, content, timestamp
-      FROM messages
-      WHERE user_id = ?
-      ORDER BY timestamp DESC
+      FROM (
+        SELECT id, role, content, timestamp,
+               LAG(role) OVER (ORDER BY timestamp, id) AS prev_role
+        FROM messages
+        WHERE user_id = ?
+      )
+      WHERE role = 'user' OR prev_role = 'user'
+      ORDER BY timestamp DESC, id DESC
       LIMIT ?
     `);
 

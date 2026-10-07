@@ -1,0 +1,24 @@
+# 步驟 2 紅燈：空殼 ChatSessionStore（無行為），2026-10-06
+$ npx tsx --test tests/chat-session-store.test.ts
+ok 1 - SCN-002: 狀態檔不存在時沒有綁定，也不算異常
+not ok 2 - SCN-001: 綁定寫入後重新載入仍在，各使用者互不影響
+  name: 'AssertionError'
+  expected: 'ses_ccc'
+not ok 3 - SCN-002: clear 只清除該使用者，且寫回檔案
+  name: 'AssertionError'
+  expected: 'ses_bbb'
+not ok 4 - 狀態檔毀損時視為沒有綁定，記 runtime issue，之後仍可寫入
+  name: 'AssertionError'
+  expected:
+  actual:
+not ok 5 - 狀態檔內容不是物件，或值不是非空字串時忽略該筆
+  name: 'AssertionError'
+  expected:
+  actual:
+not ok 6 - 寫入失敗時記 runtime issue，本次行程內仍回傳新綁定
+  name: 'AssertionError'
+  expected: 'ses_aaa'
+# tests 6
+# pass 1
+# fail 5
+exit=1

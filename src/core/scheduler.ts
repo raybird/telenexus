@@ -684,8 +684,9 @@ export class Scheduler {
         longTermMemory
       );
 
+      // 開新 session:prompt 已自帶近期對話,接續別人的 session 只會把追蹤提醒混進聊天或排程(issue 0012)。
       const response = await executionQueue.enqueue(userId, 'scheduler-reflection', 'low', () =>
-        this.taskAgent.chat(reflectionPrompt)
+        this.taskAgent.chat(reflectionPrompt, { forceNewSession: true })
       );
       const hasNoAction = !response || response.includes('無待處理事項');
       const currentFingerprint = fingerprintReflection(response || '');

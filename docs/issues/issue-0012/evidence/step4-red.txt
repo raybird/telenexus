@@ -1,0 +1,20 @@
+# 步驟 4 紅燈（SCN-004 tool_only 追問，實作前），2026-10-07
+$ npx tsx --test tests/tool-only-followup-session.test.ts
+not ok 1 - SCN-004: 排程回合(forceNewSession)的 tool_only 追問送進該回合的 session
+  expected: 'ses_turn'
+not ok 2 - SCN-004: 首次聊天(沒有綁定)的 tool_only 追問送進該回合的 session
+  expected: 'ses_turn'
+ok 3 - SCN-004: 接續綁定的聊天的 tool_only 追問送進該回合的 session
+# tests 3
+# pass 1
+# fail 2
+exit=1
+
+# SCN-005 紅燈（追蹤提醒，實作前），2026-10-07
+$ npx tsx --test --test-name-pattern=SCN-005 tests/scheduler-validation.test.ts
+not ok 1 - SCN-005: 追蹤提醒在新的 session 執行,不接續聊天或排程的 session
+  expected: true
+# tests 1
+# pass 0
+# fail 1
+exit=1

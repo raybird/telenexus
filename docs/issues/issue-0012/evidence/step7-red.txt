@@ -1,0 +1,19 @@
+# 步驟 7 紅燈（SCN-006，實作前），2026-10-07
+$ npx tsx --test tests/prompt-recent-conversation-skip.test.ts tests/message-pipeline-session.test.ts
+ok 1 - SCN-001/002 [non-stream]: 首次對話開新 session 並綁定,之後以它接續
+ok 2 - SCN-002 [non-stream]: /new 之後開新 session 並改綁
+ok 3 - SCN-003 [non-stream]: 綁定的 session 不存在時改開新 session 重跑,回覆使用者並改綁
+ok 4 - SCN-001/002 [stream]: 首次對話開新 session 並綁定,之後以它接續
+ok 5 - SCN-002 [stream]: /new 之後開新 session 並改綁
+ok 6 - SCN-003 [stream]: 綁定的 session 不存在時改開新 session 重跑,回覆使用者並改綁
+ok 7 - SCN-001 [passthrough]: passthrough 指令接續綁定的 session,不改綁
+not ok 8 - SCN-006: 接續綁定的 session 時,prompt 以「接續」組裝;首次與 /new 不是
+not ok 9 - SCN-006: full 與 compact 模式都依接續狀態組裝
+not ok 10 - SCN-006: 綁定的 session 不存在而改開新 session 時,以「不接續」重新組裝 prompt
+ok 11 - SCN-006: 開新 session 時(預設)含「近期對話」段
+not ok 12 - SCN-006: 接續綁定的 session 時不含「近期對話」段(本機 SAR 路徑)
+not ok 13 - SCN-006: 接續綁定的 session 時不含「近期對話」段,Memoria 召回照常保留
+# tests 13
+# pass 8
+# fail 5
+exit=1

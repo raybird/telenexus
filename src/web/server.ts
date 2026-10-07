@@ -8,6 +8,7 @@ import type { AIAgent } from '../core/agent.js';
 import type { AgentEvent } from '../core/agent-result.js';
 import type { CommandRouter } from '../core/command-router.js';
 import type { MemoriaSyncTurn } from '../core/memoria-sync.js';
+import type { ChatSessionStore } from '../services/chat-session-store.js';
 import type { MemoryManager } from '../core/memory.js';
 import type { Scheduler } from '../core/scheduler.js';
 import type { Connector, UnifiedMessage } from '../types/index.js';
@@ -16,7 +17,7 @@ import { resolveContextDir } from '../utils/paths.js';
 import { getRecentIssues } from '../utils/errors.js';
 import { collectMemoryHealthReport } from '../services/memory-health.js';
 import { getRecentMemoryBackfillReports } from '../services/memory-backfill.js';
-import type { PromptBuildResult, PromptMode } from '../core/prompt-build.js';
+import type { BuildPromptFn } from '../core/prompt-build.js';
 
 type WebServerOptions = {
   enabled: boolean;
@@ -36,12 +37,10 @@ type WebServerOptions = {
   chatRunnerPercent: number;
   chatRunnerOnlyUsers: Set<string>;
   shouldSummarize: (content: string) => boolean;
-  buildPrompt: (
-    userMessage: string,
-    userId: string,
-    mode?: PromptMode
-  ) => Promise<string | PromptBuildResult> | string | PromptBuildResult;
+  buildPrompt: BuildPromptFn;
   enqueueMemoriaSync?: (turn: MemoriaSyncTurn) => void;
+  /** 與 Telegram pipeline 共用的聊天 session 綁定(issue 0012)。 */
+  chatSessionStore?: ChatSessionStore;
   recordRuntimeIssue: (scope: string, error: unknown) => void;
   writeContextSnapshots: () => void;
 };
@@ -540,7 +539,7 @@ export function toStructuredStatus(snapshots: SnapshotSet): Record<string, unkno
   };
 }
 
-function getWebAppHtml(options: WebServerOptions): string {
+export function getWebAppHtml(options: WebServerOptions): string {
   const errorThreshold = Number.isFinite(options.alertErrorThreshold)
     ? Math.max(0, Math.floor(options.alertErrorThreshold))
     : 1;
@@ -1148,6 +1147,8 @@ function getWebAppHtml(options: WebServerOptions): string {
         switch (reason) {
           case 'force-new-session':
             return '強制新 Session';
+          case 'new-session':
+            return '開新 Session';
           case 'periodic-full':
             return '週期性完整校正';
           case 'compact-followup':
@@ -1786,6 +1787,7 @@ export function startWebServer(options: WebServerOptions): WebServerHandle {
     shouldSummarize: options.shouldSummarize,
     buildPrompt: options.buildPrompt,
     ...(options.enqueueMemoriaSync ? { enqueueMemoriaSync: options.enqueueMemoriaSync } : {}),
+    ...(options.chatSessionStore ? { chatSessionStore: options.chatSessionStore } : {}),
     recordRuntimeIssue: options.recordRuntimeIssue,
     writeContextSnapshots: options.writeContextSnapshots
   });

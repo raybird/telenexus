@@ -380,10 +380,34 @@ function applyContextBudget(
   return truncateInline(result, budget);
 }
 
-function buildSarContext(memory: MemoryManager, userId: string, userMessage: string): string {
+export type MemoryContextOptions = {
+  /**
+   * 是否放「近期對話」段,預設 true。接續綁定的 session 時最近幾回合本來就在 session 裡,
+   * 呼叫端傳 false 避免重複(issue 0012)。
+   */
+  includeRecentConversation?: boolean;
+};
+
+function getRecentConversationLines(
+  memory: MemoryManager,
+  userId: string,
+  options: MemoryContextOptions
+): string[] {
+  if (options.includeRecentConversation === false) {
+    return [];
+  }
+  return formatRecentMessages(memory.getRecentConversation(userId, SAR_PROMPT_POLICY.recentLimit));
+}
+
+function buildSarContext(
+  memory: MemoryManager,
+  userId: string,
+  userMessage: string,
+  options: MemoryContextOptions
+): string {
   const keywords = applyKeywordAliases(userMessage, extractQueryKeywords(userMessage));
   const queryTags = extractTopicTags(userMessage);
-  const recent = memory.getRecentConversation(userId, SAR_PROMPT_POLICY.recentLimit);
+  const recentLines = getRecentConversationLines(memory, userId, options);
   const anchorCandidates = getAnchorCandidates(memory, userId);
   const anchors = selectCausalAnchors(anchorCandidates, queryTags, keywords);
   const semanticCandidates = selectSemanticSummaries(memory, userId, userMessage, anchorCandidates);
@@ -403,7 +427,7 @@ function buildSarContext(memory: MemoryManager, userId: string, userMessage: str
         title: '【相關歷史摘要】',
         lines: formatSummaryItems(semantics.slice(0, SAR_PROMPT_POLICY.semanticLimit))
       },
-      { title: '【近期對話】', lines: formatRecentMessages(recent) }
+      { title: '【近期對話】', lines: recentLines }
     ],
     Math.max(
       200,
@@ -415,9 +439,10 @@ function buildSarContext(memory: MemoryManager, userId: string, userMessage: str
 export function buildMemoryContext(
   memory: MemoryManager,
   userId: string,
-  userMessage: string
+  userMessage: string,
+  options: MemoryContextOptions = {}
 ): string {
-  const context = buildSarContext(memory, userId, userMessage);
+  const context = buildSarContext(memory, userId, userMessage, options);
   if (!context.trim()) {
     return '';
   }
@@ -430,15 +455,16 @@ export async function buildMemoryContextAsync(
   memory: MemoryManager,
   userId: string,
   userMessage: string,
-  recallFn?: MemoriaRecallFn | null
+  recallFn?: MemoriaRecallFn | null,
+  options: MemoryContextOptions = {}
 ): Promise<string> {
   if (!recallFn) {
-    return buildMemoryContext(memory, userId, userMessage);
+    return buildMemoryContext(memory, userId, userMessage, options);
   }
 
   const keywords = applyKeywordAliases(userMessage, extractQueryKeywords(userMessage));
   const queryTags = extractTopicTags(userMessage);
-  const recent = memory.getRecentConversation(userId, SAR_PROMPT_POLICY.recentLimit);
+  const recentLines = getRecentConversationLines(memory, userId, options);
   const anchorCandidates = getAnchorCandidates(memory, userId);
   const anchors = selectCausalAnchors(anchorCandidates, queryTags, keywords);
 
@@ -482,7 +508,7 @@ export async function buildMemoryContextAsync(
     [
       { title: '【核心決策回顧】', lines: formatSummaryItems(anchors) },
       { title: '【相關歷史摘要】', lines: semanticLines },
-      { title: '【近期對話】', lines: formatRecentMessages(recent) }
+      { title: '【近期對話】', lines: recentLines }
     ],
     Math.max(
       200,

@@ -1,0 +1,20 @@
+# 步驟 5 綠燈（SCN-007），2026-10-07
+$ npx tsx --test tests/recent-conversation-chat-only.test.ts
+ok 1 - SCN-007: 聊天與排程交錯時,只列出聊天訊息與它的回覆
+ok 2 - SCN-007: 只有排程輸出時,近期對話是空的
+ok 3 - SCN-007: 沒有任何訊息時回傳空陣列
+ok 4 - SCN-007: limit 取最近的聊天訊息,依時間先後排列
+ok 5 - SCN-007: 前一筆的判斷只看同一位使用者
+ok 6 - SCN-007 已知限制: 聊天回合進行中寫入的排程輸出會被當成回覆
+# tests 6
+# pass 6
+# fail 0
+
+$ npm run test
+# tests 413
+# pass 413
+# fail 0
+exit=0
+$ npm run build → exit=0；npm run lint → exit=0
+
+重構：code-simplify 檢查為 no-op（單一 SQL 查詢）。

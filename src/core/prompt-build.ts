@@ -6,6 +6,21 @@ export type MemoriaRecallMeta = {
   hits: { id: string; snippet: string }[];
 };
 
+export type PromptBuildOptions = {
+  /**
+   * 這一回合接續綁定的聊天 session:最近幾回合已在 session 裡,不再注入「近期對話」(issue 0012)。
+   * 開新 session(首次、/new、綁定失效)時為 false。
+   */
+  continuingSession?: boolean;
+};
+
+export type BuildPromptFn = (
+  userMessage: string,
+  userId: string,
+  mode?: PromptMode,
+  options?: PromptBuildOptions
+) => Promise<string | PromptBuildResult> | string | PromptBuildResult;
+
 export type PromptBuildResult = {
   prompt: string;
   mode: PromptMode;

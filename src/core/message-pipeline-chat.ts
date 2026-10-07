@@ -4,7 +4,12 @@ import type { MemoriaSyncTurn } from './memoria-sync.js';
 import type { MemoryIntent } from './memory-intent.js';
 import type { MemoryManager } from './memory.js';
 import type { MessagePipelineContext } from './message-pipeline-context.js';
-import type { MemoriaRecallMeta, PromptBuildResult, PromptMode } from './prompt-build.js';
+import type {
+  BuildPromptFn,
+  MemoriaRecallMeta,
+  PromptBuildResult,
+  PromptMode
+} from './prompt-build.js';
 import { normalizePromptBuildResult, shouldIncludeMemoryContext } from './prompt-build.js';
 import { inferSummaryMetadata } from './summary-metadata.js';
 import { buildAttachmentPrompt, extractFileDirectives } from './message-pipeline-helpers.js';
@@ -13,11 +18,14 @@ type PreparePromptOptions = {
   context: MessagePipelineContext;
   fullPromptEvery: number;
   fullPromptCounterByUser: Map<string, number>;
-  buildPrompt: (
-    userMessage: string,
-    userId: string,
-    mode?: PromptMode
-  ) => Promise<string | PromptBuildResult> | string | PromptBuildResult;
+  buildPrompt: BuildPromptFn;
+  /** 這一回合接續綁定的聊天 session(issue 0012)。 */
+  continuingSession: boolean;
+  /**
+   * 這一回合會開新 session(有綁定機制但沒有可接續的 session):比照 /new 用 full,
+   * 新 session 裡沒有任何上下文,compact 與 minimal 都可能什麼都不帶。
+   */
+  opensNewSession: boolean;
 };
 
 export type PromptTelemetry = {
@@ -126,10 +134,16 @@ export async function preparePromptForAgent(options: PreparePromptOptions): Prom
   promptForAgent: string;
   telemetry: PromptTelemetry;
   memoriaRecall?: MemoriaRecallMeta;
+  /**
+   * 以「不接續」重新組裝同一則訊息的 prompt(同一個模式,不推進 full prompt 計數)。
+   * 只在以接續組裝、而實際改開新 session 時需要;passthrough 或本來就不接續時沒有。
+   */
+  rebuildForNewSession?: () => Promise<string>;
 }> {
   const { context } = options;
   let promptForAgent = context.msg.content.trim();
   let memoriaRecall: MemoriaRecallMeta | undefined;
+  let rebuildForNewSession: (() => Promise<string>) | undefined;
   let telemetry: PromptTelemetry = {
     promptMode: 'passthrough',
     promptSelectionReason: 'passthrough-command',
@@ -141,7 +155,9 @@ export async function preparePromptForAgent(options: PreparePromptOptions): Prom
   if (!context.isPassthroughCommand) {
     const currentCounter = options.fullPromptCounterByUser.get(context.userId) || 0;
     const shouldUseFullPrompt =
-      context.forceNewSession || currentCounter % options.fullPromptEvery === 0;
+      context.forceNewSession ||
+      options.opensNewSession ||
+      currentCounter % options.fullPromptEvery === 0;
     const shouldUseMinimal =
       !shouldUseFullPrompt &&
       currentCounter > 0 &&
@@ -153,33 +169,51 @@ export async function preparePromptForAgent(options: PreparePromptOptions): Prom
       : shouldUseMinimal
         ? 'minimal'
         : 'compact';
-    const promptResult = normalizePromptBuildResult(
-      await options.buildPrompt(context.msg.content, context.userId, promptMode),
-      promptMode
-    );
+    const attachmentPrompt = buildAttachmentPrompt(context.msg.attachments);
+    const withAttachments = (prompt: string): string =>
+      attachmentPrompt ? `${prompt}\n\n${attachmentPrompt}` : prompt;
+    const build = async (
+      mode: PromptMode,
+      continuingSession: boolean
+    ): Promise<PromptBuildResult> =>
+      normalizePromptBuildResult(
+        await options.buildPrompt(context.msg.content, context.userId, mode, {
+          continuingSession
+        }),
+        mode
+      );
+    const promptResult = await build(promptMode, options.continuingSession);
+    if (options.continuingSession) {
+      // 改開新 session 時同樣比照 /new 用 full。
+      rebuildForNewSession = async () => withAttachments((await build('full', false)).prompt);
+    }
     promptForAgent = promptResult.prompt;
     memoriaRecall = promptResult.memoriaRecall;
     telemetry = {
       promptMode: promptResult.mode,
       promptSelectionReason: context.forceNewSession
         ? 'force-new-session'
-        : promptMode === 'full'
-          ? 'periodic-full'
-          : promptMode === 'minimal'
-            ? 'minimal-followup'
-            : 'compact-followup',
+        : options.opensNewSession
+          ? 'new-session'
+          : promptMode === 'full'
+            ? 'periodic-full'
+            : promptMode === 'minimal'
+              ? 'minimal-followup'
+              : 'compact-followup',
       memoryContextLength: promptResult.memoryContextLength,
       usedMemoryContext: promptResult.usedMemoryContext,
       memoryContextSectionCount: promptResult.memoryContextSectionCount
     };
     options.fullPromptCounterByUser.set(context.userId, currentCounter + 1);
-    const attachmentPrompt = buildAttachmentPrompt(context.msg.attachments);
-    if (attachmentPrompt) {
-      promptForAgent = `${promptForAgent}\n\n${attachmentPrompt}`;
-    }
+    promptForAgent = withAttachments(promptForAgent);
   }
 
-  return { promptForAgent, telemetry, ...(memoriaRecall ? { memoriaRecall } : {}) };
+  return {
+    promptForAgent,
+    telemetry,
+    ...(memoriaRecall ? { memoriaRecall } : {}),
+    ...(rebuildForNewSession ? { rebuildForNewSession } : {})
+  };
 }
 
 export function persistModelResponse(options: PersistModelResponseOptions): number | undefined {

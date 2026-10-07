@@ -1,0 +1,12 @@
+# 步驟 10 紅燈（審查 abd28e3 的 SHOULD FIX，實作前；getWebAppHtml 已匯出供測試），2026-10-07
+$ npx tsx --test tests/web-prompt-reason-label.test.ts
+not ok 1 - 新增的 new-session 有顯示文字
+  expected: '開新 Session'
+  actual: 'new-session'
+not ok 2 - pipeline 會產生的每個 prompt 選擇原因都有顯示文字,不會露出原始字串
+  expected: 'new-session'
+  actual: 'new-session'
+# tests 2
+# pass 0
+# fail 2
+exit=1

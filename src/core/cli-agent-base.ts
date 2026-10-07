@@ -30,6 +30,11 @@ export type CliAgentConfig = {
   binary: string;
   rateLimitPattern: RegExp;
   rateLimitMessage: string;
+  /**
+   * 指定接續的 session 不存在。`pattern` 只在沒有解析到任何事件、exit 非 0 時比對 stderr,
+   * 符合就以 `buildResult()` 結束回合,不發事件給畫面:呼叫端會改開新 session 重跑。
+   */
+  sessionMissing?: { pattern: RegExp; buildResult: () => AgentStructuredResult };
   timeoutMessage: string;
   streamTimeoutMs?: number;
 };
@@ -471,6 +476,19 @@ export abstract class CliAgentBase implements AIAgent {
               return;
             }
 
+            // 只在這一回合真的以 -s 指定了 session、而且沒有任何事件時才算(與 buildChatArgs 的條件一致)。
+            const sessionMissing = this.config.sessionMissing;
+            const resumedSession = !options?.forceNewSession && Boolean(options?.sessionId);
+            if (
+              sessionMissing &&
+              resumedSession &&
+              parsedLineCount === 0 &&
+              sessionMissing.pattern.test(stderr)
+            ) {
+              resolve(sessionMissing.buildResult());
+              return;
+            }
+
             const fields: { code?: string | number; signal?: string; stderr?: string } = {
               stderr
             };
@@ -499,9 +517,14 @@ export abstract class CliAgentBase implements AIAgent {
 
             if (reason === 'tool_only') {
               logger.warn('empty_output_follow_up', { reason });
+              // 追問必須進同一個 session,模型才看得到剛才的工具結果。沿用原回合的 options 不夠:
+              // 排程回合帶 forceNewSession,首次聊天沒有綁定,兩者都會開一個沒有上下文的新 session。
+              const followUpOptions: AIAgentOptions | undefined = sessionId
+                ? { ...options, forceNewSession: false, sessionId }
+                : options;
               const followUp = await this.chatStructured(
                 '請整理你剛才工具執行的結果並回答原問題',
-                options
+                followUpOptions
               );
               if (!started) {
                 await emitStart();
