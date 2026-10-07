@@ -197,3 +197,26 @@ test('SCN-001: runner 請求的 sessionId 傳給 agent', () => {
   assert.equal(buildAgentOptions({ sessionId: 'ses_bound' })?.sessionId, 'ses_bound');
   assert.equal(buildAgentOptions({})?.sessionId, undefined);
 });
+
+// 審查 e94635b NICE 1:session-missing 的判定要夠窄,只認「指定了 session、沒有任何輸出就失敗」。
+const TOOL_EVENT = '{"type":"step_start","sessionID":"ses_bound","part":{"type":"step-start"}}\n';
+
+for (const mode of ['stream', 'non-stream'] as const) {
+  test(`SCN-003 [${mode}]: 有事件輸出時,即使 stderr 含 Session not found 也不判為 session-missing`, async () => {
+    await assert.rejects(
+      runTurn(
+        mode,
+        { sessionId: 'ses_bound' },
+        { stdout: TOOL_EVENT, stderr: SESSION_NOT_FOUND_STDERR, exit: 1 }
+      ),
+      ProcessError
+    );
+  });
+
+  test(`SCN-003 [${mode}]: 沒有指定 session 時不判為 session-missing`, async () => {
+    await assert.rejects(
+      runTurn(mode, undefined, { stderr: SESSION_NOT_FOUND_STDERR, exit: 1 }),
+      ProcessError
+    );
+  });
+}

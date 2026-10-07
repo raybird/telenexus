@@ -210,16 +210,19 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
 
       const sessionStore = options.chatSessionStore;
       // prompt 在排隊前組好,所以這裡先依目前的綁定決定要不要放「近期對話」;
-      // 實際送出前會再讀一次綁定,兩者不一致時以「不接續」重組。
+      // 實際送出前會再讀一次綁定。組裝時接續、送出時沒有綁定,就以「不接續」重組。
+      // 反方向(組裝時沒有綁定、送出時前一則已綁定)刻意保留:以 -s 接續又帶近期對話,只是內容重複。
       const continuingSession =
         !context.forceNewSession && Boolean(sessionStore?.get(context.userId));
+      const opensNewSession = Boolean(sessionStore) && !continuingSession;
       const { promptForAgent, telemetry, memoriaRecall, rebuildForNewSession } =
         await preparePromptForAgent({
           context,
           fullPromptEvery,
           fullPromptCounterByUser,
           buildPrompt: options.buildPrompt,
-          continuingSession
+          continuingSession,
+          opensNewSession
         });
       promptLength = promptForAgent.length;
       promptTelemetry = telemetry;
@@ -278,6 +281,10 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
             rebuildForNewSession ? rebuildForNewSession() : promptForAgent;
 
           // 以綁定的 session 接續;/new 時 forceNewSession 優先,開新 session 後改綁。
+          // /new 先清掉舊綁定:這一回合若逾時、限流或被中止而拿不到 session,下一則也不會接回舊的。
+          if (context.forceNewSession) {
+            sessionStore?.clear(context.userId);
+          }
           const boundSessionId = context.forceNewSession
             ? undefined
             : sessionStore?.get(context.userId);

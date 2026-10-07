@@ -476,8 +476,15 @@ export abstract class CliAgentBase implements AIAgent {
               return;
             }
 
+            // 只在這一回合真的以 -s 指定了 session、而且沒有任何事件時才算(與 buildChatArgs 的條件一致)。
             const sessionMissing = this.config.sessionMissing;
-            if (sessionMissing && parsedLineCount === 0 && sessionMissing.pattern.test(stderr)) {
+            const resumedSession = !options?.forceNewSession && Boolean(options?.sessionId);
+            if (
+              sessionMissing &&
+              resumedSession &&
+              parsedLineCount === 0 &&
+              sessionMissing.pattern.test(stderr)
+            ) {
               resolve(sessionMissing.buildResult());
               return;
             }

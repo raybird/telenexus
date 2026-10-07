@@ -364,3 +364,82 @@ test('SCN-006: 綁定的 session 不存在而改開新 session 時,以「不接�
     assert.deepEqual(prompts, ['PROMPT:哈囉|continuing=true', 'PROMPT:哈囉|continuing=false']);
   });
 });
+
+test('TBD-5: 沒有綁定的回合一律以 full 組裝,即使訊息是極短的追問', async () => {
+  await withTempProject(async (dir) => {
+    const { connector } = createConnector();
+    const store = new ChatSessionStore(path.join(dir, 'data', 'chat-session-state.json'));
+    const promptBuilds: PromptBuild[] = [];
+    // 第一回合逾時,結果沒有 sessionId,所以第二回合仍沒有綁定。
+    const { agent, calls } = createScriptedAgent([reply('逾時'), reply('好', 'ses_1')]);
+    const pipeline = createPipeline({ connector, agent, store, promptBuilds });
+
+    await pipeline(createMessage('第一則訊息,這一則會逾時而拿不到 session'));
+    await pipeline(createMessage('好的'));
+
+    assert.deepEqual(promptBuilds, [
+      { mode: 'full', continuingSession: false },
+      { mode: 'full', continuingSession: false }
+    ]);
+    assert.equal(calls[1]?.sessionId, undefined);
+  });
+});
+
+test('TBD-5: 綁定失效而重組時以 full 組裝,即使原本是 minimal', async () => {
+  await withTempProject(async (dir) => {
+    const { connector } = createConnector();
+    const store = new ChatSessionStore(path.join(dir, 'data', 'chat-session-state.json'));
+    const promptBuilds: PromptBuild[] = [];
+    const { agent } = createScriptedAgent([
+      reply('一', 'ses_1'),
+      SESSION_MISSING,
+      reply('回覆', 'ses_2')
+    ]);
+    const pipeline = createPipeline({ connector, agent, store, promptBuilds });
+
+    await pipeline(createMessage('第一則訊息,建立綁定用的一段夠長的內容'));
+    await pipeline(createMessage('好的'));
+
+    assert.deepEqual(promptBuilds, [
+      { mode: 'full', continuingSession: false },
+      { mode: 'minimal', continuingSession: true },
+      { mode: 'full', continuingSession: false }
+    ]);
+    assert.equal(store.get('user-a'), 'ses_2');
+  });
+});
+
+test('TBD-6: /new 之後的回合沒有拿到 session 時,下一則不會接回舊 session', async () => {
+  await withTempProject(async (dir) => {
+    const { connector } = createConnector();
+    const store = new ChatSessionStore(path.join(dir, 'data', 'chat-session-state.json'));
+    store.set('user-a', 'ses_old');
+    const { agent, calls } = createScriptedAgent([reply('逾時'), reply('接續', 'ses_new')]);
+    const pipeline = createPipeline({ connector, agent, store });
+
+    await pipeline(createMessage('/new'));
+    await pipeline(createMessage('換個話題,這一回合會逾時'));
+    assert.equal(store.get('user-a'), undefined);
+    await pipeline(createMessage('再試一次這個新話題'));
+
+    assert.deepEqual(calls, [
+      { sessionId: undefined, forceNewSession: true },
+      { sessionId: undefined, forceNewSession: false }
+    ]);
+    assert.equal(store.get('user-a'), 'ses_new');
+  });
+});
+
+test('SCN-003: 改開新 session 重跑也沒拿到 session 時,失效的綁定已被清除', async () => {
+  await withTempProject(async (dir) => {
+    const { connector } = createConnector();
+    const store = new ChatSessionStore(path.join(dir, 'data', 'chat-session-state.json'));
+    store.set('user-a', 'ses_gone');
+    const { agent } = createScriptedAgent([SESSION_MISSING, reply('逾時')]);
+    const pipeline = createPipeline({ connector, agent, store });
+
+    await pipeline(createMessage('哈囉'));
+
+    assert.equal(store.get('user-a'), undefined);
+  });
+});

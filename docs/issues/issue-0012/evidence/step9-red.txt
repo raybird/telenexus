@@ -1,0 +1,12 @@
+# 步驟 9 紅燈（審查 e94635b 的修正，實作前），2026-10-07
+$ npx tsx --test tests/message-pipeline-session.test.ts tests/chat-session-args.test.ts
+not ok 16 - SCN-003 [stream]: 沒有指定 session 時不判為 session-missing
+not ok 18 - SCN-003 [non-stream]: 沒有指定 session 時不判為 session-missing
+not ok 29 - TBD-5: 沒有綁定的回合一律以 full 組裝,即使訊息是極短的追問
+not ok 30 - TBD-5: 綁定失效而重組時以 full 組裝,即使原本是 minimal
+not ok 31 - TBD-6: /new 之後的回合沒有拿到 session 時,下一則不會接回舊 session
+# tests 32
+# pass 27
+# fail 5
+exit=1
+（失敗的 5 項是新行為；其餘新增的 3 項是持久力測試，實作前就成立，以突變驗證，見 step9-green.txt）

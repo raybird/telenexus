@@ -123,6 +123,21 @@ session 不存在時（SCN-003），opencode 不到一秒就以 exit 1 結束，
    - 完成判準：opencode.db 中兩則聊天訊息落在同一個 session，排程 session 中沒有聊天訊息；`/new` 後的聊天落在新 session；`npm run build`、`npm run test`（核對 `# tests` 與測試檔數相稱）、`npm run lint` 都是 exit 0；下方常青文件已更新。
    - 完成證據（2026-10-07）：[evidence/step8-end-to-end.md](./evidence/step8-end-to-end.md)。以分支建置的正式映像隔離啟動 telenexus，經 Web Console 的 plain 與 stream 兩條路徑驗證：模擬排程插在兩則聊天之間，第二則仍接續原 session 並答出先前的代號；`/new` 後改綁；接續回合的 prompt 不含「近期對話」（242 字，開新 session 的回合為 905／1,104 字）；刪除綁定的 session 後，回合照常回覆並改綁，記一筆 `chat-session:missing`。完整測試 429/429、build、lint 皆 exit 0。常青文件已更新，見下表。SCN-004、SCN-005、SCN-007、SCN-008 以步驟 4～6 的測試與盤點為證，沒有另做實機驗證。
 
+9. ✅ **審查 e94635b 的修正**（SCN-002、SCN-003、SCN-006；TBD-5、TBD-6）
+   - 產出：`message-pipeline*.ts`、`cli-agent-base.ts`、`opencode.ts` 的變更與測試；`docs/configuration-reference.md`、`docs/current-chat-prompt.md` 補充。
+   - 相依：步驟 3～7。
+   - 內容：
+     - MUST FIX：會開新 session 的回合（有綁定機制但這一回合不接續，以及 session-missing 改開新 session 的重組）一律用 full 模式。
+     - SHOULD FIX：forceNewSession 回合開始時清除舊綁定。
+     - NICE 1：session-missing 判定加上「有指定 sessionId」的條件，並以測試守住「沒有事件／沒有 stdout」兩道條件。
+     - NICE 2：補「重跑結果沒有 sessionId 時綁定已清除」的測試。
+     - NICE 3：在註解寫明排隊時序的反方向是刻意保留。
+     - NICE 5：文件寫明被門檻擋下的召回不回報 UFL。
+     - NICE 6：測試清掉自己建的暫存目錄。
+     - NICE 4（passthrough 遇到 session-missing 會在新的空 session 重跑）不處理：要改 passthrough 的行為，不在這次修正範圍，記為已知限制。
+   - 完成判準：minimal 與短訊息 compact 回合在「沒有綁定」與「session-missing 重組」兩種情況下都以 full 組裝，期望值寫死；`/new` 回合結果沒有 sessionId 時，下一則不帶 `-s`；新增的持久力測試在拿掉對應條件時會失敗（記錄突變結果）；`npm run build`、`npm run test`、`npm run lint` 都是 exit 0。
+   - 完成證據（2026-10-07）：紅燈 [evidence/step9-red.txt](./evidence/step9-red.txt)（新行為 5 項失敗）；綠燈與突變驗證 [evidence/step9-green.txt](./evidence/step9-green.txt)：3 項持久力測試各自擋下對應的突變；完整測試 437/437，build、lint 皆 exit 0。
+
 ## 使用方式對照
 
 | 情境 | 變更前 | 變更後 |

@@ -147,7 +147,7 @@ MEMORIA_RECALL_TOP_K=5
 MEMORIA_RECALL_MIN_CONFIDENCE=0.2
 ```
 
-- `MEMORIA_RECALL_MIN_CONFIDENCE`（預設 `0.2`，範圍 0～1，`0` = 停用）：召回的 `confidence` 低於此值時不注入 prompt，改用本機語意摘要。預設值取自正式資料快照的抽樣：無關問題最高 0.143、相關問題最低 0.25（`docs/issues/issue-0012/evidence/step6-confidence-sampling.md`）。`confidence` 為 null（該路由無法判斷）時照常注入。被擋下時，`memoria_recall` 事件帶 `dropped_low_confidence: true` 與 `min_confidence`
+- `MEMORIA_RECALL_MIN_CONFIDENCE`（預設 `0.2`，範圍 0～1，`0` = 停用）：召回的 `confidence` 低於此值時不注入 prompt，改用本機語意摘要。預設值取自正式資料快照的抽樣：無關問題最高 0.143、相關問題最低 0.25（`docs/issues/issue-0012/evidence/step6-confidence-sampling.md`）。`confidence` 為 null（該路由無法判斷）時照常注入。被擋下時，`memoria_recall` 事件帶 `dropped_low_confidence: true` 與 `min_confidence`；這次召回沒有被使用，因此不回報 UFL outcome
 
 ## Sessions archive / memory backfill
 

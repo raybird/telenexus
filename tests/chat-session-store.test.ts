@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -6,9 +6,18 @@ import path from 'node:path';
 import { ChatSessionStore } from '../src/services/chat-session-store.js';
 import { addIssueHook } from '../src/utils/errors.js';
 
-function tempStatePath(): string {
+const tempDirs: string[] = [];
+function tempDir(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'chat-session-'));
-  return path.join(dir, 'chat-session-state.json');
+  tempDirs.push(dir);
+  return dir;
+}
+after(() => {
+  for (const dir of tempDirs) fs.rmSync(dir, { recursive: true, force: true });
+});
+
+function tempStatePath(): string {
+  return path.join(tempDir(), 'chat-session-state.json');
 }
 
 function captureIssueScopes(): { scopes: string[]; unhook: () => void } {
@@ -95,7 +104,7 @@ test('狀態檔內容不是物件，或值不是非空字串時忽略該筆', ()
 });
 
 test('寫入失敗時記 runtime issue，本次行程內仍回傳新綁定', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'chat-session-'));
+  const dir = tempDir();
   // 狀態檔路徑是一個目錄，寫入必然失敗
   const statePath = path.join(dir, 'state-as-dir');
   fs.mkdirSync(statePath);

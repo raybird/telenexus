@@ -181,7 +181,11 @@ export class OpencodeAgent extends CliAgentBase {
     return {
       ...env,
       OPENCODE_CONFIG_CONTENT: JSON.stringify(config),
-      TELENEXUS_BROWSER_AUDIT_FILE: path.join(resolveProjectDir(), 'data', 'browser-lifecycle.jsonl')
+      TELENEXUS_BROWSER_AUDIT_FILE: path.join(
+        resolveProjectDir(),
+        'data',
+        'browser-lifecycle.jsonl'
+      )
     };
   }
 
@@ -537,6 +541,8 @@ ${text}
       if (
         isProcessError &&
         typeof error.code === 'number' &&
+        !options?.forceNewSession &&
+        Boolean(options?.sessionId) &&
         !(error.stdout || '').trim() &&
         OPENCODE_SESSION_NOT_FOUND_PATTERN.test(error.stderr || '')
       ) {

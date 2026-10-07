@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import fs from 'node:fs';
@@ -18,7 +18,19 @@ import { addEventHook } from '../src/services/event-bus.js';
  * confidence 為 null 代表該路由無法判斷,維持注入(與變更前相同)。
  */
 
-process.env.APP_PROJECT_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'telenexus-recall-threshold-'));
+// recall 會 emitEvent 到 <APP_PROJECT_DIR>/workspace/context/events.jsonl,導到暫存目錄。
+let projectDir = '';
+let savedProjectDir: string | undefined;
+before(() => {
+  savedProjectDir = process.env.APP_PROJECT_DIR;
+  projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'telenexus-recall-threshold-'));
+  process.env.APP_PROJECT_DIR = projectDir;
+});
+after(() => {
+  if (savedProjectDir === undefined) delete process.env.APP_PROJECT_DIR;
+  else process.env.APP_PROJECT_DIR = savedProjectDir;
+  fs.rmSync(projectDir, { recursive: true, force: true });
+});
 
 const MEMORIA_SNIPPET = '那次清理殭屍程序的結論是改用 /proc 統計';
 

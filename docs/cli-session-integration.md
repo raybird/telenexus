@@ -31,7 +31,8 @@ TeleNexus 目前的 session continuity 主軸，已經不是單純「CLI 原生 
 - 綁定存在 `data/chat-session-state.json`（`src/services/chat-session-store.ts`），每回合結束後以結果的 session id 更新；只有 telenexus 讀寫，Telegram 與 Web Console 共用同一份
 - 沒有綁定（首次對話、升級後第一則）或 `forceNewSession=true` 時不帶接續參數，開新 session，回合結束後改綁
 - 不再使用 `-c`：它接的是「最後被更新的 session」，排程、摘要呼叫、追蹤提醒與健康探針都會建立或更新 session，聊天常接進別人的 session（issue 0012）
-- 綁定的 session 不存在時，opencode 以 exit 1、`Session not found` 結束；TeleNexus 清除綁定、記 `chat-session:missing` runtime issue，改開新 session 重跑同一則訊息，使用者只會看到正常回覆
+- 綁定的 session 不存在時，opencode 以 exit 1、`Session not found` 結束；TeleNexus 清除綁定、記 `chat-session:missing` runtime issue，改開新 session 並以 `full` 模式重組 prompt 後重跑同一則訊息，使用者只會看到正常回覆。已知限制：passthrough 指令（如 `/compact`）遇到這種情況，也會在新的空 session 上重跑一次
+- 會開新 session 的回合（首次、上一回合沒拿到 session、綁定失效）比照 `/new` 用 `full` 模式組裝 prompt
 - `tool_only` 追問送進該回合自己的 session；追蹤提醒與排程一律開新 session
 
 ## 2) Runner 在這裡扮演什麼角色
@@ -67,7 +68,7 @@ TeleNexus 目前的 session continuity 主軸，已經不是單純「CLI 原生 
 目前語意是：
 
 - 標記「下一則一般對話」強制使用新 session
-- 實作上會讓 Gemini 不帶 `-r`，或讓 Opencode 不帶 `-s`；這一回合結束後，綁定改為新開的 session
+- 實作上會讓 Gemini 不帶 `-r`，或讓 Opencode 不帶 `-s`。舊綁定在這一回合開始時就清除，回合結束後改綁到新開的 session；這一回合若逾時、限流或被中止而拿不到 session，下一則也會開新 session，不會接回 `/new` 之前的
 - TeleNexus 自己的記憶資料仍保留，是否注入則由 prompt mode 與 memory policy 決定
 
 ## 5) Provider 切換時會怎樣

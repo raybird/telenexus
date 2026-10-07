@@ -21,6 +21,11 @@ type PreparePromptOptions = {
   buildPrompt: BuildPromptFn;
   /** 這一回合接續綁定的聊天 session(issue 0012)。 */
   continuingSession: boolean;
+  /**
+   * 這一回合會開新 session(有綁定機制但沒有可接續的 session):比照 /new 用 full,
+   * 新 session 裡沒有任何上下文,compact 與 minimal 都可能什麼都不帶。
+   */
+  opensNewSession: boolean;
 };
 
 export type PromptTelemetry = {
@@ -150,7 +155,9 @@ export async function preparePromptForAgent(options: PreparePromptOptions): Prom
   if (!context.isPassthroughCommand) {
     const currentCounter = options.fullPromptCounterByUser.get(context.userId) || 0;
     const shouldUseFullPrompt =
-      context.forceNewSession || currentCounter % options.fullPromptEvery === 0;
+      context.forceNewSession ||
+      options.opensNewSession ||
+      currentCounter % options.fullPromptEvery === 0;
     const shouldUseMinimal =
       !shouldUseFullPrompt &&
       currentCounter > 0 &&
@@ -165,16 +172,20 @@ export async function preparePromptForAgent(options: PreparePromptOptions): Prom
     const attachmentPrompt = buildAttachmentPrompt(context.msg.attachments);
     const withAttachments = (prompt: string): string =>
       attachmentPrompt ? `${prompt}\n\n${attachmentPrompt}` : prompt;
-    const build = async (continuingSession: boolean): Promise<PromptBuildResult> =>
+    const build = async (
+      mode: PromptMode,
+      continuingSession: boolean
+    ): Promise<PromptBuildResult> =>
       normalizePromptBuildResult(
-        await options.buildPrompt(context.msg.content, context.userId, promptMode, {
+        await options.buildPrompt(context.msg.content, context.userId, mode, {
           continuingSession
         }),
-        promptMode
+        mode
       );
-    const promptResult = await build(options.continuingSession);
+    const promptResult = await build(promptMode, options.continuingSession);
     if (options.continuingSession) {
-      rebuildForNewSession = async () => withAttachments((await build(false)).prompt);
+      // 改開新 session 時同樣比照 /new 用 full。
+      rebuildForNewSession = async () => withAttachments((await build('full', false)).prompt);
     }
     promptForAgent = promptResult.prompt;
     memoriaRecall = promptResult.memoriaRecall;
@@ -182,11 +193,13 @@ export async function preparePromptForAgent(options: PreparePromptOptions): Prom
       promptMode: promptResult.mode,
       promptSelectionReason: context.forceNewSession
         ? 'force-new-session'
-        : promptMode === 'full'
-          ? 'periodic-full'
-          : promptMode === 'minimal'
-            ? 'minimal-followup'
-            : 'compact-followup',
+        : options.opensNewSession
+          ? 'new-session'
+          : promptMode === 'full'
+            ? 'periodic-full'
+            : promptMode === 'minimal'
+              ? 'minimal-followup'
+              : 'compact-followup',
       memoryContextLength: promptResult.memoryContextLength,
       usedMemoryContext: promptResult.usedMemoryContext,
       memoryContextSectionCount: promptResult.memoryContextSectionCount
