@@ -97,6 +97,7 @@ Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per
 | `src/services/error-alerter.ts`         | Sliding-window error alerter; pushes Telegram message to `ALLOWED_USER_ID` when a scope crosses threshold                                                                     |
 | `src/services/issue-store.ts`           | Persists `recordRuntimeIssue` events to SQLite `runtime_issues` table (7-day retention)                                                                                       |
 | `src/telegram/render/markdown-v2.ts`    | MarkdownV2 渲染（remark-parse AST→MarkdownV2 entities）；用於 streamer finalize 與 pinned message                                                                             |
+| `src/services/chat-session-store.ts`    | 每位使用者的聊天 session 綁定（`data/chat-session-state.json`）；聊天一律以 `-s <綁定 id>` 接續，`-c` 會接進排程或探針的 session                                              |
 | `src/services/interaction-guard.ts`     | 多步驟互動的 per-user in-memory state；`CommandRouter` 在 dispatch 前 consult，`/abort` 自動 clear                                                                            |
 | `src/services/pinned-status-manager.ts` | 訂閱 event-bus 即時更新釘選訊息（節流 5s）；`PINNED_STATUS_ENABLED=false` 可停用                                                                                              |
 | `src/connectors/telegram.ts`            | Telegraf-based connector implementing `Connector` interface                                                                                                                   |

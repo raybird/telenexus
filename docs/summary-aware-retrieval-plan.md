@@ -48,6 +48,8 @@
 
 已知實作與原規劃差異：
 
+- `近期對話` 不再每回合注入（2026-10-07，issue 0012）：聊天以 `-s` 接續自己綁定的 session，接續時最近幾回合已在 session 裡，只在開新 session 的回合注入。`getRecentConversation()` 只回傳聊天訊息（使用者訊息，以及前一筆是使用者訊息的回覆），排除排程輸出
+- Memoria 召回的 `confidence` 低於 `MEMORIA_RECALL_MIN_CONFIDENCE`（預設 0.2）時，`相關歷史摘要` 改用本機語意摘要
 - budget trimming 的實際順序與本文早期版本不同
 - anchor 候選主要仍偏向近期 summaries，而非真正全域長期層
 - canonical-first 已部分落地，但保底效果仍可再強化

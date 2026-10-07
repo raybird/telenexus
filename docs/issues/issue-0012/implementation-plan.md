@@ -116,11 +116,12 @@ session 不存在時（SCN-003），opencode 不到一秒就以 exit 1 結束，
    - 相依：步驟 3、5。
    - 完成判準：接續綁定的 session 時，記憶區塊沒有「近期對話」段；首次、`/new`、改綁三種情況都有該段。full 與 compact 模式各有測試。先紅後綠。
    - 完成證據（2026-10-07）：紅燈 [evidence/step7-red.txt](./evidence/step7-red.txt)（13 項中 5 項失敗）；綠燈 [evidence/step7-green.txt](./evidence/step7-green.txt)，完整測試 429/429。prompt 在排隊前組裝，所以 pipeline 先依當下的綁定決定是否接續，送出前再讀一次綁定；兩者不一致或 session 不存在時，以「不接續」重組（含近期對話）再送。重組時會再做一次 Memoria 召回，UFL 回報沿用第一次的 recall。
-8. 📝 **實地驗證、常青文件與交付檢查**（全部 Scenario）
+8. ✅ **實地驗證、常青文件與交付檢查**（全部 Scenario）
    - 產出：`evidence/step8-end-to-end.md`；常青文件更新。
    - 相依：步驟 1～7。
    - 方式：在隔離環境依序執行聊天、排程、再聊天、`/new`、再聊天，檢查 opencode.db 中每個回合進了哪個 session。
    - 完成判準：opencode.db 中兩則聊天訊息落在同一個 session，排程 session 中沒有聊天訊息；`/new` 後的聊天落在新 session；`npm run build`、`npm run test`（核對 `# tests` 與測試檔數相稱）、`npm run lint` 都是 exit 0；下方常青文件已更新。
+   - 完成證據（2026-10-07）：[evidence/step8-end-to-end.md](./evidence/step8-end-to-end.md)。以分支建置的正式映像隔離啟動 telenexus，經 Web Console 的 plain 與 stream 兩條路徑驗證：模擬排程插在兩則聊天之間，第二則仍接續原 session 並答出先前的代號；`/new` 後改綁；接續回合的 prompt 不含「近期對話」（242 字，開新 session 的回合為 905／1,104 字）；刪除綁定的 session 後，回合照常回覆並改綁，記一筆 `chat-session:missing`。完整測試 429/429、build、lint 皆 exit 0。常青文件已更新，見下表。SCN-004、SCN-005、SCN-007、SCN-008 以步驟 4～6 的測試與盤點為證，沒有另做實機驗證。
 
 ## 使用方式對照
 
@@ -152,10 +153,11 @@ session 不存在時（SCN-003），opencode 不到一秒就以 exit 1 結束，
 | 文件 | 更新內容 |
 |---|---|
 | `docs/configuration-reference.md` | 「Runner Session Context」改寫：聊天綁定自己的 session、手動接續改用 `-s`；新增 `MEMORIA_RECALL_MIN_CONFIDENCE` |
+| `docs/cli-session-integration.md` | Opencode 的接續方式、`/new` 語意、fallback 與除錯指令（2026-10-07 實作時補登：這份描述現行的 `-c` 行為） |
 | `.env.example` | `MEMORIA_RECALL_MIN_CONFIDENCE` |
 | `docs/current-chat-prompt.md` | 「近期對話」的注入條件與來源 |
 | `docs/summary-aware-retrieval-plan.md` | 近期對話只取聊天訊息；Memoria 的 confidence 門檻 |
-| `ARCHITECTURE.md`、`CLAUDE.md` | 只在新增的 `chat-session-store` 改變模組職責描述時更新 |
+| `ARCHITECTURE.md`、`CLAUDE.md` | 新增 `chat-session-store` 模組與聊天資料流中的 session 綁定 |
 | `CHANGELOG.md` | 發版時寫明：升級後第一則聊天會開新 session |
 
 ## 檢查清單
@@ -164,6 +166,6 @@ session 不存在時（SCN-003），opencode 不到一秒就以 exit 1 結束，
 - [x] 步驟 1 的證據確定了 TBD-1
 - [x] `src/` 中沒有任何路徑再產生 `-c`（2026-10-07）
 - [x] TBD-2、TBD-3 有結論與證據（2026-10-07）
-- [ ] 證據檔已去敏
-- [ ] `Dockerfile`、`docker-compose*.yml` 沒有變更
-- [ ] 改 symbol 前跑過 GitNexus impact，並另外用 grep 數過呼叫點
+- [x] 證據檔已去敏（無本機絕對路徑、使用者 ID、token、完整容器 ID 或對話內容）
+- [x] `Dockerfile`、`docker-compose*.yml` 沒有變更
+- [x] 改 symbol 前跑過 GitNexus impact，並另外用 grep 數過呼叫點

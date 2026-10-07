@@ -98,14 +98,15 @@ passthrough_commands:
 # Gemini（接續 session）
 docker compose exec agent-runner sh -lc "cd /app/workspace && gemini -r"
 
-# Opencode（接續 session）
-docker compose exec agent-runner sh -lc "cd /app/workspace && opencode run -c"
+# Opencode（接續聊天 session；id 在 data/chat-session-state.json）
+docker compose exec agent-runner sh -lc "cd /app/workspace && opencode run -s <session id>"
 ```
 
 補充：
 
 - 一般使用不需要手動進容器
-- `/new` 會讓下一則一般對話訊息強制使用新 session
+- `/new` 會讓下一則一般對話訊息強制使用新 session，回合結束後綁定改為新 session
+- 聊天以 `-s` 接續每位使用者自己綁定的 session（`data/chat-session-state.json`），不用 `-c`：`-c` 接的是最後被更新的 session，排程與健康探針都會搶走它。綁定的 session 不存在時自動改開新 session，並記 `chat-session:missing` runtime issue。細節見 `docs/cli-session-integration.md`
 - 在 `telenexus` 容器手動執行 CLI，可能與 runner 實際脈絡不一致
 - `RUNNER_SERIALIZE_GEMINI=true`（預設）：在 runner 內序列化 Gemini 任務，降低併發導致的 `SIGKILL` 風險
 - `RUNNER_ZOMBIE_WARN_THRESHOLD=8`（預設）：寫入 `runner-status.md` 的殭屍進程告警門檻
@@ -135,6 +136,18 @@ MEMORIA_HOOK_QUEUE_POLL_MS=5000
 - 同步失敗只記錄 warning，不會中斷主對話流程
 - `MEMORIA_HOOK_QUEUE_ENABLED=false`（預設）：走 hook-free 模式，只靠 TeleNexus pipeline 同步
 - 設為 `true` 才會啟用 hook queue 輪詢，通常只在需要相容舊流程時使用
+
+## Memoria 召回
+
+```env
+MEMORIA_RECALL_ENABLED=auto
+MEMORIA_ENDPOINT=http://memoria:3917
+MEMORIA_RECALL_TIMEOUT_MS=1500
+MEMORIA_RECALL_TOP_K=5
+MEMORIA_RECALL_MIN_CONFIDENCE=0.2
+```
+
+- `MEMORIA_RECALL_MIN_CONFIDENCE`（預設 `0.2`，範圍 0～1，`0` = 停用）：召回的 `confidence` 低於此值時不注入 prompt，改用本機語意摘要。預設值取自正式資料快照的抽樣：無關問題最高 0.143、相關問題最低 0.25（`docs/issues/issue-0012/evidence/step6-confidence-sampling.md`）。`confidence` 為 null（該路由無法判斷）時照常注入。被擋下時，`memoria_recall` 事件帶 `dropped_low_confidence: true` 與 `min_confidence`
 
 ## Sessions archive / memory backfill
 

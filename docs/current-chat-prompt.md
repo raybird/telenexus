@@ -87,6 +87,7 @@ TeleNexus 不會包裝一般聊天 prompt，而是直接把原始指令送給 pr
 
 - Gemini / Opencode 之間會在必要時做 `/compress` 與 `/compact` 的指令改寫
 - `forceNewSession` 啟用時，不會接續既有 CLI session
+- passthrough 指令以 `-s` 作用在該使用者綁定的聊天 session 上
 
 ## 4) 記憶注入現況
 
@@ -101,6 +102,12 @@ TeleNexus 不會包裝一般聊天 prompt，而是直接把原始指令送給 pr
   - 相關歷史摘要
   - 最近對話
 - 若 Memoria 可用，會額外注入 capability hint，提醒模型可輸出 `[[MEMORY_INTENT:...]]` 給系統觀測
+
+「最近對話」段（`【近期對話】`）的注入條件：
+
+- 只在開新 session 的回合注入：首次對話、`/new` 之後，或綁定的 session 已不存在而改開新的。接續綁定的 session 時，最近幾回合本來就在 session 裡，不再注入
+- 只取聊天訊息：使用者訊息，以及前一筆是使用者訊息的回覆。排程輸出也存在同一張表，但沒有對應的使用者訊息，因此被排除。聊天回合進行中剛好有排程寫入時，排程輸出會被當成回覆（正式資料約 3%）
+- Memoria 召回的 `confidence` 低於 `MEMORIA_RECALL_MIN_CONFIDENCE`（預設 0.2）時，「相關歷史摘要」不用 Memoria 的結果，改用本機語意摘要
 
 ## 5) 配置來源
 
