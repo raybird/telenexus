@@ -5,7 +5,7 @@ import os from 'os';
 import path from 'path';
 import { MemoryManager } from '../src/core/memory.js';
 import { Scheduler } from '../src/core/scheduler.js';
-import type { AIAgent } from '../src/core/agent.js';
+import type { AIAgent, AIAgentOptions } from '../src/core/agent.js';
 import type { Connector } from '../src/types/index.js';
 import type { MemoriaSyncTurn } from '../src/core/memoria-sync.js';
 
@@ -191,6 +191,31 @@ test('Scheduler reflection writes memory metadata and enqueues memoria sync', as
     const recentMessages = memory.getRecentMessages('user-a', 5);
     assert.ok(recentMessages.some((item) => item.content === '🔍 [手動追蹤]\n\nok'));
 
+    scheduler.shutdown();
+  });
+});
+
+test('SCN-005: 追蹤提醒在新的 session 執行,不接續聊天或排程的 session', async () => {
+  await withTempDb(async () => {
+    const memory = new MemoryManager();
+    const calls: (AIAgentOptions | undefined)[] = [];
+    const agent: AIAgent = {
+      async chat(_prompt, options) {
+        calls.push(options);
+        return 'ok';
+      },
+      async summarize(text: string) {
+        return text;
+      }
+    };
+    const scheduler = new Scheduler(memory, agent, createConnectorStub());
+    memory.addMessage('user-a', 'user', '幫我追一下 release workflow。');
+
+    await scheduler.triggerReflection('user-a', 'manual');
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]?.forceNewSession, true);
+    assert.equal(calls[0]?.sessionId, undefined);
     scheduler.shutdown();
   });
 });

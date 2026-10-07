@@ -93,11 +93,12 @@ session 不存在時（SCN-003），opencode 不到一秒就以 exit 1 結束，
    - 完成判準：`buildChatArgs()` 在三種情況（有綁定、`/new`、沒有綁定）產生的參數都有測試，且沒有任何路徑再產生 `-c`（`grep -rn "'-c'" src` 為空）；runner 與本機路徑都把 `sessionId` 傳到 opencode；回合結束後綁定更新為結果的 `sessionId`；session 不存在時回合仍回覆、綁定改為新 id、記一筆 runtime issue。先紅後綠。
    - 完成證據（2026-10-07）：分三層先紅後綠。紅燈 [3a](./evidence/step3a-red.txt)（參數與 session-missing 判定，14 項中 9 項失敗）、[3b](./evidence/step3b-red.txt)（DynamicAIAgent 傳遞，5 項中 4 項失敗）、[3c](./evidence/step3c-red.txt)（pipeline 綁定與重跑，7 項全失敗）；綠燈 [evidence/step3-green.txt](./evidence/step3-green.txt)，完整測試 402/402、build、lint 都是 exit 0，`src/` 中已無 `'-c'`。
    - 實作備註：session 不存在時，opencode agent 回傳 `failure.kind = 'session-missing'` 且不發任何事件；runner 的 audit 記為失敗，但不觸發斷路器（HTTP 層仍是成功）。`DynamicAIAgent` 新增 `chatStructured()`，non-stream 路徑也能取得 sessionId 與 failure；runner stream 路徑原本會丟掉 `failure`，已一併保留。`main.ts` 建立唯一的 `ChatSessionStore`，傳給 Telegram 與 Web 兩個 pipeline。
-   - 已知暫時退步（由步驟 4 處理）：首次對話（還沒有綁定）的 `tool_only` 追問會開新 session。
-4. 📝 **`tool_only` 追問與追蹤提醒**（SCN-004、SCN-005）
+   - 已知暫時退步：首次對話（還沒有綁定）的 `tool_only` 追問會開新 session。已於步驟 4 修正。
+4. ✅ **`tool_only` 追問與追蹤提醒**（SCN-004、SCN-005）
    - 產出：`cli-agent-base.ts`、`scheduler.ts` 的變更與測試。
    - 相依：步驟 3。
    - 完成判準：追問的參數帶原回合的 `sessionId`，聊天回合與 `forceNewSession` 的排程回合都有測試；原回合沒有 `sessionId` 時的行為有測試並寫明；追蹤提醒的呼叫帶 `forceNewSession: true`。先紅後綠。
+   - 完成證據（2026-10-07）：紅燈 [evidence/step4-red.txt](./evidence/step4-red.txt)（排程回合與首次聊天的追問沒帶 `-s`；追蹤提醒沒帶 `forceNewSession`）；綠燈 [evidence/step4-green.txt](./evidence/step4-green.txt)，完整測試 406/406 加新增的 1 項。原回合事件沒有 `sessionID` 時沿用原選項：opencode 1.18.34 每個事件都帶 sessionID，只有格式改變時才會發生，以行為保留測試涵蓋。
 5. 📝 **近期對話只取聊天訊息**（SCN-007）
    - 產出：`memory.ts` 的查詢變更與測試；`evidence/step5-recent-conversation-inventory.md`。
    - 相依：無。

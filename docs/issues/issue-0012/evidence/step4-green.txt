@@ -1,0 +1,25 @@
+# 步驟 4 綠燈（SCN-004、SCN-005），2026-10-07
+$ npx tsx --test tests/tool-only-followup-session.test.ts
+ok 1 - SCN-004: 排程回合(forceNewSession)的 tool_only 追問送進該回合的 session
+ok 2 - SCN-004: 首次聊天(沒有綁定)的 tool_only 追問送進該回合的 session
+ok 3 - SCN-004: 接續綁定的聊天的 tool_only 追問送進該回合的 session
+ok 4 - SCN-004: 事件沒有 sessionID 時,追問沿用原回合的選項(變更前的行為)
+# tests 4
+# pass 4
+# fail 0
+（第 4 項是行為保留測試：沒有 sessionID 時沿用原選項，變更前後都通過，不是紅綠證據）
+
+$ npx tsx --test --test-name-pattern=SCN-005 tests/scheduler-validation.test.ts
+ok 1 - SCN-005: 追蹤提醒在新的 session 執行,不接續聊天或排程的 session
+# tests 1
+# pass 1
+# fail 0
+
+$ npm run test
+# tests 407
+# pass 407
+# fail 0
+exit=0
+$ npm run build → exit=0；npm run lint → exit=0
+
+重構：code-simplify 檢查為 no-op（兩處各為一個條件與一個選項，無可簡化處）。
