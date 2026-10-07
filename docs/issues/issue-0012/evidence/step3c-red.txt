@@ -1,0 +1,27 @@
+# 步驟 3c 紅燈：pipeline 的 session 綁定（實作前），2026-10-07
+$ npx tsx --test tests/message-pipeline-session.test.ts
+not ok 1 - SCN-001/002 [non-stream]: 首次對話開新 session 並綁定,之後以它接續
+  expected:
+  actual:
+not ok 2 - SCN-002 [non-stream]: /new 之後開新 session 並改綁
+  expected:
+  actual:
+not ok 3 - SCN-003 [non-stream]: 綁定的 session 不存在時改開新 session 重跑,回覆使用者並改綁
+  expected:
+  actual:
+not ok 4 - SCN-001/002 [stream]: 首次對話開新 session 並綁定,之後以它接續
+  expected:
+  actual:
+not ok 5 - SCN-002 [stream]: /new 之後開新 session 並改綁
+  expected:
+  actual:
+not ok 6 - SCN-003 [stream]: 綁定的 session 不存在時改開新 session 重跑,回覆使用者並改綁
+  expected:
+  actual:
+not ok 7 - SCN-001 [passthrough]: passthrough 指令接續綁定的 session,不改綁
+  expected:
+  actual:
+# tests 7
+# pass 0
+# fail 7
+exit=1

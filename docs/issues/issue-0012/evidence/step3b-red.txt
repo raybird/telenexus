@@ -1,0 +1,15 @@
+# 步驟 3b 紅燈：DynamicAIAgent 的 sessionId／failure 傳遞（chatStructured 為空殼），2026-10-07
+$ npx tsx --test tests/dynamic-agent-session.test.ts
+not ok 1 - SCN-001 [stream]: 綁定的 sessionId 送到 runner,回傳的 sessionId 保留
+  expected: 'ses_bound'
+not ok 2 - SCN-003 [stream]: runner 回傳的 session-missing 失敗保留給呼叫端
+  expected: 'session-missing'
+not ok 3 - SCN-001 [non-stream]: chatStructured 送出 sessionId 並回傳 runner 的 sessionId
+  expected: 'ses_bound'
+not ok 4 - SCN-003 [non-stream]: chatStructured 保留 session-missing 失敗
+  expected: 'session-missing'
+ok 5 - chat() 仍回傳帶前綴的字串,沒有 sessionId 時不送出該欄位
+# tests 5
+# pass 1
+# fail 4
+exit=1

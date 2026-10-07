@@ -87,10 +87,13 @@ session 不存在時（SCN-003），opencode 不到一秒就以 exit 1 結束，
    - 相依：無（可與步驟 1 並行）。
    - 完成判準：讀寫、清除、檔案不存在、檔案毀損都有測試；毀損時視為沒有綁定，並記 runtime issue。先紅後綠，期望值寫死。
    - 完成證據（2026-10-06）：紅燈 [evidence/step2-red.txt](./evidence/step2-red.txt)（空殼實作，6 項中 5 項失敗於行為斷言）；綠燈 [evidence/step2-green.txt](./evidence/step2-green.txt)（6/6 通過，build、eslint exit 0）。另涵蓋值不是非空字串、內容不是物件、寫入失敗三種情況。重構為 no-op。
-3. 📝 **聊天與 passthrough 改用綁定的 session**（SCN-001、SCN-002、SCN-003）
+3. ✅ **聊天與 passthrough 改用綁定的 session**（SCN-001、SCN-002、SCN-003）
    - 產出：`opencode.ts`、`agent.ts`、`runner.ts`、`message-pipeline*.ts` 的變更與測試。
    - 相依：步驟 1、2。
    - 完成判準：`buildChatArgs()` 在三種情況（有綁定、`/new`、沒有綁定）產生的參數都有測試，且沒有任何路徑再產生 `-c`（`grep -rn "'-c'" src` 為空）；runner 與本機路徑都把 `sessionId` 傳到 opencode；回合結束後綁定更新為結果的 `sessionId`；session 不存在時回合仍回覆、綁定改為新 id、記一筆 runtime issue。先紅後綠。
+   - 完成證據（2026-10-07）：分三層先紅後綠。紅燈 [3a](./evidence/step3a-red.txt)（參數與 session-missing 判定，14 項中 9 項失敗）、[3b](./evidence/step3b-red.txt)（DynamicAIAgent 傳遞，5 項中 4 項失敗）、[3c](./evidence/step3c-red.txt)（pipeline 綁定與重跑，7 項全失敗）；綠燈 [evidence/step3-green.txt](./evidence/step3-green.txt)，完整測試 402/402、build、lint 都是 exit 0，`src/` 中已無 `'-c'`。
+   - 實作備註：session 不存在時，opencode agent 回傳 `failure.kind = 'session-missing'` 且不發任何事件；runner 的 audit 記為失敗，但不觸發斷路器（HTTP 層仍是成功）。`DynamicAIAgent` 新增 `chatStructured()`，non-stream 路徑也能取得 sessionId 與 failure；runner stream 路徑原本會丟掉 `failure`，已一併保留。`main.ts` 建立唯一的 `ChatSessionStore`，傳給 Telegram 與 Web 兩個 pipeline。
+   - 已知暫時退步（由步驟 4 處理）：首次對話（還沒有綁定）的 `tool_only` 追問會開新 session。
 4. 📝 **`tool_only` 追問與追蹤提醒**（SCN-004、SCN-005）
    - 產出：`cli-agent-base.ts`、`scheduler.ts` 的變更與測試。
    - 相依：步驟 3。
@@ -155,7 +158,7 @@ session 不存在時（SCN-003），opencode 不到一秒就以 exit 1 結束，
 
 - [x] SCN-003～006 已核准（2026-10-06）
 - [x] 步驟 1 的證據確定了 TBD-1
-- [ ] `src/` 中沒有任何路徑再產生 `-c`
+- [x] `src/` 中沒有任何路徑再產生 `-c`（2026-10-07）
 - [ ] TBD-2、TBD-3 有結論與證據
 - [ ] 證據檔已去敏
 - [ ] `Dockerfile`、`docker-compose*.yml` 沒有變更

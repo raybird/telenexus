@@ -30,6 +30,11 @@ export type CliAgentConfig = {
   binary: string;
   rateLimitPattern: RegExp;
   rateLimitMessage: string;
+  /**
+   * 指定接續的 session 不存在。`pattern` 只在沒有解析到任何事件、exit 非 0 時比對 stderr,
+   * 符合就以 `buildResult()` 結束回合,不發事件給畫面:呼叫端會改開新 session 重跑。
+   */
+  sessionMissing?: { pattern: RegExp; buildResult: () => AgentStructuredResult };
   timeoutMessage: string;
   streamTimeoutMs?: number;
 };
@@ -468,6 +473,12 @@ export abstract class CliAgentBase implements AIAgent {
                 ...(sessionId ? { sessionId } : {}),
                 ...(stats !== undefined ? { stats } : {})
               });
+              return;
+            }
+
+            const sessionMissing = this.config.sessionMissing;
+            if (sessionMissing && parsedLineCount === 0 && sessionMissing.pattern.test(stderr)) {
+              resolve(sessionMissing.buildResult());
               return;
             }
 

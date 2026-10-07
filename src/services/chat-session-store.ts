@@ -54,6 +54,8 @@ export class ChatSessionStore {
   }
 
   set(userId: string, sessionId: string): void {
+    // 接續同一個 session 是常態,值沒變就不重寫檔案。
+    if (this.bindings.get(userId) === sessionId) return;
     this.bindings.set(userId, sessionId);
     this.persist();
   }

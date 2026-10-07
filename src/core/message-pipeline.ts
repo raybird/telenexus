@@ -1,6 +1,6 @@
 import type { Connector, UnifiedMessage } from '../types/index.js';
-import type { AIAgent } from './agent.js';
-import type { AgentEvent } from './agent-result.js';
+import type { AIAgent, AIAgentOptions } from './agent.js';
+import type { AgentEvent, AgentStructuredResult } from './agent-result.js';
 import type { CommandRouter } from './command-router.js';
 import { executionQueue } from './execution-queue.js';
 import {
@@ -37,6 +37,7 @@ import { parseMemoryIntent } from './memory-intent.js';
 import { recordMemoryIntentTrace } from '../services/memory-intent-telemetry.js';
 import { emitEvent } from '../services/event-bus.js';
 import { buildReuseOutcome, reportRecallOutcome } from './memoria-recall.js';
+import type { ChatSessionStore } from '../services/chat-session-store.js';
 
 type MessagePipelineOptions = {
   connector: Connector;
@@ -56,6 +57,11 @@ type MessagePipelineOptions = {
     mode?: PromptMode
   ) => Promise<string | PromptBuildResult> | string | PromptBuildResult;
   enqueueMemoriaSync?: (turn: MemoriaSyncTurn) => void;
+  /**
+   * 每位使用者的聊天 session 綁定(issue 0012)。Telegram 與 Web 的 pipeline 要共用同一個實例:
+   * 它每次寫入都把整份綁定寫回檔案,兩個實例會互相覆寫。沒有提供時每一回合都開新 session。
+   */
+  chatSessionStore?: ChatSessionStore;
   recordRuntimeIssue: (scope: string, error: unknown) => void;
   writeContextSnapshots: () => void;
 };
@@ -243,27 +249,48 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
             }
           };
 
-          const baseOpts = {
-            isPassthroughCommand: context.isPassthroughCommand,
-            forceNewSession: context.forceNewSession,
-            autoRecoveryNotice: true,
-            signal
+          const runTurn = async (sessionId?: string): Promise<AgentStructuredResult> => {
+            const turnOpts: AIAgentOptions = {
+              isPassthroughCommand: context.isPassthroughCommand,
+              forceNewSession: context.forceNewSession,
+              ...(sessionId ? { sessionId } : {}),
+              autoRecoveryNotice: true
+            };
+            if ((streamResponse || telegramStreamRenderer) && context.activeAgent.streamChat) {
+              return context.activeAgent.streamChat(
+                promptForAgent,
+                { ...turnOpts, signal },
+                eventHandler
+              );
+            }
+            if (context.activeAgent.chatStructured) {
+              return context.activeAgent.chatStructured(promptForAgent, turnOpts);
+            }
+            return {
+              provider: 'opencode',
+              text: await context.activeAgent.chat(promptForAgent, turnOpts)
+            };
           };
 
-          if ((streamResponse || telegramStreamRenderer) && context.activeAgent.streamChat) {
-            const result = await context.activeAgent.streamChat(
-              promptForAgent,
-              baseOpts,
-              eventHandler
+          // 以綁定的 session 接續;/new 時 forceNewSession 優先,開新 session 後改綁。
+          const sessionStore = options.chatSessionStore;
+          const boundSessionId = context.forceNewSession
+            ? undefined
+            : sessionStore?.get(context.userId);
+          let result = await runTurn(boundSessionId);
+          if (result.failure?.kind === 'session-missing') {
+            // opencode 沒有送出任何請求、也沒有發事件給畫面,直接改開新 session 重跑。
+            sessionStore?.clear(context.userId);
+            options.recordRuntimeIssue(
+              'chat-session:missing',
+              new Error(`bound session ${boundSessionId} not found; started a new session`)
             );
-            return result.text;
+            result = await runTurn();
           }
-
-          return context.activeAgent.chat(promptForAgent, {
-            isPassthroughCommand: context.isPassthroughCommand,
-            forceNewSession: context.forceNewSession,
-            autoRecoveryNotice: true
-          });
+          if (result.sessionId) {
+            sessionStore?.set(context.userId, result.sessionId);
+          }
+          return result.text;
         }
       );
 

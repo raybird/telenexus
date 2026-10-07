@@ -18,6 +18,7 @@ import { recordRuntimeIssue, getRecentIssues } from './utils/errors.js';
 import { writeContextSnapshots, writeSchedulerHealth } from './services/context-snapshots.js';
 import { resolveContextDir, resolveModelHealthStatePath } from './utils/paths.js';
 import { startModelHealthCheck, isRealSuccessEvent } from './services/model-health-check.js';
+import { ChatSessionStore } from './services/chat-session-store.js';
 import { loadAiConfig } from './core/config-loader.js';
 import { MemoryBackfillWorker } from './services/memory-backfill-worker.js';
 import { startErrorAlerter } from './services/error-alerter.js';
@@ -279,6 +280,9 @@ async function bootstrap() {
     onAfterRun: writeContextSnapshotsFn
   });
 
+  // Telegram 與 Web 的 pipeline 共用同一個實例:它每次寫入都把整份綁定寫回檔案。
+  const chatSessionStore = new ChatSessionStore();
+
   const handleIncomingMessage = createMessagePipeline({
     connector: telegram,
     commandRouter,
@@ -292,6 +296,7 @@ async function bootstrap() {
     shouldSummarize,
     buildPrompt: buildPromptFn,
     enqueueMemoriaSync: enqueueMemoriaSyncFn,
+    chatSessionStore,
     recordRuntimeIssue,
     writeContextSnapshots: writeContextSnapshotsFn
   });
@@ -323,6 +328,7 @@ async function bootstrap() {
     shouldSummarize,
     buildPrompt: buildPromptFn,
     enqueueMemoriaSync: enqueueMemoriaSyncFn,
+    chatSessionStore,
     recordRuntimeIssue,
     writeContextSnapshots: writeContextSnapshotsFn
   });

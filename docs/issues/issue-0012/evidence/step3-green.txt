@@ -1,0 +1,56 @@
+# 步驟 3 綠燈（3a/3b/3c 實作後），2026-10-07
+
+$ npx tsx --test tests/chat-session-args.test.ts
+ok 1 - SCN-001 [stream]: 有綁定的 session 時以 -s 接續,不用 -c
+ok 2 - SCN-002 [stream]: /new(forceNewSession)時不帶接續參數,即使有綁定
+ok 3 - SCN-002 [stream]: 沒有綁定時開新 session,不用 -c
+ok 4 - SCN-003 [stream]: 綁定的 session 不存在時回傳 session-missing,不發事件
+ok 5 - SCN-003 [stream]: 其他 exit 1 的錯誤維持原本的失敗方式
+ok 6 - SCN-001 [non-stream]: 有綁定的 session 時以 -s 接續,不用 -c
+ok 7 - SCN-002 [non-stream]: /new(forceNewSession)時不帶接續參數,即使有綁定
+ok 8 - SCN-002 [non-stream]: 沒有綁定時開新 session,不用 -c
+ok 9 - SCN-003 [non-stream]: 綁定的 session 不存在時回傳 session-missing,不發事件
+ok 10 - SCN-003 [non-stream]: 其他 exit 1 的錯誤維持原本的失敗方式
+ok 11 - SCN-001 [passthrough]: passthrough 指令也接續綁定的 session
+ok 12 - SCN-003 [passthrough]: passthrough 遇到 session 不存在也回傳 session-missing
+ok 13 - SCN-003: session-missing 在 runner audit 記為失敗
+ok 14 - SCN-001: runner 請求的 sessionId 傳給 agent
+# tests 14
+# pass 14
+# fail 0
+exit=0
+
+$ npx tsx --test tests/dynamic-agent-session.test.ts
+ok 1 - SCN-001 [stream]: 綁定的 sessionId 送到 runner,回傳的 sessionId 保留
+ok 2 - SCN-003 [stream]: runner 回傳的 session-missing 失敗保留給呼叫端
+ok 3 - SCN-001 [non-stream]: chatStructured 送出 sessionId 並回傳 runner 的 sessionId
+ok 4 - SCN-003 [non-stream]: chatStructured 保留 session-missing 失敗
+ok 5 - chat() 仍回傳帶前綴的字串,沒有 sessionId 時不送出該欄位
+# tests 5
+# pass 5
+# fail 0
+exit=0
+
+$ npx tsx --test tests/message-pipeline-session.test.ts
+ok 1 - SCN-001/002 [non-stream]: 首次對話開新 session 並綁定,之後以它接續
+ok 2 - SCN-002 [non-stream]: /new 之後開新 session 並改綁
+ok 3 - SCN-003 [non-stream]: 綁定的 session 不存在時改開新 session 重跑,回覆使用者並改綁
+ok 4 - SCN-001/002 [stream]: 首次對話開新 session 並綁定,之後以它接續
+ok 5 - SCN-002 [stream]: /new 之後開新 session 並改綁
+ok 6 - SCN-003 [stream]: 綁定的 session 不存在時改開新 session 重跑,回覆使用者並改綁
+ok 7 - SCN-001 [passthrough]: passthrough 指令接續綁定的 session,不改綁
+# tests 7
+# pass 7
+# fail 0
+exit=0
+
+$ npm run test（完整測試，61 個測試檔）
+# tests 402
+# pass 402
+# fail 0
+exit=0
+$ npm run build → exit=0
+$ npm run lint → exit=0
+$ grep -rn "'-c'" src → 無結果（exit=1）
+
+重構：code-simplify 檢查為 no-op。DynamicAIAgent 兩處 runner 結果組裝已在實作時合併為 fromRunnerStructured()。

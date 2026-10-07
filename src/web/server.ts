@@ -8,6 +8,7 @@ import type { AIAgent } from '../core/agent.js';
 import type { AgentEvent } from '../core/agent-result.js';
 import type { CommandRouter } from '../core/command-router.js';
 import type { MemoriaSyncTurn } from '../core/memoria-sync.js';
+import type { ChatSessionStore } from '../services/chat-session-store.js';
 import type { MemoryManager } from '../core/memory.js';
 import type { Scheduler } from '../core/scheduler.js';
 import type { Connector, UnifiedMessage } from '../types/index.js';
@@ -42,6 +43,8 @@ type WebServerOptions = {
     mode?: PromptMode
   ) => Promise<string | PromptBuildResult> | string | PromptBuildResult;
   enqueueMemoriaSync?: (turn: MemoriaSyncTurn) => void;
+  /** 與 Telegram pipeline 共用的聊天 session 綁定(issue 0012)。 */
+  chatSessionStore?: ChatSessionStore;
   recordRuntimeIssue: (scope: string, error: unknown) => void;
   writeContextSnapshots: () => void;
 };
@@ -1786,6 +1789,7 @@ export function startWebServer(options: WebServerOptions): WebServerHandle {
     shouldSummarize: options.shouldSummarize,
     buildPrompt: options.buildPrompt,
     ...(options.enqueueMemoriaSync ? { enqueueMemoriaSync: options.enqueueMemoriaSync } : {}),
+    ...(options.chatSessionStore ? { chatSessionStore: options.chatSessionStore } : {}),
     recordRuntimeIssue: options.recordRuntimeIssue,
     writeContextSnapshots: options.writeContextSnapshots
   });

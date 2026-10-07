@@ -33,6 +33,7 @@ type RunnerRequest = {
   requestId?: string;
   isPassthroughCommand?: boolean;
   forceNewSession?: boolean;
+  sessionId?: string;
   autoRecoveryNotice?: boolean;
   lane?: Lane;
 };
