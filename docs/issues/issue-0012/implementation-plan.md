@@ -98,12 +98,13 @@ session 不存在時（SCN-003），opencode 不到一秒就以 exit 1 結束，
    - 產出：`cli-agent-base.ts`、`scheduler.ts` 的變更與測試。
    - 相依：步驟 3。
    - 完成判準：追問的參數帶原回合的 `sessionId`，聊天回合與 `forceNewSession` 的排程回合都有測試；原回合沒有 `sessionId` 時的行為有測試並寫明；追蹤提醒的呼叫帶 `forceNewSession: true`。先紅後綠。
-   - 完成證據（2026-10-07）：紅燈 [evidence/step4-red.txt](./evidence/step4-red.txt)（排程回合與首次聊天的追問沒帶 `-s`；追蹤提醒沒帶 `forceNewSession`）；綠燈 [evidence/step4-green.txt](./evidence/step4-green.txt)，完整測試 406/406 加新增的 1 項。原回合事件沒有 `sessionID` 時沿用原選項：opencode 1.18.34 每個事件都帶 sessionID，只有格式改變時才會發生，以行為保留測試涵蓋。
-5. 📝 **近期對話只取聊天訊息**（SCN-007）
+   - 完成證據（2026-10-07）：紅燈 [evidence/step4-red.txt](./evidence/step4-red.txt)（排程回合與首次聊天的追問沒帶 `-s`；追蹤提醒沒帶 `forceNewSession`）；綠燈 [evidence/step4-green.txt](./evidence/step4-green.txt)，完整測試 407/407。原回合事件沒有 `sessionID` 時沿用原選項：opencode 1.18.34 每個事件都帶 sessionID，只有格式改變時才會發生，以行為保留測試涵蓋。
+5. ✅ **近期對話只取聊天訊息**（SCN-007）
    - 產出：`memory.ts` 的查詢變更與測試；`evidence/step5-recent-conversation-inventory.md`。
    - 相依：無。
    - 方式：先在 repo 之外的 `moltbot.db` 複本上，比較新規則與現行查詢的結果，量出誤判的筆數。複本含私人對話，不進版控，用完即刪。
    - 完成判準：測試涵蓋聊天與排程交錯、只有排程、聊天中途插入排程輸出（記錄為已知限制）、空表。期望值是寫死的案例。盤點記錄複本的時間範圍、總筆數、新規則排除的排程輸出數、誤判數與判定理由；TBD-3 有結論。
+   - 完成證據（2026-10-07）：盤點 [evidence/step5-recent-conversation-inventory.md](./evidence/step5-recent-conversation-inventory.md)：3,186 筆中 297 個聊天回合，確定誤判 9 筆（3.0%，最壞 4.7%）；最近 10 筆在現行規則下全是排程輸出，新規則下全是聊天。紅燈 [evidence/step5-red.txt](./evidence/step5-red.txt)（6 項中 5 項失敗）；綠燈 [evidence/step5-green.txt](./evidence/step5-green.txt)，完整測試 413/413。TBD-3 結論：不新增來源欄位。
 6. 📝 **Memoria confidence 門檻**（SCN-008）
    - 產出：`memoria-recall.ts`、`builder.ts` 的變更與測試；`.env.example` 新設定；`evidence/step6-confidence-sampling.md`。
    - 相依：無。
@@ -160,7 +161,7 @@ session 不存在時（SCN-003），opencode 不到一秒就以 exit 1 結束，
 - [x] SCN-003～006 已核准（2026-10-06）
 - [x] 步驟 1 的證據確定了 TBD-1
 - [x] `src/` 中沒有任何路徑再產生 `-c`（2026-10-07）
-- [ ] TBD-2、TBD-3 有結論與證據
+- [ ] TBD-2、TBD-3 有結論與證據（TBD-3 已於 2026-10-07 完成）
 - [ ] 證據檔已去敏
 - [ ] `Dockerfile`、`docker-compose*.yml` 沒有變更
 - [ ] 改 symbol 前跑過 GitNexus impact，並另外用 grep 數過呼叫點
