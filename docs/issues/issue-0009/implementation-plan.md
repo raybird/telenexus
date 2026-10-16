@@ -91,10 +91,15 @@ opencode 1.15.10 提供的相關指令：`opencode session list`（`--format jso
    - 相依：無。資料庫複本放在 repo 之外，含有私人對話，不進版控，驗證完即刪除。
    - 證據（2026-10-16）：[evidence/step1-delete-vacuum-probe.md](evidence/step1-delete-vacuum-probe.md)。完成判準逐項對應：刪除連帶清掉訊息、片段、事件與子 session，其他 session 不變；`storage/session_diff/` 的檔案不刪，但孤立的檔案合計只有約 1 KB，不處理。單次刪除 p50 785 ms，連續刪 100 個需 79.8 秒。在 `opencode run` 執行期間刪除 60 個，兩邊都成功。`session list` 由新到舊排序，`updated` 即 `time_updated`，輸出經 pipe 超過約 64 KB 會被截斷。`VACUUM` 讓 220.9 MB 降到 168.8 MB，期間讀取不受影響、寫入最多等 390 ms。綁定的 129 天前 session 在周圍 50 個被刪後，以 `-s` 接續成功，對照組（已刪除的 session）回 `Session not found`。複本已在驗證後刪除。
    - 完成判準：以下每一項都有實際輸出為證。`session delete` 後該 session 的訊息與片段筆數歸零，其他 session 不變，子 session 的處理方式明確；單次刪除與連續刪除 100 個的耗時；有 `opencode run` 在執行時刪除另一個 session 的結果；`session list` 的排序與 `updated` 欄位的意義；`VACUUM` 前後的檔案大小、耗時，以及期間另一個連線讀寫的行為；清理後 `opencode run -s <id>` 仍接續原 session。以映像目前釘的 opencode 版本實測，`現況` 一節記錄的 CLI 選項取自 1.15.10，需重新確認。
-2. 📝 **挑選待刪 session 的邏輯**（SCN-001、SCN-002）
+2. ✅ **挑選待刪 session 的邏輯**（SCN-001、SCN-002）
    - 產出：挑選函式與單元測試。
    - 相依：步驟 1（`updated` 的意義與排序）。
    - 完成判準：測試涵蓋過期與未過期、綁定中的 session 已過期、綁定清單為空、session 清單為空、數量超過上限、時間欄位缺漏；先紅後綠；期望值是寫死的案例，不由測試重算。
+   - 證據（2026-10-16）：`selectSessionsToDelete()`（`src/services/opencode-session-retention.ts`）與 `tests/opencode-session-retention-select.test.ts` 的 8 個案例，期望值都是寫死的 ID 清單。
+     - 紅燈：`npx tsx --test tests/opencode-session-retention-select.test.ts`，exit 1，8 個測試中 7 個失敗，失敗原因都是 stub 回傳空陣列、選不出過期的 session。「session 清單為空」在 stub 下本來就會通過，這是空清單案例的性質，不是測試失效。
+     - 最小實作後：同一命令 exit 0，8/8 通過。
+     - 重構：用 `Number.isFinite` 一次排除 null 與 NaN，同一命令 exit 0，8/8 通過；`npx tsc --noEmit -p .` exit 0；`npx eslint src/services/opencode-session-retention.ts` exit 0。
+     - 單迴圈合併：這是純函式，沒有另一層整合責任。外迴圈（在資料庫複本上實跑）由步驟 6 承擔。
 3. 📝 **清理的執行、排程與設定**（SCN-001、SCN-003、SCN-005）
    - 產出：清理服務、`runner.ts` 與 `main.ts` 的掛載、`.env.example` 的設定。
    - 相依：步驟 2。
