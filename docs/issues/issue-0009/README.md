@@ -80,7 +80,7 @@ Feature: opencode session 的保留期清理
 
 ## Gherkin 核准紀錄
 
-- **核准 commit**: SCN-003～006 為 `da76420`；SCN-002 的修訂為 `b5059de`；SCN-001 的修訂為待提交
+- **核准 commit**: SCN-003～006 為 `da76420`；SCN-002 的修訂為 `b5059de`；SCN-001 的修訂為 `1bf6427`
 - **核准來源**: 使用者於 2026-10-01 對話詢問 opencode.db 肥大的改善方式；我提出的做法是定期以 `opencode session delete` 刪除超過 N 天的 session（天數做成環境變數、預設 30 天）、刪除後以 `VACUUM` 回收空間、健康檢查探針跑完就刪掉自己的 session，並建議聊天 session 輪替另行評估。使用者同日回覆「好開 issue」。SCN-002 與 SCN-005 是上述做法的安全條件：最新的聊天 session 由 `-c` 沿用（`docs/configuration-reference.md` 的「Runner Session Context」），清理屬背景維護，不應影響服務。
 - **SCN-002 重新核准來源**: issue 0012（2026-10-07 合併）讓聊天改以 `-s` 接續每位使用者綁定的 session，綁定記在 `data/chat-session-state.json`，原本「最後更新的 session 一律保留」已經保護不到聊天。2026-10-16 逐題確認 Q1「清理時要保護哪些 session」，建議「綁定中的聊天 session 一律保留，不論多舊，以 -s 接續仍接得上；取代最後更新的那一個一律保留」，使用者選擇該建議（「綁定中的一律保留」）。
 - **SCN-001 重新核准來源**: 獨立審查 [review-a64e97c.md](./review-a64e97c.md) 的 M1 指出，在主機上執行時 opencode.db 是使用者全域的，只看時間會刪到其他專案的 session。2026-10-16 逐題確認 Q1（審查）「清理時要怎麼限制範圍」，建議「只刪 TeleNexus 目錄下的 session（服務的專案目錄與其下的 workspace；容器內是 `/app` 與 `/app/workspace`），SCN-001 修訂並重新核准」，使用者選擇該建議（「只刪 TeleNexus 目錄下的」）。
