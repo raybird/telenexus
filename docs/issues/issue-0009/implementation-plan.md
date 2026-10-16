@@ -121,10 +121,16 @@ opencode 1.15.10 提供的相關指令：`opencode session list`（`--format jso
      - 限制：逾時時若 opencode 還沒輸出任何事件，就取不到 session id，該 session 留給保留期清理處理。
      - 重構：no-op，函式已是最小形狀。
      - 專案 gate：`npm run build` exit 0；`npm run test` exit 0，`# tests 470`、`# pass 470`、`# fail 0`，69 個測試檔；`npm run lint` exit 0。
-5. 📝 **空間回收**（SCN-006）
+5. ✅ **空間回收**（SCN-006）
    - 產出：回收的判斷與執行，及其測試。
    - 相依：步驟 1、3。
    - 完成判準：有任務執行時不回收（測試）；可回收空間低於門檻時不回收（測試）；回收失敗記錄 runtime issue 且不影響服務。
+   - 證據（2026-10-16）：`src/services/opencode-session-retention.ts` 新增 `parseSpaceStats()` 與 `maybeReclaimSpace()`，每輪刪除後判斷是否回收：一天內回收過、`freelist_count` 未達 `page_count` 的 20%、或有任務在執行時都不回收。空間經 `opencode db --format json "select * from pragma_page_count(), pragma_freelist_count(), pragma_page_size()"` 讀取，回收經 `opencode db VACUUM`。「沒有任務」的判斷：runner 是兩條 lane 的執行數都是 0；主服務是新增的 `ExecutionQueue.isIdle()`。測試在 `tests/opencode-session-retention-run.test.ts` 與 `tests/execution-queue-idle.test.ts`。
+     - 紅燈：`parseSpaceStats` 與 `isIdle` 先放回傳固定值的 stub，`runRetentionOnce` 先不做回收。執行 `npx tsx --test tests/opencode-session-retention-run.test.ts tests/execution-queue-idle.test.ts`，exit 1，24 個測試中 8 個失敗，都是斷言失敗（預期 `reclaimed`、`below-threshold`、`busy`、`recently-reclaimed`、`failed` 實得 undefined；`isIdle` 預期 true 實得 false；空間解析與 CLI 參數不符）。「停用時不讀取空間」在 stub 下本來就會通過。
+     - 最小實作後：同一命令連同 `tests/execution-queue-cancel.test.ts` 共 27 個，exit 0、全部通過。
+     - 單迴圈合併：回收的判斷與執行器都以注入的 deps 在同一層觀察；真實的 `VACUUM` 與並行行為在步驟 1 已實測，端到端由步驟 6 承擔。
+     - 重構：no-op；新程式經 prettier 格式化。
+     - 專案 gate：`npm run build` exit 0；`npm run test` exit 0，`# tests 479`、`# pass 479`、`# fail 0`，70 個測試檔；`npm run lint` exit 0。
 6. 📝 **複本上的端到端驗證與文件**（SCN-001、SCN-002、SCN-006）
    - 產出：以實作後的映像對資料庫複本跑完整清理的紀錄；`docs/configuration-reference.md`、`CLAUDE.md`（模組表與相關段落）的更新。
    - 相依：步驟 3、5。啟動容器屬 `docs/agents/project.md` 列的使用者決定事項，執行前取得同意；只啟動 agent-runner，掛載的是複本，不碰任何運行中的部署。

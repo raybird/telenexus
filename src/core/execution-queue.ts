@@ -43,6 +43,12 @@ export class ExecutionQueue {
     };
   }
 
+  /** 所有使用者都沒有執行中或排隊中的工作。opencode session 保留期清理據此決定能否回收空間。 */
+  isIdle(): boolean {
+    // 工作做完且沒有排隊時 drain 會刪掉該使用者的狀態，所以有任何狀態就代表還有工作。
+    return this.states.size === 0;
+  }
+
   enqueue<T>(
     userId: string,
     source: string,

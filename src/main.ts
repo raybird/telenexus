@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { TelegramConnector } from './connectors/telegram.js';
 import { CommandRouter } from './core/command-router.js';
 import { terminateAllChildren } from './core/process-runner.js';
+import { executionQueue } from './core/execution-queue.js';
 import { DynamicAIAgent } from './core/agent.js';
 import { MemoryManager } from './core/memory.js';
 import { MemoriaSyncBridge } from './core/memoria-sync.js';
@@ -423,7 +424,7 @@ async function bootstrap() {
   if (shouldMainRunRetention(runnerEndpoint)) {
     opencodeRetention = startOpencodeSessionRetention(
       loadRetentionConfig(),
-      createOpencodeRetentionDeps()
+      createOpencodeRetentionDeps(() => executionQueue.isIdle())
     );
   }
 

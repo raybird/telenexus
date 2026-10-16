@@ -761,7 +761,10 @@ const modelHealthCheck = startModelHealthCheck({
 // opencode session 保留期清理（issue 0009）。有 runner 的部署只由這裡執行，主服務不清理。
 const opencodeRetention = startOpencodeSessionRetention(
   loadRetentionConfig(),
-  createOpencodeRetentionDeps()
+  // 回收空間要等兩條 lane 都沒有工作。
+  createOpencodeRetentionDeps(
+    () => activeLaneCounts.interactive === 0 && activeLaneCounts.scheduled === 0
+  )
 );
 
 server.listen(port, '0.0.0.0', () => {

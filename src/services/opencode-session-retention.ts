@@ -18,6 +18,11 @@ export const RETENTION_BATCH_LIMIT = 100;
 export const RETENTION_INTERVAL_MS = 60 * 60 * 1000;
 const DEFAULT_RETENTION_DAYS = 30;
 const OPENCODE_COMMAND_TIMEOUT_MS = 60 * 1000;
+/** 可回收頁數達總頁數的這個比例才回收（issue 0009 TBD-2）。 */
+export const RECLAIM_FREELIST_RATIO = 0.2;
+const RECLAIM_MIN_INTERVAL_MS = 24 * 60 * 60 * 1000;
+/** VACUUM 要複製整個資料庫；實測 220 MB 不到 1 秒，上限放寬給更大的資料庫與較慢的磁碟。 */
+const VACUUM_TIMEOUT_MS = 10 * 60 * 1000;
 
 /** 挑選用的 session 摘要，來自 `opencode db` 查詢的 `id`、`time_updated`、`parent_id`。 */
 export interface RetentionCandidate {
@@ -100,11 +105,77 @@ export interface RetentionDeps {
   deleteSession: (id: string) => Promise<void>;
   /** 讀不到綁定時拋出例外：沒有保護清單就不能刪。 */
   readProtectedIds: () => Set<string>;
+  /** `page_count` 與 `freelist_count`。 */
+  readSpaceStats: () => Promise<SpaceStats>;
+  vacuum: () => Promise<void>;
+  /** 沒有 opencode 任務在執行。 */
+  isIdle: () => boolean;
   now?: () => number;
+}
+
+export interface SpaceStats {
+  pageCount: number;
+  freelistCount: number;
+}
+
+export type ReclaimOutcome =
+  | 'reclaimed'
+  | 'below-threshold'
+  | 'busy'
+  | 'recently-reclaimed'
+  | 'failed';
+
+/** 跨輪次保存的回收狀態，由排程持有。 */
+export interface ReclaimState {
+  lastReclaimAt: number | null;
+}
+
+/** 解析 `select * from pragma_page_count(), pragma_freelist_count()` 的 JSON 輸出。 */
+export function parseSpaceStats(stdout: string): SpaceStats {
+  const parsed: unknown = JSON.parse(stdout);
+  const row = (Array.isArray(parsed) ? parsed[0] : undefined) as
+    | Record<string, unknown>
+    | undefined;
+  const pageCount = row?.['page_count'];
+  const freelistCount = row?.['freelist_count'];
+  if (typeof pageCount !== 'number' || typeof freelistCount !== 'number') {
+    throw new Error('opencode db output has no page_count / freelist_count');
+  }
+  return { pageCount, freelistCount };
+}
+
+/**
+ * 刪除後空出的頁面會被重複使用，檔案不再長大，但要變小得 VACUUM。實測 220 MB 回收不到 1 秒，
+ * 期間讀取不受影響、寫入最多等 390 ms，opencode 的連線本身有 busy_timeout=5000；仍只在沒有任務時做，
+ * 而且一天最多一次。平常的頁面會被重複使用，所以通常只有清完積壓後才會觸發。
+ */
+async function maybeReclaimSpace(
+  deps: RetentionDeps,
+  state: ReclaimState,
+  now: () => number
+): Promise<ReclaimOutcome> {
+  const at = now();
+  if (state.lastReclaimAt !== null && at - state.lastReclaimAt < RECLAIM_MIN_INTERVAL_MS) {
+    return 'recently-reclaimed';
+  }
+  try {
+    const stats = await deps.readSpaceStats();
+    if (stats.pageCount <= 0 || stats.freelistCount / stats.pageCount < RECLAIM_FREELIST_RATIO) {
+      return 'below-threshold';
+    }
+    if (!deps.isIdle()) return 'busy';
+    await deps.vacuum();
+    state.lastReclaimAt = at;
+    return 'reclaimed';
+  } catch (error) {
+    recordRuntimeIssue('opencode-retention:vacuum', error);
+    return 'failed';
+  }
 }
 
 export interface RetentionRunResult {
   skipped?: 'disabled' | 'protected-ids-unavailable' | 'query-failed';
+  reclaim?: ReclaimOutcome;
   candidates: number;
   deleted: number;
   failed: number;
@@ -114,7 +185,8 @@ export interface RetentionRunResult {
 export async function runRetentionOnce(
   config: RetentionConfig,
   deps: RetentionDeps,
-  limit: number = RETENTION_BATCH_LIMIT
+  limit: number = RETENTION_BATCH_LIMIT,
+  reclaimState: ReclaimState = { lastReclaimAt: null }
 ): Promise<RetentionRunResult> {
   const now = deps.now ?? Date.now;
   const startedAt = now();
@@ -169,7 +241,8 @@ export async function runRetentionOnce(
       new Error(`${failed}/${toDelete.length} session 刪除失敗：${(firstError as Error)?.message}`)
     );
   }
-  const summary = result({ candidates: toDelete.length, deleted, failed });
+  const reclaim = await maybeReclaimSpace(deps, reclaimState, now);
+  const summary = result({ candidates: toDelete.length, deleted, failed, reclaim });
   log.info('run', { ...summary });
   return summary;
 }
@@ -192,8 +265,10 @@ export function startOpencodeSessionRetention(
 ): RetentionHandle {
   let timer: NodeJS.Timeout | null = null;
   let running = false;
+  const reclaimState: ReclaimState = { lastReclaimAt: null };
 
-  const runOnce = async (): Promise<RetentionRunResult> => runRetentionOnce(config, deps);
+  const runOnce = async (): Promise<RetentionRunResult> =>
+    runRetentionOnce(config, deps, RETENTION_BATCH_LIMIT, reclaimState);
 
   if (config.enabled) {
     log.info('scheduled', { retentionDays: config.retentionDays, intervalMs });
@@ -223,9 +298,26 @@ export function startOpencodeSessionRetention(
   };
 }
 
-/** 實際的 opencode CLI 與綁定狀態檔。 */
-export function createOpencodeRetentionDeps(): RetentionDeps {
+/** 實際的 opencode CLI 與綁定狀態檔；isIdle 由掛載的服務提供。 */
+export function createOpencodeRetentionDeps(isIdle: () => boolean): RetentionDeps {
   return {
+    isIdle,
+    readSpaceStats: async () => {
+      const { stdout } = await runProcess(
+        'opencode',
+        [
+          'db',
+          '--format',
+          'json',
+          'select * from pragma_page_count(), pragma_freelist_count(), pragma_page_size()'
+        ],
+        { timeoutMs: OPENCODE_COMMAND_TIMEOUT_MS }
+      );
+      return parseSpaceStats(stdout);
+    },
+    vacuum: async () => {
+      await runProcess('opencode', ['db', 'VACUUM'], { timeoutMs: VACUUM_TIMEOUT_MS });
+    },
     queryCandidates: async (limit) => {
       const sql =
         'select id, time_updated, parent_id from session where parent_id is null ' +

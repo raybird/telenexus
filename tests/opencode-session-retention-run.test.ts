@@ -7,6 +7,7 @@ import {
   createOpencodeRetentionDeps,
   loadRetentionConfig,
   parseCandidateRows,
+  parseSpaceStats,
   runRetentionOnce,
   shouldMainRunRetention,
   startOpencodeSessionRetention,
@@ -45,6 +46,9 @@ function fakeDeps(overrides: Partial<RetentionDeps> = {}): RetentionDeps & {
       deleted.push(id);
     },
     readProtectedIds: () => new Set(['bound']),
+    readSpaceStats: async () => ({ pageCount: 1000, freelistCount: 0 }),
+    vacuum: async () => {},
+    isIdle: () => true,
     now: () => NOW,
     ...overrides
   };
@@ -255,7 +259,7 @@ exit 0
   const previousPath = process.env.PATH;
   process.env.PATH = `${dir}${path.delimiter}${previousPath ?? ''}`;
   try {
-    const deps = createOpencodeRetentionDeps();
+    const deps = createOpencodeRetentionDeps(() => true);
     assert.deepEqual(await deps.queryCandidates(3), [
       { id: 'ses_old', updatedAt: 1700000000000, parentId: null }
     ]);
@@ -265,6 +269,134 @@ exit 0
       'db --format json select id, time_updated, parent_id from session where parent_id is null order by time_updated asc limit 3',
       'session delete ses_ok',
       'session delete ses_fail'
+    ]);
+  } finally {
+    if (previousPath === undefined) delete process.env.PATH;
+    else process.env.PATH = previousPath;
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+function reclaimDeps(
+  stats: { pageCount: number; freelistCount: number },
+  overrides: Partial<RetentionDeps> = {}
+): ReturnType<typeof fakeDeps> & { vacuums: number } {
+  const deps = fakeDeps({ readSpaceStats: async () => stats, ...overrides });
+  const tracked = Object.assign(deps, { vacuums: 0 });
+  const vacuum = overrides.vacuum;
+  tracked.vacuum = async () => {
+    tracked.vacuums += 1;
+    if (vacuum) await vacuum();
+  };
+  return tracked;
+}
+
+test('SCN-006: 可回收空間達總頁數 20% 且沒有任務在執行時回收', async () => {
+  const deps = reclaimDeps({ pageCount: 1000, freelistCount: 200 });
+  const result = await runRetentionOnce(ENABLED, deps, 100, { lastReclaimAt: null });
+  assert.equal(result.reclaim, 'reclaimed');
+  assert.equal(deps.vacuums, 1);
+});
+
+test('SCN-006: 可回收空間低於門檻時不回收', async () => {
+  const deps = reclaimDeps({ pageCount: 1000, freelistCount: 199 });
+  const result = await runRetentionOnce(ENABLED, deps, 100, { lastReclaimAt: null });
+  assert.equal(result.reclaim, 'below-threshold');
+  assert.equal(deps.vacuums, 0);
+});
+
+test('SCN-006: 有任務在執行時不回收', async () => {
+  const deps = reclaimDeps({ pageCount: 1000, freelistCount: 500 }, { isIdle: () => false });
+  const result = await runRetentionOnce(ENABLED, deps, 100, { lastReclaimAt: null });
+  assert.equal(result.reclaim, 'busy');
+  assert.equal(deps.vacuums, 0);
+});
+
+test('SCN-006: 一天內最多回收一次', async () => {
+  const state = { lastReclaimAt: NOW - 23 * 60 * 60 * 1000 };
+  const deps = reclaimDeps({ pageCount: 1000, freelistCount: 500 });
+  const result = await runRetentionOnce(ENABLED, deps, 100, state);
+  assert.equal(result.reclaim, 'recently-reclaimed');
+  assert.equal(deps.vacuums, 0);
+
+  const later = { lastReclaimAt: NOW - 25 * 60 * 60 * 1000 };
+  const again = await runRetentionOnce(ENABLED, deps, 100, later);
+  assert.equal(again.reclaim, 'reclaimed');
+  assert.equal(deps.vacuums, 1);
+  assert.equal(later.lastReclaimAt, NOW);
+});
+
+test('SCN-005/SCN-006: 回收失敗時記錄 runtime issue，不拋出', async () => {
+  const { scopes, unhook } = captureIssueScopes();
+  try {
+    const deps = reclaimDeps(
+      { pageCount: 1000, freelistCount: 500 },
+      {
+        vacuum: async () => {
+          throw new Error('database is locked (retention vacuum test)');
+        }
+      }
+    );
+    const result = await runRetentionOnce(ENABLED, deps, 100, { lastReclaimAt: null });
+    assert.equal(result.reclaim, 'failed');
+    assert.deepEqual(scopes, ['opencode-retention:vacuum']);
+  } finally {
+    unhook();
+  }
+});
+
+test('SCN-003/SCN-006: 停用時不讀取空間也不回收', async () => {
+  let reads = 0;
+  const deps = reclaimDeps(
+    { pageCount: 1000, freelistCount: 500 },
+    {
+      readSpaceStats: async () => {
+        reads += 1;
+        return { pageCount: 1000, freelistCount: 500 };
+      }
+    }
+  );
+  const result = await runRetentionOnce({ enabled: false, retentionDays: 30 }, deps, 100, {
+    lastReclaimAt: null
+  });
+  assert.equal(result.reclaim, undefined);
+  assert.equal(reads, 0);
+  assert.equal(deps.vacuums, 0);
+});
+
+test('SCN-006: 解析 page_count 與 freelist_count，格式不符時拋出', () => {
+  assert.deepEqual(
+    parseSpaceStats('[\n  {"page_count": 53928, "freelist_count": 10757, "page_size": 4096}\n]\n'),
+    { pageCount: 53928, freelistCount: 10757 }
+  );
+  assert.throws(() => parseSpaceStats('[{"page_count": 10}]'));
+  assert.throws(() => parseSpaceStats('[]'));
+  assert.throws(() => parseSpaceStats('[\n  {"page_count": 53'));
+});
+
+test('SCN-006: 實際的 deps 以 opencode db 讀取空間並執行 VACUUM', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'telenexus-fake-opencode-vacuum-'));
+  const argsLog = path.join(dir, 'args.log');
+  fs.writeFileSync(
+    path.join(dir, 'opencode'),
+    `#!/bin/sh
+printf '%s\\n' "$*" >> "${argsLog}"
+case "$4" in
+  *pragma_page_count*) printf '[{"page_count":100,"freelist_count":30,"page_size":4096}]\\n' ;;
+esac
+exit 0
+`,
+    { mode: 0o755 }
+  );
+  const previousPath = process.env.PATH;
+  process.env.PATH = `${dir}${path.delimiter}${previousPath ?? ''}`;
+  try {
+    const deps = createOpencodeRetentionDeps(() => true);
+    assert.deepEqual(await deps.readSpaceStats(), { pageCount: 100, freelistCount: 30 });
+    await deps.vacuum();
+    assert.deepEqual(fs.readFileSync(argsLog, 'utf8').trim().split('\n'), [
+      'db --format json select * from pragma_page_count(), pragma_freelist_count(), pragma_page_size()',
+      'db VACUUM'
     ]);
   } finally {
     if (previousPath === undefined) delete process.env.PATH;
