@@ -20,9 +20,13 @@
 
 ## 依目的閱讀
 
+### 我想避開已經出過事的坑
+
+- [地雷紀錄](./agents/landmines.md) — 實際出過事的坑，每條附症狀、觸發情境、檢查方式與證據；何時讀見 `docs/agents/project.md`。
+
 ### 我想看網頁工具替換方案
 
-- [Issue 0010：HTTP 優先＋Chrome DevTools MCP](./issues/issue-0010/README.md) — 2026-10-04 建立並核准，Task 已拆解；先做隔離契約驗證，再推進程序回收、工具替換與技能遷移。
+- [Issue 0010：HTTP 優先＋Chrome DevTools MCP](./issues/issue-0010/README.md) — 已完成：PR #11 於 2026-10-05 合併並隨 v2.28.0 發佈。
 
 ### 我想快速上手
 

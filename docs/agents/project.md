@@ -17,7 +17,7 @@
 交付前依序執行，三者都以 exit 0 為通過：
 
 1. `npm run build`：`tsc` 就是型別檢查，repo 沒有獨立的 typecheck 指令。
-2. `npm run test`：核對輸出的 `# tests` 與 `tests/` 下的測試檔數相稱（2026-10-01 基準：46 個檔、284 個測試）。v2.22.2 之前 glob 沒加引號，只跑到 4 個檔，輸出仍是 `# fail 0`。
+2. `npm run test`：核對輸出的 `# tests` 與 `tests/` 下的測試檔數相稱（2026-10-01 基準：46 個檔、284 個測試），原因見[地雷 L-01](landmines.md)。
 3. `npm run lint`
 
 改到 `scripts/install.sh` 或升級流程時加跑 `npm run test:installer`。
@@ -30,13 +30,15 @@ GitHub Actions 只有 tag 觸發的 `release.yml`，它只建映像與打包、�
 
 開發容器沒有編譯後的 `/app/dist`，bot 的排程與記憶 skill 在開發 stack 內無法使用。
 
-維護者的正式服務跑在 repo 之外的 release 部署目錄（GHCR 映像），repo 的 `.env` 在 2026-10-01 仍與它共用同一個 token。啟動開發 stack 前，確認 `.env` 已換成另一個 bot 的 `TELEGRAM_TOKEN`、`WEB_PORT` 已錯開：同一個 token 兩邊同時 poll，Telegram 會回 409，兩邊都收不到訊息。驗證以測試為主；需要實機驗證時，由使用者決定時機與方式。
+維護者的正式服務跑在 repo 之外的 release 部署目錄（GHCR 映像），repo 的 `.env` 在 2026-10-16 仍與它共用同一個 token 與 `WEB_PORT`。啟動開發 stack 前，確認 `.env` 已換成另一個 bot 的 `TELEGRAM_TOKEN`、`WEB_PORT` 已錯開：同一個 token 兩邊同時 poll，Telegram 會回 409，兩邊都收不到訊息。驗證以測試為主；需要實機驗證時，由使用者決定時機與方式。
 
 ## 提交與交付
 
 - **訊息格式**：`type(scope): 中文摘要`。scope 用子系統名（如 `opencode`、`memoria`、`installer`、`model-health`），沒有明確子系統時省略。歷史上沒有使用 footer；有對應 issue 時才加 `Refs: #ID`。
-- **基準分支**：`main`，遠端 `origin` 是 GitHub（SSH，不需要 token）。歷史以直接提交 `main` 為主，要不要開分支與 PR 依使用者當次指示；既有分支命名是 `<type>/<描述>`（如 `fix/upstream-429-failfast`）。
+- **基準分支**：`main`，遠端 `origin` 是 GitHub（`raybird/telenexus`，SSH，不需要 token）。歷史以直接提交 `main` 為主，要不要開分支與 PR 依使用者當次指示；既有分支命名是 `<type>/<描述>`（如 `fix/upstream-429-failfast`）。
 - **版本 commit 與 tag 由發版腳本產生**：純版號 commit（如 `2.27.3`）、`v*` tag 與 README 版本 badge 都交給 `npm run release:patch|minor|major -- -m "<訊息>"`。腳本會直接 `git push` 並推 tag，tag 觸發 GHCR 映像與 release bundle 發佈，所以發版由使用者下令。
+- **worktree**：放在主 checkout 的同層目錄，命名為 `moltbot-lite-<issue 編號>`（issue 0008 用過 `moltbot-lite-0008`）。
+- **平台 issue 查詢**（唯讀，供懸置掃描）：`gh issue list --repo raybird/telenexus --state open`。GitHub 上的開關狀態可能和 issue 文件不一致，見[地雷 L-09](landmines.md#l-09-issue-文件與實際交付狀態不一致)。
 - **發版腳本的前提**：在 `main`、有 staged 變更、沒有 unstaged 變更、帶 `-m`。功能已先 commit 時，把該版的 `CHANGELOG.md` 條目 `git add` 後以 `-m "docs: <新版號> release notes"` 執行；每版在歷史上是 `docs: X release notes` 接 `X` 兩筆。
 
 ## 常青文件更新責任
@@ -53,6 +55,7 @@ GitHub Actions 只有 tag 觸發的 `release.yml`，它只建映像與打包、�
 | 記憶檢索（SAR）行為                                   | `docs/summary-aware-retrieval-plan.md`                                      |
 | 使用者可見的功能與指令                                | `README.md`                                                                 |
 | npm scripts、開發命令                                 | `CLAUDE.md` 的 Common Commands                                              |
+| 本機建置步驟、新增外部服務或 compose 服務             | `CONTRIBUTING.md` 的開發流程、`README.md` 的本機開發                        |
 | 新增或淘汰 `docs/` 文件                               | `docs/README.md` 索引                                                       |
 | 發版                                                  | `CHANGELOG.md` 該版條目                                                     |
 
@@ -60,7 +63,8 @@ GitHub Actions 只有 tag 觸發的 `release.yml`，它只建映像與打包、�
 
 ## 本地 gate 與案例
 
-- **GitNexus**：`CLAUDE.md` 要求改 symbol 前跑 `gitnexus_impact`、commit 前跑 `gitnexus_detect_changes`。impact 在這個 repo 會低報呼叫者（2026-09-08 實測 `interpretEvent` 回報 0，實際有 2 個生產呼叫點），所以另外用 `grep -rn "\bsymbolName("` 數一遍，兩者不一致時以 grep 為準。
+- **GitNexus**：`CLAUDE.md` 要求改 symbol 前跑 `gitnexus_impact`、commit 前跑 `gitnexus_detect_changes`。impact 在這個 repo 會低報呼叫者（2026-09-08 實測 `interpretEvent` 回報 0，實際有 2 個生產呼叫點），所以另外用 `grep -rn "\bsymbolName("` 數一遍，兩者不一致時以 grep 為準。在 worktree 裡 `gitnexus_detect_changes` 讀的是主 checkout 的索引（2026-10-01 在 worktree 中回報 `No changes detected`），commit 前的範圍核對改用 `git diff --stat`。
 - **新增必須被處理的狀態時，手動找齊所有分支**：`tsconfig.json` 的 `noFallthroughCasesInSwitch` 是註解掉的，eslint 也沒開 `switch-exhaustiveness-check`，編譯器不會指出漏處理的 `switch`。
-- **需由使用者決定**：發版；啟動或重啟服務；升級正式部署；issue 編號來源（GitHub 上目前沒有 issue，建立第一份 issue 文件前先問）。
+- **需由使用者決定**：發版；啟動或重啟服務；升級正式部署；在 GitHub 上建立或關閉 issue。issue 編號沿用 GitHub issue 編號：先 `gh issue create`，再建 `docs/issues/issue-{編號}/`。
+- **地雷**：[landmines.md](landmines.md) 記錄實際出過事的坑，每條附證據。規劃時遇到下列情況先讀對應條目：opencode 的呼叫、輸出解析、錯誤判定或釘版（L-02～L-06）；子程序或瀏覽器的生命週期（L-07）；容器執行身分或 volume（L-08）；test script（L-01）；提交證據檔（L-10）；PR 合併後結案（L-09）。issue 中新出事的坑依 [document-types.md 的「地雷紀錄」](document-types.md#地雷紀錄)加在該檔。
 - **既有規劃文件**：`docs/superpowers/plans/` 與 `docs/*-plan.md` 是導入本流程前的產物。新 issue 文件依 `docs/AGENTS.md` 放在 `docs/issues/issue-{編號}/`。
