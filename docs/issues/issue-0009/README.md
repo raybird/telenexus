@@ -142,10 +142,13 @@ Feature: opencode session 的保留期清理
 | 2026-10-16 | 交付方式選本機獨立審查（見 Gate 豁免紀錄），狀態改為待審查 | -      |
 | 2026-10-16 | 獨立審查 a64e97c：RETURN TO execute-task（[review-a64e97c.md](./review-a64e97c.md)）；M1、S1 經逐題確認（TBD-4、TBD-5），SCN-001 修訂並重新核准 | -      |
 | 2026-10-16 | 審查修正完成（計畫步驟 7）：只清理 TeleNexus 目錄、`Session not found` 視為已刪除、回收前要求全庫閒置 5 分鐘，文件改成實際行為；修正後重新審查 | -      |
+| 2026-10-16 | 第二輪獨立審查 00f1e8f：PASS（[review-00f1e8f.md](./review-00f1e8f.md)），報告提交 `0e4925a` | -      |
+| 2026-10-16 | 使用者同意合併，`feat/issue-0009-opencode-session-retention` 以 fast-forward 合併進 main（`0e4925a`）；尚未推送，GitHub #9 仍 open | -      |
 
 ---
 
 **建立日期**: 2026-10-01  
 **分級**: Medium  
 **風險**: High\
-**狀態**: 待審查
+**狀態**: 已完成\
+**完成日期**: 2026-10-16（本機 fast-forward 合併）

@@ -66,5 +66,5 @@ GitHub Actions 只有 tag 觸發的 `release.yml`，它只建映像與打包、�
 - **GitNexus**：`CLAUDE.md` 要求改 symbol 前跑 `gitnexus_impact`、commit 前跑 `gitnexus_detect_changes`。impact 在這個 repo 會低報呼叫者（2026-09-08 實測 `interpretEvent` 回報 0，實際有 2 個生產呼叫點），所以另外用 `grep -rn "\bsymbolName("` 數一遍，兩者不一致時以 grep 為準。在 worktree 裡 `gitnexus_detect_changes` 讀的是主 checkout 的索引（2026-10-01 在 worktree 中回報 `No changes detected`），commit 前的範圍核對改用 `git diff --stat`。
 - **新增必須被處理的狀態時，手動找齊所有分支**：`tsconfig.json` 的 `noFallthroughCasesInSwitch` 是註解掉的，eslint 也沒開 `switch-exhaustiveness-check`，編譯器不會指出漏處理的 `switch`。
 - **需由使用者決定**：發版；啟動或重啟服務；升級正式部署；在 GitHub 上建立或關閉 issue。issue 編號沿用 GitHub issue 編號：先 `gh issue create`，再建 `docs/issues/issue-{編號}/`。
-- **地雷**：[landmines.md](landmines.md) 記錄實際出過事的坑，每條附證據。規劃時遇到下列情況先讀對應條目：opencode 的呼叫、輸出解析、錯誤判定或釘版（L-02～L-06）；子程序或瀏覽器的生命週期（L-07）；容器執行身分或 volume（L-08）；test script（L-01）；提交證據檔（L-10）；PR 合併後結案（L-09）。issue 中新出事的坑依 [document-types.md 的「地雷紀錄」](document-types.md#地雷紀錄)加在該檔。
+- **地雷**：[landmines.md](landmines.md) 記錄實際出過事的坑，每條附證據。規劃時遇到下列情況先讀對應條目：opencode 的呼叫、輸出解析、錯誤判定或釘版（L-02～L-06、L-11、L-12）；子程序或瀏覽器的生命週期（L-07）；容器執行身分或 volume（L-08）；test script（L-01）；提交證據檔（L-10）；PR 合併後結案（L-09）。issue 中新出事的坑依 [document-types.md 的「地雷紀錄」](document-types.md#地雷紀錄)加在該檔。
 - **既有規劃文件**：`docs/superpowers/plans/` 與 `docs/*-plan.md` 是導入本流程前的產物。新 issue 文件依 `docs/AGENTS.md` 放在 `docs/issues/issue-{編號}/`。

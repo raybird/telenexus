@@ -74,6 +74,20 @@
 - **怎麼查**：提交前搜尋本機家目錄路徑、Telegram 使用者 ID、bot token 與完整容器 ID，並遮蔽命中的內容。
 - **證據**：issue 0007 第一輪審查的 M1（[review-60f845f.md](../issues/issue-0007/review-60f845f.md)）。
 
+## L-11 opencode 的輸出經 pipe 被截斷，exit 仍是 0
+
+- **症狀**：`opencode session list --format json` 或 `opencode db --format json` 的輸出不完整，JSON 解析失敗或只拿到前段；指令本身 exit 0、stderr 沒有任何訊息。
+- **觸發**：用程式（`spawn`、`runProcess`）或 shell pipe 讀取 opencode 超過約 64 KB 的輸出。重導到檔案時是完整的。
+- **怎麼查**：比對同一個指令重導到檔案與經 pipe 的位元組數。程式解析時以「能完整解析」為前提，解析失敗就當作失敗，不使用部分結果；查詢加上 `LIMIT`，讓輸出保持在小範圍內。
+- **證據**：[issue 0009 步驟 1 實測](../issues/issue-0009/evidence/step1-delete-vacuum-probe.md)的「`session list` 與 `opencode db` 的輸出」一節：3,710 筆經 pipe 只拿到 196,608 bytes，重導到檔案是 808,437 bytes。
+
+## L-12 `opencode run` 在 stdin 沒關時一直等待
+
+- **症狀**：`opencode run` 沒有任何輸出，也沒有建立 session，看起來像卡住或被資料庫鎖住。
+- **觸發**：在背景子殼、或以 stdin 為 pipe 的方式啟動 `opencode run`。它會讀 stdin，stdin 一直不關就一直等。`runProcess()` 沒給 `stdin` 時是 `ignore`，不受影響；自行 `spawn` 或在 shell 腳本裡呼叫時要注意。
+- **怎麼查**：加上 `</dev/null`（shell）或 `stdio: ['ignore', ...]`（node）後重跑，10 秒內就會開始輸出。
+- **證據**：[issue 0009 步驟 1 實測](../issues/issue-0009/evidence/step1-delete-vacuum-probe.md)的「有任務執行時刪除」一節：第一次嘗試 5 分鐘沒有輸出，改成 `</dev/null` 後正常。
+
 ---
 
-**最後驗證**: 2026-10-16（逐條核對證據連結與提交存在）
+**最後驗證**: 2026-10-16（逐條核對證據連結與提交存在；新增 L-11、L-12）

@@ -159,6 +159,7 @@ opencode 1.15.10 提供的相關指令：`opencode session list`（`--format jso
      - 最小實作後：同一命令連同選取測試共 33 個，exit 0、全部通過。
      - 真實 opencode 1.18.34：新的兩段 SQL 在空資料庫上 exit 0、輸出格式符合；刪除不存在的 session 輸出 `Error: Session not found: <id>`、exit 1，與測試的假 opencode 一致。
      - 唯讀查詢（2026-10-16）：正式部署 `cwd` 與 `APP_PROJECT_DIR` 都是 `/app`，3,716 個頂層 session 全部在範圍內（過期的 2,331 個），清理效果不受影響。這台主機的全域 opencode 資料庫有 928 個頂層 session，原本 621 個會被刪，加上目錄條件後只剩本 repo 目錄下的 11 個。這 11 個仍在範圍內，屬於 Q1 選項說明裡接受的範圍。
+     - 重構：no-op。修正只有一個提交，最小實作後的綠燈就是最終狀態（第二輪審查在 00f1e8f 重跑也是 481/481）；此行依 [review-00f1e8f.md](./review-00f1e8f.md) 的 SHOULD FIX 於合併後補記。
      - 專案 gate：`npm run build` exit 0；`npm run test` exit 0，`# tests 481`、`# pass 481`、`# fail 0`，70 個測試檔；`npm run lint` exit 0。
 
 ## 風險與首要驗證
@@ -173,5 +174,5 @@ opencode 1.15.10 提供的相關指令：`opencode session list`（`--format jso
 - [x] 2026-10-16 資料庫複本放在 repo 之外，驗證後已刪除
 - [x] 2026-10-16 證據檔只含彙總數字（無對話內容、token、使用者 ID、本機路徑）
 - [x] 2026-10-16 `docker-compose.yml`、`docker-compose.release.yml` 沒有變更
-- [ ] 發版說明提醒：預設啟用，升級後首次清理會刪除 30 天以前的 session，並附停用方式
+- [ ] 發版說明提醒：預設啟用，升級後首次清理會刪除 30 天以前的 session，並附停用方式（發版時處理，由使用者決定時機）
 - [x] 2026-10-16 依 `docs/agents/project.md` 的常青文件對照更新受影響的文件（configuration-reference、CLAUDE.md、ARCHITECTURE.md、.env.example）

@@ -24,6 +24,10 @@
 
 - [地雷紀錄](./agents/landmines.md) — 實際出過事的坑，每條附症狀、觸發情境、檢查方式與證據；何時讀見 `docs/agents/project.md`。
 
+### 我想看 opencode session 清理
+
+- [Issue 0009：opencode session 保留期清理](./issues/issue-0009/README.md) — 已完成：2026-10-16 合併；設定與行為見 `docs/configuration-reference.md` 的「opencode session 保留期清理」。
+
 ### 我想看網頁工具替換方案
 
 - [Issue 0010：HTTP 優先＋Chrome DevTools MCP](./issues/issue-0010/README.md) — 已完成：PR #11 於 2026-10-05 合併並隨 v2.28.0 發佈。
