@@ -43,11 +43,13 @@ opencode 1.15.10 提供的相關指令：`opencode session list`（`--format jso
 
 - 以最後更新時間判斷是否過期，而不是建立時間。長期沿用的聊天 session 建立得早但一直在更新。
 - 綁定中的聊天 session 一律保留，不論多舊。綁定由 telenexus 寫在 `data/chat-session-state.json`（issue 0012），兩個服務共用 `data/`；清理在每次執行時重新唯讀讀取，讀取失敗就跳過這一次清理，不在沒有保護清單的情況下刪除。
-- 每次最多回傳固定數量，最舊的優先。
+- 只選頂層 session（`parent_id` 為空）；子 session 會隨父 session 一併刪除。
+- 每次最多回傳固定數量（100），最舊的優先。
+- 候選以 `opencode db --format json` 的 `SELECT … ORDER BY time_updated LIMIT 100` 取得，只讀不寫。opencode 的輸出超過約 64 KB 時，經 pipe 會被截斷而 exit 仍為 0，所以輸出必須能完整解析成 JSON，解析失敗就當作清理失敗。`session list` 由新到舊排序，不適用（步驟 1）。
 
 ### 執行與排程
 
-- 定期執行（暫定每天一次，在離峰時段），啟動後不立刻跑。
+- 每小時執行一次，啟動後不立刻跑（TBD-1）。呼叫 opencode 的子程序 stdin 設為 ignore：`opencode run` 會讀 stdin，未關閉時會一直等待（步驟 1）。
 - 對每個待刪 session 呼叫 `opencode session delete`。單一 session 失敗就記下並繼續下一個；整體失敗以 `recordRuntimeIssue('opencode-retention:<原因>', ...)` 記錄，下次再試。
 - 每次執行寫一筆 log：候選數、成功數、失敗數、耗時。
 - 只在一個服務執行：使用 runner 的部署由 `agent-runner` 掛載，沒有 runner 的部署由主服務掛載，避免兩邊同時刪。
@@ -67,7 +69,7 @@ opencode 1.15.10 提供的相關指令：`opencode session list`（`--format jso
 
 ### 空間回收
 
-刪除後檔案不會縮小，但空出的頁面會被重複使用，檔案不再長大。要讓檔案變小需要 `VACUUM`，它在執行期間需要獨佔資料庫。條件：沒有 opencode 任務在執行，且可回收空間超過門檻。門檻與做法由步驟 1 決定。
+刪除後檔案不會縮小，但空出的頁面會被重複使用，檔案不再長大。要讓檔案變小需要 `VACUUM`，它在執行期間需要獨佔資料庫。做法：經 `opencode db "VACUUM"` 執行，`page_count` 與 `freelist_count` 經 `opencode db "pragma …"` 讀取。條件：沒有 opencode 任務在執行、`freelist_count` 達 `page_count` 的 20% 以上，且當天還沒回收過（TBD-2）。步驟 1 實測，220 MB 的複本回收不到 1 秒，期間讀取不受影響，寫入最多等 390 ms；opencode 的連線設有 `busy_timeout=5000`。
 
 ## 測試策略
 
@@ -84,9 +86,10 @@ opencode 1.15.10 提供的相關指令：`opencode session list`（`--format jso
 
 ## 實作步驟
 
-1. 📝 **在資料庫複本上驗證 opencode 的刪除與回收行為**（SCN-001、SCN-002、SCN-006）
+1. ✅ **在資料庫複本上驗證 opencode 的刪除與回收行為**（SCN-001、SCN-002、SCN-006）
    - 產出：實測紀錄，存於本目錄 `evidence/`；TBD-1 與 TBD-2 的結論。
    - 相依：無。資料庫複本放在 repo 之外，含有私人對話，不進版控，驗證完即刪除。
+   - 證據（2026-10-16）：[evidence/step1-delete-vacuum-probe.md](evidence/step1-delete-vacuum-probe.md)。完成判準逐項對應：刪除連帶清掉訊息、片段、事件與子 session，其他 session 不變；`storage/session_diff/` 的檔案不刪，但孤立的檔案合計只有約 1 KB，不處理。單次刪除 p50 785 ms，連續刪 100 個需 79.8 秒。在 `opencode run` 執行期間刪除 60 個，兩邊都成功。`session list` 由新到舊排序，`updated` 即 `time_updated`，輸出經 pipe 超過約 64 KB 會被截斷。`VACUUM` 讓 220.9 MB 降到 168.8 MB，期間讀取不受影響、寫入最多等 390 ms。綁定的 129 天前 session 在周圍 50 個被刪後，以 `-s` 接續成功，對照組（已刪除的 session）回 `Session not found`。複本已在驗證後刪除。
    - 完成判準：以下每一項都有實際輸出為證。`session delete` 後該 session 的訊息與片段筆數歸零，其他 session 不變，子 session 的處理方式明確；單次刪除與連續刪除 100 個的耗時；有 `opencode run` 在執行時刪除另一個 session 的結果；`session list` 的排序與 `updated` 欄位的意義；`VACUUM` 前後的檔案大小、耗時，以及期間另一個連線讀寫的行為；清理後 `opencode run -s <id>` 仍接續原 session。以映像目前釘的 opencode 版本實測，`現況` 一節記錄的 CLI 選項取自 1.15.10，需重新確認。
 2. 📝 **挑選待刪 session 的邏輯**（SCN-001、SCN-002）
    - 產出：挑選函式與單元測試。
@@ -117,8 +120,8 @@ opencode 1.15.10 提供的相關指令：`opencode session list`（`--format jso
 
 ## 檢查清單
 
-- [ ] 步驟 1 的實測在寫清理程式之前完成
-- [ ] 資料庫複本放在 repo 之外，驗證後已刪除
+- [x] 2026-10-16 步驟 1 的實測在寫清理程式之前完成
+- [x] 2026-10-16 資料庫複本放在 repo 之外，驗證後已刪除
 - [ ] 證據檔只含彙總數字（無對話內容、token、使用者 ID、本機路徑）
 - [ ] `docker-compose.yml`、`docker-compose.release.yml` 沒有變更
 - [ ] 發版說明提醒：預設啟用，升級後首次清理會刪除 30 天以前的 session，並附停用方式
