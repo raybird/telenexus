@@ -2,6 +2,27 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.30.0 — 2026-10-16
+
+### opencode session 保留期清理（#9）
+
+opencode 把每次執行的對話與工具輸出存進 `opencode.db`，自己從不清理。正式資料庫在 2026-10-01 是 123 MB，到 2026-10-16 已成長到約 221 MB。TeleNexus 另外保存對話紀錄，不會回頭讀舊的 opencode session。
+
+- 每小時刪除最後更新早於保留期（`OPENCODE_SESSION_RETENTION_DAYS`，預設 30 天）的 session，每次最多 100 個、最舊的優先；子 session 隨父 session 一起刪除。
+- 只清理 TeleNexus 執行 opencode 的目錄（`APP_PROJECT_DIR` 與其下的 `workspace`）。在主機上執行時，`opencode.db` 是使用者全域的，其他目錄的 session 不會被碰到。
+- 綁定中的聊天 session（`data/chat-session-state.json`）不論多舊都保留；綁定檔毀損或讀不到時跳過該次清理。
+- 可回收空間達兩成、而且兩個服務都沒有任務在執行時，以 `VACUUM` 回收，一天最多一次。
+- 模型健康檢查的探針結束後，刪除自己建立的 session。
+- 一律經 opencode 的 CLI 操作，不直接寫 opencode 的資料表。失敗記為 `opencode-retention:*` 與 `model-health:probe-session-delete` runtime issue，下一輪再試。
+
+2026-10-16 以本版程式對正式資料庫的複本跑完整清理：25 輪刪除 2,327 個 session、0 失敗，綁定的 session 保留且能以 `-s` 接續，檔案從 221.1 MB 降到 164.4 MB。證據見 [issue 0009](docs/issues/issue-0009/README.md)。
+
+### 升級注意
+
+- **預設啟用**。升級後一小時開始第一輪，之後每小時刪除 30 天以前的舊 session，直到積壓清完；依實測，約 2,300 個大約一天清完。被刪的 session 無法復原。
+- 要保留舊 session，升級前在 `.env` 設 `OPENCODE_SESSION_RETENTION_ENABLED=false`；要改保留天數，設 `OPENCODE_SESSION_RETENTION_DAYS`。說明見 [設定參考](docs/configuration-reference.md) 的「opencode session 保留期清理」。
+- `VACUUM` 期間會暫時多佔約一份資料庫大小的磁碟空間。
+
 ## 2.29.0 — 2026-10-07
 
 ### 聊天接續自己的 session（#12）
