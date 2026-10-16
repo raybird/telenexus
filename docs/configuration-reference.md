@@ -111,6 +111,23 @@ docker compose exec agent-runner sh -lc "cd /app/workspace && opencode run -s <s
 - `RUNNER_SERIALIZE_GEMINI=true`（預設）：在 runner 內序列化 Gemini 任務，降低併發導致的 `SIGKILL` 風險
 - `RUNNER_ZOMBIE_WARN_THRESHOLD=8`（預設）：寫入 `runner-status.md` 的殭屍進程告警門檻
 
+## opencode session 保留期清理
+
+最後驗證：2026-10-16（issue 0009 的實測與端到端驗證）。
+
+opencode 把每次執行的對話與工具輸出存進 `opencode.db`，自己不會清理。TeleNexus 另外保存對話紀錄，不會讀取舊的 opencode session，所以每小時清理一次：
+
+- `OPENCODE_SESSION_RETENTION_ENABLED`（預設 `true`）：設為 `false` 時完全不刪除。
+- `OPENCODE_SESSION_RETENTION_DAYS`（預設 `30`）：刪除最後更新早於這個天數的 session；0 或無效值視為 30。
+- 每次最多刪 100 個頂層 session，最舊的優先；子 session 會隨父 session 一起刪除。單次刪除約 0.8 秒。
+- 綁定中的聊天 session（`data/chat-session-state.json`）不論多舊都保留；這個檔案讀不到或毀損時跳過該次清理。
+- 可回收頁數達總頁數兩成、而且沒有任務在執行時，以 `VACUUM` 回收空間，一天最多一次。
+- 有 `RUNNER_ENDPOINT` 時只在 `agent-runner` 執行，否則在 `telenexus` 執行：兩個服務共用同一份 opencode 資料。
+- 失敗記為 runtime issue：`opencode-retention:protected-ids`、`opencode-retention:query`、`opencode-retention:delete`、`opencode-retention:vacuum`，下一輪會再試。
+- 模型健康檢查的探針結束後會刪除自己建立的 session；刪除失敗記為 `model-health:probe-session-delete`，不影響探測結果。
+
+**升級後的第一輪**：服務啟動一小時後開始，會刪除所有早於保留期的舊 session（積壓的部分每小時 100 個，逐步清完）。要保留舊 session 時，升級前設 `OPENCODE_SESSION_RETENTION_ENABLED=false`。
+
 ## Memoria 自動同步
 
 TeleNexus 會在每次成功對話後，背景嘗試呼叫 Memoria CLI 做增量同步。

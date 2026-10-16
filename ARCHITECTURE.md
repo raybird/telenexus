@@ -112,8 +112,12 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
   - 滑動視窗統計 per scope 錯誤頻率，超過閾值即推 Telegram 給 `ALLOWED_USER_ID`
   - 環境變數：`ERROR_ALERT_THRESHOLD` / `ERROR_ALERT_WINDOW_MS` / `ERROR_ALERT_COOLDOWN_MS`
 - `src/services/chat-session-store.ts`
-  - 每位使用者的聊天 opencode session 綁定，存於 `data/chat-session-state.json`；只有 telenexus 讀寫，Telegram 與 Web Console 的 pipeline 共用同一個實例
+  - 每位使用者的聊天 opencode session 綁定，存於 `data/chat-session-state.json`；只有 telenexus 寫入，Telegram 與 Web Console 的 pipeline 共用同一個實例；opencode session 保留期清理唯讀讀取它，保護綁定中的 session
   - 聊天以 `-s <id>` 接續綁定的 session，不用 `-c`（`-c` 接的是最後被更新的 session，排程與健康探針都會搶走它）
+- `src/services/opencode-session-retention.ts`
+  - 每小時刪除最後更新早於保留期（`OPENCODE_SESSION_RETENTION_DAYS`，預設 30 天）的頂層 opencode session，每次最多 100 個、最舊的優先；綁定中的聊天 session 一律保留，綁定狀態檔讀不到就跳過該次清理
+  - 一律經 opencode 的 CLI（`opencode db` 只讀查詢、`opencode session delete`、`opencode db VACUUM`）；可回收頁數達兩成且沒有任務在執行時回收空間，一天最多一次
+  - 兩個服務共用 opencode 的資料 volume，只在一邊執行：有 `RUNNER_ENDPOINT` 時在 agent-runner，否則在 telenexus
 - `src/services/interaction-guard.ts`
   - Per-user in-memory 多步驟互動狀態；`start / getState / isCommandAllowed / clear`
   - `CommandRouter` dispatch 前諮詢；`/abort` 自動 clear

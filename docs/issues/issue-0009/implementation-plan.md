@@ -131,10 +131,18 @@ opencode 1.15.10 提供的相關指令：`opencode session list`（`--format jso
      - 單迴圈合併：回收的判斷與執行器都以注入的 deps 在同一層觀察；真實的 `VACUUM` 與並行行為在步驟 1 已實測，端到端由步驟 6 承擔。
      - 重構：no-op；新程式經 prettier 格式化。
      - 專案 gate：`npm run build` exit 0；`npm run test` exit 0，`# tests 479`、`# pass 479`、`# fail 0`，70 個測試檔；`npm run lint` exit 0。
-6. 📝 **複本上的端到端驗證與文件**（SCN-001、SCN-002、SCN-006）
+6. ✅ **複本上的端到端驗證與文件**（SCN-001、SCN-002、SCN-006）
    - 產出：以實作後的映像對資料庫複本跑完整清理的紀錄；`docs/configuration-reference.md`、`CLAUDE.md`（模組表與相關段落）的更新。
    - 相依：步驟 3、5。啟動容器屬 `docs/agents/project.md` 列的使用者決定事項，執行前取得同意；只啟動 agent-runner，掛載的是複本，不碰任何運行中的部署。
    - 完成判準：清理後複本中早於保留期且未綁定的 session 數為零、綁定中的 session 仍在、檔案大小下降；`opencode run -s <綁定 id>` 仍可接續；文件寫明預設啟用、停用方式，以及升級後首次清理會刪除舊 session。
+   - 證據（2026-10-16）：[evidence/step6-e2e-copy.md](evidence/step6-e2e-copy.md)。使用者同意後，以本分支建出的本機映像啟動拋棄式 agent-runner，對正式資料庫的複本執行：
+     - 啟動 log 顯示清理以預設值排程（30 天、每小時）。
+     - 以編譯後的實作與真實 opencode 跑 25 輪，刪除 2,327 個 session、0 失敗。早於保留期且未綁定的頂層 session 從 2,326 降到 0，綁定的 135 天前 session 仍在。
+     - 檔案從 221.1 MB 降到 164.4 MB，第 3 輪觸發回收，之後一天一次的限制生效。
+     - `opencode run -s <綁定 id>` 接續成功，訊息從 4 則變 7 則，沒有新增 session。
+     - 編譯後的 `defaultProbe` 執行後沒有留下 session。
+     - 映像、容器與複本都已刪除，正式部署全程 healthy。
+     - 文件：`docs/configuration-reference.md` 新增「opencode session 保留期清理」一節，寫明預設啟用、停用方式與升級後的第一輪；`CLAUDE.md` 更新 Key Modules 表與模型健康檢查段落；`ARCHITECTURE.md` 更新模組清單；`.env.example` 已在步驟 3 更新。
 
 ## 風險與首要驗證
 
@@ -146,7 +154,7 @@ opencode 1.15.10 提供的相關指令：`opencode session list`（`--format jso
 
 - [x] 2026-10-16 步驟 1 的實測在寫清理程式之前完成
 - [x] 2026-10-16 資料庫複本放在 repo 之外，驗證後已刪除
-- [ ] 證據檔只含彙總數字（無對話內容、token、使用者 ID、本機路徑）
-- [ ] `docker-compose.yml`、`docker-compose.release.yml` 沒有變更
+- [x] 2026-10-16 證據檔只含彙總數字（無對話內容、token、使用者 ID、本機路徑）
+- [x] 2026-10-16 `docker-compose.yml`、`docker-compose.release.yml` 沒有變更
 - [ ] 發版說明提醒：預設啟用，升級後首次清理會刪除 30 天以前的 session，並附停用方式
-- [ ] 依 `docs/agents/project.md` 的常青文件對照更新受影響的文件
+- [x] 2026-10-16 依 `docs/agents/project.md` 的常青文件對照更新受影響的文件（configuration-reference、CLAUDE.md、ARCHITECTURE.md、.env.example）
