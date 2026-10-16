@@ -113,16 +113,16 @@ docker compose exec agent-runner sh -lc "cd /app/workspace && opencode run -s <s
 
 ## opencode session 保留期清理
 
-最後驗證：2026-10-16（issue 0009 的實測與端到端驗證）。
+最後驗證：2026-10-16（issue 0009 的實測、端到端驗證與審查修正）。
 
-opencode 把每次執行的對話與工具輸出存進 `opencode.db`，自己不會清理。TeleNexus 另外保存對話紀錄，不會讀取舊的 opencode session，所以每小時清理一次：
+opencode 把每次執行的對話與工具輸出存進 `opencode.db`，自己不會清理。TeleNexus 另外保存對話紀錄，不會讀取舊的 opencode session，所以每小時清理一次。只清理 TeleNexus 執行 opencode 的目錄（專案目錄 `APP_PROJECT_DIR`，未設定時為工作目錄，以及其下的 `workspace`；容器內是 `/app` 與 `/app/workspace`）裡的 session。在主機上執行時 `opencode.db` 是使用者全域的，其他目錄的 session 不會被碰到，但在這個 repo 目錄裡自己開的 opencode session 仍在範圍內。
 
 - `OPENCODE_SESSION_RETENTION_ENABLED`（預設 `true`）：設為 `false` 時完全不刪除。
 - `OPENCODE_SESSION_RETENTION_DAYS`（預設 `30`）：刪除最後更新早於這個天數的 session；0 或無效值視為 30。
 - 每次最多刪 100 個頂層 session，最舊的優先；子 session 會隨父 session 一起刪除。單次刪除約 0.8 秒。
-- 綁定中的聊天 session（`data/chat-session-state.json`）不論多舊都保留；這個檔案讀不到或毀損時跳過該次清理。
-- 可回收頁數達總頁數兩成、而且沒有任務在執行時，以 `VACUUM` 回收空間，一天最多一次。
-- 有 `RUNNER_ENDPOINT` 時只在 `agent-runner` 執行，否則在 `telenexus` 執行：兩個服務共用同一份 opencode 資料。
+- 綁定中的聊天 session（`data/chat-session-state.json`）不論多舊都保留；這個檔案毀損或讀取失敗時跳過該次清理。檔案不存在則視為沒有綁定，前提是執行清理的服務與 telenexus 共用 `data/`（compose 部署是共用的）。
+- 可回收頁數達總頁數兩成、執行清理的服務沒有任務，而且全庫最近 5 分鐘沒有任何 session 更新時，以 `VACUUM` 回收空間，一天最多一次。後一個條件涵蓋另一個服務的任務與健康探針，因為兩個服務寫的是同一份資料庫。`VACUUM` 期間會暫時多佔約一份資料庫大小的磁碟空間。
+- `agent-runner` 只要在跑就會清理；`telenexus` 只在沒有設定 `RUNNER_ENDPOINT` 時清理。所以 compose 部署把 `RUNNER_ENDPOINT` 留空時，兩個服務會同時清理；刪除時回 `Session not found` 會視為已刪除，不算失敗。
 - 失敗記為 runtime issue：`opencode-retention:protected-ids`、`opencode-retention:query`、`opencode-retention:delete`、`opencode-retention:vacuum`，下一輪會再試。
 - 模型健康檢查的探針結束後會刪除自己建立的 session；刪除失敗記為 `model-health:probe-session-delete`，不影響探測結果。
 

@@ -116,8 +116,9 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
   - 聊天以 `-s <id>` 接續綁定的 session，不用 `-c`（`-c` 接的是最後被更新的 session，排程與健康探針都會搶走它）
 - `src/services/opencode-session-retention.ts`
   - 每小時刪除最後更新早於保留期（`OPENCODE_SESSION_RETENTION_DAYS`，預設 30 天）的頂層 opencode session，每次最多 100 個、最舊的優先；綁定中的聊天 session 一律保留，綁定狀態檔讀不到就跳過該次清理
-  - 一律經 opencode 的 CLI（`opencode db` 只讀查詢、`opencode session delete`、`opencode db VACUUM`）；可回收頁數達兩成且沒有任務在執行時回收空間，一天最多一次
-  - 兩個服務共用 opencode 的資料 volume，只在一邊執行：有 `RUNNER_ENDPOINT` 時在 agent-runner，否則在 telenexus
+  - 只清理 TeleNexus 執行 opencode 的目錄（專案目錄與其下的 `workspace`）裡的 session；在主機上執行時，其他專案的 session 不受影響
+  - 一律經 opencode 的 CLI（`opencode db` 只讀查詢、`opencode session delete`、`opencode db VACUUM`）；可回收頁數達兩成、本服務沒有任務、全庫最近 5 分鐘沒有 session 更新時回收空間，一天最多一次
+  - agent-runner 一律執行，telenexus 只在沒有 `RUNNER_ENDPOINT` 時執行；兩邊同時清理時，`Session not found` 視為已刪除
 - `src/services/interaction-guard.ts`
   - Per-user in-memory 多步驟互動狀態；`start / getState / isCommandAllowed / clear`
   - `CommandRouter` dispatch 前諮詢；`/abort` 自動 clear

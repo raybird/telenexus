@@ -6,6 +6,7 @@ import path from 'node:path';
 import {
   createOpencodeRetentionDeps,
   loadRetentionConfig,
+  resolveRetentionDirectories,
   parseCandidateRows,
   parseSpaceStats,
   runRetentionOnce,
@@ -46,7 +47,7 @@ function fakeDeps(overrides: Partial<RetentionDeps> = {}): RetentionDeps & {
       deleted.push(id);
     },
     readProtectedIds: () => new Set(['bound']),
-    readSpaceStats: async () => ({ pageCount: 1000, freelistCount: 0 }),
+    readSpaceStats: async () => ({ pageCount: 1000, freelistCount: 0, latestSessionUpdate: null }),
     vacuum: async () => {},
     isIdle: () => true,
     now: () => NOW,
@@ -240,8 +241,9 @@ test('SCN-005: 上一次清理還沒結束時，這一輪跳過', async () => {
   }
 });
 
-test('SCN-001/SCN-005: 實際的 deps 以 opencode CLI 查詢與刪除，刪除失敗會拋出', async () => {
-  // 假的 opencode：記下每次的參數；db 吐固定的 JSON，刪除 ses_fail 時以 exit 1 失敗。
+test('SCN-001/SCN-005: 實際的 deps 只查 TeleNexus 目錄下的 session，已不存在的視為刪除完成', async () => {
+  // 假的 opencode：記下每次的參數；db 吐固定的 JSON；刪除 ses_fail 時以 exit 1 失敗，
+  // 刪除 ses_gone 時與真實 opencode 1.18.34 一樣回 Session not found。
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'telenexus-fake-opencode-retention-'));
   const argsLog = path.join(dir, 'args.log');
   fs.writeFileSync(
@@ -250,7 +252,9 @@ test('SCN-001/SCN-005: 實際的 deps 以 opencode CLI 查詢與刪除，刪除�
 printf '%s\\n' "$*" >> "${argsLog}"
 case "$1" in
   db) printf '[{"id":"ses_old","time_updated":1700000000000,"parent_id":null}]\\n' ;;
-  session) [ "$3" = "ses_fail" ] && { echo "Error: boom" >&2; exit 1; } ;;
+  session)
+    [ "$3" = "ses_fail" ] && { echo "Error: boom" >&2; exit 1; }
+    [ "$3" = "ses_gone" ] && { echo "Error: Session not found: ses_gone" >&2; exit 1; } ;;
 esac
 exit 0
 `,
@@ -259,16 +263,21 @@ exit 0
   const previousPath = process.env.PATH;
   process.env.PATH = `${dir}${path.delimiter}${previousPath ?? ''}`;
   try {
-    const deps = createOpencodeRetentionDeps(() => true);
+    const deps = createOpencodeRetentionDeps(
+      () => true,
+      ["/srv/tele'nexus", "/srv/tele'nexus/workspace"]
+    );
     assert.deepEqual(await deps.queryCandidates(3), [
       { id: 'ses_old', updatedAt: 1700000000000, parentId: null }
     ]);
     await deps.deleteSession('ses_ok');
     await assert.rejects(deps.deleteSession('ses_fail'));
+    await deps.deleteSession('ses_gone');
     assert.deepEqual(fs.readFileSync(argsLog, 'utf8').trim().split('\n'), [
-      'db --format json select id, time_updated, parent_id from session where parent_id is null order by time_updated asc limit 3',
+      "db --format json select id, time_updated, parent_id from session where parent_id is null and time_updated is not null and directory in ('/srv/tele''nexus', '/srv/tele''nexus/workspace') order by time_updated asc limit 3",
       'session delete ses_ok',
-      'session delete ses_fail'
+      'session delete ses_fail',
+      'session delete ses_gone'
     ]);
   } finally {
     if (previousPath === undefined) delete process.env.PATH;
@@ -278,10 +287,13 @@ exit 0
 });
 
 function reclaimDeps(
-  stats: { pageCount: number; freelistCount: number },
+  stats: { pageCount: number; freelistCount: number; latestSessionUpdate?: number | null },
   overrides: Partial<RetentionDeps> = {}
 ): ReturnType<typeof fakeDeps> & { vacuums: number } {
-  const deps = fakeDeps({ readSpaceStats: async () => stats, ...overrides });
+  const deps = fakeDeps({
+    readSpaceStats: async () => ({ latestSessionUpdate: NOW - 60 * 60 * 1000, ...stats }),
+    ...overrides
+  });
   const tracked = Object.assign(deps, { vacuums: 0 });
   const vacuum = overrides.vacuum;
   tracked.vacuum = async () => {
@@ -310,6 +322,25 @@ test('SCN-006: 有任務在執行時不回收', async () => {
   const result = await runRetentionOnce(ENABLED, deps, 100, { lastReclaimAt: null });
   assert.equal(result.reclaim, 'busy');
   assert.equal(deps.vacuums, 0);
+});
+
+test('SCN-006: 共用資料庫裡最近 5 分鐘內有 session 更新時不回收（另一個服務可能正在執行任務）', async () => {
+  const deps = reclaimDeps({
+    pageCount: 1000,
+    freelistCount: 500,
+    latestSessionUpdate: NOW - 4 * 60 * 1000
+  });
+  const result = await runRetentionOnce(ENABLED, deps, 100, { lastReclaimAt: null });
+  assert.equal(result.reclaim, 'busy');
+  assert.equal(deps.vacuums, 0);
+
+  const quiet = reclaimDeps({
+    pageCount: 1000,
+    freelistCount: 500,
+    latestSessionUpdate: NOW - 6 * 60 * 1000
+  });
+  const quietResult = await runRetentionOnce(ENABLED, quiet, 100, { lastReclaimAt: null });
+  assert.equal(quietResult.reclaim, 'reclaimed');
 });
 
 test('SCN-006: 一天內最多回收一次', async () => {
@@ -352,7 +383,7 @@ test('SCN-003/SCN-006: 停用時不讀取空間也不回收', async () => {
     {
       readSpaceStats: async () => {
         reads += 1;
-        return { pageCount: 1000, freelistCount: 500 };
+        return { pageCount: 1000, freelistCount: 500, latestSessionUpdate: null };
       }
     }
   );
@@ -364,10 +395,16 @@ test('SCN-003/SCN-006: 停用時不讀取空間也不回收', async () => {
   assert.equal(deps.vacuums, 0);
 });
 
-test('SCN-006: 解析 page_count 與 freelist_count，格式不符時拋出', () => {
+test('SCN-006: 解析 page_count、freelist_count 與最後的 session 更新時間，格式不符時拋出', () => {
   assert.deepEqual(
-    parseSpaceStats('[\n  {"page_count": 53928, "freelist_count": 10757, "page_size": 4096}\n]\n'),
-    { pageCount: 53928, freelistCount: 10757 }
+    parseSpaceStats(
+      '[\n  {"latest_session_update": 1792136722433, "page_count": 53928, "freelist_count": 10757}\n]\n'
+    ),
+    { pageCount: 53928, freelistCount: 10757, latestSessionUpdate: 1792136722433 }
+  );
+  assert.deepEqual(
+    parseSpaceStats('[{"latest_session_update": null, "page_count": 2, "freelist_count": 0}]'),
+    { pageCount: 2, freelistCount: 0, latestSessionUpdate: null }
   );
   assert.throws(() => parseSpaceStats('[{"page_count": 10}]'));
   assert.throws(() => parseSpaceStats('[]'));
@@ -382,7 +419,7 @@ test('SCN-006: 實際的 deps 以 opencode db 讀取空間並執行 VACUUM', asy
     `#!/bin/sh
 printf '%s\\n' "$*" >> "${argsLog}"
 case "$4" in
-  *pragma_page_count*) printf '[{"page_count":100,"freelist_count":30,"page_size":4096}]\\n' ;;
+  *pragma_page_count*) printf '[{"latest_session_update":1700000000000,"page_count":100,"freelist_count":30}]\\n' ;;
 esac
 exit 0
 `,
@@ -391,11 +428,15 @@ exit 0
   const previousPath = process.env.PATH;
   process.env.PATH = `${dir}${path.delimiter}${previousPath ?? ''}`;
   try {
-    const deps = createOpencodeRetentionDeps(() => true);
-    assert.deepEqual(await deps.readSpaceStats(), { pageCount: 100, freelistCount: 30 });
+    const deps = createOpencodeRetentionDeps(() => true, ['/app', '/app/workspace']);
+    assert.deepEqual(await deps.readSpaceStats(), {
+      pageCount: 100,
+      freelistCount: 30,
+      latestSessionUpdate: 1700000000000
+    });
     await deps.vacuum();
     assert.deepEqual(fs.readFileSync(argsLog, 'utf8').trim().split('\n'), [
-      'db --format json select * from pragma_page_count(), pragma_freelist_count(), pragma_page_size()',
+      'db --format json select (select max(time_updated) from session) as latest_session_update, * from pragma_page_count(), pragma_freelist_count()',
       'db VACUUM'
     ]);
   } finally {
@@ -403,4 +444,12 @@ exit 0
     else process.env.PATH = previousPath;
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('SCN-001: TeleNexus 的目錄是專案目錄與其下的 workspace', () => {
+  assert.deepEqual(resolveRetentionDirectories('/app'), ['/app', '/app/workspace']);
+  assert.deepEqual(resolveRetentionDirectories('/srv/telenexus/'), [
+    '/srv/telenexus',
+    '/srv/telenexus/workspace'
+  ]);
 });

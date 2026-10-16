@@ -7,9 +7,12 @@
  * docs/issues/issue-0009/evidence/step1-delete-vacuum-probe.md。
  */
 import { createLogger } from '../core/logger.js';
-import { runProcess } from '../core/process-runner.js';
+import { OPENCODE_SESSION_NOT_FOUND_PATTERN } from '../core/opencode.js';
+import { ProcessError, runProcess } from '../core/process-runner.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
+import path from 'node:path';
 import { parseBool, parsePositiveInt } from '../utils/env.js';
+import { resolveProjectDir } from '../utils/paths.js';
 import { readBoundSessionIds } from './chat-session-store.js';
 
 const log = createLogger('opencode-retention');
@@ -21,6 +24,8 @@ const OPENCODE_COMMAND_TIMEOUT_MS = 60 * 1000;
 /** 可回收頁數達總頁數的這個比例才回收（issue 0009 TBD-2）。 */
 export const RECLAIM_FREELIST_RATIO = 0.2;
 const RECLAIM_MIN_INTERVAL_MS = 24 * 60 * 60 * 1000;
+/** 全庫最近這段時間內有 session 更新，就當作還有任務在執行。 */
+const RECLAIM_QUIET_MS = 5 * 60 * 1000;
 /** VACUUM 要複製整個資料庫；實測 220 MB 不到 1 秒，上限放寬給更大的資料庫與較慢的磁碟。 */
 const VACUUM_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -116,6 +121,8 @@ export interface RetentionDeps {
 export interface SpaceStats {
   pageCount: number;
   freelistCount: number;
+  /** 全庫最後一次有 session 更新的時間；兩個服務共用這份資料庫，所以看得到彼此的任務。 */
+  latestSessionUpdate: number | null;
 }
 
 export type ReclaimOutcome =
@@ -141,7 +148,12 @@ export function parseSpaceStats(stdout: string): SpaceStats {
   if (typeof pageCount !== 'number' || typeof freelistCount !== 'number') {
     throw new Error('opencode db output has no page_count / freelist_count');
   }
-  return { pageCount, freelistCount };
+  const latest = row?.['latest_session_update'];
+  return {
+    pageCount,
+    freelistCount,
+    latestSessionUpdate: typeof latest === 'number' && Number.isFinite(latest) ? latest : null
+  };
 }
 
 /**
@@ -163,7 +175,14 @@ async function maybeReclaimSpace(
     if (stats.pageCount <= 0 || stats.freelistCount / stats.pageCount < RECLAIM_FREELIST_RATIO) {
       return 'below-threshold';
     }
-    if (!deps.isIdle()) return 'busy';
+    // runner 看不到 telenexus 本機執行的任務（反之亦然），但兩邊寫的是同一份資料庫，
+    // 所以再看全庫最近有沒有 session 被更新。
+    if (
+      !deps.isIdle() ||
+      (stats.latestSessionUpdate !== null && at - stats.latestSessionUpdate < RECLAIM_QUIET_MS)
+    ) {
+      return 'busy';
+    }
     await deps.vacuum();
     state.lastReclaimAt = at;
     return 'reclaimed';
@@ -298,8 +317,22 @@ export function startOpencodeSessionRetention(
   };
 }
 
+/** TeleNexus 執行 opencode 的目錄：服務的專案目錄與其下的 workspace。 */
+export function resolveRetentionDirectories(projectDir: string = resolveProjectDir()): string[] {
+  const root = path.resolve(projectDir);
+  return [root, path.join(root, 'workspace')];
+}
+
+/** SQL 字串常值：單引號加倍。目錄來自服務自己的設定，不是外部輸入，仍照規則跳脫。 */
+function sqlString(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
+}
+
 /** 實際的 opencode CLI 與綁定狀態檔；isIdle 由掛載的服務提供。 */
-export function createOpencodeRetentionDeps(isIdle: () => boolean): RetentionDeps {
+export function createOpencodeRetentionDeps(
+  isIdle: () => boolean,
+  directories: readonly string[] = resolveRetentionDirectories()
+): RetentionDeps {
   return {
     isIdle,
     readSpaceStats: async () => {
@@ -309,7 +342,8 @@ export function createOpencodeRetentionDeps(isIdle: () => boolean): RetentionDep
           'db',
           '--format',
           'json',
-          'select * from pragma_page_count(), pragma_freelist_count(), pragma_page_size()'
+          'select (select max(time_updated) from session) as latest_session_update, * ' +
+            'from pragma_page_count(), pragma_freelist_count()'
         ],
         { timeoutMs: OPENCODE_COMMAND_TIMEOUT_MS }
       );
@@ -319,8 +353,12 @@ export function createOpencodeRetentionDeps(isIdle: () => boolean): RetentionDep
       await runProcess('opencode', ['db', 'VACUUM'], { timeoutMs: VACUUM_TIMEOUT_MS });
     },
     queryCandidates: async (limit) => {
+      // 只看 TeleNexus 自己執行 opencode 的目錄：在主機上執行時，opencode.db 是使用者全域的，
+      // 裡面有其他專案的 session（issue 0009 審查 M1）。時間為 NULL 的排除，免得佔住名額。
       const sql =
         'select id, time_updated, parent_id from session where parent_id is null ' +
+        'and time_updated is not null ' +
+        `and directory in (${directories.map(sqlString).join(', ')}) ` +
         `order by time_updated asc limit ${Math.max(1, Math.floor(limit))}`;
       const { stdout } = await runProcess('opencode', ['db', '--format', 'json', sql], {
         timeoutMs: OPENCODE_COMMAND_TIMEOUT_MS
@@ -328,9 +366,20 @@ export function createOpencodeRetentionDeps(isIdle: () => boolean): RetentionDep
       return parseCandidateRows(stdout);
     },
     deleteSession: async (id) => {
-      await runProcess('opencode', ['session', 'delete', id], {
-        timeoutMs: OPENCODE_COMMAND_TIMEOUT_MS
-      });
+      try {
+        await runProcess('opencode', ['session', 'delete', id], {
+          timeoutMs: OPENCODE_COMMAND_TIMEOUT_MS
+        });
+      } catch (error) {
+        // 已經不存在就是刪除的目的已達成：例如另一個服務同時在清理，或探針已刪掉自己的 session。
+        if (
+          error instanceof ProcessError &&
+          OPENCODE_SESSION_NOT_FOUND_PATTERN.test(error.stderr ?? '')
+        ) {
+          return;
+        }
+        throw error;
+      }
     },
     readProtectedIds: () => readBoundSessionIds()
   };

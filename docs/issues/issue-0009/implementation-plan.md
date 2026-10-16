@@ -144,6 +144,23 @@ opencode 1.15.10 提供的相關指令：`opencode session list`（`--format jso
      - 映像、容器與複本都已刪除，正式部署全程 healthy。
      - 文件：`docs/configuration-reference.md` 新增「opencode session 保留期清理」一節，寫明預設啟用、停用方式與升級後的第一輪；`CLAUDE.md` 更新 Key Modules 表與模型健康檢查段落；`ARCHITECTURE.md` 更新模組清單；`.env.example` 已在步驟 3 更新。
 
+7. ✅ **審查 a64e97c 的修正**（SCN-001、SCN-005、SCN-006）
+   - 產出：依 [review-a64e97c.md](./review-a64e97c.md) 與使用者在逐題確認中的決策（README 的 TBD-4、TBD-5）修正。
+     - M1：候選查詢加上目錄條件，只選 TeleNexus 執行 opencode 的目錄（`resolveRetentionDirectories()`：專案目錄與其下的 `workspace`），SCN-001 依此修訂並重新核准。
+     - S1：刪除時回 `Session not found` 視為已刪除；回收前另要求全庫最近 5 分鐘沒有 session 更新；文件改成實際行為。
+     - N1：排除 `time_updated` 為 NULL 的 session。
+     - N3、N5：文件寫明「狀態檔不存在」的前提，以及 VACUUM 需要的磁碟空間；空間查詢不再取用不到的 `page_size`。
+     - N4：README 的涉及檔案補上 `execution-queue.ts` 與 `opencode.ts`。
+     - N2（綁定數極大時查詢輸出超過約 64 KB）不處理：每位使用者只有一個綁定，實際上不會發生；就算發生，也只是查詢失敗、看得到，不會誤刪。
+   - 相依：步驟 3、5。
+   - 完成判準：新行為各有先紅後綠的測試；正式與主機資料庫以唯讀查詢確認目錄條件的實際範圍；`npm run build`、`npm run test`、`npm run lint` 都是 exit 0。
+   - 證據（2026-10-16）：
+     - 紅燈：`npx tsx --test tests/opencode-session-retention-run.test.ts`，exit 1，25 個測試中 5 個失敗，都是缺少目標行為。第一個是刪除 `ses_gone` 時以 `Process exited with code 1` 失敗；其餘是 SQL 沒有目錄與 NULL 條件、空間查詢沒有最後更新時間、全庫 4 分鐘前才有更新卻仍然回收（預期 `busy`、實得 `reclaimed`）、`resolveRetentionDirectories()` 回傳空陣列。
+     - 最小實作後：同一命令連同選取測試共 33 個，exit 0、全部通過。
+     - 真實 opencode 1.18.34：新的兩段 SQL 在空資料庫上 exit 0、輸出格式符合；刪除不存在的 session 輸出 `Error: Session not found: <id>`、exit 1，與測試的假 opencode 一致。
+     - 唯讀查詢（2026-10-16）：正式部署 `cwd` 與 `APP_PROJECT_DIR` 都是 `/app`，3,716 個頂層 session 全部在範圍內（過期的 2,331 個），清理效果不受影響。這台主機的全域 opencode 資料庫有 928 個頂層 session，原本 621 個會被刪，加上目錄條件後只剩本 repo 目錄下的 11 個。這 11 個仍在範圍內，屬於 Q1 選項說明裡接受的範圍。
+     - 專案 gate：`npm run build` exit 0；`npm run test` exit 0，`# tests 481`、`# pass 481`、`# fail 0`，70 個測試檔；`npm run lint` exit 0。
+
 ## 風險與首要驗證
 
 見 [README.md](./README.md) 的「風險與首要驗證」。步驟 1 即首要驗證。

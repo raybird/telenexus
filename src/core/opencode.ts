@@ -118,7 +118,7 @@ const OPENCODE_RATE_LIMIT_MESSAGE =
  * stderr 是 `Error: Session not found`(含 ANSI 色碼,但這段字是連續的)。從未存在與已刪除的
  * session 相同,不到一秒就失敗,沒有送出上游請求(issue 0012 步驟 1 實測)。
  */
-const OPENCODE_SESSION_NOT_FOUND_PATTERN = /Session not found/;
+export const OPENCODE_SESSION_NOT_FOUND_PATTERN = /Session not found/;
 
 function buildSessionMissingResult(): AgentStructuredResult {
   return buildTextOnlyStructuredResult('opencode', 'Opencode 找不到要接續的 session。', {
