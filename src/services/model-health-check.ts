@@ -11,13 +11,17 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import type { Connector } from '../types/index.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
-import { trackChildProcess, terminateProcessTree } from '../core/process-runner.js';
+import { runProcess, trackChildProcess, terminateProcessTree } from '../core/process-runner.js';
 import {
   classifyUpstreamStatus,
   countUpstreamRateLimitHits,
   hasUpstreamModelInvalid
 } from '../core/rate-limit.js';
-import { findUpstreamError } from '../core/opencode-event-parser.js';
+import {
+  findUpstreamError,
+  interpretEvent,
+  parseEventLine
+} from '../core/opencode-event-parser.js';
 
 /**
  * `client-outdated`:上游因為 opencode 版本太舊而拒絕(HTTP 426),模型本身沒問題。
@@ -72,6 +76,8 @@ export const DEFAULT_TIMEOUT_MS = 120 * 1000;
 
 /** 探針 prompt。務必是明確的最小指令:模糊的 prompt 會讓 agent 當成任務去跑,遲遲不結束。 */
 export const PROBE_PROMPT = 'Reply with exactly: OK';
+/** 刪除探針 session 的上限;實測單次刪除約 0.8 秒(issue 0009 步驟 1)。 */
+const PROBE_SESSION_DELETE_TIMEOUT_MS = 30 * 1000;
 
 /**
  * 探測期間容許幾次上游限流。
@@ -339,6 +345,32 @@ export function isRealSuccessEvent(type: string, payload: Record<string, unknown
   );
 }
 
+/** 探針這次建立的 session id;stdout 沒有任何事件時(例如啟動前就逾時)取不到。 */
+export function findProbeSessionId(stdout: string): string | undefined {
+  for (const line of stdout.split(/\r?\n/)) {
+    const event = parseEventLine(line.trim());
+    const sessionId = event ? interpretEvent(event).sessionId : undefined;
+    if (sessionId) return sessionId;
+  }
+  return undefined;
+}
+
+/**
+ * 探針每小時開一個新 session,內容沒有除錯價值,用完即刪,不留給保留期清理(issue 0009)。
+ * 刪除失敗只記錄,不改變探測結果。
+ */
+async function deleteProbeSession(stdout: string): Promise<void> {
+  const sessionId = findProbeSessionId(stdout);
+  if (!sessionId) return;
+  try {
+    await runProcess('opencode', ['session', 'delete', sessionId], {
+      timeoutMs: PROBE_SESSION_DELETE_TIMEOUT_MS
+    });
+  } catch (error) {
+    recordRuntimeIssue('model-health:probe-session-delete', error);
+  }
+}
+
 /** 預設探針：實際打一次 opencode,因為靜態比對模型清單無效（已 EOL 的仍會列出）。 */
 export async function defaultProbe(model: string, timeoutMs: number): Promise<HealthCheckOutcome> {
   return new Promise<HealthCheckOutcome>((resolve) => {
@@ -374,7 +406,7 @@ export async function defaultProbe(model: string, timeoutMs: number): Promise<He
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      resolve(outcome);
+      void deleteProbeSession(stdout).finally(() => resolve(outcome));
     };
 
     const timer = setTimeout(() => {

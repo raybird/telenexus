@@ -110,10 +110,17 @@ opencode 1.15.10 提供的相關指令：`opencode session list`（`--format jso
      - 外層：`createOpencodeRetentionDeps()` 以放在 `PATH` 上的假 `opencode` 驗證實際的 CLI 參數（`db --format json <SQL>`、`session delete <id>`）、輸出解析，以及刪除失敗時會拋出。這個測試是實作後才補的，沒有自然的紅燈，所以做了變異檢查：把 SQL 的 `asc` 改成 `desc` 後它失敗（1 個失敗），還原後通過。真正的 opencode 由步驟 6 在資料庫複本上驗證。
      - 重構：`chat-session-store.ts` 的讀檔與解析抽成 `loadBindings()`，聊天端（毀損時當作沒有綁定）與清理端（毀損時拋出）共用；既有的 6 個 store 測試前後都通過。新檔案經 prettier 格式化。
      - 專案 gate：`npm run build` exit 0；`npm run test` exit 0，`# tests 465`、`# pass 465`、`# fail 0`，`tests/` 下有 68 個測試檔；`npm run lint` exit 0。`docker-compose.yml` 與 `docker-compose.release.yml` 沒有變更。
-4. 📝 **探針 session 用完即刪**（SCN-004）
+4. ✅ **探針 session 用完即刪**（SCN-004）
    - 產出：`model-health-check.ts` 的變更與測試。
    - 相依：步驟 3；issue 0008 的探針變更（TBD-3）。
    - 完成判準：探針成功與失敗兩種情況都會刪除自己的 session；刪除失敗不改變探測結果。
+   - 證據（2026-10-16）：`src/services/model-health-check.ts` 新增 `findProbeSessionId()`，從 stdout 事件取出 `sessionID`；`defaultProbe()` 結束（不論成功、失敗或逾時）後以 `opencode session delete` 刪除該 session，失敗時記 `model-health:probe-session-delete`。測試在 `tests/model-health-probe-session.test.ts`，以假的 `opencode` 搭配 1.18.34 的 ok 與 426 fixture，期望的 session id 是 fixture 裡寫死的值。
+     - 紅燈：`findProbeSessionId` 先回傳 undefined，執行 `npx tsx --test tests/model-health-probe-session.test.ts`，exit 1，5 個測試中 4 個失敗，都是斷言失敗：取不到 session id，也沒有任何刪除呼叫。「沒有事件時不呼叫刪除」在 stub 下本來就會通過。
+     - 最小實作後：同一命令連同 `tests/model-health-upstream-error.test.ts`、`tests/model-health-check.test.ts` 共 53 個，exit 0、全部通過。
+     - 單迴圈合併：探針的輸入（假 opencode 的 stdout 與 exit code）和刪除呼叫，在同一層就能觀察，沒有另一層整合責任；真實 opencode 的刪除語意已在步驟 1 驗證。
+     - 限制：逾時時若 opencode 還沒輸出任何事件，就取不到 session id，該 session 留給保留期清理處理。
+     - 重構：no-op，函式已是最小形狀。
+     - 專案 gate：`npm run build` exit 0；`npm run test` exit 0，`# tests 470`、`# pass 470`、`# fail 0`，69 個測試檔；`npm run lint` exit 0。
 5. 📝 **空間回收**（SCN-006）
    - 產出：回收的判斷與執行，及其測試。
    - 相依：步驟 1、3。
