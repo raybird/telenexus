@@ -19,6 +19,8 @@ opencode 把每一次執行的對話與工具輸出存進 `opencode.db`，TeleNe
 ├── src/main.ts                         # 可改：未使用 runner 的部署由主服務掛載
 ├── src/services/model-health-check.ts  # 可改：探針刪除自己建立的 session
 ├── src/services/chat-session-store.ts  # 可改：讓清理服務唯讀取得綁定中的 session
+├── src/core/execution-queue.ts         # 可改：提供主服務是否閒置的判斷
+├── src/core/opencode.ts                # 可改：匯出 Session not found 的樣式供清理共用
 ├── tests/                              # 可改：對應的測試
 ├── .env.example                        # 可改：新增設定
 ├── docs/configuration-reference.md     # 可改：新增設定的說明
@@ -34,11 +36,12 @@ opencode 把每一次執行的對話與工具輸出存進 `opencode.db`，TeleNe
 Feature: opencode session 的保留期清理
 
   @SCN-001
-  Scenario: 超過保留期的 session 被刪除
-    Given opencode.db 中有最後更新時間早於保留期的 session，也有保留期內的 session
+  Scenario: TeleNexus 目錄下超過保留期的 session 被刪除
+    Given opencode.db 中有 TeleNexus 執行 opencode 的目錄（專案目錄與其下的 workspace）裡最後更新早於保留期的 session
+    And 也有保留期內的 session，以及其他目錄的 session
     When 清理執行
-    Then 過期的 session 及其訊息與片段都被刪除
-    And 保留期內的 session 完全不變
+    Then TeleNexus 目錄下過期的 session 及其訊息與片段都被刪除
+    And 保留期內的 session 與其他目錄的 session 完全不變
 
   @SCN-002
   Scenario: 綁定中的聊天 session 一律保留
@@ -77,13 +80,14 @@ Feature: opencode session 的保留期清理
 
 ## Gherkin 核准紀錄
 
-- **核准 commit**: SCN-001、SCN-003～006 為 `da76420`；SCN-002 的修訂為 `b5059de`
+- **核准 commit**: SCN-003～006 為 `da76420`；SCN-002 的修訂為 `b5059de`；SCN-001 的修訂為待提交
 - **核准來源**: 使用者於 2026-10-01 對話詢問 opencode.db 肥大的改善方式；我提出的做法是定期以 `opencode session delete` 刪除超過 N 天的 session（天數做成環境變數、預設 30 天）、刪除後以 `VACUUM` 回收空間、健康檢查探針跑完就刪掉自己的 session，並建議聊天 session 輪替另行評估。使用者同日回覆「好開 issue」。SCN-002 與 SCN-005 是上述做法的安全條件：最新的聊天 session 由 `-c` 沿用（`docs/configuration-reference.md` 的「Runner Session Context」），清理屬背景維護，不應影響服務。
 - **SCN-002 重新核准來源**: issue 0012（2026-10-07 合併）讓聊天改以 `-s` 接續每位使用者綁定的 session，綁定記在 `data/chat-session-state.json`，原本「最後更新的 session 一律保留」已經保護不到聊天。2026-10-16 逐題確認 Q1「清理時要保護哪些 session」，建議「綁定中的聊天 session 一律保留，不論多舊，以 -s 接續仍接得上；取代最後更新的那一個一律保留」，使用者選擇該建議（「綁定中的一律保留」）。
+- **SCN-001 重新核准來源**: 獨立審查 [review-a64e97c.md](./review-a64e97c.md) 的 M1 指出，在主機上執行時 opencode.db 是使用者全域的，只看時間會刪到其他專案的 session。2026-10-16 逐題確認 Q1（審查）「清理時要怎麼限制範圍」，建議「只刪 TeleNexus 目錄下的 session（服務的專案目錄與其下的 workspace；容器內是 `/app` 與 `/app/workspace`），SCN-001 修訂並重新核准」，使用者選擇該建議（「只刪 TeleNexus 目錄下的」）。
 
 | Scenario | 核准日期 | 狀態 |
 | --- | --- | --- |
-| SCN-001 | 2026-10-01 | 已核准 |
+| SCN-001 | 2026-10-16 | 已核准（修訂） |
 | SCN-002 | 2026-10-16 | 已核准（修訂） |
 | SCN-003 | 2026-10-01 | 已核准 |
 | SCN-004 | 2026-10-01 | 已核准 |
@@ -116,6 +120,8 @@ Feature: opencode session 的保留期清理
 | TBD-1 | 每次清理最多刪幾個 session、多久執行一次。首次清理可能有上千個待刪。            | 已解決 | 2026-10-16 依步驟 1 實測（單次刪除約 0.8 秒，與有任務執行時並行無衝突）：每小時一次、每次最多 100 個，最舊的優先；積壓約一天清完。見 [evidence/step1-delete-vacuum-probe.md](evidence/step1-delete-vacuum-probe.md)；影響 SCN-001、SCN-005 |
 | TBD-2 | 空間回收的觸發門檻與做法。                                                      | 已解決 | 2026-10-16 依步驟 1 實測：經 `opencode db "VACUUM"` 執行；沒有任務執行、freelist 達總頁數 20% 以上、當天未回收過時才執行。220 MB 回收不到 1 秒，讀取不受影響；影響 SCN-006 |
 | TBD-3 | 與 issue 0008 的先後。兩者都會改健康檢查探針，0008 較急且會讓探針改為解析事件。 | 已解決 | 2026-10-16 查核：issue 0008 於 2026-10-01 合併，探針已改用 `--format json` 解析事件，步驟 4 的前提已滿足 |
+| TBD-4 | 審查 M1：主機執行時清理會刪到其他專案的 session | 已解決 | 2026-10-16 使用者選擇只刪 TeleNexus 目錄下的 session，SCN-001 依此修訂並重新核准 |
+| TBD-5 | 審查 S1：兩個服務可能同時清理；runner 看不到 telenexus 本機的任務，可能在任務執行中回收空間 | 已解決 | 2026-10-16 使用者選擇「容錯加共用資料庫判斷閒置」：刪除時回 `Session not found` 視為已刪除；回收前另要求全庫最近 5 分鐘沒有 session 更新；文件改成實際行為。不改 Scenario；影響 SCN-005、SCN-006 |
 
 ## Gate 豁免紀錄
 
@@ -134,6 +140,7 @@ Feature: opencode session 的保留期清理
 | 2026-10-16 | 步驟 1 完成：在正式資料庫的複本上實測刪除、並行、回收與 `-s` 接續，TBD-1、TBD-2 結案；複本已刪除 | -      |
 | 2026-10-16 | 步驟 2～6 完成：挑選、清理排程與設定、探針用完即刪、空間回收，並經使用者同意以本機映像對正式資料庫複本跑完端到端驗證（刪除 2,327 個、0 失敗，綁定的 session 保留且可接續）；複本、容器與映像已刪除 | -      |
 | 2026-10-16 | 交付方式選本機獨立審查（見 Gate 豁免紀錄），狀態改為待審查 | -      |
+| 2026-10-16 | 獨立審查 a64e97c：RETURN TO execute-task（[review-a64e97c.md](./review-a64e97c.md)）；M1、S1 經逐題確認（TBD-4、TBD-5），SCN-001 修訂並重新核准 | -      |
 
 ---
 
