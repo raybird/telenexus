@@ -39,10 +39,10 @@ opencode 1.15.10 提供的相關指令：`opencode session list`（`--format jso
 
 ### 挑選待刪 session
 
-純函式：輸入 session 清單、現在時間、保留天數，輸出要刪的 session。規則：
+純函式：輸入 session 清單、綁定中的 session ID、現在時間、保留天數，輸出要刪的 session。規則：
 
 - 以最後更新時間判斷是否過期，而不是建立時間。長期沿用的聊天 session 建立得早但一直在更新。
-- 最後更新時間最新的那一個 session 一律保留，不論多舊。
+- 綁定中的聊天 session 一律保留，不論多舊。綁定由 telenexus 寫在 `data/chat-session-state.json`（issue 0012），兩個服務共用 `data/`；清理在每次執行時重新唯讀讀取，讀取失敗就跳過這一次清理，不在沒有保護清單的情況下刪除。
 - 每次最多回傳固定數量，最舊的優先。
 
 ### 執行與排程
@@ -74,7 +74,7 @@ opencode 1.15.10 提供的相關指令：`opencode session list`（`--format jso
 | 驗收    | 層級                         | 證據                                                                               |
 | ------- | ---------------------------- | ---------------------------------------------------------------------------------- |
 | SCN-001 | 單元測試加資料庫複本上的實跑 | 挑選邏輯的紅綠重構證據；複本上刪除前後各資料表筆數的差異                           |
-| SCN-002 | 單元測試加資料庫複本上的實跑 | 最新 session 已過期時不被選中；複本上清理後 `opencode run -c` 仍接續同一個 session |
+| SCN-002 | 單元測試加資料庫複本上的實跑 | 綁定中的 session 已過期時不被選中；複本上清理後 `opencode run -s <綁定 id>` 仍接續同一個 session |
 | SCN-003 | 單元測試                     | 設定解析的預設值、自訂天數與停用                                                   |
 | SCN-004 | 單元測試加實跑               | 探針結束後呼叫了刪除；實跑後 session 數不增加                                      |
 | SCN-005 | 單元測試                     | 以失敗的執行器驅動：記錄 runtime issue、不拋出、下一輪重試                         |
@@ -87,15 +87,15 @@ opencode 1.15.10 提供的相關指令：`opencode session list`（`--format jso
 1. 📝 **在資料庫複本上驗證 opencode 的刪除與回收行為**（SCN-001、SCN-002、SCN-006）
    - 產出：實測紀錄，存於本目錄 `evidence/`；TBD-1 與 TBD-2 的結論。
    - 相依：無。資料庫複本放在 repo 之外，含有私人對話，不進版控，驗證完即刪除。
-   - 完成判準：以下每一項都有實際輸出為證。`session delete` 後該 session 的訊息與片段筆數歸零，其他 session 不變，子 session 的處理方式明確；單次刪除與連續刪除 100 個的耗時；有 `opencode run` 在執行時刪除另一個 session 的結果；`session list` 的排序與 `updated` 欄位的意義；`VACUUM` 前後的檔案大小、耗時，以及期間另一個連線讀寫的行為；清理後 `opencode run -c` 接續的是哪一個 session。
+   - 完成判準：以下每一項都有實際輸出為證。`session delete` 後該 session 的訊息與片段筆數歸零，其他 session 不變，子 session 的處理方式明確；單次刪除與連續刪除 100 個的耗時；有 `opencode run` 在執行時刪除另一個 session 的結果；`session list` 的排序與 `updated` 欄位的意義；`VACUUM` 前後的檔案大小、耗時，以及期間另一個連線讀寫的行為；清理後 `opencode run -s <id>` 仍接續原 session。以映像目前釘的 opencode 版本實測，`現況` 一節記錄的 CLI 選項取自 1.15.10，需重新確認。
 2. 📝 **挑選待刪 session 的邏輯**（SCN-001、SCN-002）
    - 產出：挑選函式與單元測試。
    - 相依：步驟 1（`updated` 的意義與排序）。
-   - 完成判準：測試涵蓋過期與未過期、最新 session 已過期、清單為空、數量超過上限、時間欄位缺漏；先紅後綠；期望值是寫死的案例，不由測試重算。
+   - 完成判準：測試涵蓋過期與未過期、綁定中的 session 已過期、綁定清單為空、session 清單為空、數量超過上限、時間欄位缺漏；先紅後綠；期望值是寫死的案例，不由測試重算。
 3. 📝 **清理的執行、排程與設定**（SCN-001、SCN-003、SCN-005）
    - 產出：清理服務、`runner.ts` 與 `main.ts` 的掛載、`.env.example` 的設定。
    - 相依：步驟 2。
-   - 完成判準：預設值、自訂天數與停用都有測試；執行器失敗時記錄 runtime issue 且不影響呼叫端（先紅後綠）；同一份部署只有一個服務會執行清理；`npm run build`、`npm run test`、`npm run lint` 都是 exit 0。
+   - 完成判準：預設值、自訂天數與停用都有測試；綁定狀態檔讀取失敗時跳過該次清理（測試）；執行器失敗時記錄 runtime issue 且不影響呼叫端（先紅後綠）；同一份部署只有一個服務會執行清理；`npm run build`、`npm run test`、`npm run lint` 都是 exit 0。
 4. 📝 **探針 session 用完即刪**（SCN-004）
    - 產出：`model-health-check.ts` 的變更與測試。
    - 相依：步驟 3；issue 0008 的探針變更（TBD-3）。
@@ -107,7 +107,7 @@ opencode 1.15.10 提供的相關指令：`opencode session list`（`--format jso
 6. 📝 **複本上的端到端驗證與文件**（SCN-001、SCN-002、SCN-006）
    - 產出：以實作後的映像對資料庫複本跑完整清理的紀錄；`docs/configuration-reference.md`、`CLAUDE.md`（模組表與相關段落）的更新。
    - 相依：步驟 3、5。啟動容器屬 `docs/agents/project.md` 列的使用者決定事項，執行前取得同意；只啟動 agent-runner，掛載的是複本，不碰任何運行中的部署。
-   - 完成判準：清理後複本中早於保留期的 session 數為零、最新的 session 仍在、檔案大小下降；`opencode run -c` 仍可接續；文件寫明預設啟用、停用方式，以及升級後首次清理會刪除舊 session。
+   - 完成判準：清理後複本中早於保留期且未綁定的 session 數為零、綁定中的 session 仍在、檔案大小下降；`opencode run -s <綁定 id>` 仍可接續；文件寫明預設啟用、停用方式，以及升級後首次清理會刪除舊 session。
 
 ## 風險與首要驗證
 
