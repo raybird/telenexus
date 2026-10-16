@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ChatSessionStore } from '../src/services/chat-session-store.js';
+import { ChatSessionStore, readBoundSessionIds } from '../src/services/chat-session-store.js';
 import { addIssueHook } from '../src/utils/errors.js';
 
 const tempDirs: string[] = [];
@@ -118,4 +118,22 @@ test('寫入失敗時記 runtime issue，本次行程內仍回傳新綁定', () 
   } finally {
     unhook();
   }
+});
+
+test('issue 0009 SCN-002: 唯讀取得所有綁定中的 session id', () => {
+  const statePath = tempStatePath();
+  fs.writeFileSync(statePath, JSON.stringify({ u1: 'ses_one', u2: 'ses_two' }), 'utf8');
+  assert.deepEqual([...readBoundSessionIds(statePath)].sort(), ['ses_one', 'ses_two']);
+});
+
+test('issue 0009 SCN-002: 狀態檔不存在代表沒有綁定', () => {
+  assert.deepEqual([...readBoundSessionIds(tempStatePath())], []);
+});
+
+test('issue 0009 SCN-002: 狀態檔毀損時拋出，不能當成沒有綁定', () => {
+  const statePath = tempStatePath();
+  fs.writeFileSync(statePath, '{"u1": "ses_one"', 'utf8');
+  assert.throws(() => readBoundSessionIds(statePath));
+  fs.writeFileSync(statePath, '["ses_one"]', 'utf8');
+  assert.throws(() => readBoundSessionIds(statePath));
 });

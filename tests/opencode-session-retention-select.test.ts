@@ -8,7 +8,11 @@ import {
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.UTC(2026, 9, 16, 12, 0, 0);
 
-function session(id: string, ageDays: number | null, parentId: string | null = null): RetentionCandidate {
+function session(
+  id: string,
+  ageDays: number | null,
+  parentId: string | null = null
+): RetentionCandidate {
   return { id, updatedAt: ageDays === null ? null : NOW - ageDays * DAY, parentId };
 }
 

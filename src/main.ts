@@ -18,6 +18,12 @@ import { recordRuntimeIssue, getRecentIssues } from './utils/errors.js';
 import { writeContextSnapshots, writeSchedulerHealth } from './services/context-snapshots.js';
 import { resolveContextDir, resolveModelHealthStatePath } from './utils/paths.js';
 import { startModelHealthCheck, isRealSuccessEvent } from './services/model-health-check.js';
+import {
+  createOpencodeRetentionDeps,
+  loadRetentionConfig,
+  shouldMainRunRetention,
+  startOpencodeSessionRetention
+} from './services/opencode-session-retention.js';
 import { ChatSessionStore } from './services/chat-session-store.js';
 import { loadAiConfig } from './core/config-loader.js';
 import { MemoryBackfillWorker } from './services/memory-backfill-worker.js';
@@ -190,6 +196,7 @@ async function bootstrap() {
   const commandRouter = new CommandRouter();
   let contextRefreshTimer: NodeJS.Timeout | null = null;
   let modelHealthCheck: { stop: () => void } | null = null;
+  let opencodeRetention: { stop: () => void } | null = null;
   const webEnabled = getWebEnabled();
   const webHost = getWebBindHost();
   const webPort = getWebPort();
@@ -342,6 +349,7 @@ async function bootstrap() {
     console.log('\n[System] Shutting down gracefully...');
     stopContextRefresh();
     modelHealthCheck?.stop();
+    opencodeRetention?.stop();
     memoryBackfillWorker.shutdown();
     scheduler.shutdown();
     // 子程序是 detached 的,不會跟著終端機的 Ctrl-C 一起收到 SIGINT,要明確收掉。
@@ -356,6 +364,7 @@ async function bootstrap() {
     console.log('\n[System] Shutting down gracefully...');
     stopContextRefresh();
     modelHealthCheck?.stop();
+    opencodeRetention?.stop();
     memoryBackfillWorker.shutdown();
     scheduler.shutdown();
     // 子程序是 detached 的,不會跟著終端機的 Ctrl-C 一起收到 SIGINT,要明確收掉。
@@ -408,6 +417,14 @@ async function bootstrap() {
       remindMs: parsePositiveInt(process.env.MODEL_HEALTH_REMIND_MS, 6 * 60 * 60 * 1000),
       lastSuccessAt: () => lastOpencodeSuccessAt
     });
+  }
+
+  // opencode session 保留期清理（issue 0009）：兩個服務共用 opencode 的資料，有 runner 時由 runner 負責。
+  if (shouldMainRunRetention(runnerEndpoint)) {
+    opencodeRetention = startOpencodeSessionRetention(
+      loadRetentionConfig(),
+      createOpencodeRetentionDeps()
+    );
   }
 
   // 啟動排程器 (可能需要發送歡迎訊息)

@@ -14,6 +14,11 @@ import { createLogger } from './core/logger.js';
 import { loadAiConfig } from './core/config-loader.js';
 import { emitEvent, addEventHook } from './services/event-bus.js';
 import { startModelHealthCheck, isRealSuccessEvent } from './services/model-health-check.js';
+import {
+  createOpencodeRetentionDeps,
+  loadRetentionConfig,
+  startOpencodeSessionRetention
+} from './services/opencode-session-retention.js';
 import { parseBool, parsePositiveInt } from './utils/env.js';
 import { createAuditLogWriter } from './services/audit-log.js';
 
@@ -753,6 +758,12 @@ const modelHealthCheck = startModelHealthCheck({
   lastSuccessAt: () => lastOpencodeSuccessAt
 });
 
+// opencode session 保留期清理（issue 0009）。有 runner 的部署只由這裡執行，主服務不清理。
+const opencodeRetention = startOpencodeSessionRetention(
+  loadRetentionConfig(),
+  createOpencodeRetentionDeps()
+);
+
 server.listen(port, '0.0.0.0', () => {
   writeRunnerStatus();
   logger.info('listening', { port });
@@ -765,6 +776,7 @@ server.listen(port, '0.0.0.0', () => {
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {
     modelHealthCheck.stop();
+    opencodeRetention.stop();
     const terminated = terminateAllChildren();
     logger.info('shutdown', { signal, terminatedChildren: terminated });
     server.close(() => process.exit(0));

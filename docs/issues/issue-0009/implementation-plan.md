@@ -100,10 +100,16 @@ opencode 1.15.10 提供的相關指令：`opencode session list`（`--format jso
      - 最小實作後：同一命令 exit 0，8/8 通過。
      - 重構：用 `Number.isFinite` 一次排除 null 與 NaN，同一命令 exit 0，8/8 通過；`npx tsc --noEmit -p .` exit 0；`npx eslint src/services/opencode-session-retention.ts` exit 0。
      - 單迴圈合併：這是純函式，沒有另一層整合責任。外迴圈（在資料庫複本上實跑）由步驟 6 承擔。
-3. 📝 **清理的執行、排程與設定**（SCN-001、SCN-003、SCN-005）
+3. ✅ **清理的執行、排程與設定**（SCN-001、SCN-003、SCN-005）
    - 產出：清理服務、`runner.ts` 與 `main.ts` 的掛載、`.env.example` 的設定。
    - 相依：步驟 2。
    - 完成判準：預設值、自訂天數與停用都有測試；綁定狀態檔讀取失敗時跳過該次清理（測試）；執行器失敗時記錄 runtime issue 且不影響呼叫端（先紅後綠）；同一份部署只有一個服務會執行清理；`npm run build`、`npm run test`、`npm run lint` 都是 exit 0。
+   - 證據（2026-10-16）：清理流程在 `src/services/opencode-session-retention.ts`（`loadRetentionConfig`、`parseCandidateRows`、`runRetentionOnce`、`startOpencodeSessionRetention`、`createOpencodeRetentionDeps`）；`src/services/chat-session-store.ts` 新增 `readBoundSessionIds()`，毀損時拋出；`src/runner.ts` 一律掛載，`src/main.ts` 只在沒有 `RUNNER_ENDPOINT` 時掛載（`shouldMainRunRetention`）；`.env.example` 新增兩個設定。測試在 `tests/opencode-session-retention-run.test.ts` 與 `tests/chat-session-store.test.ts`。
+     - 紅燈：先放回傳空值或固定值的 stub，執行 `npx tsx --test tests/opencode-session-retention-run.test.ts tests/chat-session-store.test.ts`，exit 1，23 個測試中 15 個失敗，都是斷言失敗（例如預期 `retentionDays` 30 實得 0、預期 skipped `disabled` 實得 undefined、預期查詢上限 `[101]` 實得 `[]`），沒有執行期錯誤。在 stub 下本來就會通過的有三類：既有的 6 個 store 測試、「狀態檔不存在代表沒有綁定」、「停用時不排程」，後兩者是空結果案例的性質。
+     - 最小實作後：同一命令加上步驟 2 的測試共 31 個，exit 0、全部通過。
+     - 外層：`createOpencodeRetentionDeps()` 以放在 `PATH` 上的假 `opencode` 驗證實際的 CLI 參數（`db --format json <SQL>`、`session delete <id>`）、輸出解析，以及刪除失敗時會拋出。這個測試是實作後才補的，沒有自然的紅燈，所以做了變異檢查：把 SQL 的 `asc` 改成 `desc` 後它失敗（1 個失敗），還原後通過。真正的 opencode 由步驟 6 在資料庫複本上驗證。
+     - 重構：`chat-session-store.ts` 的讀檔與解析抽成 `loadBindings()`，聊天端（毀損時當作沒有綁定）與清理端（毀損時拋出）共用；既有的 6 個 store 測試前後都通過。新檔案經 prettier 格式化。
+     - 專案 gate：`npm run build` exit 0；`npm run test` exit 0，`# tests 465`、`# pass 465`、`# fail 0`，`tests/` 下有 68 個測試檔；`npm run lint` exit 0。`docker-compose.yml` 與 `docker-compose.release.yml` 沒有變更。
 4. 📝 **探針 session 用完即刪**（SCN-004）
    - 產出：`model-health-check.ts` 的變更與測試。
    - 相依：步驟 3；issue 0008 的探針變更（TBD-3）。
