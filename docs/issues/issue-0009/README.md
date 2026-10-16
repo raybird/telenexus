@@ -144,6 +144,7 @@ Feature: opencode session 的保留期清理
 | 2026-10-16 | 審查修正完成（計畫步驟 7）：只清理 TeleNexus 目錄、`Session not found` 視為已刪除、回收前要求全庫閒置 5 分鐘，文件改成實際行為；修正後重新審查 | -      |
 | 2026-10-16 | 第二輪獨立審查 00f1e8f：PASS（[review-00f1e8f.md](./review-00f1e8f.md)），報告提交 `0e4925a` | -      |
 | 2026-10-16 | 使用者同意合併，`feat/issue-0009-opencode-session-retention` 以 fast-forward 合併進 main（`0e4925a`）；尚未推送，GitHub #9 仍 open | -      |
+| 2026-10-16 | 發版 v2.30.0（`86701cd`，tag `v2.30.0`）並推送；GitHub #9 以 completed 關閉並附發版說明 | -      |
 
 ---
 
