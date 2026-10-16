@@ -65,7 +65,7 @@
 - **症狀**：PR 已合併並發版，issue README 的 `**狀態**` 與 `docs/README.md` 索引卻還停在合併前；反過來，GitHub issue 已關閉，程式卻沒有實作。
 - **觸發**：PR 在 GitHub 上 squash 合併。結案紀錄要在合併後到 main 補上，這一步不在 PR 裡。在 GitHub 上手動關閉 issue 也屬於此類。
 - **怎麼查**：用 `gh pr list --repo raybird/telenexus --state merged` 與 `gh issue list --repo raybird/telenexus --state all` 對照各 issue README 的狀態，或用 dev-cycle 的懸置掃描。
-- **證據**：PR #11 於 2026-10-05 合併（`718cc8b`），[issue 0010](../issues/issue-0010/README.md) 的狀態到 2026-10-16 才補上；對照組是 issue 0012 合併後的結案提交 `69efa39`。GitHub #9 在 2026-10-04 以 completed 關閉，[issue 0009](../issues/issue-0009/README.md) 仍是待實作，repo 裡也沒有對應的實作提交。
+- **證據**：PR #11 於 2026-10-05 合併（`718cc8b`），[issue 0010](../issues/issue-0010/README.md) 的狀態到 2026-10-16 才補上；對照組是 issue 0012 合併後的結案提交 `69efa39`。GitHub #9 在 2026-10-04 以 completed 關閉，但 [issue 0009](../issues/issue-0009/README.md) 仍是待實作，repo 裡也沒有對應的實作提交；2026-10-16 重新開啟。
 
 ## L-10 證據檔把本機資訊帶進公開 repo
 
