@@ -6,7 +6,7 @@ GitHub：[issue #12](https://github.com/raybird/telenexus/issues/12)
 
 聊天以 `opencode run -c` 接續 session，但 `-c` 接的是「最後被更新的 session」。排程、摘要呼叫與追蹤提醒都會建立或更新 session，runner 的 interactive 與 scheduled 兩條 lane 也會並行，所以聊天常接進別人的 session。本 issue 讓聊天綁定並接續自己的 session，並修正記憶注入的兩個問題：「近期對話」混入排程輸出，以及 Memoria 召回沒有相關度門檻。
 
-起因：2026-10-06 Wukong 的記憶重複注入問題（raybird/Wukong#9）交叉檢查。原本以為「近期對話」與 session 重複，查正式環境的 opencode.db 後發現前提不成立：聊天接到的 session 本來就不對，「近期對話」反而是聊天唯一可靠的上下文。現況證據見 [implementation-plan.md 的「現況」](./implementation-plan.md#現況)。
+起因：2026-10-06 Wukong 的記憶重複注入問題（raybird/Wukong#9）交叉檢查。原本以為「近期對話」與 session 重複，查正式環境的 opencode.db 後發現前提不成立：聊天接到的 session 本來就不對，「近期對話」反而是聊天唯一可靠的上下文。現況證據見 [implementation-plan.md 的「現況」](./implementation-plan.md#現況)。issue 0008 的 [TBD-4](../issue-0008/README.md#待確認事項) 早先記錄過其中一種情形（健康探針與聊天共用 session），並建議另開 issue 處理，本 issue 一併解決。
 
 ## 文件清單
 

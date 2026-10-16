@@ -10,6 +10,22 @@ OpenCode：1.15.10
 
 agent-browser：0.27.0
 
+## 後續處理（2026-10-16 查核）
+
+本文以下內容保留 2026-08-16～17 當時的觀察，各項建議的去向如下：
+
+| 建議 | 處理 |
+|---|---|
+| P0 任務結束清理 browser 與子孫程序 | [issue 0010](issues/issue-0010/README.md) 改用按工作建立、結束即收尾的瀏覽器，隨 v2.28.0 發佈 |
+| P0 排程逾時傳到 queue 與子程序 | `02b46c5`：以 process group 終止子程序，排程逾時會取消底層工作 |
+| runner 把逾時記成 `ok=true` | `b61316f`：降級結果改由 `deriveRunOutcome()` 判定 `ok` |
+| P1 runner cgroup 上限 | `c6bd522`：agent-runner 加上 `mem_limit` 與 `pids_limit` |
+| P1 MemoryBackfill 無效輪詢、`.env` 格式錯誤 | 2026-10-16 查核正式部署：`.env` 沒有設定 `MEMORY_BACKFILL_ENABLED`，所以採用預設值 `false`；格式錯誤的那一行已經不存在 |
+| P1 runner status 定期刷新，並分開顯示程序、thread 與 zombie 數 | 不再追蹤（2026-10-16 使用者決定）：狀態檔仍只在請求完成時刷新 |
+| P2 磁碟與舊映像整理 | 不再追蹤（2026-10-16 使用者決定）：屬於營運事項，由維護者視需要處理 |
+
+這次事故的教訓已整理成[地雷 L-07](agents/landmines.md#l-07-工作結束後瀏覽器與子孫程序仍然存活)。
+
 ## 摘要
 
 本次檢查只讀取執行中容器、cgroup、runner 狀態、日誌與原始碼，沒有重啟服務、

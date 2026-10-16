@@ -174,7 +174,7 @@ Phase 0 契約探測 → Phase 1 容器回收 → Phase 2 工具與生命週期 
 | TBD-2 | 盤點登入、完整互動及跨回合 browser 狀態使用情況 | 已解決 | 2026-10-04 使用者以「確認」接受只保留公開網頁閱讀、不保證沿用舊自動點擊；2 次 click 用途仍未知，不假稱已識別。依此取捨執行安全遷移，證據見 T3.1 |
 | TBD-3 | 固定 MCP／Chrome 相容版本、支援平台、工具旗標及 sandbox 可行性 | 已解決 | 2026-10-04 Phase 0／2 固定版本與 linux/amd64 真產品契約通過；使用 no-sandbox，保留容器硬化，不宣稱 Chrome sandbox 啟用。證據見 T0.2、T2.2 |
 | TBD-4 | OpenCode 設定合併／任務所有權／強制終止與 15 秒收尾契約 | 已解決 | 2026-10-04 真產品退出／併發矩陣及清理失敗負對照通過，限制見 T2.2、T2.3；45 次最終回歸仍由 T4.1 負責 |
-| TBD-5 | 正式部署切換與安全排空時機 | 待確認 | 由維護者另行決定；不阻塞建檔或隔離驗證 |
+| TBD-5 | 正式部署切換與安全排空時機 | 已解決 | 2026-10-07 維護者將正式部署升到 v2.29.0（含本 issue 的 v2.28.0 變更），升級前備份 opencode 資料卷與 `data/`；2026-10-16 查核三個服務皆以 v2.29.0 映像執行且 healthy |
 
 ## Timeline
 
@@ -187,6 +187,10 @@ Phase 0 契約探測 → Phase 1 容器回收 → Phase 2 工具與生命週期 
 | 2026-10-05 | SCN-001～007、45 輪及完整 gate 通過；建立 PR #11，初次獨立審查 PASS，交付有效性依對應 HEAD 報告 | [PR #11](https://github.com/raybird/telenexus/pull/11) |
 | 2026-10-05 | 使用者 REQUEST CHANGES：新增已核准 SCN-008，原 PASS 不涵蓋新規格；補 runner／container termination 與 final gate，完成後交第二輪 review，不合併 | 使用者對話 |
 | 2026-10-05 | SCN-008 真 runner SIGTERM 與 deadline 強制終止補驗完成；程序終態／強制組 profile 殘留分別揭露，等待新版交付的第二輪 review | [補驗證據](evidence/scn008-report.md) |
+| 2026-10-05 | 第二輪獨立審查 3127601：PASS，涵蓋 SCN-001～008 | [review-3127601.md](./review-3127601.md) |
+| 2026-10-05 | PR #11 以 squash 合併進 main（`718cc8b`），GitHub issue #10 關閉；同日發版 v2.28.0 | [PR #11](https://github.com/raybird/telenexus/pull/11) |
+| 2026-10-07 | 正式部署升到 v2.29.0，含本 issue 的變更；TBD-5 結案 | - |
+| 2026-10-16 | 補記合併後的結案紀錄：合併時沒有回寫狀態（見[地雷 L-09](../../agents/landmines.md#l-09-issue-文件與實際交付狀態不一致)） | - |
 
 ---
 
@@ -196,4 +200,6 @@ Phase 0 契約探測 → Phase 1 容器回收 → Phase 2 工具與生命週期 
 
 **風險**: High
 
-**狀態**: 2026-10-05 SCN-008 補驗完成，PR #11 等待第二輪 review；未合併，原 PASS 不代表新增規格已獲維護者放行
+**狀態**: 已完成
+
+**完成日期**: 2026-10-05（PR #11 合併）
