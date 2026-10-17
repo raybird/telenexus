@@ -113,6 +113,8 @@ export interface RetentionDeps {
   /** `page_count` 與 `freelist_count`。 */
   readSpaceStats: () => Promise<SpaceStats>;
   vacuum: () => Promise<void>;
+  /** `PRAGMA wal_checkpoint(TRUNCATE)`。 */
+  truncateWal: () => Promise<WalCheckpointResult>;
   /** 沒有 opencode 任務在執行。 */
   isIdle: () => boolean;
   now?: () => number;
@@ -125,16 +127,49 @@ export interface SpaceStats {
   latestSessionUpdate: number | null;
 }
 
+/** `PRAGMA wal_checkpoint(TRUNCATE)` 回傳的一列。 */
+export interface WalCheckpointResult {
+  busy: number;
+  log: number;
+  checkpointed: number;
+}
+
+/** 解析 `opencode db --format json "PRAGMA wal_checkpoint(TRUNCATE)"` 的輸出。 */
+export function parseWalCheckpoint(stdout: string): WalCheckpointResult {
+  const parsed: unknown = JSON.parse(stdout);
+  const row = (Array.isArray(parsed) ? parsed[0] : undefined) as
+    | Record<string, unknown>
+    | undefined;
+  const busy = row?.['busy'];
+  const log = row?.['log'];
+  const checkpointed = row?.['checkpointed'];
+  if (typeof busy !== 'number' || typeof log !== 'number' || typeof checkpointed !== 'number') {
+    throw new Error('opencode db output has no busy / log / checkpointed');
+  }
+  return { busy, log, checkpointed };
+}
+
 export type ReclaimOutcome =
   | 'reclaimed'
   | 'below-threshold'
   | 'busy'
   | 'recently-reclaimed'
-  | 'failed';
+  | 'failed'
+  | 'wal-truncate-pending';
 
-/** 跨輪次保存的回收狀態，由排程持有。 */
+/** truncated：WAL 已縮回 0；not-truncated：這次沒截斷成功，之後重試；deferred：有任務在執行，留到閒置。 */
+export type WalTruncateOutcome = 'truncated' | 'not-truncated' | 'deferred';
+
+/** 跨輪次保存的回收狀態，由排程持有；只在記憶體中，服務重啟後不保留。 */
 export interface ReclaimState {
   lastReclaimAt: number | null;
+  /** 回收後的截斷還沒成功，之後的輪次只重試截斷、不再 VACUUM。 */
+  walTruncatePending?: boolean;
+}
+
+interface ReclaimResult {
+  reclaim: ReclaimOutcome;
+  walTruncate?: WalTruncateOutcome;
 }
 
 /** 解析 `select * from pragma_page_count(), pragma_freelist_count()` 的 JSON 輸出。 */
@@ -157,6 +192,58 @@ export function parseSpaceStats(stdout: string): SpaceStats {
 }
 
 /**
+ * runner 看不到 telenexus 本機執行的任務（反之亦然），但兩邊寫的是同一份資料庫，
+ * 所以再看全庫最近有沒有 session 被更新。
+ */
+function isQuiet(deps: RetentionDeps, stats: SpaceStats, at: number): boolean {
+  return (
+    deps.isIdle() &&
+    (stats.latestSessionUpdate === null || at - stats.latestSessionUpdate >= RECLAIM_QUIET_MS)
+  );
+}
+
+/**
+ * WAL 模式下 VACUUM 會把整個新資料庫寫進 WAL，checkpoint 不會縮小 WAL 檔，opencode 結束時也不刪它，
+ * 所以要截斷（issue 0014）。有其他連線在讀時回傳 busy=1 但 exit 仍是 0，只能看 busy 判斷。
+ */
+async function truncateWal(deps: RetentionDeps, state: ReclaimState): Promise<WalTruncateOutcome> {
+  try {
+    const result = await deps.truncateWal();
+    if (result.busy === 0) {
+      state.walTruncatePending = false;
+      return 'truncated';
+    }
+    recordRuntimeIssue(
+      'opencode-retention:wal-truncate',
+      new Error(
+        `wal_checkpoint(TRUNCATE) busy=${result.busy} log=${result.log} checkpointed=${result.checkpointed}`
+      )
+    );
+  } catch (error) {
+    recordRuntimeIssue('opencode-retention:wal-truncate', error);
+  }
+  state.walTruncatePending = true;
+  return 'not-truncated';
+}
+
+/** 回收後的截斷還沒成功：沒有任務在執行時重試，有任務時留到之後的輪次。 */
+async function retryWalTruncate(
+  deps: RetentionDeps,
+  state: ReclaimState,
+  at: number
+): Promise<WalTruncateOutcome> {
+  try {
+    if (!isQuiet(deps, await deps.readSpaceStats(), at)) {
+      return 'deferred';
+    }
+  } catch (error) {
+    recordRuntimeIssue('opencode-retention:wal-truncate', error);
+    return 'not-truncated';
+  }
+  return truncateWal(deps, state);
+}
+
+/**
  * 刪除後空出的頁面會被重複使用，檔案不再長大，但要變小得 VACUUM。實測 220 MB 回收不到 1 秒，
  * 期間讀取不受影響、寫入最多等 390 ms，opencode 的連線本身有 busy_timeout=5000；仍只在沒有任務時做，
  * 而且一天最多一次。平常的頁面會被重複使用，所以通常只有清完積壓後才會觸發。
@@ -165,36 +252,38 @@ async function maybeReclaimSpace(
   deps: RetentionDeps,
   state: ReclaimState,
   now: () => number
-): Promise<ReclaimOutcome> {
+): Promise<ReclaimResult> {
   const at = now();
+  if (state.walTruncatePending) {
+    return {
+      reclaim: 'wal-truncate-pending',
+      walTruncate: await retryWalTruncate(deps, state, at)
+    };
+  }
   if (state.lastReclaimAt !== null && at - state.lastReclaimAt < RECLAIM_MIN_INTERVAL_MS) {
-    return 'recently-reclaimed';
+    return { reclaim: 'recently-reclaimed' };
   }
   try {
     const stats = await deps.readSpaceStats();
     if (stats.pageCount <= 0 || stats.freelistCount / stats.pageCount < RECLAIM_FREELIST_RATIO) {
-      return 'below-threshold';
+      return { reclaim: 'below-threshold' };
     }
-    // runner 看不到 telenexus 本機執行的任務（反之亦然），但兩邊寫的是同一份資料庫，
-    // 所以再看全庫最近有沒有 session 被更新。
-    if (
-      !deps.isIdle() ||
-      (stats.latestSessionUpdate !== null && at - stats.latestSessionUpdate < RECLAIM_QUIET_MS)
-    ) {
-      return 'busy';
+    if (!isQuiet(deps, stats, at)) {
+      return { reclaim: 'busy' };
     }
     await deps.vacuum();
     state.lastReclaimAt = at;
-    return 'reclaimed';
   } catch (error) {
     recordRuntimeIssue('opencode-retention:vacuum', error);
-    return 'failed';
+    return { reclaim: 'failed' };
   }
+  return { reclaim: 'reclaimed', walTruncate: await truncateWal(deps, state) };
 }
 
 export interface RetentionRunResult {
   skipped?: 'disabled' | 'protected-ids-unavailable' | 'query-failed';
   reclaim?: ReclaimOutcome;
+  walTruncate?: WalTruncateOutcome;
   candidates: number;
   deleted: number;
   failed: number;
@@ -261,7 +350,7 @@ export async function runRetentionOnce(
     );
   }
   const reclaim = await maybeReclaimSpace(deps, reclaimState, now);
-  const summary = result({ candidates: toDelete.length, deleted, failed, reclaim });
+  const summary = result({ candidates: toDelete.length, deleted, failed, ...reclaim });
   log.info('run', { ...summary });
   return summary;
 }
@@ -351,6 +440,14 @@ export function createOpencodeRetentionDeps(
     },
     vacuum: async () => {
       await runProcess('opencode', ['db', 'VACUUM'], { timeoutMs: VACUUM_TIMEOUT_MS });
+    },
+    truncateWal: async () => {
+      const { stdout } = await runProcess(
+        'opencode',
+        ['db', '--format', 'json', 'PRAGMA wal_checkpoint(TRUNCATE)'],
+        { timeoutMs: OPENCODE_COMMAND_TIMEOUT_MS }
+      );
+      return parseWalCheckpoint(stdout);
     },
     queryCandidates: async (limit) => {
       // 只看 TeleNexus 自己執行 opencode 的目錄：在主機上執行時，opencode.db 是使用者全域的，

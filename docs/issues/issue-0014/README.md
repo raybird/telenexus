@@ -55,10 +55,15 @@ GitHub：[#14](https://github.com/raybird/telenexus/issues/14)
    - 產出：`evidence/step1-wal-truncate-probe.md` 與所用腳本。依[地雷 L-10](../../agents/landmines.md) 去敏，只記彙總數字，不記 session ID、內容或本機路徑。
    - 完成判準：「風險與首要驗證」的完成證據三項都有實測紀錄。截斷後 WAL 不是 0 時停止，回到規劃，修改 AC-1 的方向並重新取得核准。
    - 完成證據（2026-10-18）：[evidence/step1-wal-truncate-probe.md](evidence/step1-wal-truncate-probe.md)。`VACUUM` 後 WAL 為 173,864,032 bytes、主檔 172,851,200 bytes（問題重現）；截斷輸出 `[{"busy":0,"log":0,"checkpointed":0}]`、WAL 0 bytes；另一個連線持有讀取交易時輸出 `busy: 1`、WAL 不變，且 **exit 仍是 0**，所以步驟 2 必須以 `busy` 判定，不能看 exit code。
-2. 📝 **AC-1、AC-2：VACUUM 後截斷與重試** — 相依：步驟 1。`RetentionDeps` 新增截斷，依步驟 1 實測的輸出格式解析 `busy`；回收的狀態另外記錄是否有待重試的截斷；`run` log 摘要記錄截斷結果；失敗記錄 `opencode-retention:wal-truncate`。
+2. ✅ **AC-1、AC-2：VACUUM 後截斷與重試** — 相依：步驟 1。`RetentionDeps` 新增截斷，依步驟 1 實測的輸出格式解析 `busy`；回收的狀態另外記錄是否有待重試的截斷；`run` log 摘要記錄截斷結果；失敗記錄 `opencode-retention:wal-truncate`。
    - 產出：上述程式與 `tests/opencode-session-retention-run.test.ts` 的測試。
    - 完成判準：依 [verification.md](../../agents/verification.md) 取得 AC-1、AC-2 的紅綠重構證據。單元測試以假 deps 涵蓋：回收成功後截斷、busy、拋錯、下一輪只重試截斷、成功後不再呼叫、忙碌時不重試、實際 deps 下的 `opencode db` 參數。
-3. 📝 **AC-1：複本上的端到端回收** — 相依：步驟 2。用本版程式的實際 deps，對步驟 1 的同一份備份重新解出的複本跑回收路徑。
+   - 完成證據（2026-10-18，命令皆為 `npx tsx --test tests/opencode-session-retention-run.test.ts`）：
+     - 單元測試紅燈：先補上型別、`truncateWal` dep 與未實作的 `parseWalCheckpoint`，讓測試檔能載入（缺 export 造成的載入失敗不算目標行為的紅燈）。結果 exit 1，32 個測試中 26 通過、6 失敗。失敗原因都是目標行為不存在：AC-1、AC-2 的 4 個測試是 `walTruncate` 為 `undefined`，預期 `truncated`／`not-truncated`／`deferred`；解析與實際 deps 的 2 個測試是 `not implemented`。既有的 26 個測試維持通過。
+     - 最小實作後全綠：exit 0，32/32 通過。過程中修正一個測試互相干擾的問題：`recordRuntimeIssue` 在 60 秒內對相同 scope 與訊息去重，重試測試第一輪的 busy 訊息和前一個測試相同，hook 不會再觸發，所以改用不同的數值。實作沒有改動。
+     - 重構後全綠：依 code-simplify 把待重試的分支抽成 `retryWalTruncate`，三處重複的 `reclaim: 'wal-truncate-pending'` 收成一處；測試改用匯出的 `ReclaimState` 型別。之後 exit 0、32/32 通過；`npx tsc --noEmit -p .` exit 0；`npx eslint src/services/opencode-session-retention.ts` exit 0。
+     - 外迴圈不和單元測試合併：AC-1 的外部行為是實際的 opencode 與 SQLite 檔案大小，單元測試的假 deps 碰不到，所以外迴圈的紅燈與綠燈放在步驟 3：在複本上先跑變更前的程式（紅），再跑本版程式（綠）。
+3. 📝 **AC-1：複本上的端到端回收（外迴圈）** — 相依：步驟 2。對步驟 1 的同一份備份重新解出的複本，用實際 deps 跑 `runRetentionOnce` 的回收路徑：先用變更前（`main`）的程式取得外迴圈紅燈（回收後 WAL 約等於主檔大小），再用本版程式在另一份新解出的複本上取得綠燈。
    - 產出：`evidence/step3-e2e-copy.md`。
    - 完成判準：記錄回收前、`VACUUM` 後、截斷後三個時間點的主檔與 WAL 大小，截斷後合計小於回收前，log 記錄截斷完成。
 4. 📝 **常青文件與地雷** — 相依：步驟 2。`docs/configuration-reference.md` 的回收說明補上截斷與重試，runtime issue 清單加入 `opencode-retention:wal-truncate`，更新最後驗證日期；`docs/agents/landmines.md` 新增地雷，附步驟 1 的證據連結。

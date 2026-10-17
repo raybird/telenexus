@@ -9,9 +9,11 @@ import {
   resolveRetentionDirectories,
   parseCandidateRows,
   parseSpaceStats,
+  parseWalCheckpoint,
   runRetentionOnce,
   shouldMainRunRetention,
   startOpencodeSessionRetention,
+  type ReclaimState,
   type RetentionCandidate,
   type RetentionDeps
 } from '../src/services/opencode-session-retention.js';
@@ -49,6 +51,7 @@ function fakeDeps(overrides: Partial<RetentionDeps> = {}): RetentionDeps & {
     readProtectedIds: () => new Set(['bound']),
     readSpaceStats: async () => ({ pageCount: 1000, freelistCount: 0, latestSessionUpdate: null }),
     vacuum: async () => {},
+    truncateWal: async () => ({ busy: 0, log: 0, checkpointed: 0 }),
     isIdle: () => true,
     now: () => NOW,
     ...overrides
@@ -289,16 +292,22 @@ exit 0
 function reclaimDeps(
   stats: { pageCount: number; freelistCount: number; latestSessionUpdate?: number | null },
   overrides: Partial<RetentionDeps> = {}
-): ReturnType<typeof fakeDeps> & { vacuums: number } {
+): ReturnType<typeof fakeDeps> & { vacuums: number; calls: string[] } {
   const deps = fakeDeps({
     readSpaceStats: async () => ({ latestSessionUpdate: NOW - 60 * 60 * 1000, ...stats }),
     ...overrides
   });
-  const tracked = Object.assign(deps, { vacuums: 0 });
+  const tracked = Object.assign(deps, { vacuums: 0, calls: [] as string[] });
   const vacuum = overrides.vacuum;
   tracked.vacuum = async () => {
     tracked.vacuums += 1;
+    tracked.calls.push('vacuum');
     if (vacuum) await vacuum();
+  };
+  const truncateWal = deps.truncateWal;
+  tracked.truncateWal = async () => {
+    tracked.calls.push('truncate');
+    return truncateWal();
   };
   return tracked;
 }
@@ -420,6 +429,7 @@ test('SCN-006: 實際的 deps 以 opencode db 讀取空間並執行 VACUUM', asy
 printf '%s\\n' "$*" >> "${argsLog}"
 case "$4" in
   *pragma_page_count*) printf '[{"latest_session_update":1700000000000,"page_count":100,"freelist_count":30}]\\n' ;;
+  *wal_checkpoint*) printf '[\\n  {\\n    "busy": 1,\\n    "log": 42200,\\n    "checkpointed": 42200\\n  }\\n]\\n' ;;
 esac
 exit 0
 `,
@@ -435,9 +445,11 @@ exit 0
       latestSessionUpdate: 1700000000000
     });
     await deps.vacuum();
+    assert.deepEqual(await deps.truncateWal(), { busy: 1, log: 42200, checkpointed: 42200 });
     assert.deepEqual(fs.readFileSync(argsLog, 'utf8').trim().split('\n'), [
       'db --format json select (select max(time_updated) from session) as latest_session_update, * from pragma_page_count(), pragma_freelist_count()',
-      'db VACUUM'
+      'db VACUUM',
+      'db --format json PRAGMA wal_checkpoint(TRUNCATE)'
     ]);
   } finally {
     if (previousPath === undefined) delete process.env.PATH;
@@ -452,4 +464,155 @@ test('SCN-001: TeleNexus 的目錄是專案目錄與其下的 workspace', () => 
     '/srv/telenexus',
     '/srv/telenexus/workspace'
   ]);
+});
+
+test('AC-1: VACUUM 成功後接著截斷 WAL，截斷結果記在該輪的結果裡', async () => {
+  const deps = reclaimDeps({ pageCount: 1000, freelistCount: 200 });
+  const state: ReclaimState = { lastReclaimAt: null };
+  const result = await runRetentionOnce(ENABLED, deps, 100, state);
+  assert.equal(result.reclaim, 'reclaimed');
+  assert.equal(result.walTruncate, 'truncated');
+  assert.deepEqual(deps.calls, ['vacuum', 'truncate']);
+  assert.notEqual(state.walTruncatePending, true);
+});
+
+test('AC-1: 沒有回收時不截斷', async () => {
+  for (const [stats, overrides] of [
+    [{ pageCount: 1000, freelistCount: 199 }, {}],
+    [{ pageCount: 1000, freelistCount: 500 }, { isIdle: () => false }]
+  ] as const) {
+    const deps = reclaimDeps(stats, overrides);
+    const result = await runRetentionOnce(ENABLED, deps, 100, { lastReclaimAt: null });
+    assert.equal(result.walTruncate, undefined);
+    assert.deepEqual(deps.calls, []);
+  }
+});
+
+test('AC-1: VACUUM 失敗時不截斷', async () => {
+  const deps = reclaimDeps(
+    { pageCount: 1000, freelistCount: 500 },
+    {
+      vacuum: async () => {
+        throw new Error('database is locked (wal truncate test)');
+      }
+    }
+  );
+  const result = await runRetentionOnce(ENABLED, deps, 100, { lastReclaimAt: null });
+  assert.equal(result.reclaim, 'failed');
+  assert.equal(result.walTruncate, undefined);
+  assert.deepEqual(deps.calls, ['vacuum']);
+});
+
+test('AC-2: 截斷回傳 busy 時記錄 runtime issue、記下待重試，刪除結果不受影響', async () => {
+  const { scopes, unhook } = captureIssueScopes();
+  try {
+    const deps = reclaimDeps(
+      { pageCount: 1000, freelistCount: 500 },
+      { truncateWal: async () => ({ busy: 1, log: 42200, checkpointed: 42200 }) }
+    );
+    const state: ReclaimState = { lastReclaimAt: null };
+    const result = await runRetentionOnce(ENABLED, deps, 100, state);
+    assert.equal(result.reclaim, 'reclaimed');
+    assert.equal(result.walTruncate, 'not-truncated');
+    assert.equal(result.deleted, 2);
+    assert.equal(result.failed, 0);
+    assert.equal(state.walTruncatePending, true);
+    assert.deepEqual(scopes, ['opencode-retention:wal-truncate']);
+  } finally {
+    unhook();
+  }
+});
+
+test('AC-2: 之後的輪次只重試截斷、不重跑 VACUUM，成功一次後不再截斷', async () => {
+  const { scopes, unhook } = captureIssueScopes();
+  try {
+    // 訊息與上一個測試不同：recordRuntimeIssue 在 60 秒內對同樣的 scope 與訊息去重。
+    const answers: Array<() => { busy: number; log: number; checkpointed: number }> = [
+      () => ({ busy: 1, log: 7, checkpointed: 7 }),
+      () => {
+        throw new Error('opencode db timed out (wal truncate test)');
+      },
+      () => ({ busy: 0, log: 0, checkpointed: 0 })
+    ];
+    const deps = reclaimDeps(
+      { pageCount: 1000, freelistCount: 500 },
+      {
+        truncateWal: async () => {
+          const next = answers.shift();
+          assert.ok(next, '截斷成功之後不該再被呼叫');
+          return next();
+        }
+      }
+    );
+    const state: ReclaimState = { lastReclaimAt: null };
+
+    const first = await runRetentionOnce(ENABLED, deps, 100, state);
+    assert.equal(first.walTruncate, 'not-truncated');
+    const second = await runRetentionOnce(ENABLED, deps, 100, state);
+    assert.equal(second.walTruncate, 'not-truncated');
+    assert.equal(state.walTruncatePending, true);
+    const third = await runRetentionOnce(ENABLED, deps, 100, state);
+    assert.equal(third.walTruncate, 'truncated');
+    assert.notEqual(state.walTruncatePending, true);
+    const fourth = await runRetentionOnce(ENABLED, deps, 100, state);
+    assert.equal(fourth.walTruncate, undefined);
+    assert.equal(fourth.reclaim, 'recently-reclaimed');
+
+    assert.deepEqual(deps.calls, ['vacuum', 'truncate', 'truncate', 'truncate']);
+    assert.equal(deps.vacuums, 1);
+    assert.deepEqual(scopes, [
+      'opencode-retention:wal-truncate',
+      'opencode-retention:wal-truncate'
+    ]);
+  } finally {
+    unhook();
+  }
+});
+
+test('AC-2: 待重試期間有任務在執行時不截斷，狀態保留到閒置', async () => {
+  let idle = false;
+  let latest = NOW - 60 * 60 * 1000;
+  const deps = reclaimDeps(
+    { pageCount: 1000, freelistCount: 500 },
+    {
+      isIdle: () => idle,
+      readSpaceStats: async () => ({
+        pageCount: 1000,
+        freelistCount: 0,
+        latestSessionUpdate: latest
+      })
+    }
+  );
+  const state = { lastReclaimAt: NOW, walTruncatePending: true };
+
+  const running = await runRetentionOnce(ENABLED, deps, 100, state);
+  assert.equal(running.walTruncate, 'deferred');
+  idle = true;
+  latest = NOW - 60 * 1000;
+  const recentlyUpdated = await runRetentionOnce(ENABLED, deps, 100, state);
+  assert.equal(recentlyUpdated.walTruncate, 'deferred');
+  assert.deepEqual(deps.calls, []);
+  assert.equal(state.walTruncatePending, true);
+
+  latest = NOW - 6 * 60 * 1000;
+  const quiet = await runRetentionOnce(ENABLED, deps, 100, state);
+  assert.equal(quiet.walTruncate, 'truncated');
+  assert.deepEqual(deps.calls, ['truncate']);
+  assert.equal(deps.vacuums, 0);
+});
+
+test('AC-1/AC-2: 解析 wal_checkpoint 的輸出，格式不符時拋出', () => {
+  assert.deepEqual(
+    parseWalCheckpoint('[\n  {\n    "busy": 0,\n    "log": 0,\n    "checkpointed": 0\n  }\n]'),
+    { busy: 0, log: 0, checkpointed: 0 }
+  );
+  assert.deepEqual(parseWalCheckpoint('[{"busy":1,"log":42200,"checkpointed":42200}]'), {
+    busy: 1,
+    log: 42200,
+    checkpointed: 42200
+  });
+  assert.throws(() => parseWalCheckpoint(''));
+  assert.throws(() => parseWalCheckpoint('[]'));
+  assert.throws(() => parseWalCheckpoint('[{"log":0,"checkpointed":0}]'));
+  assert.throws(() => parseWalCheckpoint('[\n  {\n    "busy": 0,'));
 });
