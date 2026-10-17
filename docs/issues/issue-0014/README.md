@@ -32,7 +32,7 @@ GitHub：[#14](https://github.com/raybird/telenexus/issues/14)
 
 - **核准日期**: 2026-10-18
 - **核准來源**: 使用者 2026-10-18 對話。「開 issue 處理1」，其中第 1 點是「在 `VACUUM` 之後接著執行 `PRAGMA wal_checkpoint(TRUNCATE)`……同樣用 `opencode db` 來執行，並補上把 WAL 大小算進去的實測」（對應 AC-1）。Q1「什麼時候截斷 WAL」選「只在 VACUUM 後截斷」，該選項的內容是「VACUUM 成功後才截斷，失敗就在記憶體記下來、下一輪重試（服務重啟後這個紀錄會消失）；正式環境現有的 173 MB 要另外手動處理」（對應 AC-2、TBD-2）。
-- **核准 commit**: 待提交
+- **核准 commit**: 33f9db9
 
 ## 風險與首要驗證
 
