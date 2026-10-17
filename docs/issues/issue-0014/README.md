@@ -46,14 +46,15 @@ GitHub：[#14](https://github.com/raybird/telenexus/issues/14)
 
 | 編號 | 事項 | 狀態 | 影響 |
 |------|------|------|------|
-| TBD-1 | 正式環境的 WAL 從 03:31 回收後就一直是 173 MB。SQLite 通常在最後一個連線關閉時 checkpoint 並刪除 WAL，所以可能有常駐的連線一直開著資料庫，或 opencode 結束時沒有關閉連線。若是前者，截斷在正式環境可能一直回傳 busy。2026-10-18 想唯讀列出容器內開著 `opencode.db` 的行程，被權限檢查擋下，尚未確認。 | 待確認 | AC-1 在正式環境是否有效。步驟 1 在複本上觀察 opencode 行程結束後 WAL 是否被刪除；正式環境的確認方式由使用者決定。 |
+| TBD-1 | 正式環境的 WAL 從 03:31 回收後就一直是 173 MB。SQLite 通常在最後一個連線關閉時 checkpoint 並刪除 WAL，所以可能有常駐的連線一直開著資料庫，或 opencode 結束時沒有關閉連線。若是前者，截斷在正式環境可能一直回傳 busy。2026-10-18 想唯讀列出容器內開著 `opencode.db` 的行程，被權限檢查擋下。 | 已解決 | 結論（2026-10-18）：複本上 `opencode db` 結束後 WAL 沒有被刪除、大小不變（[步驟 1 實測](evidence/step1-wal-truncate-probe.md)「opencode 結束時不刪除 WAL」），所以正式環境的現象不需要常駐連線就能解釋。正式環境若真有常駐的讀取者，截斷會一直回傳 `busy`，由 AC-2 的 `opencode-retention:wal-truncate` runtime issue 顯示。 |
 | TBD-2 | 正式環境現有的 173 MB WAL | 不影響本次交付 | 結論（2026-10-18）：依 Q1 的選擇，本版的截斷只在下一次 `VACUUM` 後才執行，不會處理既有的 WAL。由使用者在修正版升級時決定是否手動執行一次截斷，結果記在本 README 的 Timeline。 |
 
 ## 實作與驗證步驟
 
-1. 📝 **首要驗證：在複本上確認 opencode 的截斷行為（AC-1、AC-2 的前提）** — 從正式部署目錄的 `backups/opencode_auth-pre-v2.30.0-20261018.tgz`（10-18 升級前停機時打包）解出複本，放在 repo 外的暫存目錄。以 `ghcr.io/raybird/telenexus:v2.30.0`（opencode 1.18.34）的拋棄式容器操作：只掛複本，不帶 auth、不發佈 port。依序做三件事：刪除舊 session 直到可回收頁數達兩成後執行 `opencode db "VACUUM"`；執行 `opencode db --format json "PRAGMA wal_checkpoint(TRUNCATE)"`；在另一個連線持有讀取交易時再截斷一次。每個時間點都記錄主檔與 WAL 大小，另外觀察 opencode 行程結束後 WAL 是否被刪除（TBD-1）。
+1. ✅ **首要驗證：在複本上確認 opencode 的截斷行為（AC-1、AC-2 的前提）** — 從正式部署目錄的 `backups/opencode_auth-pre-v2.30.0-20261018.tgz`（10-18 升級前停機時打包）解出複本，放在 repo 外的暫存目錄。以 `ghcr.io/raybird/telenexus:v2.30.0`（opencode 1.18.34）的拋棄式容器操作：只掛複本，不帶 auth、不發佈 port。依序做三件事：刪除舊 session 直到可回收頁數達兩成後執行 `opencode db "VACUUM"`；執行 `opencode db --format json "PRAGMA wal_checkpoint(TRUNCATE)"`；在另一個連線持有讀取交易時再截斷一次。每個時間點都記錄主檔與 WAL 大小，另外觀察 opencode 行程結束後 WAL 是否被刪除（TBD-1）。
    - 產出：`evidence/step1-wal-truncate-probe.md` 與所用腳本。依[地雷 L-10](../../agents/landmines.md) 去敏，只記彙總數字，不記 session ID、內容或本機路徑。
    - 完成判準：「風險與首要驗證」的完成證據三項都有實測紀錄。截斷後 WAL 不是 0 時停止，回到規劃，修改 AC-1 的方向並重新取得核准。
+   - 完成證據（2026-10-18）：[evidence/step1-wal-truncate-probe.md](evidence/step1-wal-truncate-probe.md)。`VACUUM` 後 WAL 為 173,864,032 bytes、主檔 172,851,200 bytes（問題重現）；截斷輸出 `[{"busy":0,"log":0,"checkpointed":0}]`、WAL 0 bytes；另一個連線持有讀取交易時輸出 `busy: 1`、WAL 不變，且 **exit 仍是 0**，所以步驟 2 必須以 `busy` 判定，不能看 exit code。
 2. 📝 **AC-1、AC-2：VACUUM 後截斷與重試** — 相依：步驟 1。`RetentionDeps` 新增截斷，依步驟 1 實測的輸出格式解析 `busy`；回收的狀態另外記錄是否有待重試的截斷；`run` log 摘要記錄截斷結果；失敗記錄 `opencode-retention:wal-truncate`。
    - 產出：上述程式與 `tests/opencode-session-retention-run.test.ts` 的測試。
    - 完成判準：依 [verification.md](../../agents/verification.md) 取得 AC-1、AC-2 的紅綠重構證據。單元測試以假 deps 涵蓋：回收成功後截斷、busy、拋錯、下一輪只重試截斷、成功後不再呼叫、忙碌時不重試、實際 deps 下的 `opencode db` 參數。
@@ -64,6 +65,12 @@ GitHub：[#14](https://github.com/raybird/telenexus/issues/14)
    - 完成判準：文件與實作的行為一致，連結指向存在的檔案。
 5. 📝 **交付前驗證** — 相依：步驟 2～4。依 [project.md](../../agents/project.md) 依序執行 `npm run build`、`npm run test`（核對 `# tests` 與測試檔數相稱）、`npm run lint`。
    - 完成判準：三者 exit 0，輸出記在本步驟。
+
+## Gate 豁免紀錄
+
+| 日期 | 豁免項目 | 使用者原話 | 殘餘風險 |
+|------|----------|-----------|----------|
+| 2026-10-18 | 不開 PR；改由獨立 subagent 在本機審查 `main..HEAD`，合併由使用者決定 | 交付方式選「分支＋本機審查」 | 沒有 GitHub 上的 PR 紀錄；審查報告保存在本 issue 目錄 |
 
 ## Timeline
 
