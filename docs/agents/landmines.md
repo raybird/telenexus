@@ -88,6 +88,13 @@
 - **怎麼查**：加上 `</dev/null`（shell）或 `stdio: ['ignore', ...]`（node）後重跑，10 秒內就會開始輸出。
 - **證據**：[issue 0009 步驟 1 實測](../issues/issue-0009/evidence/step1-delete-vacuum-probe.md)的「有任務執行時刪除」一節：第一次嘗試 5 分鐘沒有輸出，改成 `</dev/null` 後正常。
 
+## L-13 WAL 模式下 `VACUUM` 之後，WAL 檔長到和整個資料庫一樣大
+
+- **症狀**：`VACUUM` 之後主檔變小，但 `-wal` 檔變得和主檔差不多大，合計占用反而比回收前多；之後 opencode 執行多少次，WAL 都不會縮小。
+- **觸發**：對 WAL 模式的 SQLite（`opencode.db` 就是）執行 `VACUUM`。整個新資料庫會先寫進 WAL；checkpoint 只把內容寫回主檔，不縮小檔案，`journal_size_limit` 又是 `-1`；opencode 結束時也不會刪除 WAL。只量主檔大小時看不出來。
+- **怎麼查**：主檔與 `-wal` 檔一起量。要縮小 WAL，執行 `PRAGMA wal_checkpoint(TRUNCATE)`，並看輸出的 `busy`：有其他連線在讀取時 `busy` 是 1，WAL 不會縮小，但 `opencode db` 的 exit 仍是 0。
+- **證據**：[issue 0014 步驟 1 實測](../issues/issue-0014/evidence/step1-wal-truncate-probe.md)：`VACUUM` 後主檔 172,851,200 bytes、WAL 173,864,032 bytes，截斷後 WAL 為 0；正式環境 2026-10-18 第一次回收後 WAL 從 5 MB 長到 173 MB。
+
 ---
 
-**最後驗證**: 2026-10-16（逐條核對證據連結與提交存在；新增 L-11、L-12）
+**最後驗證**: 2026-10-18（新增 L-13）

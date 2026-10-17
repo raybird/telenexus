@@ -21,7 +21,8 @@ GitHub：[#14](https://github.com/raybird/telenexus/issues/14)
 - `src/services/opencode-session-retention.ts` - VACUUM 後截斷 WAL；截斷沒完成時記下待重試，之後的輪次只重試截斷
 - `tests/opencode-session-retention-run.test.ts` - 截斷成功、未完成與重試的單元測試
 - `docs/configuration-reference.md` - 「opencode session 保留期清理」的回收說明與 runtime issue 清單
-- `docs/agents/landmines.md` - 新增 WAL 模式下 VACUUM 讓 WAL 長到整庫大小的地雷
+- `docs/agents/landmines.md` - 新增 WAL 模式下 VACUUM 讓 WAL 長到整庫大小的地雷（L-13）；`docs/agents/project.md` 的地雷索引補上 L-13
+- `ARCHITECTURE.md`、`CLAUDE.md` 的 Key Modules - 清理模組的回收說明補上截斷 WAL
 
 ## 驗收條件
 
@@ -63,13 +64,16 @@ GitHub：[#14](https://github.com/raybird/telenexus/issues/14)
      - 最小實作後全綠：exit 0，32/32 通過。過程中修正一個測試互相干擾的問題：`recordRuntimeIssue` 在 60 秒內對相同 scope 與訊息去重，重試測試第一輪的 busy 訊息和前一個測試相同，hook 不會再觸發，所以改用不同的數值。實作沒有改動。
      - 重構後全綠：依 code-simplify 把待重試的分支抽成 `retryWalTruncate`，三處重複的 `reclaim: 'wal-truncate-pending'` 收成一處；測試改用匯出的 `ReclaimState` 型別。之後 exit 0、32/32 通過；`npx tsc --noEmit -p .` exit 0；`npx eslint src/services/opencode-session-retention.ts` exit 0。
      - 外迴圈不和單元測試合併：AC-1 的外部行為是實際的 opencode 與 SQLite 檔案大小，單元測試的假 deps 碰不到，所以外迴圈的紅燈與綠燈放在步驟 3：在複本上先跑變更前的程式（紅），再跑本版程式（綠）。
-3. 📝 **AC-1：複本上的端到端回收（外迴圈）** — 相依：步驟 2。對步驟 1 的同一份備份重新解出的複本，用實際 deps 跑 `runRetentionOnce` 的回收路徑：先用變更前（`main`）的程式取得外迴圈紅燈（回收後 WAL 約等於主檔大小），再用本版程式在另一份新解出的複本上取得綠燈。
+3. ✅ **AC-1：複本上的端到端回收（外迴圈）** — 相依：步驟 2。對步驟 1 的同一份備份重新解出的複本，用實際 deps 跑 `runRetentionOnce` 的回收路徑：先用變更前（`main`）的程式取得外迴圈紅燈（回收後 WAL 約等於主檔大小），再用本版程式在另一份新解出的複本上取得綠燈。
    - 產出：`evidence/step3-e2e-copy.md`。
    - 完成判準：記錄回收前、`VACUUM` 後、截斷後三個時間點的主檔與 WAL 大小，截斷後合計小於回收前，log 記錄截斷完成。
-4. 📝 **常青文件與地雷** — 相依：步驟 2。`docs/configuration-reference.md` 的回收說明補上截斷與重試，runtime issue 清單加入 `opencode-retention:wal-truncate`，更新最後驗證日期；`docs/agents/landmines.md` 新增地雷，附步驟 1 的證據連結。
+   - 完成證據（2026-10-18）：[evidence/step3-e2e-copy.md](evidence/step3-e2e-copy.md)。兩份複本的起點相同（主檔 228,892,672 bytes、WAL 0、可回收 20.8%），都是 `reclaim=reclaimed`，VACUUM 後都是主檔 167,055,360 bytes／WAL 168,034,232 bytes。外迴圈紅燈（變更前的 `/app/dist`）：該輪結束時 WAL 仍是 168,034,232 bytes，合計 335,089,592 bytes，比回收前多。綠燈（`b1c79e8` 編出的 dist）：該輪結束時 WAL 為 0，合計 167,055,360 bytes，log 為 `reclaim=reclaimed walTruncate=truncated`。
+4. ✅ **常青文件與地雷** — 相依：步驟 2。`docs/configuration-reference.md` 的回收說明補上截斷與重試，runtime issue 清單加入 `opencode-retention:wal-truncate`，更新最後驗證日期；`docs/agents/landmines.md` 新增地雷，附步驟 1 的證據連結。
    - 完成判準：文件與實作的行為一致，連結指向存在的檔案。
-5. 📝 **交付前驗證** — 相依：步驟 2～4。依 [project.md](../../agents/project.md) 依序執行 `npm run build`、`npm run test`（核對 `# tests` 與測試檔數相稱）、`npm run lint`。
+   - 完成證據（2026-10-18，純文件，以人工核對代替測試）：`docs/configuration-reference.md` 補上截斷、重試、重啟後不保留，並在 runtime issue 清單加入 `opencode-retention:wal-truncate`，最後驗證日期改為 2026-10-18；`ARCHITECTURE.md` 與 `CLAUDE.md` 的清理模組說明補上截斷 WAL（`CLAUDE.md` 表格依 prettier 重新對齊，和 0009 的做法相同）；`docs/agents/landmines.md` 新增 L-13，證據連到步驟 1；`docs/agents/project.md` 的地雷索引改為 L-11～L-13。這些內容和 `src/services/opencode-session-retention.ts` 的 `maybeReclaimSpace`／`retryWalTruncate` 逐項對照過。
+5. ✅ **交付前驗證** — 相依：步驟 2～4。依 [project.md](../../agents/project.md) 依序執行 `npm run build`、`npm run test`（核對 `# tests` 與測試檔數相稱）、`npm run lint`。
    - 完成判準：三者 exit 0，輸出記在本步驟。
+   - 完成證據（2026-10-18，工作區為 `b1c79e8` 加上步驟 3、4 的文件變更）：`npm run build` exit 0；`npm run test` exit 0，`# tests 488`、`# pass 488`、`# fail 0`，`tests/` 下有 70 個測試檔，數量相稱；`npm run lint` exit 0。
 
 ## Gate 豁免紀錄
 
@@ -87,4 +91,4 @@ GitHub：[#14](https://github.com/raybird/telenexus/issues/14)
 **建立日期**: 2026-10-18  
 **分級**: Small — 單一服務檔案的修正加測試與文件  
 **風險**: Medium — `opencode db` 截斷 WAL 的實際行為與輸出格式尚未確認\
-**狀態**: 待實作
+**狀態**: 待審查
