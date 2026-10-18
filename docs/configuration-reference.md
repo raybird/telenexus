@@ -122,7 +122,7 @@ opencode 把每次執行的對話與工具輸出存進 `opencode.db`，自己不
 - 每次最多刪 100 個頂層 session，最舊的優先；子 session 會隨父 session 一起刪除。單次刪除約 0.8 秒。
 - 綁定中的聊天 session（`data/chat-session-state.json`）不論多舊都保留；這個檔案毀損或讀取失敗時跳過該次清理。檔案不存在則視為沒有綁定，前提是執行清理的服務與 telenexus 共用 `data/`（compose 部署是共用的）。
 - 可回收頁數達總頁數兩成、執行清理的服務沒有任務，而且全庫最近 5 分鐘沒有任何 session 更新時，以 `VACUUM` 回收空間，一天最多一次。後一個條件涵蓋另一個服務的任務與健康探針，因為兩個服務寫的是同一份資料庫。`VACUUM` 期間會暫時多佔約一份資料庫大小的磁碟空間。
-- 回收後同一輪以 `PRAGMA wal_checkpoint(TRUNCATE)` 把 WAL 檔截斷為 0：WAL 模式下 `VACUUM` 會把整個新資料庫寫進 WAL，不截斷的話 WAL 會一直維持在約一份資料庫的大小。有其他連線正在讀取時截斷不會成功，之後每一輪在沒有任務時重試，直到成功一次為止，重試期間不再 `VACUUM`。待重試的狀態只在記憶體裡，服務重啟後要等下一次回收才會再截斷。
+- 回收後同一輪以 `PRAGMA wal_checkpoint(TRUNCATE)` 把 WAL 檔截斷為 0：WAL 模式下 `VACUUM` 會把整個新資料庫寫進 WAL，不截斷的話 WAL 會一直維持在約一份資料庫的大小。有其他連線正在讀取時截斷不會成功，之後每一輪在沒有任務時重試，直到成功一次為止，重試期間不再 `VACUUM`。待重試的狀態只在記憶體裡，服務重啟後要等下一次回收才會再截斷。重試和回收一樣排在刪除之後，綁定狀態讀不到或查詢失敗而提前結束的那一輪不會重試。截斷時若有其他連線在讀，它最多會等 5 秒（opencode 連線的 `busy_timeout`），這段期間新的寫入也要等；重試前已確認沒有任務、全庫 5 分鐘內沒有 session 更新，所以很少碰上。
 - `agent-runner` 只要在跑就會清理；`telenexus` 只在沒有設定 `RUNNER_ENDPOINT` 時清理。所以 compose 部署把 `RUNNER_ENDPOINT` 留空時，兩個服務會同時清理；刪除時回 `Session not found` 會視為已刪除，不算失敗。
 - 失敗記為 runtime issue：`opencode-retention:protected-ids`、`opencode-retention:query`、`opencode-retention:delete`、`opencode-retention:vacuum`、`opencode-retention:wal-truncate`，下一輪會再試。
 - 模型健康檢查的探針結束後會刪除自己建立的 session；刪除失敗記為 `model-health:probe-session-delete`，不影響探測結果。

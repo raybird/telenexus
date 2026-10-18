@@ -4,6 +4,7 @@
 - **對應**：AC-1、AC-2 的前提；README 的 TBD-1
 - **環境**：`ghcr.io/raybird/telenexus:v2.30.0`，opencode 1.18.34（與正式環境同版）。以 [step1-scripts/oc.sh](step1-scripts/oc.sh) 啟動拋棄式容器：只掛複本，不帶 auth、不發佈 port。
 - **複本**：取自正式部署 2026-10-18 升級 v2.30.0 前、服務停止後打包的 opencode 資料 volume 備份，解壓到 repo 之外的暫存目錄，排除 `auth.json`。正式部署沒有被讀寫。複本在驗證後刪除。
+- **執行順序**：解壓後先以 `oc.sh node -e …` 量大小、跑一次 `opencode db` 查詢、再量一次（下一節的 TBD-1），接著 `oc.sh node /work/wal.cjs free 0.2`，最後 `oc.sh node /work/wal.cjs run`（「量測」一節）。`free` 以 better-sqlite3 正常關閉連線，WAL 因此被刪除，所以「量測」一節從 WAL 0 開始。
 - **紀錄範圍**：只記檔案大小、頁數與 opencode 的輸出，不記 session ID、標題、對話內容或本機路徑。腳本是 [step1-scripts/wal.cjs](step1-scripts/wal.cjs)。
 
 ## opencode 結束時不刪除 WAL（TBD-1）

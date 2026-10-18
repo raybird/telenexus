@@ -63,6 +63,7 @@ GitHub：[#14](https://github.com/raybird/telenexus/issues/14)
      - 單元測試紅燈：先補上型別、`truncateWal` dep 與未實作的 `parseWalCheckpoint`，讓測試檔能載入（缺 export 造成的載入失敗不算目標行為的紅燈）。結果 exit 1，32 個測試中 26 通過、6 失敗。失敗原因都是目標行為不存在：AC-1、AC-2 的 4 個測試是 `walTruncate` 為 `undefined`，預期 `truncated`／`not-truncated`／`deferred`；解析與實際 deps 的 2 個測試是 `not implemented`。既有的 26 個測試維持通過。
      - 最小實作後全綠：exit 0，32/32 通過。過程中修正一個測試互相干擾的問題：`recordRuntimeIssue` 在 60 秒內對相同 scope 與訊息去重，重試測試第一輪的 busy 訊息和前一個測試相同，hook 不會再觸發，所以改用不同的數值。實作沒有改動。
      - 重構後全綠：依 code-simplify 把待重試的分支抽成 `retryWalTruncate`，三處重複的 `reclaim: 'wal-truncate-pending'` 收成一處；測試改用匯出的 `ReclaimState` 型別。之後 exit 0、32/32 通過；`npx tsc --noEmit -p .` exit 0；`npx eslint src/services/opencode-session-retention.ts` exit 0。
+     - 審查 [review-3684612.md](review-3684612.md) 退回後補的證據（2026-10-18）：M1、M2 指出 AC-2 的兩條失敗路徑沒有被測試擋住，reviewer 的突變能讓 32 個測試全部通過。程式本身不用改，所以補兩個測試：待重試期間閒置檢查失敗（M1），以及截斷持續沒成功超過一天（M2）。紅燈改用突變取得：把 reviewer 描述的突變暫時放進程式後，M1 突變（失敗時不記 issue、把待重試設為 false）只有新的 M1 測試失敗，M2 突變（超過一天就回到原本的流程、會 VACUUM）只有新的 M2 測試失敗，兩次都是 34 個測試中 33 通過、1 失敗；還原程式後 34/34 通過。N1 的重構（兩個解析函式共用 `firstJsonRow`，內部的截斷函式改名為 `attemptWalTruncate`）不改變行為，重構後同一組測試 34/34 通過。
      - 外迴圈不和單元測試合併：AC-1 的外部行為是實際的 opencode 與 SQLite 檔案大小，單元測試的假 deps 碰不到，所以外迴圈的紅燈與綠燈放在步驟 3：在複本上先跑變更前的程式（紅），再跑本版程式（綠）。
 3. ✅ **AC-1：複本上的端到端回收（外迴圈）** — 相依：步驟 2。對步驟 1 的同一份備份重新解出的複本，用實際 deps 跑 `runRetentionOnce` 的回收路徑：先用變更前（`main`）的程式取得外迴圈紅燈（回收後 WAL 約等於主檔大小），再用本版程式在另一份新解出的複本上取得綠燈。
    - 產出：`evidence/step3-e2e-copy.md`。
@@ -74,6 +75,7 @@ GitHub：[#14](https://github.com/raybird/telenexus/issues/14)
 5. ✅ **交付前驗證** — 相依：步驟 2～4。依 [project.md](../../agents/project.md) 依序執行 `npm run build`、`npm run test`（核對 `# tests` 與測試檔數相稱）、`npm run lint`。
    - 完成判準：三者 exit 0，輸出記在本步驟。
    - 完成證據（2026-10-18，工作區為 `b1c79e8` 加上步驟 3、4 的文件變更）：`npm run build` exit 0；`npm run test` exit 0，`# tests 488`、`# pass 488`、`# fail 0`，`tests/` 下有 70 個測試檔，數量相稱；`npm run lint` exit 0。
+   - 審查退回後重跑（2026-10-18，工作區為 `9df46ba` 加上 M1、M2、N1～N5 的修正）：`npm run build` exit 0；`npm run test` exit 0，`# tests 490`、`# pass 490`、`# fail 0`，多出的 2 個就是 M1、M2 的測試；`npm run lint` exit 0。
 
 ## Gate 豁免紀錄
 
@@ -86,9 +88,10 @@ GitHub：[#14](https://github.com/raybird/telenexus/issues/14)
 | 日期 | 異動 | 負責人 |
 |------|------|--------|
 | 2026-10-18 | 建立；開 GitHub #14；AC-1、AC-2 核准（Q1：只在 VACUUM 後截斷） | - |
+| 2026-10-18 | 審查 `3684612`：RETURN TO execute-task（M1、M2 為 AC-2 失敗路徑的測試缺口），見 [review-3684612.md](review-3684612.md) | - |
 
 ---
 **建立日期**: 2026-10-18  
 **分級**: Small — 單一服務檔案的修正加測試與文件  
-**風險**: Medium — `opencode db` 截斷 WAL 的實際行為與輸出格式尚未確認\
+**風險**: Medium — 開始時 `opencode db` 截斷 WAL 的實際行為與輸出格式未確認，2026-10-18 已由步驟 1 確認\
 **狀態**: 待審查

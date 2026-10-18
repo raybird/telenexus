@@ -134,12 +134,15 @@ export interface WalCheckpointResult {
   checkpointed: number;
 }
 
+/** `opencode db --format json` 輸出的第一列；不是陣列或沒有列時為 undefined。 */
+function firstJsonRow(stdout: string): Record<string, unknown> | undefined {
+  const parsed: unknown = JSON.parse(stdout);
+  return (Array.isArray(parsed) ? parsed[0] : undefined) as Record<string, unknown> | undefined;
+}
+
 /** 解析 `opencode db --format json "PRAGMA wal_checkpoint(TRUNCATE)"` 的輸出。 */
 export function parseWalCheckpoint(stdout: string): WalCheckpointResult {
-  const parsed: unknown = JSON.parse(stdout);
-  const row = (Array.isArray(parsed) ? parsed[0] : undefined) as
-    | Record<string, unknown>
-    | undefined;
+  const row = firstJsonRow(stdout);
   const busy = row?.['busy'];
   const log = row?.['log'];
   const checkpointed = row?.['checkpointed'];
@@ -174,10 +177,7 @@ interface ReclaimResult {
 
 /** 解析 `select * from pragma_page_count(), pragma_freelist_count()` 的 JSON 輸出。 */
 export function parseSpaceStats(stdout: string): SpaceStats {
-  const parsed: unknown = JSON.parse(stdout);
-  const row = (Array.isArray(parsed) ? parsed[0] : undefined) as
-    | Record<string, unknown>
-    | undefined;
+  const row = firstJsonRow(stdout);
   const pageCount = row?.['page_count'];
   const freelistCount = row?.['freelist_count'];
   if (typeof pageCount !== 'number' || typeof freelistCount !== 'number') {
@@ -206,7 +206,10 @@ function isQuiet(deps: RetentionDeps, stats: SpaceStats, at: number): boolean {
  * WAL 模式下 VACUUM 會把整個新資料庫寫進 WAL，checkpoint 不會縮小 WAL 檔，opencode 結束時也不刪它，
  * 所以要截斷（issue 0014）。有其他連線在讀時回傳 busy=1 但 exit 仍是 0，只能看 busy 判斷。
  */
-async function truncateWal(deps: RetentionDeps, state: ReclaimState): Promise<WalTruncateOutcome> {
+async function attemptWalTruncate(
+  deps: RetentionDeps,
+  state: ReclaimState
+): Promise<WalTruncateOutcome> {
   try {
     const result = await deps.truncateWal();
     if (result.busy === 0) {
@@ -240,7 +243,7 @@ async function retryWalTruncate(
     recordRuntimeIssue('opencode-retention:wal-truncate', error);
     return 'not-truncated';
   }
-  return truncateWal(deps, state);
+  return attemptWalTruncate(deps, state);
 }
 
 /**
@@ -277,7 +280,7 @@ async function maybeReclaimSpace(
     recordRuntimeIssue('opencode-retention:vacuum', error);
     return { reclaim: 'failed' };
   }
-  return { reclaim: 'reclaimed', walTruncate: await truncateWal(deps, state) };
+  return { reclaim: 'reclaimed', walTruncate: await attemptWalTruncate(deps, state) };
 }
 
 export interface RetentionRunResult {

@@ -616,3 +616,50 @@ test('AC-1/AC-2: 解析 wal_checkpoint 的輸出，格式不符時拋出', () =>
   assert.throws(() => parseWalCheckpoint('[{"log":0,"checkpointed":0}]'));
   assert.throws(() => parseWalCheckpoint('[\n  {\n    "busy": 0,'));
 });
+
+test('AC-2: 待重試期間閒置檢查失敗時記錄 runtime issue、不截斷，狀態保留到下一輪', async () => {
+  const { scopes, unhook } = captureIssueScopes();
+  try {
+    let statsFail = true;
+    const deps = reclaimDeps(
+      { pageCount: 1000, freelistCount: 0 },
+      {
+        readSpaceStats: async () => {
+          if (statsFail) throw new Error('opencode db failed (wal retry stats test)');
+          return { pageCount: 1000, freelistCount: 0, latestSessionUpdate: NOW - 60 * 60 * 1000 };
+        }
+      }
+    );
+    const state: ReclaimState = { lastReclaimAt: NOW, walTruncatePending: true };
+
+    const failed = await runRetentionOnce(ENABLED, deps, 100, state);
+    assert.equal(failed.walTruncate, 'not-truncated');
+    assert.equal(state.walTruncatePending, true);
+    assert.deepEqual(deps.calls, []);
+    assert.deepEqual(scopes, ['opencode-retention:wal-truncate']);
+
+    statsFail = false;
+    const next = await runRetentionOnce(ENABLED, deps, 100, state);
+    assert.equal(next.walTruncate, 'truncated');
+    assert.deepEqual(deps.calls, ['truncate']);
+  } finally {
+    unhook();
+  }
+});
+
+test('AC-2: 截斷持續沒成功超過一天，仍只重試截斷、不重跑 VACUUM', async () => {
+  const deps = reclaimDeps(
+    { pageCount: 1000, freelistCount: 500 },
+    { truncateWal: async () => ({ busy: 1, log: 11, checkpointed: 11 }) }
+  );
+  const state: ReclaimState = {
+    lastReclaimAt: NOW - 25 * 60 * 60 * 1000,
+    walTruncatePending: true
+  };
+  const result = await runRetentionOnce(ENABLED, deps, 100, state);
+  assert.equal(result.reclaim, 'wal-truncate-pending');
+  assert.equal(result.walTruncate, 'not-truncated');
+  assert.equal(deps.vacuums, 0);
+  assert.deepEqual(deps.calls, ['truncate']);
+  assert.equal(state.walTruncatePending, true);
+});
