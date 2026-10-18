@@ -2,6 +2,22 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.30.1 — 2026-10-18
+
+### 回收空間後截斷 WAL（#14）
+
+2.30.0 的 session 清理用 `VACUUM` 回收空間，但 `opencode.db` 是 WAL 模式，`VACUUM` 會先把整個新資料庫寫進 WAL 檔。checkpoint 不會縮小這個檔案，opencode 結束時也不會刪掉它。正式環境在 2026-10-18 第一次回收後，主檔從 229 MB 降到 173 MB，WAL 卻從 5 MB 長到 173 MB，合計反而多了約 110 MB。
+
+- 回收成功後，同一輪接著以 `opencode db` 執行 `PRAGMA wal_checkpoint(TRUNCATE)`，把 WAL 截斷為 0。
+- 有其他連線正在讀取時截斷不會成功，而 `opencode db` 仍然 exit 0，所以改以輸出的 `busy` 判斷。沒成功時記錄 `opencode-retention:wal-truncate` runtime issue，之後每一輪在沒有任務執行時重試，直到成功為止，重試期間不再 `VACUUM`。
+
+2026-10-18 在正式資料庫的複本上，跑一輪「刪除 + 回收」：修正前，主檔加 WAL 合計 335 MB，比回收前的 229 MB 還多；修正後是 167 MB。證據見 [issue 0014](docs/issues/issue-0014/README.md)。
+
+### 升級注意
+
+- 已經跑過 2.30.0 回收的部署，現有的大 WAL 不會自動縮小：新版只在下一次回收後才截斷，而積壓清完之後，可回收空間不一定會再到兩成。要縮回去，升級後在沒有任務執行時手動執行一次：`docker compose exec agent-runner opencode db --format json "PRAGMA wal_checkpoint(TRUNCATE)"`。輸出的 `busy` 是 0 就是成功；是 1 代表當時有其他連線在讀，稍後再試。
+- 截斷遇到讀取者時最多等 5 秒，這段期間新的寫入也要等。
+
 ## 2.30.0 — 2026-10-16
 
 ### opencode session 保留期清理（#9）
