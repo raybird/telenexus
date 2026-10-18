@@ -27,7 +27,7 @@
 ### 我想看 opencode session 清理
 
 - [Issue 0009：opencode session 保留期清理](./issues/issue-0009/README.md) — 已完成：2026-10-16 合併；設定與行為見 `docs/configuration-reference.md` 的「opencode session 保留期清理」。
-- [Issue 0014：VACUUM 後 WAL 檔不縮小](./issues/issue-0014/README.md) — 待審查：v2.30.0 回收後 WAL 長到整庫大小，修正為回收後截斷 WAL。
+- [Issue 0014：VACUUM 後 WAL 檔不縮小](./issues/issue-0014/README.md) — 已完成：2026-10-18 合併；v2.30.0 回收後 WAL 長到整庫大小，修正為回收後同一輪截斷 WAL，行為見 `docs/configuration-reference.md` 的「opencode session 保留期清理」。
 
 ### 我想看網頁工具替換方案
 

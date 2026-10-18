@@ -89,9 +89,11 @@ GitHub：[#14](https://github.com/raybird/telenexus/issues/14)
 |------|------|--------|
 | 2026-10-18 | 建立；開 GitHub #14；AC-1、AC-2 核准（Q1：只在 VACUUM 後截斷） | - |
 | 2026-10-18 | 審查 `3684612`：RETURN TO execute-task（M1、M2 為 AC-2 失敗路徑的測試缺口），見 [review-3684612.md](review-3684612.md) | - |
+| 2026-10-18 | 審查 `501d9ed`：PASS，見 [review-501d9ed.md](review-501d9ed.md)；報告提交 `821c4c0` 只新增該報告，PASS 沿用 | - |
+| 2026-10-18 | 使用者同意合併推送；在本機以 `git merge --ff-only` 將 `fix/issue-0014-wal-truncate`（`821c4c0`）併入 `main` | - |
 
 ---
 **建立日期**: 2026-10-18  
 **分級**: Small — 單一服務檔案的修正加測試與文件  
 **風險**: Medium — 開始時 `opencode db` 截斷 WAL 的實際行為與輸出格式未確認，2026-10-18 已由步驟 1 確認\
-**狀態**: 待審查
+**狀態**: 已完成
