@@ -48,7 +48,7 @@ GitHub：[#14](https://github.com/raybird/telenexus/issues/14)
 | 編號 | 事項 | 狀態 | 影響 |
 |------|------|------|------|
 | TBD-1 | 正式環境的 WAL 從 03:31 回收後就一直是 173 MB。SQLite 通常在最後一個連線關閉時 checkpoint 並刪除 WAL，所以可能有常駐的連線一直開著資料庫，或 opencode 結束時沒有關閉連線。若是前者，截斷在正式環境可能一直回傳 busy。2026-10-18 想唯讀列出容器內開著 `opencode.db` 的行程，被權限檢查擋下。 | 已解決 | 結論（2026-10-18）：複本上 `opencode db` 結束後 WAL 沒有被刪除、大小不變（[步驟 1 實測](evidence/step1-wal-truncate-probe.md)「opencode 結束時不刪除 WAL」），所以正式環境的現象不需要常駐連線就能解釋。正式環境若真有常駐的讀取者，截斷會一直回傳 `busy`，由 AC-2 的 `opencode-retention:wal-truncate` runtime issue 顯示。 |
-| TBD-2 | 正式環境現有的 173 MB WAL | 不影響本次交付 | 結論（2026-10-18）：依 Q1 的選擇，本版的截斷只在下一次 `VACUUM` 後才執行，不會處理既有的 WAL。由使用者在修正版升級時決定是否手動執行一次截斷，結果記在本 README 的 Timeline。 |
+| TBD-2 | 正式環境現有的 173 MB WAL | 不影響本次交付 | 結論（2026-10-18）：依 Q1 的選擇，本版的截斷只在下一次 `VACUUM` 後才執行，不會處理既有的 WAL。由使用者在修正版升級時決定是否手動執行一次截斷，結果記在本 README 的 Timeline。2026-10-18 升級 v2.30.1 後已手動截斷一次：WAL 173,233,672 → 0 bytes（見 Timeline）。 |
 
 ## 實作與驗證步驟
 
@@ -91,6 +91,7 @@ GitHub：[#14](https://github.com/raybird/telenexus/issues/14)
 | 2026-10-18 | 審查 `3684612`：RETURN TO execute-task（M1、M2 為 AC-2 失敗路徑的測試缺口），見 [review-3684612.md](review-3684612.md) | - |
 | 2026-10-18 | 審查 `501d9ed`：PASS，見 [review-501d9ed.md](review-501d9ed.md)；報告提交 `821c4c0` 只新增該報告，PASS 沿用 | - |
 | 2026-10-18 | 使用者同意合併推送；在本機以 `git merge --ff-only` 將 `fix/issue-0014-wal-truncate`（`821c4c0`）併入 `main` | - |
+| 2026-10-18 | 隨 v2.30.1 發佈（GitHub #14 關閉）；正式部署升級 v2.30.1 後，在無任務執行時以 `docker compose exec agent-runner opencode db --format json "PRAGMA wal_checkpoint(TRUNCATE)"` 截斷既有 WAL 一次：exit 0、657 ms、`busy` 0；`opencode.db` 172,724,224 bytes 不變，`opencode.db-wal` 173,233,672 → 0 bytes，合計約 346 MB → 173 MB（TBD-2） | - |
 
 ---
 **建立日期**: 2026-10-18  
