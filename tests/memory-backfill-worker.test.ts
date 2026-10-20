@@ -170,6 +170,7 @@ const PENDING_EQUIVALENCE_CASES: Array<{
   },
   { name: '空封存且沒有 checkpoint', archive: [], expectRun: false },
   { name: '沒有 checkpoint', archive: ['2026-03-30T00:00:00.000Z'], expectRun: true },
+  { name: 'session 的時間是空字串且沒有 checkpoint', archive: [''], expectRun: false },
   {
     name: 'checkpoint 時間是空白',
     archive: ['2026-03-30T00:00:00.000Z'],
@@ -308,5 +309,44 @@ test('issue 0016 AC-2：遠端模式用預設判定時不再印 no new archive s
     assert.match(text, /Starting\. .*source=remote/);
     assert.ok(text.includes('startup skipped. remote-unsupported: '), text);
     assert.ok(!text.includes('no new archive sessions'), text);
+  });
+});
+
+test('issue 0016：checkpoint 的處理時間不是字串時 start() 不 throw，runOnce() 照舊記 runtime issue', async () => {
+  await withSourceEnv(async ({ tempDir, checkpointFile }) => {
+    const archivePath = path.join(tempDir, 'sessions.db');
+    writeArchive(archivePath, ['2026-10-03T04:02:40.861Z']);
+    process.env.MEMORIA_ARCHIVE_DB = archivePath;
+    fs.writeFileSync(checkpointFile, JSON.stringify({ lastProcessedTimestamp: 1717150680556 }));
+
+    let runCount = 0;
+    let afterRunCount = 0;
+    const worker = new MemoryBackfillWorker({
+      enabled: true,
+      startupDelayMs: 60_000,
+      intervalMs: 60_000,
+      onAfterRun: () => {
+        afterRunCount += 1;
+      },
+      runBackfill: async () => {
+        runCount += 1;
+        return makeReport();
+      }
+    });
+    const issuesBefore = getRecentIssues()
+      .filter((issue) => issue.scope === 'memory-backfill:worker')
+      .reduce((sum, issue) => sum + issue.count, 0);
+    const { logs } = await captureLogs(async () => {
+      worker.start();
+      worker.shutdown();
+      await worker.runOnce('startup');
+    });
+    assert.match(logs.join('\n'), /Starting\. .*source=local/);
+    assert.equal(runCount, 0);
+    assert.equal(afterRunCount, 1);
+    const issuesAfter = getRecentIssues()
+      .filter((issue) => issue.scope === 'memory-backfill:worker')
+      .reduce((sum, issue) => sum + issue.count, 0);
+    assert.equal(issuesAfter, issuesBefore + 1);
   });
 });

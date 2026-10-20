@@ -3,7 +3,7 @@
 - **日期**：2026-10-20
 - **對應**：AC-3、AC-4
 - **環境**：步驟 1 完成後的工作區，`npm run build` exit 0。以 `env -u MEMORIA_HOME -u MEMORIA_ARCHIVE_DB -u MEMORY_BACKFILL_ENABLED` 執行，`DB_DIR`、`MEMORY_BACKFILL_CHECKPOINT_FILE`、`MEMORY_BACKFILL_REPORT_FILE` 指向空的暫存目錄，也就是官方 Compose 的遠端模式。
-- **完整輸出**：[step2-cli-output.txt](step2-cli-output.txt)（暫存路徑以 `<tmp>` 取代）
+- **完整輸出**：[step2-cli-output.txt](step2-cli-output.txt)（暫存路徑以 `<tmp>` 取代）。檔案裡每段的 `exit=` 是整條命令的結束碼；前三段接了管線（`| node -e`、`| grep`），所以是最後一個命令的結果，`memory:backfill` 本身的結束碼看第四段（exit 1）
 
 | 命令 | 結果 |
 |---|---|

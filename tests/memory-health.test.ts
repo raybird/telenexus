@@ -180,7 +180,9 @@ const ARCHIVE_ENV_KEYS = [
   'MEMORIA_HOME',
   'MEMORIA_ARCHIVE_DB',
   'MEMORY_BACKFILL_CHECKPOINT_FILE',
-  'MEMORIA_ENDPOINT'
+  'MEMORIA_ENDPOINT',
+  // issue 0016 AC-3 斷言 backfill.enabled=false，主機有設時會影響結果
+  'MEMORY_BACKFILL_ENABLED'
 ] as const;
 
 /**

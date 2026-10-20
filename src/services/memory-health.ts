@@ -204,10 +204,19 @@ function archiveConfiguredBy(): string | null {
  * 都會重算，throw 會讓整批 snapshot 寫不出來。也不記 runtime issue —— 封存壞掉時每分鐘都會重算,
  * 記下去只會讓 ErrorAlerter 累積成告警洗版，原因已經寫在報告的 detail 裡。
  */
+function archiveSourceOf(configuredBy: string | null, exists: boolean): ArchiveSource {
+  return configuredBy || exists ? 'local' : 'remote';
+}
+
+/** 只看設定與檔案是否存在，不開資料庫、不 throw；worker 的啟動訊息用 */
+export function currentArchiveSource(): ArchiveSource {
+  return archiveSourceOf(archiveConfiguredBy(), fs.existsSync(resolveMemoriaSessionsDbPath()));
+}
+
 function readArchive(archiveDb: string): ArchiveRead {
   const configuredBy = archiveConfiguredBy();
   const exists = fs.existsSync(archiveDb);
-  const source: ArchiveSource = configuredBy || exists ? 'local' : 'remote';
+  const source = archiveSourceOf(configuredBy, exists);
   const unread = {
     source,
     exists,
@@ -290,11 +299,15 @@ function judgeBackfillSource(
   if (!archive.totalSessions) {
     return { source, state: 'empty', detail: '封存裡沒有任何 session' };
   }
+  if (!archive.lastSessionAt) {
+    // 舊版遇到 MAX(timestamp) 為空就不執行，維持一致
+    return { source, state: 'up-to-date', detail: '封存的 session 都沒有時間，無從比較' };
+  }
   const checkpointTimestamp = checkpoint?.lastProcessedTimestamp?.trim();
   if (!checkpointTimestamp) {
     return { source, state: 'pending', detail: '還沒有 checkpoint，從最舊的 session 開始' };
   }
-  if (archive.lastSessionAt && archive.lastSessionAt > checkpointTimestamp) {
+  if (archive.lastSessionAt > checkpointTimestamp) {
     return {
       source,
       state: 'pending',

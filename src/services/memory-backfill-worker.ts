@@ -4,7 +4,11 @@ import { fileURLToPath } from 'url';
 import { parseBool, parsePositiveInt } from '../utils/env.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
 import type { MemoryBackfillReport } from './memory-backfill.js';
-import { assessBackfillSource, type BackfillSourceAssessment } from './memory-health.js';
+import {
+  assessBackfillSource,
+  currentArchiveSource,
+  type BackfillSourceAssessment
+} from './memory-health.js';
 
 export type MemoryBackfillWorkerOptions = {
   intervalMs?: number;
@@ -163,7 +167,7 @@ export class MemoryBackfillWorker {
     }
 
     console.log(
-      `[MemoryBackfillWorker] Starting. mode=${this.dryRun ? 'dry-run' : 'write'} source=${this.assessArchiveSource().source} intervalMs=${this.intervalMs} startupDelayMs=${this.startupDelayMs}`
+      `[MemoryBackfillWorker] Starting. mode=${this.dryRun ? 'dry-run' : 'write'} source=${currentArchiveSource()} intervalMs=${this.intervalMs} startupDelayMs=${this.startupDelayMs}`
     );
 
     this.startupTimer = setTimeout(() => {

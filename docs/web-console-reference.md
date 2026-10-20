@@ -64,7 +64,7 @@ WEB_USER_ID=
 - Status 頁會額外顯示 `memory-status.md`，可用來觀察 archive gap 與 backfill 指標
 - `memory-status.md` 與 `GET /api/memory-health` 是同一份報告。`archive.source` 是 `local`（有設定 `MEMORIA_ARCHIVE_DB` / `MEMORIA_HOME`，或預設路徑存在）或 `remote`（官方 Compose 的拆分部署，本服務不讀 memoria 的 volume）；`archive.status` 是 `ok` / `unavailable` / `error`，原因寫在 `archive.detail`。封存沒讀到時，封存統計與 `estimatedGapRecent24h` 是 `null`（markdown 顯示 `unknown`），不是 0
 - 一致性的三項檢查各有狀態（`consistency.checks`）：`checked`、`skipped`（沒有可檢查的對象，例如沒有 checkpoint，視為通過）、`unsupported`（封存沒讀到）、`error`（封存讀取失敗）。`consistency.ok` 查到問題為 `false`，每項都 `checked` / `skipped` 且沒問題才是 `true`，有項目沒檢查到時是 `null`（markdown 顯示 `unknown`）——遠端模式下一律是 `null`，代表沒檢查，不代表正常
-- `backfill.sourceState` 是回填來源目前的狀態，和 worker 決定要不要執行用的是同一個判定：`remote-unsupported`（遠端模式，回填只讀本機 `sessions.db`）、`unavailable`（設定的封存路徑不存在）、`error`（封存讀取失敗）、`empty`（封存沒有 session）、`up-to-date`（沒有比 checkpoint 新的 session）、`pending`（有待處理的 session，worker 下一輪會執行）。原因寫在 `backfill.sourceDetail`；回填沒啟用時也會顯示。`lastRunStatus` 等欄位是 checkpoint 裡最後一次**實際執行**的紀錄，worker 每輪被擋下時不會更新它們
+- `backfill.sourceState` 是回填來源目前的狀態，和 worker 決定要不要執行用的是同一個判定：`remote-unsupported`（遠端模式，回填只讀本機 `sessions.db`）、`unavailable`（設定的封存路徑不存在）、`error`（封存讀取失敗）、`empty`（封存沒有 session）、`up-to-date`（沒有比 checkpoint 新的 session）、`pending`（有待處理的 session；回填有啟用時，worker 下一輪會執行）。原因寫在 `backfill.sourceDetail`；回填沒啟用時也會顯示。`lastRunStatus` 等欄位是 checkpoint 裡最後一次**實際執行**的紀錄，worker 每輪被擋下時不會更新它們
 - Status 頁也會顯示最近幾輪 backfill run 摘要，方便直接抽查候選品質
 
 ## 前端實作摘要（Plain Vanilla）

@@ -59,6 +59,9 @@ GitHub：[#16](https://github.com/raybird/telenexus/issues/16)
 3. ✅ **文件與交付檢查** — 更新 `docs/web-console-reference.md` 與 `docs/configuration-reference.md`；執行 `npm run build`、`npm run test`（核對 `# tests` 數與測試檔數相稱）、`npm run lint`。
    - 完成證據：2026-10-20 在步驟 1、2 完成後的工作區執行。`docs/web-console-reference.md` 補上 `backfill.sourceState`／`sourceDetail` 的判讀，並說明 `lastRunStatus` 等欄位只記實際執行；`docs/configuration-reference.md` 補上遠端模式與 worker 各狀態的訊息。`npm run build` exit 0；`env -u MEMORIA_HOME -u MEMORIA_ARCHIVE_DB npm run test` exit 0，`# tests 516`、`# pass 516`、`# fail 0`，比 issue 0017 結束時的 499 多 17 個，就是本 issue 新增的測試數；`tests/` 下 70 個測試檔，`tests/docker/` 的測試有出現在輸出中（地雷 L-01）；`npm run lint` exit 0。
    - 相依：步驟 1、2。
+4. ✅ **審查後續：SHOULD FIX 1、2** — 驗證方式：補「session 沒有時間」的等價案例與「checkpoint 格式異常時 `start()` 不 throw」的測試，先在舊程式與 `4b088e1` 上確認結果，再修正；補記審查找到的已知差異；一併處理審查 NICE TO HAVE 2、3、4。之後重跑 `npm run build`、`npm run test`、`npm run lint` 並重新審查。
+   - 完成證據：[evidence/step4-review-followup.md](evidence/step4-review-followup.md)——新等價案例在舊程式上通過、在 `4b088e1` 上失敗；`start()` 測試在 `4b088e1` 上失敗，突變後也轉紅。修正後 `npm run build` exit 0；`env -u MEMORIA_HOME -u MEMORIA_ARCHIVE_DB npm run test` exit 0，`# tests 518`、`# pass 518`、`# fail 0`，比步驟 3 多 2 個，`tests/` 下 70 個測試檔，`tests/docker/` 有跑到；`npm run lint` exit 0。
+   - 相依：步驟 1～3；[review-4b088e1.md](review-4b088e1.md)。
 
 ## Gate 豁免紀錄
 
@@ -72,7 +75,9 @@ GitHub：[#16](https://github.com/raybird/telenexus/issues/16)
 |------|------|--------|
 | 2026-10-20 | 建立；範圍限 GitHub #16 第一部分（狀態誠實化），第二部分記為 TBD-1 | - |
 | 2026-10-20 | AC-1～AC-4 核准；記錄不開 PR 的 Gate 豁免 | 使用者 |
+| 2026-10-20 | 獨立審查 `4b088e1`：PASS，SHOULD FIX 2 項（[review-4b088e1.md](review-4b088e1.md)） | 獨立 subagent |
+| 2026-10-20 | 處理 SHOULD FIX 1、2，不涉及規格修訂 | - |
 
 ---
 
-**狀態**: 進行中（實作完成，待本機獨立審查）
+**狀態**: 進行中（審查後續已處理，待重新審查）
