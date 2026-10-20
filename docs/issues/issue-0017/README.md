@@ -49,7 +49,7 @@ GitHub：[#17](https://github.com/raybird/telenexus/issues/17)
 | 編號 | 事項 | 狀態 | 影響 |
 |---|---|---|---|
 | TBD-1 | 遠端模式要不要透過 Memoria `GET /v1/stats` 取得總數與最後時間 | 不影響本次交付 | 2026-10-20 結論：使用者 Q1 選擇只標 unavailable。追蹤：無——要看遠端實際筆數，可直接查 Memoria 的 `/v1/stats`；之後若要在報告裡呈現，另開 issue。 |
-| TBD-2 | 檢索資料庫 `memory.db` 損壞時 `collectMemoryHealthReport()` 仍會 throw，該輪 context snapshot 整批寫不出來（審查 NICE TO HAVE 5，既有行為） | 待確認 | 不影響 AC-1～AC-5（AC-5 只涵蓋封存）。等待使用者決定是否另開 GitHub issue。 |
+| TBD-2 | 檢索資料庫 `memory.db` 損壞時 `collectMemoryHealthReport()` 仍會 throw，該輪 context snapshot 整批寫不出來（審查 NICE TO HAVE 5，既有行為） | 不影響本次交付 | 2026-10-20 結論：AC-5 只涵蓋封存，這是 #17 之前就有的行為；使用者決定另開 issue。追蹤：[#18](https://github.com/raybird/telenexus/issues/18)，範圍另含運作資料庫 `moltbot.db`。 |
 
 ## 實作與驗證步驟
 
@@ -80,9 +80,11 @@ GitHub：[#17](https://github.com/raybird/telenexus/issues/17)
 | 2026-10-20 | AC-1～AC-5 核准 | 使用者 |
 | 2026-10-20 | 獨立審查 `4451564`：PASS（[review-4451564.md](review-4451564.md)） | 獨立 subagent |
 | 2026-10-20 | AC-2 規格修訂（審查 SHOULD FIX 1）；記錄不開 PR 的 Gate 豁免 | 使用者 |
+| 2026-10-20 | 獨立重新審查 `43877b3`：PASS（[review-43877b3.md](review-43877b3.md)） | 獨立 subagent |
+| 2026-10-20 | 依使用者指示以 `git merge --ff-only` 合併進 `main`（`d1c8430`），未推送；TBD-2 另開 #18 | 使用者 |
 
 ---
 **建立日期**: 2026-10-20  
 **分級**: Small  
 **風險**: Low\
-**狀態**: 待重新審查
+**狀態**: 已完成
