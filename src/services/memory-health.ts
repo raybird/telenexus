@@ -168,6 +168,7 @@ type ArchiveRead = {
   source: ArchiveSource;
   status: ArchiveStatus;
   detail: string | null;
+  exists: boolean;
   totalSessions: number | null;
   totalEvents: number | null;
   sessions24h: number | null;
@@ -192,6 +193,7 @@ function readArchive(archiveDb: string): ArchiveRead {
   const source: ArchiveSource = configuredBy || exists ? 'local' : 'remote';
   const unread = {
     source,
+    exists,
     totalSessions: null,
     totalEvents: null,
     sessions24h: null,
@@ -227,6 +229,7 @@ function readArchive(archiveDb: string): ArchiveRead {
         source,
         status: 'ok',
         detail: null,
+        exists,
         totalSessions: sessionStats.total || 0,
         totalEvents: eventStats.count || 0,
         sessions24h: recentStats.count || 0,
@@ -243,6 +246,23 @@ function readArchive(archiveDb: string): ArchiveRead {
       detail: err instanceof Error ? err.message : String(err)
     };
   }
+}
+
+type CheckpointCheck = { status: ConsistencyCheckStatus; problem: boolean | null };
+
+/**
+ * checkpoint 沒有該欄位時沒有東西可查：skipped、視為通過，與封存讀不讀得到無關（官方 Compose 的
+ * 遠端模式預設沒有 checkpoint，正是這種情況）。有的話跟著封存的讀取狀態走，沒讀到時結果是 null。
+ */
+function checkCheckpointField(
+  value: string | undefined,
+  archive: ArchiveRead,
+  archiveCheck: ConsistencyCheckStatus,
+  isProblem: (value: string, sessionIds: Set<string>) => boolean
+): CheckpointCheck {
+  if (!value) return { status: 'skipped', problem: false };
+  if (!archive.sessionIds) return { status: archiveCheck, problem: null };
+  return { status: archiveCheck, problem: isProblem(value, archive.sessionIds) };
 }
 
 function collectConsistencyReport(
@@ -294,40 +314,30 @@ function collectConsistencyReport(
     }
   }
 
-  // checkpoint 沒有對應欄位時沒有東西可查（skipped，視為通過）；有的話跟著封存的讀取狀態走。
-  // archiveSessionIds 只有在封存讀到時才不是 null，所以沒讀到時兩個結果都是 null。
-  const checkpointSessionId = checkpoint?.lastProcessedSessionId?.trim();
-  const checkpointSessionCheck: ConsistencyCheckStatus = checkpointSessionId
-    ? archiveCheck
-    : 'skipped';
-  const checkpointSessionMissing = !checkpointSessionId
-    ? false
-    : archiveSessionIds
-      ? !archiveSessionIds.has(checkpointSessionId)
-      : null;
-
-  const checkpointTimestamp = checkpoint?.lastProcessedTimestamp?.trim();
-  const checkpointAheadCheck: ConsistencyCheckStatus = checkpointTimestamp
-    ? archiveCheck
-    : 'skipped';
+  const checkpointSession = checkCheckpointField(
+    checkpoint?.lastProcessedSessionId?.trim(),
+    archive,
+    archiveCheck,
+    (sessionId, sessionIds) => !sessionIds.has(sessionId)
+  );
   // 封存裡一筆 session 都沒有，checkpoint 卻記著處理過的時間：封存被清空或換過了
-  const checkpointAheadOfArchive = !checkpointTimestamp
-    ? false
-    : archiveSessionIds
-      ? archive.lastSessionAt
-        ? checkpointTimestamp > archive.lastSessionAt
-        : archive.totalSessions === 0
-      : null;
+  const checkpointAhead = checkCheckpointField(
+    checkpoint?.lastProcessedTimestamp?.trim(),
+    archive,
+    archiveCheck,
+    (timestamp) =>
+      archive.lastSessionAt ? timestamp > archive.lastSessionAt : archive.totalSessions === 0
+  );
 
   const checks = {
     orphanSourceSession: archiveCheck,
-    checkpointSession: checkpointSessionCheck,
-    checkpointAhead: checkpointAheadCheck
+    checkpointSession: checkpointSession.status,
+    checkpointAhead: checkpointAhead.status
   };
   const foundProblem =
     (archiveCheck === 'checked' && orphanSourceSessionObservations > 0) ||
-    checkpointSessionMissing === true ||
-    checkpointAheadOfArchive === true;
+    checkpointSession.problem === true ||
+    checkpointAhead.problem === true;
   const allChecked = Object.values(checks).every(
     (status) => status === 'checked' || status === 'skipped'
   );
@@ -339,8 +349,8 @@ function collectConsistencyReport(
     orphanSourceSessionObservations:
       archiveCheck === 'checked' ? orphanSourceSessionObservations : null,
     observationsMissingSourceSession,
-    checkpointAheadOfArchive,
-    checkpointSessionMissing
+    checkpointAheadOfArchive: checkpointAhead.problem,
+    checkpointSessionMissing: checkpointSession.problem
   };
 }
 
@@ -444,7 +454,7 @@ export function collectMemoryHealthReport(): MemoryHealthReport {
       source: archive.source,
       status: archive.status,
       detail: archive.detail,
-      exists: fs.existsSync(archiveDb),
+      exists: archive.exists,
       totalSessions: archive.totalSessions,
       totalEvents: archive.totalEvents,
       sessions24h: archive.sessions24h,

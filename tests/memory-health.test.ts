@@ -17,6 +17,7 @@ function withHealthEnv<T>(
   const prevDbDir = process.env.DB_DIR;
   const prevMemoriaHome = process.env.MEMORIA_HOME;
   const prevCheckpoint = process.env.MEMORY_BACKFILL_CHECKPOINT_FILE;
+  const prevArchiveDb = process.env.MEMORIA_ARCHIVE_DB;
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'telenexus-memory-health-test-'));
   const dbDir = path.join(tempDir, 'data');
   const memoriaHome = path.join(tempDir, 'Memoria');
@@ -27,6 +28,8 @@ function withHealthEnv<T>(
   process.env.DB_DIR = dbDir;
   process.env.MEMORIA_HOME = memoriaHome;
   process.env.MEMORY_BACKFILL_CHECKPOINT_FILE = checkpointFile;
+  // MEMORIA_ARCHIVE_DB 優先於 MEMORIA_HOME，主機 shell 有設時會讓這裡的封存被忽略
+  delete process.env.MEMORIA_ARCHIVE_DB;
 
   try {
     return fn({ dbDir, memoriaHome, checkpointFile });
@@ -37,6 +40,8 @@ function withHealthEnv<T>(
     else process.env.MEMORIA_HOME = prevMemoriaHome;
     if (prevCheckpoint === undefined) delete process.env.MEMORY_BACKFILL_CHECKPOINT_FILE;
     else process.env.MEMORY_BACKFILL_CHECKPOINT_FILE = prevCheckpoint;
+    if (prevArchiveDb === undefined) delete process.env.MEMORIA_ARCHIVE_DB;
+    else process.env.MEMORIA_ARCHIVE_DB = prevArchiveDb;
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
 }
@@ -307,20 +312,34 @@ test('AC-1：遠端模式把讀不到的封存統計標為 unavailable 與 null�
   }
 });
 
-test('AC-1：設定的封存路徑不存在時是 local／unavailable，並寫明找不到設定的路徑', async () => {
-  await withArchiveEnv({}, async ({ tempDir }) => {
-    process.env.MEMORIA_ARCHIVE_DB = path.join(tempDir, 'missing', 'sessions.db');
+for (const envKey of ['MEMORIA_ARCHIVE_DB', 'MEMORIA_HOME'] as const) {
+  test(`AC-1：${envKey} 設定的封存路徑不存在時是 local／unavailable，並寫明找不到設定的路徑`, async () => {
+    await withArchiveEnv({}, async ({ tempDir }) => {
+      process.env[envKey] =
+        envKey === 'MEMORIA_ARCHIVE_DB'
+          ? path.join(tempDir, 'missing', 'sessions.db')
+          : path.join(tempDir, 'missing-home');
 
-    const report = collectMemoryHealthReport();
+      const report = collectMemoryHealthReport();
 
-    assert.equal(report.archive.source, 'local');
-    assert.equal(report.archive.status, 'unavailable');
-    assert.match(report.archive.detail ?? '', /MEMORIA_ARCHIVE_DB/);
-    assert.equal(report.archive.totalSessions, null);
-    assert.equal(report.archive.totalEvents, null);
-    assert.equal(report.archive.estimatedGapRecent24h, null);
+      assert.equal(report.archive.source, 'local');
+      assert.equal(report.archive.status, 'unavailable');
+      assert.match(report.archive.detail ?? '', new RegExp(envKey));
+      assert.equal(report.archive.exists, false);
+      assert.equal(report.archive.totalSessions, null);
+      assert.equal(report.archive.totalEvents, null);
+      assert.equal(report.archive.sessions24h, null);
+      assert.equal(report.archive.lastSessionAt, null);
+      assert.equal(report.archive.estimatedGapRecent24h, null);
+
+      const markdown = formatMemoryHealthMarkdown(report);
+      assert.match(markdown, /- Archive Source: local\n/);
+      assert.match(markdown, /- Archive Status: unavailable\n/);
+      assert.match(markdown, /- Archive Total Sessions: unknown\n/);
+      assert.match(markdown, /- Archive Last Session At: unknown\n/);
+    });
   });
-});
+}
 
 test('AC-2：遠端模式的一致性三項都是 unsupported，ok 為 null 而不是 true', async () => {
   await withArchiveEnv({}, async ({ dbDir, checkpointFile }) => {
@@ -346,6 +365,25 @@ test('AC-2：遠端模式的一致性三項都是 unsupported，ok 為 null 而�
     assert.match(markdown, /- Consistency OK: unknown\n/);
     assert.match(markdown, /- Consistency Orphan Observations: unknown\n/);
     assert.match(markdown, /- Consistency Check Orphan Source Session: unsupported\n/);
+  });
+});
+
+test('AC-2／AC-4：遠端模式且沒有 checkpoint（官方 Compose 預設）時，checkpoint 兩項是 skipped，ok 仍為 null', async () => {
+  await withArchiveEnv({}, async ({ dbDir }) => {
+    writeRetrievalDb(dbDir, ['tagged [source_session=session-x]']);
+
+    const report = collectMemoryHealthReport();
+
+    assert.deepEqual(report.consistency.checks, {
+      orphanSourceSession: 'unsupported',
+      checkpointSession: 'skipped',
+      checkpointAhead: 'skipped'
+    });
+    assert.equal(report.consistency.orphanSourceSessionObservations, null);
+    assert.equal(report.consistency.checkpointSessionMissing, false);
+    assert.equal(report.consistency.checkpointAheadOfArchive, false);
+    // orphan 沒檢查到，所以整體仍是未知，不會因為 checkpoint 兩項 skipped 就變成 true
+    assert.equal(report.consistency.ok, null);
   });
 });
 

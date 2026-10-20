@@ -9,6 +9,14 @@
 
 三個出口（CLI、`GET /api/memory-health`、`memory-status.md`）都直接輸出 `collectMemoryHealthReport()` 的物件，或交給 `formatMemoryHealthMarkdown()` 原樣格式化，不會再加工任何欄位。所以測試這兩個函式，就是測試操作人員實際看到的內容，沒有另一層會改變結果的整合責任，外迴圈與單元測試因此合併。CLI 的實跑留在步驟 2，用來確認編譯後的入口沒有其他差異。
 
+## 0. 改動前的影響分析
+
+2026-10-20 改 `src/services/memory-health.ts` 前執行（審查 SHOULD FIX 2 指出原本沒有記錄，2026-10-20 補記）：
+
+- `gitnexus_impact`（upstream）：`collectMemoryHealthReport` 風險 LOW，直接呼叫者 3 個（`startWebServer`、`writeContextSnapshots`、`memory-health-cli.ts`）；`collectConsistencyReport` 風險 LOW，唯一直接呼叫者是 `collectMemoryHealthReport`；`formatMemoryHealthMarkdown` 風險 LOW，但只回報 `memory-health-cli.ts` 一個呼叫者。
+- `grep -rn "collectMemoryHealthReport\|formatMemoryHealthMarkdown" src tests scripts`：`formatMemoryHealthMarkdown` 另有 `src/services/context-snapshots.ts:159`，impact 漏報（與 project.md「GitNexus impact 會低報呼叫者」一致），以 grep 為準。三處呼叫端都原樣輸出報告：`src/web/server.ts:2017` 直接 `sendJson`、`context-snapshots.ts:159` 與 `memory-health-cli.ts:19` 交給 `formatMemoryHealthMarkdown()` 或 `JSON.stringify`。
+- 前端 `src/web/public/app/services/status-service.js:9` 的 `getMemoryHealth()` 沒有呼叫端；`skills/`、`scripts/` 沒有讀這份報告。三個函式的名稱與簽名不變，呼叫端不必修改。
+
 ## 1. 紅燈
 
 命令：`npx tsx --test tests/memory-health.test.ts`，exit 1，`# tests 9`、`# pass 2`、`# fail 7`。
