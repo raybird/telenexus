@@ -62,6 +62,9 @@ GitHub：[#16](https://github.com/raybird/telenexus/issues/16)
 4. ✅ **審查後續：SHOULD FIX 1、2** — 驗證方式：補「session 沒有時間」的等價案例與「checkpoint 格式異常時 `start()` 不 throw」的測試，先在舊程式與 `4b088e1` 上確認結果，再修正；補記審查找到的已知差異；一併處理審查 NICE TO HAVE 2、3、4。之後重跑 `npm run build`、`npm run test`、`npm run lint` 並重新審查。
    - 完成證據：[evidence/step4-review-followup.md](evidence/step4-review-followup.md)——新等價案例在舊程式上通過、在 `4b088e1` 上失敗；`start()` 測試在 `4b088e1` 上失敗，突變後也轉紅。修正後 `npm run build` exit 0；`env -u MEMORIA_HOME -u MEMORIA_ARCHIVE_DB npm run test` exit 0，`# tests 518`、`# pass 518`、`# fail 0`，比步驟 3 多 2 個，`tests/` 下 70 個測試檔，`tests/docker/` 有跑到；`npm run lint` exit 0。
    - 相依：步驟 1～3；[review-4b088e1.md](review-4b088e1.md)。
+5. ✅ **第二輪審查後續：註解位置** — [review-38716b0.md](review-38716b0.md) SHOULD FIX 1：`archiveSourceOf()`、`currentArchiveSource()` 插在 `readArchive()` 的 JSDoc 與函式之間，「不 throw、不記 runtime issue」的理由（issue 0017 AC-5）掛錯了函式。把兩個函式移到 JSDoc 之前，只搬位置，程式不變，不需要新的紅綠燈證據。NICE（等價案例再加一列 NULL）不處理：fixture 的 `timestamp` 是 `NOT NULL`，NULL 與空字串走同一條路徑，審查的 probe 已確認 NULL 新舊一致。
+   - 完成證據：2026-10-20 執行。`git diff` 只有 `src/services/memory-health.ts` 的 5 行搬移；`npx prettier --check` 通過；`npm run build` exit 0；`env -u MEMORIA_HOME -u MEMORIA_ARCHIVE_DB npm run test` exit 0，`# tests 518`、`# pass 518`、`# fail 0`；`npm run lint` exit 0。
+   - 相依：步驟 4；[review-38716b0.md](review-38716b0.md)。
 
 ## Gate 豁免紀錄
 
@@ -77,6 +80,7 @@ GitHub：[#16](https://github.com/raybird/telenexus/issues/16)
 | 2026-10-20 | AC-1～AC-4 核准；記錄不開 PR 的 Gate 豁免 | 使用者 |
 | 2026-10-20 | 獨立審查 `4b088e1`：PASS，SHOULD FIX 2 項（[review-4b088e1.md](review-4b088e1.md)） | 獨立 subagent |
 | 2026-10-20 | 處理 SHOULD FIX 1、2，不涉及規格修訂 | - |
+| 2026-10-20 | 獨立重新審查 `38716b0`：PASS，SHOULD FIX 1 項（[review-38716b0.md](review-38716b0.md)）；已處理（步驟 5） | 獨立 subagent |
 
 ---
 

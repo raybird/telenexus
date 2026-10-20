@@ -199,11 +199,6 @@ function archiveConfiguredBy(): string | null {
   return null;
 }
 
-/**
- * 讀不到封存時回傳 unavailable / error 與 null 統計，不 throw：這份報告每次 context snapshot
- * 都會重算，throw 會讓整批 snapshot 寫不出來。也不記 runtime issue —— 封存壞掉時每分鐘都會重算,
- * 記下去只會讓 ErrorAlerter 累積成告警洗版，原因已經寫在報告的 detail 裡。
- */
 function archiveSourceOf(configuredBy: string | null, exists: boolean): ArchiveSource {
   return configuredBy || exists ? 'local' : 'remote';
 }
@@ -213,6 +208,11 @@ export function currentArchiveSource(): ArchiveSource {
   return archiveSourceOf(archiveConfiguredBy(), fs.existsSync(resolveMemoriaSessionsDbPath()));
 }
 
+/**
+ * 讀不到封存時回傳 unavailable / error 與 null 統計，不 throw：這份報告每次 context snapshot
+ * 都會重算，throw 會讓整批 snapshot 寫不出來。也不記 runtime issue —— 封存壞掉時每分鐘都會重算,
+ * 記下去只會讓 ErrorAlerter 累積成告警洗版，原因已經寫在報告的 detail 裡。
+ */
 function readArchive(archiveDb: string): ArchiveRead {
   const configuredBy = archiveConfiguredBy();
   const exists = fs.existsSync(archiveDb);
