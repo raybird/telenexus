@@ -51,14 +51,14 @@ GitHub：[#17](https://github.com/raybird/telenexus/issues/17)
 
 ## 實作與驗證步驟
 
-1. 📝 **AC-1～AC-5：報告的來源、狀態與一致性判定** — 驗證方式：先在 `tests/memory-health.test.ts` 寫 AC-1～AC-5 的測試並確認失敗，再修改 `src/services/memory-health.ts` 讓它們通過；既有測試維持通過。改 symbol 前跑 `gitnexus_impact` 並以 `grep` 核對呼叫者。
-   - 完成證據：紅燈與綠燈的測試輸出。
+1. ✅ **AC-1～AC-5：報告的來源、狀態與一致性判定** — 驗證方式：先在 `tests/memory-health.test.ts` 寫 AC-1～AC-5 的測試並確認失敗，再修改 `src/services/memory-health.ts` 讓它們通過；既有測試維持通過。改 symbol 前跑 `gitnexus_impact` 並以 `grep` 核對呼叫者。
+   - 完成證據：[evidence/step1-red-green.md](evidence/step1-red-green.md)——紅燈 7 個失敗（含 AC-5 的兩次 throw），另用 probe 在舊程式上印出遠端與空封存都是 `ok=true`；最小實作與重構後都是 `# tests 9`、`# pass 9`。
    - 相依：無（驗收條件已於 2026-10-20 核准）。
-2. 📝 **AC-1：編譯後的 CLI 實跑** — 驗證方式：`npm run build` 後，在暫存 `DB_DIR` 下分別以「不設定封存變數」與「`MEMORIA_ARCHIVE_DB` 指向不存在的檔案」執行 `node dist/tools/memory-health-cli.js --json` 與不帶 `--json` 的 markdown 輸出。
-   - 完成證據：兩種設定的輸出摘錄，存成 `evidence/` 下的檔案（依地雷 L-10 去除本機路徑）。
+2. ✅ **AC-1：編譯後的 CLI 實跑** — 驗證方式：`npm run build` 後，在暫存 `DB_DIR` 下分別以「不設定封存變數」與「`MEMORIA_ARCHIVE_DB` 指向不存在的檔案」執行 `node dist/tools/memory-health-cli.js --json` 與不帶 `--json` 的 markdown 輸出。
+   - 完成證據：[evidence/step2-cli.md](evidence/step2-cli.md)——四次執行都是 exit 0；遠端為 `remote`／`unavailable`，設定的路徑不存在為 `local`／`unavailable`，數字欄位都是 `null`（markdown 為 `unknown`），`consistency.ok=null`。
    - 相依：步驟 1。
-3. 📝 **文件與交付檢查** — 更新 `docs/web-console-reference.md`；依序執行 `npm run build`、`npm run test`（核對 `# tests` 數與測試檔數相稱）、`npm run lint`。
-   - 完成證據：三個命令都是 exit 0 的輸出摘要。
+3. ✅ **文件與交付檢查** — 更新 `docs/web-console-reference.md`；依序執行 `npm run build`、`npm run test`（核對 `# tests` 數與測試檔數相稱）、`npm run lint`。
+   - 完成證據：2026-10-20 在步驟 1、2 完成後的工作區執行。`docs/web-console-reference.md` 補上 `archive.source`／`status`／`detail` 與 `consistency.checks`／`ok` 的判讀。`npm run build` exit 0；`npm run test` exit 0，`# tests 497`、`# pass 497`、`# fail 0`，`tests/` 下 70 個測試檔，巢狀目錄（如 `tests/docker/`）的測試有出現在輸出中（地雷 L-01）；`npm run lint` exit 0。
    - 相依：步驟 1、2。
 
 ## Timeline

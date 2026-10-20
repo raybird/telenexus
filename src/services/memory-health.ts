@@ -21,6 +21,16 @@ export type BackfillCheckpoint = {
   lastDuplicates?: number;
 };
 
+/**
+ * 封存從哪裡讀：`local` 是本服務能直接開的 sessions.db（有設定 MEMORIA_ARCHIVE_DB / MEMORIA_HOME,
+ * 或預設路徑真的存在）；`remote` 是官方 Compose 的拆分部署，封存在 memoria 服務自己的 volume,
+ * 本服務不讀取（issue 0017 決定不為此呼叫 Memoria API）。
+ */
+export type ArchiveSource = 'local' | 'remote';
+export type ArchiveStatus = 'ok' | 'unavailable' | 'error';
+/** `skipped` 是沒有可檢查的對象（例如沒有 checkpoint），視為通過；`unsupported` / `error` 是沒檢查到。 */
+export type ConsistencyCheckStatus = 'checked' | 'skipped' | 'unsupported' | 'error';
+
 export type MemoryHealthReport = {
   ok: boolean;
   timestamp: number;
@@ -46,13 +56,18 @@ export type MemoryHealthReport = {
   };
   archive: {
     enabled: boolean;
+    source: ArchiveSource;
+    status: ArchiveStatus;
+    /** status 不是 ok 時的原因；ok 時為 null */
+    detail: string | null;
     exists: boolean;
-    totalSessions: number;
-    totalEvents: number;
-    sessions24h: number;
+    /** 以下四項在封存沒讀到時是 null，不是 0 */
+    totalSessions: number | null;
+    totalEvents: number | null;
+    sessions24h: number | null;
     lastSessionAt: string | null;
     syncFailures24h: number;
-    estimatedGapRecent24h: number;
+    estimatedGapRecent24h: number | null;
   };
   backfill: {
     enabled: boolean;
@@ -68,12 +83,18 @@ export type MemoryHealthReport = {
     lastDuplicates: number;
   };
   consistency: {
-    ok: boolean;
+    /** 查到問題為 false；每項都 checked 或 skipped 且沒問題才是 true；其餘（有項目沒檢查到）為 null */
+    ok: boolean | null;
+    checks: {
+      orphanSourceSession: ConsistencyCheckStatus;
+      checkpointSession: ConsistencyCheckStatus;
+      checkpointAhead: ConsistencyCheckStatus;
+    };
     sourceSessionTaggedObservations: number;
-    orphanSourceSessionObservations: number;
+    orphanSourceSessionObservations: number | null;
     observationsMissingSourceSession: number;
-    checkpointAheadOfArchive: boolean;
-    checkpointSessionMissing: boolean;
+    checkpointAheadOfArchive: boolean | null;
+    checkpointSessionMissing: boolean | null;
   };
 };
 
@@ -143,33 +164,100 @@ function extractSourceSessionId(content: string | null | undefined): string | nu
   return match?.[1]?.trim() || null;
 }
 
-function collectConsistencyReport(
-  retrievalDb: string,
-  archiveDb: string,
-  checkpoint: BackfillCheckpoint | null,
-  archiveLastSessionAt: string | null
-): ConsistencyReport {
-  const empty: ConsistencyReport = {
-    ok: true,
-    sourceSessionTaggedObservations: 0,
-    orphanSourceSessionObservations: 0,
-    observationsMissingSourceSession: 0,
-    checkpointAheadOfArchive: false,
-    checkpointSessionMissing: false
+type ArchiveRead = {
+  source: ArchiveSource;
+  status: ArchiveStatus;
+  detail: string | null;
+  totalSessions: number | null;
+  totalEvents: number | null;
+  sessions24h: number | null;
+  lastSessionAt: string | null;
+  sessionIds: Set<string> | null;
+};
+
+function archiveConfiguredBy(): string | null {
+  if (process.env.MEMORIA_ARCHIVE_DB?.trim()) return 'MEMORIA_ARCHIVE_DB';
+  if (process.env.MEMORIA_HOME?.trim()) return 'MEMORIA_HOME';
+  return null;
+}
+
+/**
+ * 讀不到封存時回傳 unavailable / error 與 null 統計，不 throw：這份報告每次 context snapshot
+ * 都會重算，throw 會讓整批 snapshot 寫不出來。也不記 runtime issue —— 封存壞掉時每分鐘都會重算,
+ * 記下去只會讓 ErrorAlerter 累積成告警洗版，原因已經寫在報告的 detail 裡。
+ */
+function readArchive(archiveDb: string): ArchiveRead {
+  const configuredBy = archiveConfiguredBy();
+  const exists = fs.existsSync(archiveDb);
+  const source: ArchiveSource = configuredBy || exists ? 'local' : 'remote';
+  const unread = {
+    source,
+    totalSessions: null,
+    totalEvents: null,
+    sessions24h: null,
+    lastSessionAt: null,
+    sessionIds: null
   };
 
-  let archiveSessionIds = new Set<string>();
-  if (fs.existsSync(archiveDb)) {
+  if (!exists) {
+    return {
+      ...unread,
+      status: 'unavailable',
+      detail: configuredBy
+        ? `找不到 ${configuredBy} 設定的封存路徑`
+        : '遠端 Memoria 模式：封存在 memoria 服務的 volume，本服務不讀取'
+    };
+  }
+
+  try {
     const db = new Database(archiveDb, { readonly: true, fileMustExist: true });
     try {
+      const sessionStats = db
+        .prepare(`SELECT COUNT(*) as total, MAX(timestamp) as last_session_at FROM sessions`)
+        .get() as { total?: number; last_session_at?: string | null };
+      const eventStats = db.prepare(`SELECT COUNT(*) as count FROM events`).get() as {
+        count?: number;
+      };
+      const cutoffIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const recentStats = db
+        .prepare(`SELECT COUNT(*) as count FROM sessions WHERE timestamp >= ?`)
+        .get(cutoffIso) as { count?: number };
       const rows = db.prepare(`SELECT id FROM sessions`).all() as Array<{ id?: string }>;
-      archiveSessionIds = new Set(
-        rows.map((row) => row.id).filter((id): id is string => Boolean(id))
-      );
+      return {
+        source,
+        status: 'ok',
+        detail: null,
+        totalSessions: sessionStats.total || 0,
+        totalEvents: eventStats.count || 0,
+        sessions24h: recentStats.count || 0,
+        lastSessionAt: parseIsoDate(sessionStats.last_session_at),
+        sessionIds: new Set(rows.map((row) => row.id).filter((id): id is string => Boolean(id)))
+      };
     } finally {
       db.close();
     }
+  } catch (err) {
+    return {
+      ...unread,
+      status: 'error',
+      detail: err instanceof Error ? err.message : String(err)
+    };
   }
+}
+
+function collectConsistencyReport(
+  retrievalDb: string,
+  archive: ArchiveRead,
+  checkpoint: BackfillCheckpoint | null
+): ConsistencyReport {
+  // 需要封存內容的檢查：封存讀到了才算 checked，空封存也一樣要檢查
+  const archiveCheck: ConsistencyCheckStatus =
+    archive.status === 'ok' ? 'checked' : archive.status === 'error' ? 'error' : 'unsupported';
+  const archiveSessionIds = archive.sessionIds;
+
+  let sourceSessionTaggedObservations = 0;
+  let observationsMissingSourceSession = 0;
+  let orphanSourceSessionObservations = 0;
 
   if (fs.existsSync(retrievalDb)) {
     const db = new Database(retrievalDb, { readonly: true, fileMustExist: true });
@@ -185,7 +273,7 @@ function collectConsistencyReport(
           `SELECT COUNT(*) as count FROM observations WHERE content IS NULL OR content NOT LIKE ?`
         )
         .get(MARKER_LIKE) as { count?: number } | undefined;
-      empty.observationsMissingSourceSession = missingRow?.count || 0;
+      observationsMissingSourceSession = missingRow?.count || 0;
 
       const candidates = db
         .prepare(`SELECT content FROM observations WHERE content LIKE ?`)
@@ -193,12 +281,12 @@ function collectConsistencyReport(
       for (const row of candidates) {
         const sessionId = extractSourceSessionId(row.content);
         if (!sessionId) {
-          empty.observationsMissingSourceSession += 1;
+          observationsMissingSourceSession += 1;
           continue;
         }
-        empty.sourceSessionTaggedObservations += 1;
-        if (archiveSessionIds.size > 0 && !archiveSessionIds.has(sessionId)) {
-          empty.orphanSourceSessionObservations += 1;
+        sourceSessionTaggedObservations += 1;
+        if (archiveSessionIds && !archiveSessionIds.has(sessionId)) {
+          orphanSourceSessionObservations += 1;
         }
       }
     } finally {
@@ -206,23 +294,54 @@ function collectConsistencyReport(
     }
   }
 
+  // checkpoint 沒有對應欄位時沒有東西可查（skipped，視為通過）；有的話跟著封存的讀取狀態走。
+  // archiveSessionIds 只有在封存讀到時才不是 null，所以沒讀到時兩個結果都是 null。
   const checkpointSessionId = checkpoint?.lastProcessedSessionId?.trim();
-  if (checkpointSessionId) {
-    empty.checkpointSessionMissing =
-      archiveSessionIds.size > 0 && !archiveSessionIds.has(checkpointSessionId);
-  }
+  const checkpointSessionCheck: ConsistencyCheckStatus = checkpointSessionId
+    ? archiveCheck
+    : 'skipped';
+  const checkpointSessionMissing = !checkpointSessionId
+    ? false
+    : archiveSessionIds
+      ? !archiveSessionIds.has(checkpointSessionId)
+      : null;
 
   const checkpointTimestamp = checkpoint?.lastProcessedTimestamp?.trim();
-  if (checkpointTimestamp && archiveLastSessionAt) {
-    empty.checkpointAheadOfArchive = checkpointTimestamp > archiveLastSessionAt;
-  }
+  const checkpointAheadCheck: ConsistencyCheckStatus = checkpointTimestamp
+    ? archiveCheck
+    : 'skipped';
+  // 封存裡一筆 session 都沒有，checkpoint 卻記著處理過的時間：封存被清空或換過了
+  const checkpointAheadOfArchive = !checkpointTimestamp
+    ? false
+    : archiveSessionIds
+      ? archive.lastSessionAt
+        ? checkpointTimestamp > archive.lastSessionAt
+        : archive.totalSessions === 0
+      : null;
 
-  empty.ok =
-    empty.orphanSourceSessionObservations === 0 &&
-    !empty.checkpointAheadOfArchive &&
-    !empty.checkpointSessionMissing;
+  const checks = {
+    orphanSourceSession: archiveCheck,
+    checkpointSession: checkpointSessionCheck,
+    checkpointAhead: checkpointAheadCheck
+  };
+  const foundProblem =
+    (archiveCheck === 'checked' && orphanSourceSessionObservations > 0) ||
+    checkpointSessionMissing === true ||
+    checkpointAheadOfArchive === true;
+  const allChecked = Object.values(checks).every(
+    (status) => status === 'checked' || status === 'skipped'
+  );
 
-  return empty;
+  return {
+    ok: foundProblem ? false : allChecked ? true : null,
+    checks,
+    sourceSessionTaggedObservations,
+    orphanSourceSessionObservations:
+      archiveCheck === 'checked' ? orphanSourceSessionObservations : null,
+    observationsMissingSourceSession,
+    checkpointAheadOfArchive,
+    checkpointSessionMissing
+  };
 }
 
 /**
@@ -284,43 +403,18 @@ export function collectMemoryHealthReport(): MemoryHealthReport {
     { key: 'relations', sql: 'SELECT COUNT(*) as count FROM relations' }
   ]);
 
-  let totalSessions = 0;
-  let totalEvents = 0;
-  let sessions24h = 0;
-  let lastSessionAt: string | null = null;
-  if (fs.existsSync(archiveDb)) {
-    const db = new Database(archiveDb, { readonly: true, fileMustExist: true });
-    try {
-      const sessionStats = db
-        .prepare(`SELECT COUNT(*) as total, MAX(timestamp) as last_session_at FROM sessions`)
-        .get() as { total?: number; last_session_at?: string | null };
-      totalSessions = sessionStats.total || 0;
-      lastSessionAt = parseIsoDate(sessionStats.last_session_at);
-
-      const eventStats = db.prepare(`SELECT COUNT(*) as count FROM events`).get() as {
-        count?: number;
-      };
-      totalEvents = eventStats.count || 0;
-
-      const cutoffIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const recentStats = db
-        .prepare(`SELECT COUNT(*) as count FROM sessions WHERE timestamp >= ?`)
-        .get(cutoffIso) as { count?: number };
-      sessions24h = recentStats.count || 0;
-    } finally {
-      db.close();
-    }
-  }
+  const archive = readArchive(archiveDb);
 
   const syncFailures24h = countRecentMemoriaIssues();
-  const estimatedGapRecent24h = Math.max(modelResponses24h - sessions24h, 0);
+  const estimatedGapRecent24h =
+    archive.sessions24h === null ? null : Math.max(modelResponses24h - archive.sessions24h, 0);
   const archiveEnabled =
     (process.env.MEMORIA_SYNC_ENABLED || 'auto').trim().toLowerCase() !== 'off';
   const backfillEnabled =
     (process.env.MEMORY_BACKFILL_ENABLED || 'false').trim().toLowerCase() === 'true';
   const dryRunRaw = (process.env.MEMORY_BACKFILL_DRY_RUN || 'true').trim().toLowerCase();
   const backfillDryRun = !(dryRunRaw === 'false' || dryRunRaw === '0' || dryRunRaw === 'off');
-  const consistency = collectConsistencyReport(retrievalDb, archiveDb, checkpoint, lastSessionAt);
+  const consistency = collectConsistencyReport(retrievalDb, archive, checkpoint);
 
   return {
     ok: true,
@@ -347,11 +441,14 @@ export function collectMemoryHealthReport(): MemoryHealthReport {
     },
     archive: {
       enabled: archiveEnabled,
+      source: archive.source,
+      status: archive.status,
+      detail: archive.detail,
       exists: fs.existsSync(archiveDb),
-      totalSessions,
-      totalEvents,
-      sessions24h,
-      lastSessionAt,
+      totalSessions: archive.totalSessions,
+      totalEvents: archive.totalEvents,
+      sessions24h: archive.sessions24h,
+      lastSessionAt: archive.lastSessionAt,
       syncFailures24h,
       estimatedGapRecent24h
     },
@@ -372,20 +469,29 @@ export function collectMemoryHealthReport(): MemoryHealthReport {
   };
 }
 
+/** 沒讀到、沒檢查到的值顯示 unknown，不讓它看起來像 0 或 true */
+function orUnknown(value: number | boolean | null): string {
+  return value === null ? 'unknown' : String(value);
+}
+
 export function formatMemoryHealthMarkdown(report: MemoryHealthReport): string {
   const updated = new Date(report.timestamp).toLocaleString('zh-TW');
+  const { checks } = report.consistency;
   return [
     '# Memory Status',
     '',
     `- Updated: ${updated}`,
     `- Archive Enabled: ${String(report.archive.enabled)}`,
+    `- Archive Source: ${report.archive.source}`,
+    `- Archive Status: ${report.archive.status}`,
+    `- Archive Detail: ${report.archive.detail || '(none)'}`,
     `- Archive DB Exists: ${String(report.archive.exists)}`,
-    `- Archive Total Sessions: ${report.archive.totalSessions}`,
-    `- Archive Total Events: ${report.archive.totalEvents}`,
-    `- Archive Last Session At: ${report.archive.lastSessionAt || '(none)'}`,
-    `- Archive Sessions 24h: ${report.archive.sessions24h}`,
+    `- Archive Total Sessions: ${orUnknown(report.archive.totalSessions)}`,
+    `- Archive Total Events: ${orUnknown(report.archive.totalEvents)}`,
+    `- Archive Last Session At: ${report.archive.status === 'ok' ? report.archive.lastSessionAt || '(none)' : 'unknown'}`,
+    `- Archive Sessions 24h: ${orUnknown(report.archive.sessions24h)}`,
     `- Archive Sync Failures 24h: ${report.archive.syncFailures24h}`,
-    `- Archive Estimated Gap Recent 24h: ${report.archive.estimatedGapRecent24h}`,
+    `- Archive Estimated Gap Recent 24h: ${orUnknown(report.archive.estimatedGapRecent24h)}`,
     `- Operational DB Exists: ${String(report.operational.exists)}`,
     `- Operational Total Messages: ${report.operational.totalMessages}`,
     `- Operational Total Schedules: ${report.operational.totalSchedules}`,
@@ -407,12 +513,15 @@ export function formatMemoryHealthMarkdown(report: MemoryHealthReport): string {
     `- Backfill Last Duplicates: ${report.backfill.lastDuplicates}`,
     `- Backfill Checkpoint Timestamp: ${report.backfill.checkpoint?.lastProcessedTimestamp || '(none)'}`,
     `- Backfill Checkpoint Session ID: ${report.backfill.checkpoint?.lastProcessedSessionId || '(none)'}`,
-    `- Consistency OK: ${String(report.consistency.ok)}`,
+    `- Consistency OK: ${orUnknown(report.consistency.ok)}`,
+    `- Consistency Check Orphan Source Session: ${checks.orphanSourceSession}`,
+    `- Consistency Check Checkpoint Session: ${checks.checkpointSession}`,
+    `- Consistency Check Checkpoint Ahead: ${checks.checkpointAhead}`,
     `- Consistency Tagged Observations: ${report.consistency.sourceSessionTaggedObservations}`,
-    `- Consistency Orphan Observations: ${report.consistency.orphanSourceSessionObservations}`,
+    `- Consistency Orphan Observations: ${orUnknown(report.consistency.orphanSourceSessionObservations)}`,
     `- Consistency Missing Source Session Tag: ${report.consistency.observationsMissingSourceSession}`,
-    `- Consistency Checkpoint Ahead Of Archive: ${String(report.consistency.checkpointAheadOfArchive)}`,
-    `- Consistency Checkpoint Session Missing: ${String(report.consistency.checkpointSessionMissing)}`,
+    `- Consistency Checkpoint Ahead Of Archive: ${orUnknown(report.consistency.checkpointAheadOfArchive)}`,
+    `- Consistency Checkpoint Session Missing: ${orUnknown(report.consistency.checkpointSessionMissing)}`,
     '',
     '## Paths',
     `- operational_db: ${report.paths.operationalDb}`,

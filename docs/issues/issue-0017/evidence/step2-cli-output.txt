@@ -1,0 +1,234 @@
+=== remote --json
+{
+  "ok": true,
+  "timestamp": 1792486673256,
+  "generatedAt": "2026-10-20T08:57:53.256Z",
+  "paths": {
+    "operationalDb": "<tmp>/data/moltbot.db",
+    "retrievalDb": "<tmp>/data/memory.db",
+    "archiveDb": "<tmp>/data/memoria-archive/.memory/sessions.db",
+    "checkpointFile": "<tmp>/cp.json"
+  },
+  "operational": {
+    "exists": false,
+    "totalMessages": 0,
+    "totalSchedules": 0,
+    "lastMessageAt": null,
+    "modelResponses24h": 0
+  },
+  "retrieval": {
+    "exists": false,
+    "entities": 0,
+    "observations": 0,
+    "relations": 0
+  },
+  "archive": {
+    "enabled": true,
+    "source": "remote",
+    "status": "unavailable",
+    "detail": "遠端 Memoria 模式：封存在 memoria 服務的 volume，本服務不讀取",
+    "exists": false,
+    "totalSessions": null,
+    "totalEvents": null,
+    "sessions24h": null,
+    "lastSessionAt": null,
+    "syncFailures24h": 0,
+    "estimatedGapRecent24h": null
+  },
+  "backfill": {
+    "enabled": false,
+    "dryRun": true,
+    "checkpointExists": false,
+    "checkpoint": null,
+    "lastRunStatus": null,
+    "lastRunAt": null,
+    "lastSuccessAt": null,
+    "lastScannedSessions": 0,
+    "lastCandidates": 0,
+    "lastWritten": 0,
+    "lastDuplicates": 0
+  },
+  "consistency": {
+    "ok": null,
+    "checks": {
+      "orphanSourceSession": "unsupported",
+      "checkpointSession": "skipped",
+      "checkpointAhead": "skipped"
+    },
+    "sourceSessionTaggedObservations": 0,
+    "orphanSourceSessionObservations": null,
+    "observationsMissingSourceSession": 0,
+    "checkpointAheadOfArchive": false,
+    "checkpointSessionMissing": false
+  }
+}
+exit=0
+=== remote markdown
+# Memory Status
+
+- Updated: 2026/10/20 下午4:57:53
+- Archive Enabled: true
+- Archive Source: remote
+- Archive Status: unavailable
+- Archive Detail: 遠端 Memoria 模式：封存在 memoria 服務的 volume，本服務不讀取
+- Archive DB Exists: false
+- Archive Total Sessions: unknown
+- Archive Total Events: unknown
+- Archive Last Session At: unknown
+- Archive Sessions 24h: unknown
+- Archive Sync Failures 24h: 0
+- Archive Estimated Gap Recent 24h: unknown
+- Operational DB Exists: false
+- Operational Total Messages: 0
+- Operational Total Schedules: 0
+- Operational Last Message At: (none)
+- Operational Model Responses 24h: 0
+- Retrieval DB Exists: false
+- Retrieval Entities: 0
+- Retrieval Observations: 0
+- Retrieval Relations: 0
+- Backfill Enabled: false
+- Backfill Dry Run: true
+- Backfill Checkpoint Exists: false
+- Backfill Last Run Status: (none)
+- Backfill Last Run At: (none)
+- Backfill Last Success At: (none)
+- Backfill Last Scanned Sessions: 0
+- Backfill Last Candidates: 0
+- Backfill Last Written: 0
+- Backfill Last Duplicates: 0
+- Backfill Checkpoint Timestamp: (none)
+- Backfill Checkpoint Session ID: (none)
+- Consistency OK: unknown
+- Consistency Check Orphan Source Session: unsupported
+- Consistency Check Checkpoint Session: skipped
+- Consistency Check Checkpoint Ahead: skipped
+- Consistency Tagged Observations: 0
+- Consistency Orphan Observations: unknown
+- Consistency Missing Source Session Tag: 0
+- Consistency Checkpoint Ahead Of Archive: false
+- Consistency Checkpoint Session Missing: false
+
+## Paths
+- operational_db: <tmp>/data/moltbot.db
+- retrieval_db: <tmp>/data/memory.db
+- archive_db: <tmp>/data/memoria-archive/.memory/sessions.db
+- checkpoint_file: <tmp>/cp.json
+exit=0
+=== configured-missing --json
+{
+  "ok": true,
+  "timestamp": 1792486673357,
+  "generatedAt": "2026-10-20T08:57:53.357Z",
+  "paths": {
+    "operationalDb": "<tmp>/data/moltbot.db",
+    "retrievalDb": "<tmp>/data/memory.db",
+    "archiveDb": "<tmp>/missing/sessions.db",
+    "checkpointFile": "<tmp>/cp.json"
+  },
+  "operational": {
+    "exists": false,
+    "totalMessages": 0,
+    "totalSchedules": 0,
+    "lastMessageAt": null,
+    "modelResponses24h": 0
+  },
+  "retrieval": {
+    "exists": false,
+    "entities": 0,
+    "observations": 0,
+    "relations": 0
+  },
+  "archive": {
+    "enabled": true,
+    "source": "local",
+    "status": "unavailable",
+    "detail": "找不到 MEMORIA_ARCHIVE_DB 設定的封存路徑",
+    "exists": false,
+    "totalSessions": null,
+    "totalEvents": null,
+    "sessions24h": null,
+    "lastSessionAt": null,
+    "syncFailures24h": 0,
+    "estimatedGapRecent24h": null
+  },
+  "backfill": {
+    "enabled": false,
+    "dryRun": true,
+    "checkpointExists": false,
+    "checkpoint": null,
+    "lastRunStatus": null,
+    "lastRunAt": null,
+    "lastSuccessAt": null,
+    "lastScannedSessions": 0,
+    "lastCandidates": 0,
+    "lastWritten": 0,
+    "lastDuplicates": 0
+  },
+  "consistency": {
+    "ok": null,
+    "checks": {
+      "orphanSourceSession": "unsupported",
+      "checkpointSession": "skipped",
+      "checkpointAhead": "skipped"
+    },
+    "sourceSessionTaggedObservations": 0,
+    "orphanSourceSessionObservations": null,
+    "observationsMissingSourceSession": 0,
+    "checkpointAheadOfArchive": false,
+    "checkpointSessionMissing": false
+  }
+}
+exit=0
+=== configured-missing markdown
+# Memory Status
+
+- Updated: 2026/10/20 下午4:57:53
+- Archive Enabled: true
+- Archive Source: local
+- Archive Status: unavailable
+- Archive Detail: 找不到 MEMORIA_ARCHIVE_DB 設定的封存路徑
+- Archive DB Exists: false
+- Archive Total Sessions: unknown
+- Archive Total Events: unknown
+- Archive Last Session At: unknown
+- Archive Sessions 24h: unknown
+- Archive Sync Failures 24h: 0
+- Archive Estimated Gap Recent 24h: unknown
+- Operational DB Exists: false
+- Operational Total Messages: 0
+- Operational Total Schedules: 0
+- Operational Last Message At: (none)
+- Operational Model Responses 24h: 0
+- Retrieval DB Exists: false
+- Retrieval Entities: 0
+- Retrieval Observations: 0
+- Retrieval Relations: 0
+- Backfill Enabled: false
+- Backfill Dry Run: true
+- Backfill Checkpoint Exists: false
+- Backfill Last Run Status: (none)
+- Backfill Last Run At: (none)
+- Backfill Last Success At: (none)
+- Backfill Last Scanned Sessions: 0
+- Backfill Last Candidates: 0
+- Backfill Last Written: 0
+- Backfill Last Duplicates: 0
+- Backfill Checkpoint Timestamp: (none)
+- Backfill Checkpoint Session ID: (none)
+- Consistency OK: unknown
+- Consistency Check Orphan Source Session: unsupported
+- Consistency Check Checkpoint Session: skipped
+- Consistency Check Checkpoint Ahead: skipped
+- Consistency Tagged Observations: 0
+- Consistency Orphan Observations: unknown
+- Consistency Missing Source Session Tag: 0
+- Consistency Checkpoint Ahead Of Archive: false
+- Consistency Checkpoint Session Missing: false
+
+## Paths
+- operational_db: <tmp>/data/moltbot.db
+- retrieval_db: <tmp>/data/memory.db
+- archive_db: <tmp>/missing/sessions.db
+- checkpoint_file: <tmp>/cp.json
+exit=0
