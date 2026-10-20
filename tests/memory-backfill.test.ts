@@ -6,6 +6,7 @@ import path from 'node:path';
 import Database from 'better-sqlite3';
 import { extractCandidatesFromSession } from '../src/services/memory-backfill.js';
 import { runMemoryBackfillDryRun } from '../src/services/memory-backfill.js';
+import { getRecentIssues } from '../src/utils/errors.js';
 
 const baseSession = {
   id: 'session-1',
@@ -234,5 +235,66 @@ test('runMemoryBackfillDryRun reports telemetry for candidate hits and rejection
     } finally {
       db.close();
     }
+  });
+});
+
+// issue 0016 AC-4：讀不到封存時，錯誤訊息說明實際原因；其他行為不變
+function withoutArchiveEnv<T>(fn: (paths: { tempDir: string; checkpointFile: string }) => T): T {
+  const keys = ['DB_DIR', 'MEMORIA_HOME', 'MEMORIA_ARCHIVE_DB', 'MEMORY_BACKFILL_CHECKPOINT_FILE'];
+  const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'telenexus-backfill-0016-'));
+  const checkpointFile = path.join(tempDir, 'memory-backfill-checkpoint.json');
+  for (const key of keys) delete process.env[key];
+  process.env.DB_DIR = path.join(tempDir, 'data');
+  process.env.MEMORY_BACKFILL_CHECKPOINT_FILE = checkpointFile;
+  try {
+    return fn({ tempDir, checkpointFile });
+  } finally {
+    for (const key of keys) {
+      const value = previous[key];
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function backfillIssueCount(): number {
+  return getRecentIssues()
+    .filter((issue) => issue.scope.startsWith('memory-backfill:'))
+    .reduce((sum, issue) => sum + issue.count, 0);
+}
+
+test('issue 0016 AC-4：遠端模式的錯誤訊息說明是遠端，不記 runtime issue、不寫 checkpoint', () => {
+  withoutArchiveEnv(({ checkpointFile }) => {
+    const issuesBefore = backfillIssueCount();
+    assert.throws(
+      () => runMemoryBackfillDryRun({ saveCheckpoint: true }),
+      (error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        assert.match(message, /遠端/);
+        assert.doesNotMatch(message, /^sessions\.db not found/);
+        return true;
+      }
+    );
+    assert.equal(backfillIssueCount(), issuesBefore);
+    assert.equal(fs.existsSync(checkpointFile), false);
+  });
+});
+
+test('issue 0016 AC-4：設定的封存路徑不存在時，錯誤訊息寫明設定來源與路徑', () => {
+  withoutArchiveEnv(({ tempDir }) => {
+    const missing = path.join(tempDir, 'missing', 'sessions.db');
+    process.env.MEMORIA_ARCHIVE_DB = missing;
+    assert.throws(
+      () => runMemoryBackfillDryRun({ saveCheckpoint: false }),
+      (error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        assert.match(message, /MEMORIA_ARCHIVE_DB/);
+        assert.ok(message.includes(missing), message);
+        assert.doesNotMatch(message, /^sessions\.db not found/);
+        return true;
+      }
+    );
   });
 });

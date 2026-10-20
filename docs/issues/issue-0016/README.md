@@ -50,14 +50,14 @@ GitHub：[#16](https://github.com/raybird/telenexus/issues/16)
 
 ## 實作與驗證步驟
 
-1. 📝 **AC-1～AC-4：共用判定、worker、健康報告與 CLI 訊息** — 驗證方式：先寫 AC-1～AC-4 的測試並確認失敗，AC-1 的等價測試優先；再最小實作讓它們通過，既有測試維持通過。改 symbol 前跑 `gitnexus_impact`，並以 `grep` 核對呼叫者。
-   - 完成證據：待回寫。
+1. ✅ **AC-1～AC-4：共用判定、worker、健康報告與 CLI 訊息** — 驗證方式：先寫 AC-1～AC-4 的測試並確認失敗，AC-1 的等價測試優先；再最小實作讓它們通過，既有測試維持通過。改 symbol 前跑 `gitnexus_impact`，並以 `grep` 核對呼叫者。
+   - 完成證據：[evidence/step1-red-green.md](evidence/step1-red-green.md)——紅燈 7 個失敗；10 個等價測試在舊程式上全過，作為基準；最小實作後 `# tests 36`、`# pass 36`；把 `>` 突變成 `>=` 時兩個等價案例轉紅。
    - 相依：無（驗收條件已於 2026-10-20 核准）。
-2. 📝 **AC-3、AC-4：編譯後的 CLI 實跑** — 驗證方式：`npm run build` 後，在暫存 `DB_DIR`、遠端模式（不設定封存變數）下執行 `node dist/tools/memory-health-cli.js`（JSON 與 markdown）與 `node dist/tools/memory-backfill-cli.js once --json`。
-   - 完成證據：待回寫。
+2. ✅ **AC-3、AC-4：編譯後的 CLI 實跑** — 驗證方式：`npm run build` 後，在暫存 `DB_DIR`、遠端模式（不設定封存變數）下執行 `node dist/tools/memory-health-cli.js`（JSON 與 markdown）與 `node dist/tools/memory-backfill-cli.js once --json`。
+   - 完成證據：[evidence/step2-cli.md](evidence/step2-cli.md)——健康報告兩種格式都顯示 `remote-unsupported` 與原因；`memory:backfill` exit 1，訊息說明是遠端模式，暫存目錄沒有寫出 checkpoint。worker 需要完整服務才會啟動，沒有實跑，由步驟 1 的單元測試涵蓋。
    - 相依：步驟 1。
-3. 📝 **文件與交付檢查** — 更新 `docs/web-console-reference.md` 與 `docs/configuration-reference.md`；執行 `npm run build`、`npm run test`（核對 `# tests` 數與測試檔數相稱）、`npm run lint`。
-   - 完成證據：待回寫。
+3. ✅ **文件與交付檢查** — 更新 `docs/web-console-reference.md` 與 `docs/configuration-reference.md`；執行 `npm run build`、`npm run test`（核對 `# tests` 數與測試檔數相稱）、`npm run lint`。
+   - 完成證據：2026-10-20 在步驟 1、2 完成後的工作區執行。`docs/web-console-reference.md` 補上 `backfill.sourceState`／`sourceDetail` 的判讀，並說明 `lastRunStatus` 等欄位只記實際執行；`docs/configuration-reference.md` 補上遠端模式與 worker 各狀態的訊息。`npm run build` exit 0；`env -u MEMORIA_HOME -u MEMORIA_ARCHIVE_DB npm run test` exit 0，`# tests 516`、`# pass 516`、`# fail 0`，比 issue 0017 結束時的 499 多 17 個，就是本 issue 新增的測試數；`tests/` 下 70 個測試檔，`tests/docker/` 的測試有出現在輸出中（地雷 L-01）；`npm run lint` exit 0。
    - 相依：步驟 1、2。
 
 ## Gate 豁免紀錄
@@ -75,4 +75,4 @@ GitHub：[#16](https://github.com/raybird/telenexus/issues/16)
 
 ---
 
-**狀態**: 待實作
+**狀態**: 進行中（實作完成，待本機獨立審查）

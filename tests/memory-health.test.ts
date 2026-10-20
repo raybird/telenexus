@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import Database from 'better-sqlite3';
 import {
+  assessBackfillSource,
   collectMemoryHealthReport,
   formatMemoryHealthMarkdown
 } from '../src/services/memory-health.js';
@@ -481,3 +482,99 @@ for (const [label, prepare] of [
     });
   });
 }
+
+// issue 0016：回填來源的共用判定
+const CHECKPOINT_TIMESTAMP = '2026-05-31T10:38:00.556Z';
+
+test('issue 0016 AC-1：回填來源判定分成六種狀態，各附原因', async () => {
+  await withArchiveEnv({}, () => {
+    const assessment = assessBackfillSource();
+    assert.equal(assessment.source, 'remote');
+    assert.equal(assessment.state, 'remote-unsupported');
+    assert.match(assessment.detail, /遠端/);
+  });
+
+  await withArchiveEnv({}, ({ tempDir }) => {
+    const missing = path.join(tempDir, 'missing', 'sessions.db');
+    process.env.MEMORIA_ARCHIVE_DB = missing;
+    const assessment = assessBackfillSource();
+    assert.equal(assessment.source, 'local');
+    assert.equal(assessment.state, 'unavailable');
+    assert.match(assessment.detail, /MEMORIA_ARCHIVE_DB/);
+    assert.ok(assessment.detail.includes(missing), assessment.detail);
+  });
+
+  await withArchiveEnv({}, ({ tempDir }) => {
+    const archivePath = path.join(tempDir, 'sessions.db');
+    fs.writeFileSync(archivePath, 'not a sqlite database');
+    process.env.MEMORIA_ARCHIVE_DB = archivePath;
+    const assessment = assessBackfillSource();
+    assert.equal(assessment.state, 'error');
+    assert.match(assessment.detail, /file is not a database/);
+  });
+
+  await withArchiveEnv({}, ({ tempDir, checkpointFile }) => {
+    const archivePath = path.join(tempDir, 'sessions.db');
+    writeArchiveDb(archivePath, []);
+    writeCheckpoint(checkpointFile);
+    process.env.MEMORIA_ARCHIVE_DB = archivePath;
+    const assessment = assessBackfillSource();
+    assert.equal(assessment.state, 'empty');
+  });
+
+  await withArchiveEnv({}, ({ tempDir, checkpointFile }) => {
+    const archivePath = path.join(tempDir, 'sessions.db');
+    writeArchiveDb(archivePath, [{ id: 'session-old', timestamp: CHECKPOINT_TIMESTAMP }]);
+    writeCheckpoint(checkpointFile);
+    process.env.MEMORIA_ARCHIVE_DB = archivePath;
+    const assessment = assessBackfillSource();
+    assert.equal(assessment.state, 'up-to-date');
+    assert.ok(assessment.detail.includes(CHECKPOINT_TIMESTAMP), assessment.detail);
+  });
+
+  await withArchiveEnv({}, ({ tempDir, checkpointFile }) => {
+    const archivePath = path.join(tempDir, 'sessions.db');
+    writeArchiveDb(archivePath, [{ id: 'session-new', timestamp: '2026-10-03T04:02:40.861Z' }]);
+    writeCheckpoint(checkpointFile);
+    process.env.MEMORIA_ARCHIVE_DB = archivePath;
+    const assessment = assessBackfillSource();
+    assert.equal(assessment.state, 'pending');
+  });
+
+  await withArchiveEnv({}, ({ tempDir }) => {
+    const archivePath = path.join(tempDir, 'sessions.db');
+    writeArchiveDb(archivePath, [{ id: 'session-new', timestamp: '2026-10-03T04:02:40.861Z' }]);
+    process.env.MEMORIA_ARCHIVE_DB = archivePath;
+    const assessment = assessBackfillSource();
+    assert.equal(assessment.state, 'pending');
+    assert.match(assessment.detail, /checkpoint/);
+  });
+});
+
+test('issue 0016 AC-3：健康報告的 backfill 區塊列出來源狀態與原因，回填沒啟用也顯示', async () => {
+  await withArchiveEnv({}, ({ dbDir }) => {
+    writeRetrievalDb(dbDir, []);
+    const report = collectMemoryHealthReport();
+    assert.equal(report.backfill.enabled, false);
+    assert.equal(report.backfill.sourceState, 'remote-unsupported');
+    assert.match(report.backfill.sourceDetail, /遠端/);
+
+    const markdown = formatMemoryHealthMarkdown(report);
+    assert.match(markdown, /^- Backfill Source State: remote-unsupported$/m);
+    assert.ok(
+      markdown.includes(`- Backfill Source Detail: ${report.backfill.sourceDetail}`),
+      markdown
+    );
+  });
+
+  await withArchiveEnv({}, ({ tempDir, dbDir, checkpointFile }) => {
+    writeRetrievalDb(dbDir, []);
+    const archivePath = path.join(tempDir, 'sessions.db');
+    writeArchiveDb(archivePath, [{ id: 'session-new', timestamp: '2026-10-03T04:02:40.861Z' }]);
+    writeCheckpoint(checkpointFile);
+    process.env.MEMORIA_ARCHIVE_DB = archivePath;
+    const report = collectMemoryHealthReport();
+    assert.equal(report.backfill.sourceState, 'pending');
+    assert.match(formatMemoryHealthMarkdown(report), /^- Backfill Source State: pending$/m);
+  });
+});

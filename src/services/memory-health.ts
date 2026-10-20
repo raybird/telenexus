@@ -72,6 +72,9 @@ export type MemoryHealthReport = {
   backfill: {
     enabled: boolean;
     dryRun: boolean;
+    /** 回填來源目前的狀態，與 worker 決定要不要執行用的是同一個判定 */
+    sourceState: BackfillSourceState;
+    sourceDetail: string;
     checkpointExists: boolean;
     checkpoint: BackfillCheckpoint | null;
     lastRunStatus: string | null;
@@ -99,6 +102,20 @@ export type MemoryHealthReport = {
 };
 
 type ConsistencyReport = MemoryHealthReport['consistency'];
+
+export type BackfillSourceState =
+  | 'remote-unsupported'
+  | 'unavailable'
+  | 'error'
+  | 'empty'
+  | 'up-to-date'
+  | 'pending';
+
+export type BackfillSourceAssessment = {
+  source: ArchiveSource;
+  state: BackfillSourceState;
+  detail: string;
+};
 
 function countRecentMemoriaIssues(): number {
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
@@ -246,6 +263,59 @@ function readArchive(archiveDb: string): ArchiveRead {
       detail: err instanceof Error ? err.message : String(err)
     };
   }
+}
+
+/**
+ * 回填來源的狀態。「有沒有新資料」沿用 worker 原本的比較：封存最新的 timestamp 與 checkpoint 的
+ * lastProcessedTimestamp 都 trim 後做字串比較，checkpoint 沒有處理時間就從頭開始。
+ */
+function judgeBackfillSource(
+  archive: ArchiveRead,
+  checkpoint: BackfillCheckpoint | null,
+  archiveDb: string
+): BackfillSourceAssessment {
+  const { source } = archive;
+  if (archive.status === 'unavailable') {
+    return source === 'remote'
+      ? {
+          source,
+          state: 'remote-unsupported',
+          detail: '遠端 Memoria 模式：回填只讀本機的 sessions.db，目前不支援遠端封存'
+        }
+      : { source, state: 'unavailable', detail: `${archive.detail}：${archiveDb}` };
+  }
+  if (archive.status === 'error') {
+    return { source, state: 'error', detail: `封存讀取失敗：${archive.detail}` };
+  }
+  if (!archive.totalSessions) {
+    return { source, state: 'empty', detail: '封存裡沒有任何 session' };
+  }
+  const checkpointTimestamp = checkpoint?.lastProcessedTimestamp?.trim();
+  if (!checkpointTimestamp) {
+    return { source, state: 'pending', detail: '還沒有 checkpoint，從最舊的 session 開始' };
+  }
+  if (archive.lastSessionAt && archive.lastSessionAt > checkpointTimestamp) {
+    return {
+      source,
+      state: 'pending',
+      detail: `封存最新的 session（${archive.lastSessionAt}）比 checkpoint（${checkpointTimestamp}）新`
+    };
+  }
+  return {
+    source,
+    state: 'up-to-date',
+    detail: `沒有比 checkpoint（${checkpointTimestamp}）更新的 session`
+  };
+}
+
+/** worker 與 memory:backfill 用：以目前的設定判定回填來源 */
+export function assessBackfillSource(): BackfillSourceAssessment {
+  const archiveDb = resolveMemoriaSessionsDbPath();
+  return judgeBackfillSource(
+    readArchive(archiveDb),
+    readCheckpoint(resolveMemoryBackfillCheckpointPath()),
+    archiveDb
+  );
 }
 
 type CheckpointCheck = { status: ConsistencyCheckStatus; problem: boolean | null };
@@ -425,6 +495,7 @@ export function collectMemoryHealthReport(): MemoryHealthReport {
   const dryRunRaw = (process.env.MEMORY_BACKFILL_DRY_RUN || 'true').trim().toLowerCase();
   const backfillDryRun = !(dryRunRaw === 'false' || dryRunRaw === '0' || dryRunRaw === 'off');
   const consistency = collectConsistencyReport(retrievalDb, archive, checkpoint);
+  const backfillSource = judgeBackfillSource(archive, checkpoint, archiveDb);
 
   return {
     ok: true,
@@ -465,6 +536,8 @@ export function collectMemoryHealthReport(): MemoryHealthReport {
     backfill: {
       enabled: backfillEnabled,
       dryRun: backfillDryRun,
+      sourceState: backfillSource.state,
+      sourceDetail: backfillSource.detail,
       checkpointExists: fs.existsSync(checkpointFile),
       checkpoint,
       lastRunStatus: checkpoint?.lastRunStatus || null,
@@ -513,6 +586,8 @@ export function formatMemoryHealthMarkdown(report: MemoryHealthReport): string {
     `- Retrieval Relations: ${report.retrieval.relations}`,
     `- Backfill Enabled: ${String(report.backfill.enabled)}`,
     `- Backfill Dry Run: ${String(report.backfill.dryRun)}`,
+    `- Backfill Source State: ${report.backfill.sourceState}`,
+    `- Backfill Source Detail: ${report.backfill.sourceDetail}`,
     `- Backfill Checkpoint Exists: ${String(report.backfill.checkpointExists)}`,
     `- Backfill Last Run Status: ${report.backfill.lastRunStatus || '(none)'}`,
     `- Backfill Last Run At: ${report.backfill.lastRunAt || '(none)'}`,

@@ -1,0 +1,37 @@
+$ node dist/tools/memory-health-cli.js --json | backfill
+{
+  "source": "remote",
+  "status": "unavailable",
+  "backfill": {
+    "enabled": false,
+    "sourceState": "remote-unsupported",
+    "sourceDetail": "遠端 Memoria 模式：回填只讀本機的 sessions.db，目前不支援遠端封存"
+  }
+}
+exit=0
+
+$ node dist/tools/memory-health-cli.js | grep Backfill
+- Backfill Enabled: false
+- Backfill Dry Run: true
+- Backfill Source State: remote-unsupported
+- Backfill Source Detail: 遠端 Memoria 模式：回填只讀本機的 sessions.db，目前不支援遠端封存
+- Backfill Checkpoint Exists: false
+- Backfill Last Run Status: (none)
+- Backfill Last Run At: (none)
+- Backfill Last Success At: (none)
+- Backfill Last Scanned Sessions: 0
+- Backfill Last Candidates: 0
+- Backfill Last Written: 0
+- Backfill Last Duplicates: 0
+- Backfill Checkpoint Timestamp: (none)
+- Backfill Checkpoint Session ID: (none)
+exit=0
+
+$ node dist/tools/memory-backfill-cli.js once --json
+        throw new Error(`memory backfill: ${assessBackfillSource().detail}`);
+Error: memory backfill: 遠端 Memoria 模式：回填只讀本機的 sessions.db，目前不支援遠端封存
+exit=0
+
+$ node dist/tools/memory-backfill-cli.js once --json (exit code only)
+exit=1
+

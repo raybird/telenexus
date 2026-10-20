@@ -1,14 +1,10 @@
 import fs from 'fs';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
-import Database from 'better-sqlite3';
 import { parseBool, parsePositiveInt } from '../utils/env.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
 import type { MemoryBackfillReport } from './memory-backfill.js';
-import {
-  resolveMemoryBackfillCheckpointPath,
-  resolveMemoriaSessionsDbPath
-} from '../utils/paths.js';
+import { assessBackfillSource, type BackfillSourceAssessment } from './memory-health.js';
 
 export type MemoryBackfillWorkerOptions = {
   intervalMs?: number;
@@ -20,11 +16,7 @@ export type MemoryBackfillWorkerOptions = {
   timeoutMs?: number;
   onAfterRun?: () => void;
   runBackfill?: () => Promise<MemoryBackfillReport>;
-  hasPendingArchiveSessions?: () => boolean;
-};
-
-type BackfillCheckpoint = {
-  lastProcessedTimestamp?: string;
+  assessArchiveSource?: () => BackfillSourceAssessment;
 };
 
 function getIntervalMs(): number {
@@ -45,45 +37,6 @@ function getStartupDelayMs(): number {
 
 function getTimeoutMs(): number {
   return parsePositiveInt(process.env.MEMORY_BACKFILL_TIMEOUT_MS, 60000);
-}
-
-function readCheckpoint(checkpointPath: string): BackfillCheckpoint | null {
-  try {
-    if (!fs.existsSync(checkpointPath)) {
-      return null;
-    }
-    const raw = fs.readFileSync(checkpointPath, 'utf8');
-    const parsed = JSON.parse(raw) as BackfillCheckpoint;
-    return parsed && typeof parsed === 'object' ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function defaultHasPendingArchiveSessions(): boolean {
-  const archiveDbPath = resolveMemoriaSessionsDbPath();
-  if (!fs.existsSync(archiveDbPath)) {
-    return false;
-  }
-
-  const checkpoint = readCheckpoint(resolveMemoryBackfillCheckpointPath());
-  const db = new Database(archiveDbPath, { readonly: true, fileMustExist: true });
-  try {
-    const row = db.prepare(`SELECT MAX(timestamp) as last_timestamp FROM sessions`).get() as
-      | { last_timestamp?: string | null }
-      | undefined;
-    const latestTimestamp = row?.last_timestamp?.trim() || null;
-    if (!latestTimestamp) {
-      return false;
-    }
-    const checkpointTimestamp = checkpoint?.lastProcessedTimestamp?.trim();
-    if (!checkpointTimestamp) {
-      return true;
-    }
-    return latestTimestamp > checkpointTimestamp;
-  } finally {
-    db.close();
-  }
 }
 
 function resolveBackfillCliEntry(): string {
@@ -180,7 +133,7 @@ export class MemoryBackfillWorker {
   private readonly timeoutMs: number;
   private readonly onAfterRun: (() => void) | undefined;
   private readonly runBackfill: () => Promise<MemoryBackfillReport>;
-  private readonly hasPendingArchiveSessions: () => boolean;
+  private readonly assessArchiveSource: () => BackfillSourceAssessment;
   private timer: NodeJS.Timeout | null = null;
   private startupTimer: NodeJS.Timeout | null = null;
   private inFlight = false;
@@ -200,8 +153,7 @@ export class MemoryBackfillWorker {
     this.runBackfill =
       options.runBackfill ??
       (() => defaultRunBackfill(this.dryRun, this.batchSize, this.maxCandidates, this.timeoutMs));
-    this.hasPendingArchiveSessions =
-      options.hasPendingArchiveSessions ?? defaultHasPendingArchiveSessions;
+    this.assessArchiveSource = options.assessArchiveSource ?? assessBackfillSource;
   }
 
   start(): void {
@@ -211,7 +163,7 @@ export class MemoryBackfillWorker {
     }
 
     console.log(
-      `[MemoryBackfillWorker] Starting. mode=${this.dryRun ? 'dry-run' : 'write'} intervalMs=${this.intervalMs} startupDelayMs=${this.startupDelayMs}`
+      `[MemoryBackfillWorker] Starting. mode=${this.dryRun ? 'dry-run' : 'write'} source=${this.assessArchiveSource().source} intervalMs=${this.intervalMs} startupDelayMs=${this.startupDelayMs}`
     );
 
     this.startupTimer = setTimeout(() => {
@@ -232,8 +184,17 @@ export class MemoryBackfillWorker {
 
     this.inFlight = true;
     try {
-      if (!this.hasPendingArchiveSessions()) {
+      const { state, detail } = this.assessArchiveSource();
+      if (state === 'error') {
+        // 和原本讀取封存時 throw 一樣，交給下方的 catch 記 runtime issue
+        throw new Error(detail);
+      }
+      if (state === 'up-to-date') {
         console.log(`[MemoryBackfillWorker] ${trigger} skipped. no new archive sessions.`);
+        return;
+      }
+      if (state !== 'pending') {
+        console.log(`[MemoryBackfillWorker] ${trigger} skipped. ${state}: ${detail}`);
         return;
       }
 
