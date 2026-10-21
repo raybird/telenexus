@@ -138,6 +138,7 @@ GitHub：[#19](https://github.com/raybird/telenexus/issues/19)
 | 2026-10-21 | 本機獨立複審 review-940ba9c：RETURN TO execute-task。前次各項都已解決；新的 MUST FIX 是 C17 原句還在分支歷史，依 D-3 改寫歷史；NICE 一項（量測腳本被測試依賴）在檔頭註明 | reviewer |
 | 2026-10-21 | 本機獨立複審 review-41ac0a3：PASS，沒有 MUST FIX 或 SHOULD FIX | reviewer |
 | 2026-10-21 | 依使用者指示以 `git merge --ff-only` 合併進 `main`（`bf5d30a`）。改寫前的歷史保留在本機分支 `backup/issue-0019-940ba9c`，review-fe4504b、review-940ba9c 的 SHA 指向那裡；這條分支仍含 C17 原句，**不可推送**，是否刪除由使用者決定 | 使用者 |
+| 2026-10-21 | 依使用者指示刪除本機備份分支 `backup/issue-0019-940ba9c`（從未推送）；審查報告記的改寫前 SHA 只剩本機 reflog 可查，新舊對照見上方 | 使用者 |
 
 ---
 **建立日期**: 2026-10-21  

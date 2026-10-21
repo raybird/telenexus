@@ -139,6 +139,7 @@ GitHub：[#20](https://github.com/raybird/telenexus/issues/20)
 | 2026-10-21 | 本機獨立複審 review-849715e：PASS；SHOULD FIX 1 項，是證據裡的突變紀錄不精確，已更正 | reviewer |
 | 2026-10-21 | 本機獨立複審 review-3c7f3fa：PASS，沒有任何發現 | reviewer |
 | 2026-10-21 | 依使用者事先的指示（審查 PASS 而且沒有要修的項目時自動合併）以 `git merge --ff-only` 合併進 `main`（`02f9277`）；重整前的歷史保留在 `backup/issue-0020-ed4c001`，review-ed4c001 的 SHA 指向那裡 | 使用者 |
+| 2026-10-21 | 依使用者指示刪除本機備份分支 `backup/issue-0020-ed4c001`（從未推送）；審查報告記的改寫前 SHA 只剩本機 reflog 可查，新舊對照見上方 | 使用者 |
 
 ---
 **建立日期**: 2026-10-21  
