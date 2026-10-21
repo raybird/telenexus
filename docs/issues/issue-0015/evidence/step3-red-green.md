@@ -48,7 +48,7 @@ npx tsx --test tests/memoria-legacy-scope.test.ts
 | 計畫為空時照樣備份 | SCN-006 |
 | 不刪失去來源的 topic | SCN-002 |
 
-commit 前的自我檢查（`events` 雜湊不變、舊分區只剩人工審閱的筆數）在正常資料下不會觸發，沒有可以造出違反情況的測試，只靠程式審查。
+commit 前的自我檢查（`events` 雜湊不變、舊分區只剩人工審閱的筆數）在正常資料下不會觸發。這裡原本寫「造不出違反情況」，審查指出不正確：用 trigger 就能觸發。測試已在步驟 6 補上，見 [step6-review-followup.md](step6-review-followup.md)。
 
 ## 交付檢查
 

@@ -22,7 +22,7 @@ node dist/tools/memoria-legacy-scope-cli.js [--db <sessions.db>] [--from-scope p
 npm run memoria:migrate-legacy-scope -- [同上]
 ```
 
-- `--db` 預設沿用 `resolveMemoriaSessionsDbPath()`，也就是 `MEMORIA_ARCHIVE_DB` 或 `MEMORIA_HOME/.memory/sessions.db`。正式部署的 run 容器沒有這兩個變數，文件一律明寫 `--db`（步驟 1）。
+- `--db` 必填（步驟 6 依審查修改）。原本預設沿用 `resolveMemoriaSessionsDbPath()`，但在維護者主機上會指到私人的 `MEMORIA_HOME`，而那裡的服務檢查必定連不上。
 - `--from-scope` 預設 `project:TeleNexus`；只處理 `scope` 等於它的 session。
 - 不加 `--write` 只預覽（SCN-001）。
 - 備份與遷移紀錄放在資料庫所在目錄下的 `legacy-scope-migration/<時間戳>/`，所以在容器裡會留在 Memoria 的 volume 內。紀錄含 session ID，不離開 volume。
@@ -30,7 +30,7 @@ npm run memoria:migrate-legacy-scope -- [同上]
 ### 流程
 
 1. **前置檢查**（SCN-008）：`PRAGMA quick_check` 必須是 `ok`；`sessions`、`events`、`memory_nodes`、`memory_node_sources` 必須有遷移用到的欄位。任何一項不符就以非 0 結束，不寫入、不備份。
-2. **服務檢查**（SCN-007，只在 `--write` 時）：以短逾時打 `/v1/health`；有回應就拒絕寫入。endpoint 與聊天召回相同（`MEMORIA_ENDPOINT`，沒設定時是 `http://memoria:3917`），所以一定會檢查；連不上時在輸出寫明「視為已停止」，由操作文件要求以 `docker compose run` 執行，才連得到 `memoria`。檔案鎖偵測不到閒置的 Memoria（`journal_mode=delete`，步驟 1），所以不另做。
+2. **服務檢查**（SCN-007，只在 `--write` 時）：以短逾時打 `/v1/health`。只有連線被拒或解析不到主機（`ECONNREFUSED`、`ENOTFOUND`、`EAI_AGAIN`）才視為已停止；收到任何 HTTP 回應（包括 Memoria 自我檢查失敗時的 503），或逾時、其他錯誤，都拒絕寫入（步驟 6 依審查修改）。endpoint 與聊天召回相同（`MEMORIA_ENDPOINT`，沒設定時是 `http://memoria:3917`）；操作文件要求以 `docker compose run` 執行，才連得到 `memoria`。檔案鎖偵測不到閒置的 Memoria（`journal_mode=delete`，步驟 1），所以不另做。
 3. **分類**（SCN-002、SCN-004）：純函式，輸入舊 session 與其事件，輸出遷移計畫與人工審閱清單。
    - 歸入人工審閱的情況：沒有 `UserMessage`，或有多筆；metadata 無法解析、缺 `user_id`；`platform` 不是 `telegram`／`console`／`scheduler`；`ModelMessage` 的 `platform` 或 `user_id` 與 `UserMessage` 不一致；事件內容無法取出文字。
    - 目標 scope：`scheduler` → `scheduler:<user_id>`，其餘 → `user:<user_id>`，與 `buildScope()` 相同。
@@ -107,6 +107,11 @@ npm run memoria:migrate-legacy-scope -- [同上]
    - 完成判準：文件的命令與步驟 4 實際跑過的一致；`npm run build`、`npm run test`、`npm run lint` 通過。
    - 相依：步驟 4。
    - 完成證據：`docs/installation.md`「升級」下新增「舊版記憶遷移」一節，命令就是步驟 4 實際跑過的那一組（預覽、停止、寫入、重建索引、啟動、回復），並寫明完整 volume 名稱、`--user 1000:1000`、必須用 `docker compose run` 的原因，以及遷移期間停整組服務。`docs/configuration-reference.md` 不需要改：工具沒有新增環境變數，只沿用 `MEMORIA_ENDPOINT`。TBD-1 已另開 GitHub #19。build、test、lint 的結果見步驟 4 的交付檢查；這一步只改文件。
+
+6. ✅ **審查後續**（[review-e0585ce.md](review-e0585ce.md)）
+   - 做法：服務檢查只把連線被拒與解析不到主機當成已停止；`--db` 改必填；補「不動其他 scope 的節點」、自我檢查與「ModelMessage 超過一筆」的測試；補 `CLAUDE.md` 的命令與操作文件的注意事項；SCN-013 的核准紀錄與 Then 措辭。
+   - 完成證據：[evidence/step6-review-followup.md](evidence/step6-review-followup.md)。
+   - 相依：步驟 5。
 
 ## 檢查清單
 

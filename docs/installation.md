@@ -79,9 +79,10 @@ docker compose start
 - **`--user 1000:1000`**：Memoria 映像的檔案屬於 UID 1000；`.env` 的 `PUID` 不是 1000 時，沒加這個參數會寫不進去。
 - **用 `docker compose run`**：工具寫入前會連 `MEMORIA_ENDPOINT` 確認 Memoria 已停止，連得上就拒絕寫入。單純 `docker run` 不在 Compose 的網路裡，做不了這個檢查。
 - **重跑安全**：已遷移的不會再處理；沒有可遷移的資料時不會產生新的備份。
-- **輸出位置**：備份與遷移紀錄在 volume 的 `/.memory/legacy-scope-migration/<時間戳>/`，檔名分別是 `sessions.backup.db` 與 `record.json`，寫入時的輸出會列出完整路徑。遷移紀錄含 session ID，請留在部署機器上。
+- **輸出位置**：備份與遷移紀錄在 volume 的 `.memory/legacy-scope-migration/<時間戳>/`，檔名分別是 `sessions.backup.db` 與 `record.json`。工具輸出的路徑以 `/memoria/` 開頭（遷移時的掛載點）；在 Memoria 容器裡同一個位置是 `/data/`。遷移紀錄含 session ID，請留在部署機器上。
+- **先重建索引再做其他維護**：寫入後到第 4 步 `memoria index build` 之前，遷移過的 session 暫時沒有索引來源，這段期間不要執行 `memoria prune --stale-days`，否則它們會被當成可刪除的對象。
 
-要回復到遷移前，停止服務後把備份覆蓋回去：
+要回復到遷移前，停止服務後把備份覆蓋回去。備份是寫入前那一刻的整個資料庫，遷移之後新增的記憶會一併消失：
 
 ```bash
 docker compose stop

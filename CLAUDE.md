@@ -39,6 +39,7 @@ npm run memory:backfill:dry-run    # Scan archive sessions, no writes
 npm run memory:backfill:write      # Apply backfill
 npm run memory:cli -- search "..." # Search / forget / inspect memory
 npm run memory:seed-sar-anchors    # Seed SAR retrieval anchors
+npm run memoria:migrate-legacy-scope -- --db <sessions.db>  # Move pre-2026-08-14 project:TeleNexus Memoria sessions to user:/scheduler: (preview; --write applies; deployment steps: docs/installation.md)
 
 # Model availability probing (no build needed — plain .mjs, ships in the image)
 npm run models:probe             # Probe the model currently set in ai-config.yaml
