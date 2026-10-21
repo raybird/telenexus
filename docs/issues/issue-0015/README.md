@@ -185,7 +185,7 @@ SCN-013 的來源：步驟 4 在資料副本上發現 3/2,300 筆 summary 的截
 | 編號 | 事項 | 狀態 | 影響 |
 |------|------|------|------|
 | TBD-1 | 遷移後的召回門檻或排序重新校準 | 不影響本次交付 | 使用者 2026-10-21 選「本 issue 只量測，校準另開」。已依步驟 4 的量測另開 GitHub [#19](https://github.com/raybird/telenexus/issues/19)。 |
-| TBD-2 | GitHub #15 提到的「獨立呈現升級後的召回指標」 | 不影響本次交付 | 本 issue 只在資料副本上量測（SCN-012），不新增執行期的指標。結案時一併回報，由使用者決定要不要另開。 |
+| TBD-2 | GitHub #15 提到的「獨立呈現升級後的召回指標」 | 不影響本次交付 | 本 issue 只在資料副本上量測（SCN-012），不新增執行期的指標。使用者 2026-10-21 結案後同意另開，追蹤：GitHub [#20](https://github.com/raybird/telenexus/issues/20)。 |
 
 ## Gate 豁免紀錄
 
@@ -207,6 +207,7 @@ SCN-013 的來源：步驟 4 在資料副本上發現 3/2,300 筆 summary 的截
 | 2026-10-21 | 獨立審查 `e4e30f9`：PASS，SHOULD FIX 1 項（[review-e4e30f9.md](review-e4e30f9.md)）；prune 警告擴及所有 `memoria prune`，服務檢查不跟隨轉址，見步驟 6 | 獨立 subagent |
 | 2026-10-21 | 獨立審查 `f0ff433`：PASS，沒有 MUST FIX 與 SHOULD FIX（[review-f0ff433.md](review-f0ff433.md)） | 獨立 subagent |
 | 2026-10-21 | 依使用者指示以 `git merge --ff-only` 合併進 `main`（`18413b4`）；TBD-2 結案時回報使用者 | 使用者 |
+| 2026-10-21 | TBD-2 另開 GitHub #20 | 使用者 |
 
 ---
 **建立日期**: 2026-10-21  
