@@ -46,7 +46,7 @@ GitHub：[#16](https://github.com/raybird/telenexus/issues/16)
 
 | 編號 | 事項 | 狀態 | 影響 |
 |---|---|---|---|
-| TBD-1 | GitHub #16 第二部分：要支援遠端回填（可分頁、可 checkpoint 的 API 或匯出），還是把遠端模式正式標成不支援 | 不影響本次交付 | 本 issue 只讓狀態誠實呈現。2026-10-20 排定的順序是在 #15 遷移工具之後處理。追蹤：GitHub [#16](https://github.com/raybird/telenexus/issues/16) 維持開啟。 |
+| TBD-1 | GitHub #16 第二部分：要支援遠端回填（可分頁、可 checkpoint 的 API 或匯出），還是把遠端模式正式標成不支援 | 不影響本次交付 | 已決定（2026-10-21）：使用者選「正式標成不支援（建議）」，在 [issue-0016-part2](../issue-0016-part2/README.md) 處理。 |
 
 ## 實作與驗證步驟
 
