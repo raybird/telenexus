@@ -81,7 +81,9 @@ GitHub：[#16](https://github.com/raybird/telenexus/issues/16)
 | 2026-10-20 | 獨立審查 `4b088e1`：PASS，SHOULD FIX 2 項（[review-4b088e1.md](review-4b088e1.md)） | 獨立 subagent |
 | 2026-10-20 | 處理 SHOULD FIX 1、2，不涉及規格修訂 | - |
 | 2026-10-20 | 獨立重新審查 `38716b0`：PASS，SHOULD FIX 1 項（[review-38716b0.md](review-38716b0.md)）；已處理（步驟 5） | 獨立 subagent |
+| 2026-10-20 | 獨立重新審查 `1729671`：PASS，沒有 MUST FIX 與 SHOULD FIX（[review-1729671.md](review-1729671.md)） | 獨立 subagent |
+| 2026-10-21 | 依使用者指示以 `git merge --ff-only` 合併進 `main`（`69144d2`），未推送；GitHub #16 因 TBD-1 維持開啟 | 使用者 |
 
 ---
 
-**狀態**: 進行中（審查後續已處理，待重新審查）
+**狀態**: 已完成
