@@ -166,6 +166,7 @@ MEMORIA_RECALL_MIN_CONFIDENCE=0.2
 ```
 
 - `MEMORIA_RECALL_MIN_CONFIDENCE`（預設 `0.2`，範圍 0～1，`0` = 停用）：召回的 `confidence` 低於此值時不注入 prompt，改用本機語意摘要。預設值取自正式資料快照的抽樣：無關問題最高 0.143、相關問題最低 0.25（`docs/issues/issue-0012/evidence/step6-confidence-sampling.md`）。`confidence` 為 null（該路由無法判斷）時照常注入。被擋下時，`memoria_recall` 事件帶 `dropped_low_confidence: true` 與 `min_confidence`；這次召回沒有被使用，因此不回報 UFL outcome
+- 召回指標：每次聊天召回（成功或失敗）都在 `moltbot.db` 的 `memoria_recall_events` 寫一筆，欄位是時間、TeleNexus 版本、scope 種類、`ok`、`route_mode`、命中數、是否因信心過低丟棄、是否注入、是否降級、latency；不存問句、snippet 與使用者 ID。保留 30 天，啟動時與之後每 6 小時清理。寫入失敗不影響聊天，只在 log 印 `[recall-metrics]` 開頭的 warn。彙總呈現在 `memoria-status.md` 的「Recall Metrics by Version」，判讀見 `docs/web-console-reference.md`
 
 ## Sessions archive / memory backfill
 

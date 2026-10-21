@@ -67,6 +67,13 @@ WEB_USER_ID=
 - 一致性的三項檢查各有狀態（`consistency.checks`）：`checked`、`skipped`（沒有可檢查的對象，例如沒有 checkpoint，視為通過）、`unsupported`（封存沒讀到）、`error`（封存或檢索資料庫讀取失敗）。檢索資料庫不存在時，沒有觀察可查，orphan 檢查是 `skipped`，三個一致性計數是 0；讀不了時 orphan 檢查是 `error`，計數是 `null`。`consistency.ok` 查到問題為 `false`，每項都 `checked` / `skipped` 且沒問題才是 `true`，有項目沒檢查到時是 `null`（markdown 顯示 `unknown`），代表沒檢查，不代表正常。封存沒讀到時，checkpoint 有 session ID 或處理時間、或者有 `memory.db`，就是 `null`；兩者都沒有時沒有可查的對象，會是 `true`。`ok` 只代表跨庫一致性：封存本身有沒有讀到，看 `archive.status`
 - `backfill.sourceState` 是回填來源目前的狀態，和 worker 決定要不要執行用的是同一個判定：`remote-unsupported`（遠端模式，回填只讀本機 `sessions.db`）、`unavailable`（設定的封存路徑不存在）、`error`（封存讀取失敗）、`empty`（封存沒有 session）、`up-to-date`（沒有比 checkpoint 新的 session）、`pending`（有待處理的 session；回填有啟用時，worker 下一輪會執行）。原因寫在 `backfill.sourceDetail`；回填沒啟用時也會顯示。`lastRunStatus` 等欄位是 checkpoint 裡最後一次**實際執行**的紀錄，worker 每輪被擋下時不會更新它們
 - Status 頁也會顯示最近幾輪 backfill run 摘要，方便直接抽查候選品質
+- `memoria-status.md` 的「Recall Metrics by Version」是聊天召回依 TeleNexus 版本的彙總，資料在 `moltbot.db`，跨重啟累積、保留 30 天；上方的「Recall Telemetry」只有記憶體裡最近 50 筆，重啟就歸零。這一節列出目前版本，以及保留期內最近的前一個版本，用來比較升級前後：
+  - `Recalls` 是召回次數，含失敗。
+  - `Hit Rate` 是 Memoria 有回傳結果的比例。
+  - `Injected Rate` 是結果實際交給 prompt 組裝的比例：信心低於 `MEMORIA_RECALL_MIN_CONFIDENCE` 而丟棄的不算。
+  - `Degraded Rate` 是語意索引退回字面召回的比例。
+  - 三個比例的分母都是成功的召回次數，失敗另列。成功少於 20 次時顯示 `unknown` 並附 n，不顯示成 0%；讀取資料庫失敗時顯示 `Status: error` 與原因。
+  - 遷移舊記憶的時間點不會自動標出，請以升級後的版本為界比較。
 - `workspace/context/` 的各個 snapshot 各自產生、各自寫入：其中一個失敗時它保留上一次的內容，其他照常更新。某個 snapshot 由成功轉為失敗時記一次 `context-snapshot:<檔名>` runtime issue（會出現在 `error-summary.md`），持續失敗不重複記，恢復時 log 印一行「已恢復更新」。這個訊號預設不會推 Telegram 告警：ErrorAlerter 要同一個 scope 在時間窗內累積到門檻（預設 10 分鐘 3 次），而每個 snapshot 每次轉為失敗只記 1 筆。整個 context 目錄寫不進去時（例如權限錯誤），`error-summary.md` 本身也不會更新，要看服務 log 的 `[System] Failed to write context snapshot`，或 `runtime_issues` 資料表
 
 ## 前端實作摘要（Plain Vanilla）

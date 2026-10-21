@@ -31,9 +31,12 @@ GitHub：[#20](https://github.com/raybird/telenexus/issues/20)
 - `src/core/memoria-recall.ts` - 每次召回（含失敗）回報一筆結果
 - 新的 `src/services/recall-metrics-store.ts` - 訂閱 hook 寫入資料庫，每日清理超過保留期的資料；仿照 `issue-store.ts`
 - `src/services/memoria-status.ts` - 新增依版本彙總的區塊
+- `src/services/context-snapshots.ts` - 產生 `memoria-status.md` 時傳入版本與彙總的讀取函式
+- 新的 `src/utils/app-version.ts` - `readAppVersion()` 由 `src/web/server.ts` 搬來共用
 - `src/main.ts` - 啟動 store
 - `tests/` - AC-1～AC-4 的測試
 - `docs/web-console-reference.md` - 指標的判讀
+- `docs/configuration-reference.md` - 資料表、保留期與寫入失敗的行為
 
 ## 驗收條件
 
@@ -94,18 +97,21 @@ GitHub：[#20](https://github.com/raybird/telenexus/issues/20)
 
 ## 實作與驗證步驟
 
-1. **AC-1：逐筆保存**
+1. ✅ **AC-1：逐筆保存**
    - 驗證方式：先寫測試確認失敗，再實作 `memory.ts` 的表與方法、telemetry hook、`memoria-recall.ts` 的回報、`recall-metrics-store.ts`。改 symbol 前跑 `gitnexus_impact`，並以 `grep` 核對呼叫者。
    - 完成判準：AC-1 的每個檢查方式都有紅燈與綠燈紀錄，並以突變確認「被丟棄的不算注入」會被測試擋下。
    - 相依：無。驗收條件已於 2026-10-21 核准。
-2. **AC-2～AC-4：彙總與呈現**
+   - 完成證據：[evidence/step1-red-green.md](evidence/step1-red-green.md)。空殼上紅燈 9/9；綠燈相關測試 40/40；4 個突變都轉紅，其中 M4 以補上 import 的那次為準。
+2. ✅ **AC-2～AC-4：彙總與呈現**
    - 驗證方式：先寫彙總與 markdown 的測試，確認失敗，再實作 `memory.ts` 的彙總查詢與 `memoria-status.ts` 的區塊。
    - 完成判準：AC-2～AC-4 有紅燈與綠燈紀錄；以突變確認門檻 20 與「前一版」的挑選會被擋下。
    - 相依：步驟 1。
-3. **交付檢查**
+   - 完成證據：[evidence/step2-red-green.md](evidence/step2-red-green.md)。空殼上紅燈 5/15，彙總測試因為查詢在步驟 1 已寫好而先通過，改以突變證明；綠燈 16/16；7 個突變都轉紅。
+3. ✅ **交付檢查**
    - 驗證方式：更新 `docs/web-console-reference.md`；執行 `npm run build`、`npm run test`（核對 `# tests` 數與測試檔數相稱，`tests/docker/` 有跑到）、`npm run lint`。
    - 完成判準：全部通過。
    - 相依：步驟 1、2。
+   - 完成證據：[evidence/step3-delivery.md](evidence/step3-delivery.md)。編譯後的程式跨兩個程序實跑，數字與假服務的規則相符；`# tests 574`、`# pass 574`；build、lint 通過。
 
 ## Gate 豁免紀錄
 
