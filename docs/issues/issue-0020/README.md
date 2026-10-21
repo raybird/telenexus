@@ -118,7 +118,7 @@ GitHub：[#20](https://github.com/raybird/telenexus/issues/20)
    - 相依：步驟 1～3。
    - 完成證據：[evidence/step4-review-followup.md](evidence/step4-review-followup.md)。
      - SHOULD FIX 1、3 已處理；SHOULD FIX 2 依 D-1 重整歷史，每個實作提交單獨檢出時全套測試都通過。
-     - 新增的 3 個測試中，scope 的測試在舊程式上是紅燈；另外 2 個守的是既有行為，以突變證明有效。
+     - 新增的 3 個測試中，scope 的測試在舊程式上是紅燈；另外 2 個守的是既有行為，分別以突變 M11、M13 證明有效。複審後更正的突變紀錄見同一份證據。
      - `# tests 577`、`# pass 577`。
 
 ## Gate 豁免紀錄
@@ -136,6 +136,7 @@ GitHub：[#20](https://github.com/raybird/telenexus/issues/20)
 | 2026-10-21 | 本機獨立審查 review-ed4c001：PASS，有 3 項 SHOULD FIX；使用者指示審查 PASS 而且沒有要修的項目時自動合併，有的話先修、複審再回報 | reviewer／使用者 |
 | 2026-10-21 | D-1：重整分支歷史（審查 SHOULD FIX 2） | 使用者 |
 | 2026-10-21 | 審查後續：SHOULD FIX 1、3 與 NICE 1、2、4～7 | - |
+| 2026-10-21 | 本機獨立複審 review-849715e：PASS；SHOULD FIX 1 項，是證據裡的突變紀錄不精確，已更正 | reviewer |
 
 ---
 **建立日期**: 2026-10-21  

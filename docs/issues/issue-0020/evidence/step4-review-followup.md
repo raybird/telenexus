@@ -43,10 +43,13 @@ npx tsx --test tests/recall-metrics.test.ts
 
 | 突變 | 轉紅的測試 |
 |---|---|
-| M11：彙總改成 `ORDER BY version DESC` | 降版時依最後一筆的時間挑前一版；scope 不是 prefix:id 格式（這個測試同時檢查寫入順序） |
+| M11：彙總改成 `ORDER BY version DESC` | 降版時依最後一筆的時間挑前一版 |
 | M12：沒有冒號時寫入整串 | scope 不是 prefix:id 格式 |
+| M13：`readAppVersion()` 在版本前加 `v` | readAppVersion 讀 package.json 的 version |
 
 每次只改一處，跑完就還原（`diff` 確認與原檔相同）。
+
+**更正（2026-10-21，複審 [review-849715e.md](../review-849715e.md) 後）**：這張表原本把 M11 寫成也讓 scope 測試轉紅，那是錯的。scope 測試讀資料時依 id 排序，不經過彙總查詢。那次會失敗，是因為 scope 測試本身還有下一段說的預設值錯誤，失敗被誤記到 M11 名下。修正測試後重跑 M11，只有降版測試轉紅。M13 原本沒有記錄，是補跑後才寫進來的。
 
 第一次寫 scope 測試時，測試本身寫錯了：`recallOnce()` 的 scope 參數有預設值 `user:u1`，傳 `undefined` 會用到預設值。改成直接呼叫 client。
 
@@ -55,3 +58,13 @@ npx tsx --test tests/recall-metrics.test.ts
 - `npm run build` exit 0。
 - `npm run test` exit 0：`# tests 577`、`# pass 577`、`# fail 0`。比步驟 3 多 3 個，就是本步驟新增的測試數。`tests/docker/` 的 4 個檔案都有跑到。
 - `npm run lint` exit 0；異動的 TypeScript 檔都通過 `prettier --check`。
+
+## 複審後續（[review-849715e.md](../review-849715e.md)）
+
+| 審查項目 | 處理 |
+|---|---|
+| SHOULD FIX：M11 的轉紅範圍寫多了；README 說「2 個以突變證明」，但只記錄了 1 個 | 更正上方的突變表，補跑並記錄 M13；README 步驟 4 標明是 M11、M13。 |
+| NICE：trace hook 的 warn 沒有測試 | 不處理。這行 warn 只是讓吞掉的例外留下紀錄，不影響行為。 |
+| NICE：以 `:` 開頭的 scope 會記成空字串 | 不處理。不會洩漏 ID，現在唯一的呼叫點一定傳 `user:<id>`。 |
+
+這一輪只改文件，沒有改程式與測試。
