@@ -79,7 +79,7 @@ GitHub：[#18](https://github.com/raybird/telenexus/issues/18)
     - (b) `estimatedGapRecent24h` 跟著變成 `null`（AC-2）；
     - (c) 檢索資料庫沒讀到時，orphan 檢查與相關計數是未知（AC-2）；
     - (d) 報告本身不記 runtime issue（AC-1）；
-    - (e) snapshot 互不牽連，scope 為 `context-snapshot:<檔名>`，狀態只存在記憶體（AC-3、AC-4）；
+    - (e) snapshot 互不牽連，scope 為 `context-snapshot:<檔名>`，狀態只存在記憶體（AC-3、AC-4）。Q2 選項「每次失敗都記」的說明寫成「等於每 30 分鐘告警一次」，實作時查到這高估了：`recordRuntimeIssue()` 會把 60 秒內 scope 與訊息都相同的紀錄合併，合併的不觸發告警 hook。但這只在錯誤訊息每次都相同、間隔小於 60 秒時才成立，「開始失敗時記一次」不依賴這兩個條件，所以選擇不變；
     - (f) API 仍回 200（AC-1）。
 - **規格修訂（2026-10-21，實作前）**：
   - 原因：Q3 的建議說明寫「服務啟動就會建立這兩個檔案」。這對 `moltbot.db` 成立，`MemoryManager` 啟動時會建表；對 `memory.db` 不成立，現在的程式不會建立它的資料表。照原核准，新部署的一致性會永遠是未知。
@@ -98,15 +98,17 @@ GitHub：[#18](https://github.com/raybird/telenexus/issues/18)
 
 ## 實作與驗證步驟
 
-1. **AC-1、AC-2：本機資料庫的狀態與推導值**
+1. ✅ **AC-1、AC-2：本機資料庫的狀態與推導值**
    - 驗證方式：先在 `tests/memory-health.test.ts` 寫 AC-1、AC-2 的測試，確認失敗；再修改 `src/services/memory-health.ts` 讓它們通過；既有測試維持通過。改 symbol 前跑 `gitnexus_impact`，並以 `grep` 核對呼叫者。
    - 完成判準：AC-1、AC-2 的每個檢查方式都有紅燈與綠燈紀錄，並以至少一個突變確認測試擋得住。
    - 相依：無。驗收條件已於 2026-10-21 核准。
-2. **AC-3、AC-4：snapshot 隔離與失敗訊號**
+   - 完成證據：[evidence/step1-red-green.md](evidence/step1-red-green.md)。紅燈 6 個失敗，其中 3 個是 throw；綠燈 `# tests 19`、`# pass 19`；3 個突變都轉紅。
+2. ✅ **AC-3、AC-4：snapshot 隔離與失敗訊號**
    - 驗證方式：先在 `tests/context-snapshots.test.ts` 寫 AC-3、AC-4 的測試，確認失敗；再修改 `src/services/context-snapshots.ts`。
    - 完成判準：AC-3、AC-4 有紅燈與綠燈紀錄；以突變確認「持續失敗不重複記」與「其他檔案照常寫入」都會被測試擋下。
    - 相依：步驟 1，AC-3 的第二項檢查用到步驟 1 的行為。
-3. **AC-1：編譯後的 CLI 實跑與交付檢查**
+   - 完成證據：[evidence/step2-red-green.md](evidence/step2-red-green.md)。紅燈 2 個失敗；換回舊的 `memory-health.ts` 時 3 個新測試全失敗；綠燈 `# tests 4`、`# pass 4`；3 個突變都轉紅。
+3. ✅ **AC-1：編譯後的 CLI 實跑與交付檢查**
    - 驗證方式：
      - `npm run build` 後，在暫存 `DB_DIR` 下，分別讓 `memory.db`、`moltbot.db` 不是 SQLite 檔，執行 `node dist/tools/memory-health-cli.js --json` 與 markdown 輸出。
      - 更新 `docs/web-console-reference.md`。
@@ -115,6 +117,12 @@ GitHub：[#18](https://github.com/raybird/telenexus/issues/18)
      - CLI 每次執行都是 exit 0，欄位與 AC-1 相符。
      - build、test、lint 都通過，`tests/docker/` 的測試有出現在輸出中（地雷 L-01）。
    - 相依：步驟 1、2。
+   - 完成證據：2026-10-21 在步驟 1、2 完成後的工作區執行。
+     - CLI：在暫存 `DB_DIR` 下跑兩種情況，`--json` 與 markdown 都是 exit 0。
+       - `memory.db` 不是 SQLite、沒有 `moltbot.db`：`operational=unavailable`、`retrieval=error`（`file is not a database`），數字是 `null`，`estimatedGapRecent24h=null`，orphan 是 `error`，`consistency.ok=null`。markdown 顯示 `Retrieval Status: error`、`Retrieval Entities: unknown`、`Consistency OK: unknown`。
+       - `moltbot.db` 不是 SQLite、沒有 `memory.db`：`operational=error`、`retrieval=unavailable`，orphan 是 `skipped`，`consistency.ok=true`。這時封存是遠端模式，也沒有 checkpoint，所以沒有可查的對象，與修訂後的 AC-2 相符；#17 時同樣情況是 `null`。
+     - 文件：`docs/web-console-reference.md` 補上 `operational`／`retrieval` 的狀態判讀與 snapshot 的失敗訊號；並更正原本「遠端模式下 `consistency.ok` 一律是 `null`」的說法。
+     - 交付檢查：`npm run build` exit 0；`env -u MEMORIA_HOME -u MEMORIA_ARCHIVE_DB npm run test` exit 0，`# tests 555`、`# pass 555`、`# fail 0`，比 #15 結束時的 546 多 9 個，就是本 issue 新增的測試數；`tests/` 下 71 個測試檔，`tests/docker/` 的 4 個檔案都出現在輸出中（地雷 L-01）；`npm run lint` exit 0。
 
 ## Gate 豁免紀錄
 
