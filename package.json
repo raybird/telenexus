@@ -27,6 +27,7 @@
     "memory:health": "node dist/tools/memory-health-cli.js",
     "memory:backfill:dry-run": "node dist/tools/memory-backfill-cli.js once",
     "memory:backfill:write": "node dist/tools/memory-backfill-cli.js once --write",
+    "memoria:migrate-legacy-scope": "node dist/tools/memoria-legacy-scope-cli.js",
     "memory:cli": "node dist/tools/memory-cli.js",
     "memory:seed-sar-anchors": "node scripts/seed-sar-anchors.mjs",
     "release:workflow": "node scripts/release-workflow.mjs",

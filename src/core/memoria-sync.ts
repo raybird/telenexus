@@ -92,7 +92,7 @@ function truncateForSummary(text: string): string {
  * 先前這裡放的是 `user=… platform=…` 這種 metadata,等於整個語料沒有內容可搜;
  * 診斷欄位改放在每個事件的 metadata 裡,不佔用這條唯一的檢索路徑。
  */
-function buildSummary(turn: MemoriaSyncTurn): string {
+export function buildSummary(turn: MemoriaSyncTurn): string {
   const user = truncateForSummary(turn.userMessage);
   const model = truncateForSummary(turn.modelMessage);
   const base = model ? `${user} → ${model}` : user;

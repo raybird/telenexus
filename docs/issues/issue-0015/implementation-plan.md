@@ -29,7 +29,7 @@ npm run memoria:migrate-legacy-scope -- [同上]
 ### 流程
 
 1. **前置檢查**（SCN-008）：`PRAGMA quick_check` 必須是 `ok`；`sessions`、`events`、`memory_nodes`、`memory_node_sources` 必須有遷移用到的欄位。任何一項不符就以非 0 結束，不寫入、不備份。
-2. **服務檢查**（SCN-007，只在 `--write` 時）：設定了 `MEMORIA_ENDPOINT` 時，以短逾時打 `/v1/health`；有回應就拒絕寫入。沒有設定時印出「略過檢查」的警告，由操作文件要求先停止 Memoria。檔案鎖偵測不到閒置的 Memoria（`journal_mode=delete`，步驟 1），所以不另做。
+2. **服務檢查**（SCN-007，只在 `--write` 時）：以短逾時打 `/v1/health`；有回應就拒絕寫入。endpoint 與聊天召回相同（`MEMORIA_ENDPOINT`，沒設定時是 `http://memoria:3917`），所以一定會檢查；連不上時在輸出寫明「視為已停止」，由操作文件要求以 `docker compose run` 執行，才連得到 `memoria`。檔案鎖偵測不到閒置的 Memoria（`journal_mode=delete`，步驟 1），所以不另做。
 3. **分類**（SCN-002、SCN-004）：純函式，輸入舊 session 與其事件，輸出遷移計畫與人工審閱清單。
    - 歸入人工審閱的情況：沒有 `UserMessage`，或有多筆；metadata 無法解析、缺 `user_id`；`platform` 不是 `telegram`／`console`／`scheduler`；`ModelMessage` 的 `platform` 或 `user_id` 與 `UserMessage` 不一致；事件內容無法取出文字。
    - 目標 scope：`scheduler` → `scheduler:<user_id>`，其餘 → `user:<user_id>`，與 `buildScope()` 相同。
@@ -81,11 +81,12 @@ npm run memoria:migrate-legacy-scope -- [同上]
    - 完成判準：整條路徑都跑通，或找出不成立的前提並據此修訂本計畫的 CLI 設計；回復後各資料表筆數與內容雜湊與遷移前相同，Memoria 健康檢查通過。
    - 相依：無。
    - 完成證據：[evidence/step1-operational-path.md](evidence/step1-operational-path.md)——整條路徑跑通，回復後各資料表的筆數與內容雜湊與遷移前相同。找出三個不成立或要寫明的前提：Compose 的短 volume 名稱會另建空 volume、PUID 不是 1000 時寫不進去、檔案鎖偵測不到執行中的 Memoria。據此修訂了下方「CLI」與「使用方式對照」，不影響驗收劇本。
-2. ⏳ **分類、預覽與防護**（SCN-001、SCN-004、SCN-007、SCN-008）
+2. ✅ **分類、預覽與防護**（SCN-001、SCN-004、SCN-007、SCN-008）
    - 做法：先寫測試確認失敗，再實作前置檢查、服務檢查、分類與預覽輸出，以及 CLI 骨架。`memoria-sync.ts` 匯出 summary 函式前後跑既有測試。
    - 產出：`src/services/memoria-legacy-scope.ts`、`src/tools/memoria-legacy-scope-cli.ts`、`package.json` 的 script、測試與 `evidence/step2-red-green.md`。
    - 完成判準：上列 Scenario 的測試先紅後綠，突變檢查會轉紅；既有測試維持通過。
    - 相依：步驟 1。
+   - 完成證據：[evidence/step2-red-green.md](evidence/step2-red-green.md)——14 個測試先紅後綠，5 個突變都轉紅；`buildSummary` 改成 export 前後，同步的既有測試都是 16/16。
 3. ⏳ **寫入、備份、紀錄與回滾**（SCN-002、SCN-003、SCN-005 的分區部分、SCN-006、SCN-009）
    - 做法：同上，先紅後綠。
    - 產出：同一組檔案與 `evidence/step3-red-green.md`。
