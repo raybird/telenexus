@@ -10,7 +10,8 @@
 - **只改 scope 召不回**：summary、`recall_fts` 與 `memory_nodes` 的 title／summary 都是 metadata，必須從事件重建 summary。
 - **索引交給 Memoria 重建**：`memoria index build` 只處理沒有 `memory_node_sources` 的 session。刪掉這些 session 的 sources 與 level-2 node，再刪掉因此失去來源的舊 topic 與 root node，就不必手寫 `memory_nodes`。`sessions` 的 UPDATE trigger 會自動重建 `recall_fts`。
 - **其他資料表**：`memory_utility` 以 ref id 記錄，session ID 不變就不受影響；`memory_sources`、`memory_attributes`、`sources` 在副本裡都是 0 筆。
-- **遠端模式**：正式 Compose 裡 telenexus 平常讀不到 `memoria_data` volume，所以工具要以 `docker compose run` 另外掛載 volume 來執行。Memoria 停止期間，telenexus 的同步會進 hook queue，之後補送，不會遺失。
+- **遠端模式**：正式 Compose 裡 telenexus 平常讀不到 `memoria_data` volume，所以工具要以 `docker compose run` 另外掛載 volume 來執行。
+- **停機期間的同步**（步驟 4 修正）：原本寫「Memoria 停止期間的同步會進 hook queue，之後補送」，讀程式後確認不對。同步失敗的 payload 只會留在 `workspace/temp/memoria-sync/failed/`，不會自動重送；hook queue 是另一條輸入路徑。所以操作文件改成遷移期間 `docker compose stop` 停掉整組服務。
 
 ## 設計方案
 
@@ -72,6 +73,7 @@ npm run memoria:migrate-legacy-scope -- [同上]
 | SCN-010 | 端到端：備份覆蓋後比對各資料表筆數與內容雜湊 | 步驟 1、4 |
 | SCN-011 | 端到端：依文件的命令實際執行 | 步驟 4 |
 | SCN-012 | 端到端：凍結問句在遷移前後的召回 | 步驟 4 |
+| SCN-013 | 單元：截斷點落在 emoji 中間（`tests/memoria-sync-payload.test.ts`）＋端到端：副本上沒有不合法的 UTF-8 | 步驟 4 |
 
 ## 實作步驟
 
@@ -93,11 +95,12 @@ npm run memoria:migrate-legacy-scope -- [同上]
    - 完成判準：上列 Scenario 的測試先紅後綠，突變檢查會轉紅；`npm run build`、`npm run test`、`npm run lint` 通過。
    - 相依：步驟 2。
    - 完成證據：[evidence/step3-red-green.md](evidence/step3-red-green.md)——7 個測試先紅後綠，5 個突變都轉紅；`npm run build`、`npm run test`（539/539）、`npm run lint` 通過。
-4. ⏳ **在資料副本上端到端量測**（SCN-005 的召回部分、SCN-010、SCN-011、SCN-012）
+4. ✅ **在資料副本上端到端量測**（SCN-005 的召回部分、SCN-010、SCN-011、SCN-012；SCN-013 由這一步發現）
    - 做法：以本分支建出的映像重跑步驟 1 的路徑，這次用正式工具與文件草稿上的命令。召回沿用模擬時凍結的問句與 `run-recall.mjs` 的 payload。另以合成的兩位使用者資料驗證 SCN-005。
    - 產出：`evidence/step4-end-to-end.md`（去識別化）。
    - 完成判準：SCN-012 的各項數字都列出，且舊決策命中數高於遷移前、排程與其他 scope 的注入為 0；回復後內容雜湊相同。
    - 相依：步驟 3。
+   - 完成證據：[evidence/step4-end-to-end.md](evidence/step4-end-to-end.md)——照文件跑完整流程，回復後各資料表與寫入前相同；舊決策 0/10 → 7/10，排程與其他 scope 的注入為 0；兩位使用者的合成資料各自隔離。量測時發現 summary 截斷會切開 emoji，依使用者決定新增 SCN-013 並修正（`cf5cbff`），再以修正後的映像重跑一次。
 5. ⏳ **操作文件與常青文件**
    - 做法：`docs/installation.md` 的「升級」下新增舊記憶遷移一節，寫明預覽、停止、寫入、重建索引、啟動與回復的命令，以及 Memoria 停止期間同步會進 hook queue。依需要更新 `docs/configuration-reference.md`。以步驟 4 的量測結果起草 TBD-1 的 GitHub issue。
    - 產出：文件變更；TBD-1 的 issue 草稿。
