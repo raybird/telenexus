@@ -10,6 +10,7 @@ GitHub：[#19](https://github.com/raybird/telenexus/issues/19)
 - [evidence/step4-end-to-end.md](./evidence/step4-end-to-end.md)
 - [evidence/step5-review-followup.md](./evidence/step5-review-followup.md)
 - [review-fe4504b.md](./review-fe4504b.md)
+- [review-940ba9c.md](./review-940ba9c.md)
 
 ## 概述
 
@@ -112,6 +113,7 @@ GitHub：[#19](https://github.com/raybird/telenexus/issues/19)
 |---|---|---|---|
 | D-1 | 第一版判準在驗收集未達 AC-2 的門檻 | 已解決：使用者 2026-10-21 選「做第二版＋全新驗收集（建議）」；第二版在全新驗收集通過，見 [step2-criteria.md](evidence/step2-criteria.md) | AC-2 規格修訂 |
 | D-2 | 審查 review-fe4504b 的 `需決策`：新驗收集（34 題）沒有使用者抽查 | 已解決：2026-10-21 以雜湊排序隨機抽出相關 5 題（附目標對話的日期與摘要開頭）、無關 5 題給使用者看，使用者回覆「可以」，標註不需修改 | 第二版的驗收結果沿用，不重驗 |
+| D-3 | 驗收題 C17 的原句留在分支歷史裡：實作的提交寫進測試檔，前次審查報告又引用一次（複審 [review-940ba9c.md](review-940ba9c.md) MUST FIX，`需決策`） | 已解決（2026-10-21）：使用者選「改寫分支歷史（建議）」。<br>• 分支還沒推送，以 `git filter-branch --tree-filter` 只換掉這兩處，並把前次報告裡兩個評估題片段改成題號，其他內容不變。<br>• 原 HEAD 保留在 `backup/issue-0019-940ba9c`，兩份審查報告記的 SHA 指向那裡。<br>• 新舊 SHA 對照：`b9a2ff9`→`ad6a06a`、`fe4504b`→`09a5060`、`eb0415f`→`92b411d`、`2023b4b`→`6c22b23`、`b7cde44`→`c090a9c`、`940ba9c`→`515d8f8`；`a75367c`、`1019b8e` 沒有變。 | 不改驗收條件 |
 
 ## Gate 豁免紀錄
 
@@ -132,6 +134,7 @@ GitHub：[#19](https://github.com/raybird/telenexus/issues/19)
 | 2026-10-21 | 步驟 3、4：實作、測試與文件；編譯後的 client 與離線計算比對 134 題，全部一致 | - |
 | 2026-10-21 | 本機獨立審查 review-fe4504b：RETURN TO execute-task。MUST FIX 1 項，是測試字串與驗收題相同；已修正，另外處理 SHOULD FIX 1～4 與 NICE | reviewer |
 | 2026-10-21 | 新驗收集經使用者抽查 10 題（相關、無關各 5 題），回覆「可以」（D-2） | 使用者 |
+| 2026-10-21 | 本機獨立複審 review-940ba9c：RETURN TO execute-task。前次各項都已解決；新的 MUST FIX 是 C17 原句還在分支歷史，依 D-3 改寫歷史；NICE 一項（量測腳本被測試依賴）在檔頭註明 | reviewer |
 
 ---
 **建立日期**: 2026-10-21  

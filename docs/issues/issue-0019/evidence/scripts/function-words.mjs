@@ -1,3 +1,4 @@
+// tests/memoria-recall-criteria.test.ts 直接 import 這個檔案，比對 src/core/memoria-recall-query.ts 的清單與套用順序；搬動或刪除前先改那個測試。
 // 中文疑問詞與虛詞。只收語法功能詞，不收任何主題詞，也不依評估集的題目挑選。
 // 多字詞先比對（依長度由長到短），單字只收疑問詞「哪」「幾」「誰」、句尾語氣詞與「的」「了」。
 export const FUNCTION_WORDS = [
