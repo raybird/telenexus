@@ -412,3 +412,257 @@ test('CLI：前置檢查失敗時以非 0 結束並說明原因', async () => {
     assert.match(child.stderr, /找不到/);
   });
 });
+
+// ---- 步驟 3：寫入、備份、紀錄與回滾 ----
+
+/** 每張表依主鍵排序後的完整內容,用來比對「內容相同」。 */
+function dumpTables(dbPath: string): Record<string, unknown[]> {
+  const db = new Database(dbPath, { readonly: true });
+  try {
+    const order: Record<string, string> = {
+      sessions: 'id',
+      events: 'id',
+      memory_nodes: 'id',
+      memory_node_sources: 'node_id, session_id',
+      recall_fts: 'ref_id, kind'
+    };
+    return Object.fromEntries(
+      Object.entries(order).map(([t, o]) => [
+        t,
+        db.prepare(`SELECT * FROM ${t} ORDER BY ${o}`).all()
+      ])
+    );
+  } finally {
+    db.close();
+  }
+}
+
+function sessionRow(dbPath: string, id: string): { scope: string; summary: string } {
+  const db = new Database(dbPath, { readonly: true });
+  try {
+    return db.prepare('SELECT scope, summary FROM sessions WHERE id = ?').get(id) as {
+      scope: string;
+      summary: string;
+    };
+  } finally {
+    db.close();
+  }
+}
+
+function query<T>(dbPath: string, sql: string, ...params: unknown[]): T[] {
+  const db = new Database(dbPath, { readonly: true });
+  try {
+    return db.prepare(sql).all(...params) as T[];
+  } finally {
+    db.close();
+  }
+}
+
+test('SCN-002: 寫入後依分類改 scope、重建 summary，移除舊索引節點，事件不變', async () => {
+  await withTempDir(async (dir) => {
+    const dbPath = createArchive(dir, MIXED);
+    const before = dumpTables(dbPath);
+
+    const report = await runLegacyScopeMigration({
+      dbPath,
+      write: true,
+      memoriaEndpoint: STOPPED_ENDPOINT
+    });
+
+    assert.equal(report.mode, 'write');
+    assert.equal(report.migrated, 5);
+    assert.deepEqual(report.serviceCheck, { endpoint: STOPPED_ENDPOINT, reachable: false });
+    assert.deepEqual(sessionRow(dbPath, 'chat-1'), {
+      scope: 'user:u1',
+      summary: '工具用完要清理嗎 → 要，跑清理腳本'
+    });
+    assert.equal(sessionRow(dbPath, 'chat-2').scope, 'user:u1');
+    assert.equal(sessionRow(dbPath, 'pass-1').scope, 'user:u1');
+    assert.equal(sessionRow(dbPath, 'sched-1').scope, 'scheduler:u1');
+    assert.equal(sessionRow(dbPath, 'other-1').scope, 'user:u2');
+
+    const after = dumpTables(dbPath);
+    assert.deepEqual(after.events, before.events, '事件的筆數與內容都不變');
+    assert.deepEqual(
+      (after.sessions as Array<{ id: string }>).map((s) => s.id),
+      (before.sessions as Array<{ id: string }>).map((s) => s.id),
+      'session ID 不變'
+    );
+    // recall_fts 由 Memoria 的 trigger 跟著 summary 重建
+    const fts = query<{ body: string }>(
+      dbPath,
+      "SELECT body FROM recall_fts WHERE kind = 'session' AND ref_id = ?",
+      'chat-1'
+    );
+    assert.deepEqual(fts, [{ body: '工具用完要清理嗎 → 要，跑清理腳本 TeleNexus' }]);
+    // 舊索引整個移除,交給 memoria index build 重建
+    assert.deepEqual(query(dbPath, 'SELECT * FROM memory_node_sources'), []);
+    assert.deepEqual(query(dbPath, 'SELECT * FROM memory_nodes'), []);
+  });
+});
+
+test('SCN-004: 寫入時歸屬不明的 session 與它們的索引都不動', async () => {
+  await withTempDir(async (dir) => {
+    const dbPath = createArchive(dir, [MIXED[0]!, ...UNCLEAR.map((c) => c.session)]);
+    const before = dumpTables(dbPath);
+
+    const report = await runLegacyScopeMigration({
+      dbPath,
+      write: true,
+      memoriaEndpoint: STOPPED_ENDPOINT
+    });
+
+    assert.equal(report.migrated, 1);
+    const beforeSessions = new Map(
+      (before.sessions as Array<{ id: string }>).map((s) => [s.id, s])
+    );
+    for (const { session } of UNCLEAR) {
+      const row = query<{ id: string }>(
+        dbPath,
+        'SELECT * FROM sessions WHERE id = ?',
+        session.id
+      )[0];
+      assert.deepEqual(
+        row,
+        beforeSessions.get(session.id),
+        `${session.id} 的 scope 與 summary 不變`
+      );
+      assert.equal(
+        query(dbPath, 'SELECT * FROM memory_node_sources WHERE session_id = ?', session.id).length,
+        2,
+        `${session.id} 的索引來源還在`
+      );
+    }
+    // 還有來源的 topic 與它的 root 都要留著
+    assert.equal(
+      query(dbPath, 'SELECT id FROM memory_nodes WHERE level IN (0, 1) AND scope = ?', LEGACY)
+        .length,
+      2
+    );
+    assert.equal(
+      query(dbPath, "SELECT id FROM memory_nodes WHERE id = 'node:session:chat-1'").length,
+      0
+    );
+  });
+});
+
+test('SCN-005（分區）：不同使用者的對話分到各自的 user scope', async () => {
+  await withTempDir(async (dir) => {
+    const dbPath = createArchive(dir, MIXED);
+    await runLegacyScopeMigration({ dbPath, write: true, memoriaEndpoint: STOPPED_ENDPOINT });
+    const rows = query<{ id: string; scope: string }>(
+      dbPath,
+      'SELECT id, scope FROM sessions ORDER BY id'
+    );
+    assert.deepEqual(rows, [
+      { id: 'chat-1', scope: 'user:u1' },
+      { id: 'chat-2', scope: 'user:u1' },
+      { id: 'other-1', scope: 'user:u2' },
+      { id: 'pass-1', scope: 'user:u1' },
+      { id: 'sched-1', scope: 'scheduler:u1' }
+    ]);
+  });
+});
+
+test('SCN-003: 改寫前備份整個資料庫，並留下逐筆的遷移紀錄', async () => {
+  await withTempDir(async (dir) => {
+    const dbPath = createArchive(dir, [...MIXED, UNCLEAR[0]!.session]);
+    const before = dumpTables(dbPath);
+
+    const report = await runLegacyScopeMigration({
+      dbPath,
+      write: true,
+      memoriaEndpoint: STOPPED_ENDPOINT
+    });
+
+    assert.ok(report.backupPath && report.recordPath);
+    const outDir = path.dirname(report.backupPath);
+    assert.equal(path.dirname(report.recordPath), outDir);
+    assert.equal(path.dirname(path.dirname(outDir)), path.dirname(dbPath), '放在資料庫所在目錄下');
+    assert.equal(path.basename(path.dirname(outDir)), 'legacy-scope-migration');
+    assert.deepEqual(dumpTables(report.backupPath), before, '備份與寫入前內容相同');
+
+    const record = JSON.parse(fs.readFileSync(report.recordPath, 'utf8')) as {
+      fromScope: string;
+      totals: { candidates: number; migrate: number; review: number };
+      byTargetScope: Record<string, number>;
+      migrated: Array<Record<string, string>>;
+      review: Array<{ sessionId: string; reason: string }>;
+    };
+    assert.equal(record.fromScope, LEGACY);
+    assert.deepEqual(record.totals, { candidates: 6, migrate: 5, review: 1 });
+    assert.deepEqual(record.byTargetScope, { 'user:u1': 3, 'scheduler:u1': 1, 'user:u2': 1 });
+    assert.deepEqual(
+      record.migrated.find((m) => m.sessionId === 'sched-1'),
+      {
+        sessionId: 'sched-1',
+        fromScope: LEGACY,
+        toScope: 'scheduler:u1',
+        basis: 'events.metadata.platform=scheduler'
+      }
+    );
+    assert.equal(record.migrated.length, 5);
+    assert.deepEqual(
+      record.review.map((r) => r.sessionId),
+      ['no-user-id']
+    );
+  });
+});
+
+test('SCN-006: 重跑時遷移 0 筆，不產生新備份，資料庫不變', async () => {
+  await withTempDir(async (dir) => {
+    const dbPath = createArchive(dir, [...MIXED, UNCLEAR[0]!.session]);
+    await runLegacyScopeMigration({ dbPath, write: true, memoriaEndpoint: STOPPED_ENDPOINT });
+    const afterFirst = sha256(dbPath);
+    const treeAfterFirst = listTree(dir);
+
+    const second = await runLegacyScopeMigration({
+      dbPath,
+      write: true,
+      memoriaEndpoint: STOPPED_ENDPOINT
+    });
+
+    assert.equal(second.migrated, 0);
+    assert.equal(second.totals.migrate, 0);
+    assert.equal(second.backupPath, null);
+    assert.equal(second.recordPath, null);
+    assert.deepEqual(
+      second.review.map((r) => r.sessionId),
+      ['no-user-id']
+    );
+    assert.equal(sha256(dbPath), afterFirst);
+    assert.deepEqual(listTree(dir), treeAfterFirst);
+  });
+});
+
+test('SCN-009: 改寫中途失敗時整批回滾，資料庫內容與執行前相同', async () => {
+  await withTempDir(async (dir) => {
+    const dbPath = createArchive(dir, MIXED);
+    // 改到第三筆時讓 SQLite 自己丟錯,模擬寫到一半出事
+    const db = new Database(dbPath);
+    db.exec(`CREATE TRIGGER fail_midway BEFORE UPDATE ON sessions WHEN new.id = 'pass-1'
+             BEGIN SELECT RAISE(ABORT, 'injected failure'); END;`);
+    db.close();
+    const before = dumpTables(dbPath);
+
+    await assert.rejects(
+      runLegacyScopeMigration({ dbPath, write: true, memoriaEndpoint: STOPPED_ENDPOINT }),
+      (err: unknown) =>
+        err instanceof LegacyScopeMigrationError &&
+        /回滾/.test(err.message) &&
+        /injected failure/.test(err.message)
+    );
+    assert.deepEqual(dumpTables(dbPath), before);
+  });
+});
+
+test('CLI：寫入時列出備份與遷移紀錄的位置', async () => {
+  await withTempDir(async (dir) => {
+    const dbPath = createArchive(dir, MIXED);
+    const child = runCli(['--db', dbPath, '--write']);
+    assert.equal(child.status, 0, child.stderr);
+    assert.match(child.stdout, /已遷移：5 筆/);
+    assert.match(child.stdout, /備份：.*sessions\.backup\.db/);
+    assert.match(child.stdout, /遷移紀錄：.*\.json/);
+  });
+});

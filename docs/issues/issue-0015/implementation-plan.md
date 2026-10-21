@@ -87,11 +87,12 @@ npm run memoria:migrate-legacy-scope -- [同上]
    - 完成判準：上列 Scenario 的測試先紅後綠，突變檢查會轉紅；既有測試維持通過。
    - 相依：步驟 1。
    - 完成證據：[evidence/step2-red-green.md](evidence/step2-red-green.md)——14 個測試先紅後綠，5 個突變都轉紅；`buildSummary` 改成 export 前後，同步的既有測試都是 16/16。
-3. ⏳ **寫入、備份、紀錄與回滾**（SCN-002、SCN-003、SCN-005 的分區部分、SCN-006、SCN-009）
+3. ✅ **寫入、備份、紀錄與回滾**（SCN-002、SCN-003、SCN-005 的分區部分、SCN-006、SCN-009）
    - 做法：同上，先紅後綠。
    - 產出：同一組檔案與 `evidence/step3-red-green.md`。
    - 完成判準：上列 Scenario 的測試先紅後綠，突變檢查會轉紅；`npm run build`、`npm run test`、`npm run lint` 通過。
    - 相依：步驟 2。
+   - 完成證據：[evidence/step3-red-green.md](evidence/step3-red-green.md)——7 個測試先紅後綠，5 個突變都轉紅；`npm run build`、`npm run test`（539/539）、`npm run lint` 通過。
 4. ⏳ **在資料副本上端到端量測**（SCN-005 的召回部分、SCN-010、SCN-011、SCN-012）
    - 做法：以本分支建出的映像重跑步驟 1 的路徑，這次用正式工具與文件草稿上的命令。召回沿用模擬時凍結的問句與 `run-recall.mjs` 的 payload。另以合成的兩位使用者資料驗證 SCN-005。
    - 產出：`evidence/step4-end-to-end.md`（去識別化）。

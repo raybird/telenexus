@@ -1,4 +1,6 @@
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
+import path from 'node:path';
 import Database from 'better-sqlite3';
 import { buildSummary } from '../core/memoria-sync.js';
 import { getMemoriaEndpoint, pingMemoriaEndpoint } from '../core/memoria-recall.js';
@@ -219,40 +221,131 @@ function openDatabase(dbPath: string, readonly: boolean): Database.Database {
   }
 }
 
-export async function runLegacyScopeMigration(
-  options: LegacyScopeOptions
-): Promise<LegacyScopeReport> {
-  const fromScope = options.fromScope ?? DEFAULT_LEGACY_SCOPE;
-  const write = options.write === true;
+type Planned = ReturnType<typeof planMigration>;
 
-  // 預覽一律唯讀開檔,連 journal 都不會產生
-  const db = openDatabase(options.dbPath, true);
-  let planned: ReturnType<typeof planMigration>;
+/** events 全表的內容雜湊;遷移只該動 sessions 與索引,commit 前拿它自我檢查。 */
+function digestEvents(db: Database.Database): string {
+  const hash = createHash('sha256');
+  for (const row of db.prepare('SELECT * FROM events ORDER BY id').iterate()) {
+    hash.update(JSON.stringify(row));
+  }
+  return hash.digest('hex');
+}
+
+/**
+ * 在呼叫端開好的 transaction 裡改寫。計畫在鎖內重算,與預覽之後才寫入的資料無關。
+ *
+ * 索引不手寫:刪掉這些 session 的 memory_node_sources 與 level-2 node,
+ * `memoria index build` 就會把它們當成未索引的 session 重建(它只看有沒有 sources)。
+ * 舊分區因此失去所有來源的 topic,以及沒有子節點的 root,一併刪掉。
+ */
+function applyPlan(db: Database.Database, fromScope: string): Planned {
+  const eventsBefore = digestEvents(db);
+  const planned = planMigration(db, fromScope);
+
+  const updateSession = db.prepare('UPDATE sessions SET scope = ?, summary = ? WHERE id = ?');
+  const deleteSources = db.prepare('DELETE FROM memory_node_sources WHERE session_id = ?');
+  const deleteSessionNode = db.prepare('DELETE FROM memory_nodes WHERE id = ?');
+  for (const item of planned.plan) {
+    updateSession.run(item.toScope, item.summary, item.sessionId);
+    deleteSources.run(item.sessionId);
+    deleteSessionNode.run(`node:session:${item.sessionId}`);
+  }
+  db.prepare(
+    `DELETE FROM memory_nodes
+      WHERE scope = ? AND level = 1
+        AND id NOT IN (SELECT node_id FROM memory_node_sources)`
+  ).run(fromScope);
+  db.prepare(
+    `DELETE FROM memory_nodes
+      WHERE scope = ? AND level = 0
+        AND id NOT IN (SELECT parent_id FROM memory_nodes WHERE parent_id IS NOT NULL)`
+  ).run(fromScope);
+
+  if (digestEvents(db) !== eventsBefore) {
+    throw new Error('自我檢查失敗：events 有變動');
+  }
+  const remaining = (
+    db.prepare('SELECT count(*) AS n FROM sessions WHERE scope = ?').get(fromScope) as { n: number }
+  ).n;
+  if (remaining !== planned.review.length) {
+    throw new Error(
+      `自我檢查失敗：舊分區剩 ${remaining} 筆，預期只剩人工審閱的 ${planned.review.length} 筆`
+    );
+  }
+  return planned;
+}
+
+function writeMigration(
+  dbPath: string,
+  fromScope: string
+): { planned: Planned; backupPath: string; recordPath: string } {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const outDir = path.join(path.dirname(dbPath), 'legacy-scope-migration', stamp);
+  const backupPath = path.join(outDir, 'sessions.backup.db');
+  const recordPath = path.join(outDir, 'record.json');
+
+  const db = openDatabase(dbPath, false);
+  let planned: Planned;
   try {
-    assertUsable(db);
-    planned = planMigration(db, fromScope);
+    try {
+      fs.mkdirSync(outDir, { recursive: true });
+      db.prepare('VACUUM INTO ?').run(backupPath);
+    } catch (err) {
+      throw new LegacyScopeMigrationError(`備份失敗，沒有改寫資料庫：${(err as Error).message}`);
+    }
+    try {
+      planned = db.transaction(() => applyPlan(db, fromScope)).immediate();
+    } catch (err) {
+      throw new LegacyScopeMigrationError(
+        `改寫失敗，已整批回滾，資料庫沒有改動：${(err as Error).message}（備份：${backupPath}）`
+      );
+    }
   } finally {
     db.close();
   }
 
-  let serviceCheck: LegacyScopeReport['serviceCheck'] = null;
-  if (write) {
-    const endpoint = options.memoriaEndpoint ?? getMemoriaEndpoint();
-    const reachable = await pingMemoriaEndpoint({ endpoint, timeoutMs: 2000 });
-    serviceCheck = { endpoint, reachable };
-    if (reachable) {
-      throw new LegacyScopeMigrationError(
-        `Memoria 服務仍在執行（${endpoint}），請先停止 Memoria 再寫入`
-      );
-    }
-    throw new LegacyScopeMigrationError('寫入尚未實作');
+  const record = {
+    createdAt: new Date().toISOString(),
+    dbPath,
+    fromScope,
+    backupPath,
+    totals: {
+      candidates: planned.candidates,
+      migrate: planned.plan.length,
+      review: planned.review.length
+    },
+    byTargetScope: countByScope(planned.plan),
+    migrated: planned.plan.map(({ sessionId, fromScope: from, toScope, basis }) => ({
+      sessionId,
+      fromScope: from,
+      toScope,
+      basis
+    })),
+    review: planned.review
+  };
+  try {
+    fs.writeFileSync(recordPath, `${JSON.stringify(record, null, 2)}\n`);
+  } catch (err) {
+    throw new LegacyScopeMigrationError(
+      `遷移已完成，但遷移紀錄寫入失敗：${(err as Error).message}（備份：${backupPath}）`
+    );
   }
+  return { planned, backupPath, recordPath };
+}
 
+function buildReport(
+  mode: LegacyScopeReport['mode'],
+  options: LegacyScopeOptions,
+  fromScope: string,
+  planned: Planned,
+  extra: Pick<LegacyScopeReport, 'serviceCheck' | 'migrated' | 'backupPath' | 'recordPath'>
+): LegacyScopeReport {
   return {
-    mode: 'dry-run',
+    mode,
     dbPath: options.dbPath,
     fromScope,
-    serviceCheck,
+    serviceCheck: extra.serviceCheck,
     totals: {
       candidates: planned.candidates,
       migrate: planned.plan.length,
@@ -261,8 +354,60 @@ export async function runLegacyScopeMigration(
     byTargetScope: countByScope(planned.plan),
     plan: planned.plan,
     review: planned.review,
-    migrated: 0,
-    backupPath: null,
-    recordPath: null
+    migrated: extra.migrated,
+    backupPath: extra.backupPath,
+    recordPath: extra.recordPath
   };
+}
+
+export async function runLegacyScopeMigration(
+  options: LegacyScopeOptions
+): Promise<LegacyScopeReport> {
+  const fromScope = options.fromScope ?? DEFAULT_LEGACY_SCOPE;
+
+  // 先唯讀檢查與預覽,連 journal 都不會產生
+  const db = openDatabase(options.dbPath, true);
+  let planned: Planned;
+  try {
+    assertUsable(db);
+    planned = planMigration(db, fromScope);
+  } finally {
+    db.close();
+  }
+
+  if (options.write !== true) {
+    return buildReport('dry-run', options, fromScope, planned, {
+      serviceCheck: null,
+      migrated: 0,
+      backupPath: null,
+      recordPath: null
+    });
+  }
+
+  const endpoint = options.memoriaEndpoint ?? getMemoriaEndpoint();
+  const reachable = await pingMemoriaEndpoint({ endpoint, timeoutMs: 2000 });
+  const serviceCheck = { endpoint, reachable };
+  if (reachable) {
+    throw new LegacyScopeMigrationError(
+      `Memoria 服務仍在執行（${endpoint}），請先停止 Memoria 再寫入`
+    );
+  }
+
+  // 沒東西可搬就不備份、不開 transaction:重跑不留下新檔案
+  if (planned.plan.length === 0) {
+    return buildReport('write', options, fromScope, planned, {
+      serviceCheck,
+      migrated: 0,
+      backupPath: null,
+      recordPath: null
+    });
+  }
+
+  const written = writeMigration(options.dbPath, fromScope);
+  return buildReport('write', options, fromScope, written.planned, {
+    serviceCheck,
+    migrated: written.planned.plan.length,
+    backupPath: written.backupPath,
+    recordPath: written.recordPath
+  });
 }
