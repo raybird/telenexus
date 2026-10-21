@@ -131,6 +131,7 @@ export class MemoriaRecallClient {
     };
 
     const startedAt = Date.now();
+    const scopeKind = scope ? (scope.split(':')[0] ?? scope) : 'none';
     try {
       const { status, body } = await memoriaHttpRequest(
         this.endpoint,
@@ -162,6 +163,9 @@ export class MemoriaRecallClient {
         ok: true,
         hitCount: rawHits.length,
         latencyMs,
+        scopeKind,
+        droppedLowConfidence,
+        injected: !droppedLowConfidence && snippets.length > 0,
         ...meta
       });
       emitEvent('memoria_recall', {
@@ -208,7 +212,10 @@ export class MemoriaRecallClient {
         confidence: null,
         confidenceBasis: 'unknown',
         hitCount: 0,
-        latencyMs
+        latencyMs,
+        scopeKind,
+        droppedLowConfidence: false,
+        injected: false
       });
       emitEvent('memoria_recall', {
         ok: false,

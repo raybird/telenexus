@@ -15,6 +15,7 @@ import type { Connector, UnifiedMessage } from '../types/index.js';
 import { safeCompare } from '../utils/crypto.js';
 import { resolveContextDir } from '../utils/paths.js';
 import { getRecentIssues } from '../utils/errors.js';
+import { readAppVersion } from '../utils/app-version.js';
 import { collectMemoryHealthReport } from '../services/memory-health.js';
 import { getRecentMemoryBackfillReports } from '../services/memory-backfill.js';
 import type { BuildPromptFn } from '../core/prompt-build.js';
@@ -206,19 +207,6 @@ function writeSseEvent(
 ): void {
   res.write(`event: ${event}\n`);
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
-}
-
-function readAppVersion(): string {
-  try {
-    const packageJsonPath = path.resolve(process.cwd(), 'package.json');
-    const raw = fs.readFileSync(packageJsonPath, 'utf8');
-    const parsed = JSON.parse(raw) as { version?: string };
-    return typeof parsed.version === 'string' && parsed.version.trim().length > 0
-      ? parsed.version.trim()
-      : 'unknown';
-  } catch {
-    return 'unknown';
-  }
 }
 
 function isAuthorized(

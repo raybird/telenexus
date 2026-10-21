@@ -30,6 +30,8 @@ import { loadAiConfig } from './core/config-loader.js';
 import { MemoryBackfillWorker } from './services/memory-backfill-worker.js';
 import { startErrorAlerter } from './services/error-alerter.js';
 import { startIssueStore } from './services/issue-store.js';
+import { startRecallMetricsStore } from './services/recall-metrics-store.js';
+import { readAppVersion } from './utils/app-version.js';
 import { initEventProjector } from './services/event-projector.js';
 import { PinnedStatusManager } from './services/pinned-status-manager.js';
 import { addEventHook } from './services/event-bus.js';
@@ -192,6 +194,7 @@ async function bootstrap() {
   };
   const scheduler = new Scheduler(memory, schedulerAgent, telegram, enqueueMemoriaSyncFn);
   startIssueStore(memory);
+  startRecallMetricsStore(memory, { appVersion: readAppVersion() });
   startErrorAlerter({ connector: telegram, adminUserId: ALLOWED_USER_ID });
   initEventProjector(writeContextSnapshotsFn);
   const commandRouter = new CommandRouter();

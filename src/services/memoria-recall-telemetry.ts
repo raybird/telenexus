@@ -18,7 +18,24 @@ export type MemoriaRecallTrace = {
   confidenceBasis: string;
   hitCount: number;
   latencyMs: number;
+  /** scope 的前綴（`user:<id>` → `user`），沒帶 scope 時為 `none`。 */
+  scopeKind: string;
+  /** confidence 低於門檻，結果沒有交給 prompt 組裝。 */
+  droppedLowConfidence: boolean;
+  /** 請求成功，而且交給 prompt 組裝的 snippet 至少一筆。 */
+  injected: boolean;
 };
+
+export type MemoriaRecallTraceHook = (trace: MemoriaRecallTrace) => void;
+const traceHooks = new Set<MemoriaRecallTraceHook>();
+
+/** 訂閱每一次召回的結果（recall-metrics-store 用來寫進資料庫）。回傳取消訂閱的函式。 */
+export function addMemoriaRecallTraceHook(hook: MemoriaRecallTraceHook): () => void {
+  traceHooks.add(hook);
+  return () => {
+    traceHooks.delete(hook);
+  };
+}
 
 /** 語意索引服務不了、實際端出字面結果的路由——這是唯一該當成警訊的降級。 */
 const DEGRADED_ROUTE_MODES = new Set(['vector_unavailable', 'vector_timeout']);
@@ -34,6 +51,13 @@ export function recordMemoriaRecallTrace(trace: MemoriaRecallTrace): void {
   traces.push(trace);
   if (traces.length > MAX_TRACES) {
     traces.splice(0, traces.length - MAX_TRACES);
+  }
+  for (const hook of traceHooks) {
+    try {
+      hook(trace);
+    } catch {
+      // hook 自己負責回報；這裡在召回的路徑上，不能讓它影響聊天
+    }
   }
 }
 

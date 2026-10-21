@@ -52,6 +52,35 @@ export interface Schedule {
   is_active: boolean;
 }
 
+/** 一次聊天召回的結果（issue 0020）。不含問句、snippet 與使用者 ID。 */
+export type MemoriaRecallEvent = {
+  ts: number;
+  appVersion: string;
+  /** scope 的前綴，例如 `user`；不存 scope 後面的 ID。 */
+  scopeKind: string;
+  ok: boolean;
+  routeMode: string;
+  hitCount: number;
+  droppedLowConfidence: boolean;
+  /** 請求成功，而且交給 prompt 組裝的 snippet 至少一筆。 */
+  injected: boolean;
+  degraded: boolean;
+  latencyMs: number;
+};
+
+export type MemoriaRecallVersionSummary = {
+  version: string;
+  /** 召回次數，含失敗。 */
+  total: number;
+  succeeded: number;
+  /** 以下三項只計成功的召回。 */
+  withHits: number;
+  injected: number;
+  degraded: number;
+  firstAt: number;
+  lastAt: number;
+};
+
 export class MemoryManager {
   private db: Database.Database;
 
@@ -178,6 +207,28 @@ export class MemoryManager {
     this.db
       .prepare(`CREATE INDEX IF NOT EXISTS idx_issues_scope_ts ON runtime_issues(scope, ts)`)
       .run();
+
+    // memoria_recall_events：每次聊天召回的結果，依版本彙總召回指標（issue 0020）；不存問句與內容
+    this.db
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS memoria_recall_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          ts INTEGER NOT NULL,
+          app_version TEXT NOT NULL,
+          scope_kind TEXT NOT NULL,
+          ok INTEGER NOT NULL,
+          route_mode TEXT NOT NULL,
+          hit_count INTEGER NOT NULL,
+          dropped_low_confidence INTEGER NOT NULL,
+          injected INTEGER NOT NULL,
+          degraded INTEGER NOT NULL,
+          latency_ms INTEGER NOT NULL
+        )`
+      )
+      .run();
+    this.db
+      .prepare(`CREATE INDEX IF NOT EXISTS idx_recall_events_ts ON memoria_recall_events(ts)`)
+      .run();
   }
 
   appendRuntimeIssue(scope: string, message: string, timestamp: number): void {
@@ -222,6 +273,51 @@ export class MemoryManager {
   purgeOldRuntimeIssues(beforeMs: number): number {
     const info = this.db.prepare(`DELETE FROM runtime_issues WHERE ts < ?`).run(beforeMs);
     return info.changes ?? 0;
+  }
+
+  appendMemoriaRecallEvent(event: MemoriaRecallEvent): void {
+    this.db
+      .prepare(
+        `INSERT INTO memoria_recall_events
+          (ts, app_version, scope_kind, ok, route_mode, hit_count, dropped_low_confidence, injected, degraded, latency_ms)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        event.ts,
+        event.appVersion,
+        event.scopeKind,
+        event.ok ? 1 : 0,
+        event.routeMode,
+        event.hitCount,
+        event.droppedLowConfidence ? 1 : 0,
+        event.injected ? 1 : 0,
+        event.degraded ? 1 : 0,
+        Math.max(0, Math.round(event.latencyMs))
+      );
+  }
+
+  purgeOldMemoriaRecallEvents(beforeMs: number): number {
+    const info = this.db.prepare(`DELETE FROM memoria_recall_events WHERE ts < ?`).run(beforeMs);
+    return info.changes ?? 0;
+  }
+
+  /** 依版本彙總召回結果，最近有資料的版本排在前面。 */
+  summarizeMemoriaRecallByVersion(): MemoriaRecallVersionSummary[] {
+    return this.db
+      .prepare(
+        `SELECT app_version AS version,
+          COUNT(*) AS total,
+          SUM(ok) AS succeeded,
+          SUM(CASE WHEN ok = 1 AND hit_count > 0 THEN 1 ELSE 0 END) AS withHits,
+          SUM(CASE WHEN ok = 1 THEN injected ELSE 0 END) AS injected,
+          SUM(CASE WHEN ok = 1 THEN degraded ELSE 0 END) AS degraded,
+          MIN(ts) AS firstAt,
+          MAX(ts) AS lastAt
+        FROM memoria_recall_events
+        GROUP BY app_version
+        ORDER BY lastAt DESC`
+      )
+      .all() as MemoriaRecallVersionSummary[];
   }
 
   private ensureMessageSchema(): void {
