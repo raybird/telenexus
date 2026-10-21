@@ -76,3 +76,15 @@ npx tsx --test tests/memoria-legacy-scope.test.ts
 - `npm run lint` exit 0；三個異動的 TypeScript 檔通過 `prettier --check`。
 
 步驟 4 的證據保留當時的輸出（例如「連不上，視為 Memoria 已停止」），那是 `cf5cbff` 映像的實際結果；新版的輸出以本檔為準。
+
+## 第二輪審查後續（[review-e4e30f9.md](../review-e4e30f9.md)）
+
+| 審查項目 | 處理 |
+|---|---|
+| SHOULD FIX 1：prune 警告只寫 `--stale-days` | 改成「不要執行任何 `memoria prune`」，並註明 `--all` 預設會套用 180 天的 stale 條件。 |
+| NICE 1：`fetch` 跟隨轉址，轉到沒有服務的位址會判定已停止 | 服務檢查改用 `redirect: 'manual'`，3xx 也算有服務在回應而拒絕寫入。先補測試：假服務回 302 指向沒有服務在聽的埠，在修正前紅燈（27 個中 1 個失敗），修正後 27/27。 |
+| NICE 5：核准紀錄的可追溯性 | SCN-013 那一列註明 Then 改於 `e4e30f9`；Then 的收斂改記在協調者名下，審查只是提出建議。SCN-001～SCN-012 維持合成一列，因為它們是同一次核准。 |
+| NICE 6：「無法確認」時怎麼處理 | 操作文件補一句：先用 `docker compose ps` 確認 memoria 不在執行，再重跑；工具不提供略過檢查的選項。 |
+| NICE 2～4 | 不處理。`ENOTFOUND`、`EAI_AGAIN` 拿掉時會拒絕寫入，屬於安全的方向；剩餘筆數的自我檢查與臨時埠的競爭，失敗時都是紅燈，不是假綠燈。 |
+
+第二輪後續的交付檢查（提交前的工作區）：`npm run build` exit 0；`env -u MEMORIA_HOME -u MEMORIA_ARCHIVE_DB npm run test` exit 0，`# tests 546`、`# pass 546`、`# fail 0`（多 1 個，就是轉址測試），`tests/docker/` 的 4 個檔案都有跑到；`npm run lint` exit 0。

@@ -158,7 +158,7 @@ Feature: 把舊版 project scope 的 Memoria 記憶分類遷移到聊天與排�
 | Scenario | 核准日期 | 核准 commit | 狀態 |
 |----------|---------|-------------|------|
 | SCN-001～SCN-012 | 2026-10-21 | ee4340b | 已核准 |
-| SCN-013 | 2026-10-21 | cf5cbff | 已核准（規格修訂） |
+| SCN-013 | 2026-10-21 | cf5cbff | 已核准（規格修訂；Then 依核准選項原文收斂於 e4e30f9） |
 
 SCN-013 的來源：步驟 4 在資料副本上發現 3/2,300 筆 summary 的截斷點落在 emoji 中間，工具會寫出不合法的 UTF-8；正式同步用的是同一個截斷函式。使用者選「修共用的截斷函式（建議）」，選項內容是「讓 truncateForSummary 不切開 surrogate pair（遇到就少取一個字元）」。審查 [review-e0585ce.md](review-e0585ce.md) 指出原本的 Then「不含切成一半的 emoji」比核准內容寬：國旗、ZWJ 組合這類由多個字元組成的 emoji，仍可能在字元之間截斷，但不會產生不合法的 UTF-8。因此把 Then 收斂成核准選項的範圍，不改成以字形為單位截斷。
 
@@ -202,7 +202,9 @@ SCN-013 的來源：步驟 4 在資料副本上發現 3/2,300 筆 summary 的截
 | 2026-10-21 | SCN-001～SCN-012 核准；記錄不開 PR 的 Gate 豁免 | 使用者 |
 | 2026-10-21 | 規格修訂：新增 SCN-013，summary 截斷不切開 emoji，同步與遷移共用的截斷函式一起修 | 使用者 |
 | 2026-10-21 | TBD-1 另開 GitHub #19 | - |
-| 2026-10-21 | 獨立審查 `e0585ce`：PASS，SHOULD FIX 5 項（[review-e0585ce.md](review-e0585ce.md)）；SCN-013 的 Then 依核准選項原文收斂（不擴大範圍）；後續處理見步驟 6 | 獨立 subagent |
+| 2026-10-21 | 獨立審查 `e0585ce`：PASS，SHOULD FIX 5 項（[review-e0585ce.md](review-e0585ce.md)）；後續處理見步驟 6 | 獨立 subagent |
+| 2026-10-21 | 依審查建議，把 SCN-013 的 Then 收斂成核准選項原文的範圍（不擴大範圍），文字改於 `e4e30f9` | 協調者 |
+| 2026-10-21 | 獨立審查 `e4e30f9`：PASS，SHOULD FIX 1 項（[review-e4e30f9.md](review-e4e30f9.md)）；prune 警告擴及所有 `memoria prune`，服務檢查不跟隨轉址，見步驟 6 | 獨立 subagent |
 
 ---
 **建立日期**: 2026-10-21  
