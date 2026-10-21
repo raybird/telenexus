@@ -82,7 +82,7 @@ GitHub #16 要求「明確選擇支援遠端回填（透過可分頁、可 check
 
 ## 實作與驗證步驟
 
-1. **步驟 1：原因說明與啟動警告**（AC-1、AC-2）
+1. ✅ **步驟 1：原因說明與啟動警告**（AC-1、AC-2）——證據：[evidence/step1-messages.md](evidence/step1-messages.md)
    - 改動前先跑 `gitnexus_impact`，並用 `grep` 核對 `judgeBackfillSource` 與 `MemoryBackfillWorker.start` 的呼叫點。
    - 測試先轉紅，改完再轉綠。
    - 完成判準：
@@ -90,7 +90,7 @@ GitHub #16 要求「明確選擇支援遠端回填（透過可分頁、可 check
      - build 與 lint 都 exit 0；
      - 至少一個突變能讓新測試轉紅。分別試兩種：還原原因說明、拿掉警告。
    - 產出：`evidence/step1-messages.md`。
-2. **步驟 2：編譯後實跑與文件**（AC-1、AC-3；相依步驟 1）
+2. ✅ **步驟 2：編譯後實跑與文件**（AC-1、AC-3；相依步驟 1）——證據：[evidence/step2-cli-and-docs.md](evidence/step2-cli-and-docs.md)
    - 在暫存 `DB_DIR`、沒設封存變數（也就是遠端模式）的環境下，實跑編譯後的兩個 CLI，記錄輸出與 exit code。
    - 更新 `docs/configuration-reference.md` 與 `.env.example`。
    - 完成判準：
@@ -110,6 +110,7 @@ GitHub #16 要求「明確選擇支援遠端回填（透過可分頁、可 check
 | 日期 | 事件 | 負責 |
 |------|------|------|
 | 2026-10-21 | 建立。使用者選擇正式標成不支援、Q1「維持每輪都印」、Q2 交付方式 | - |
+| 2026-10-21 | 步驟 1、2：原因說明、啟動警告與文件；4 個新測試、5 個突變都轉紅，全套 598 個通過，編譯後的 CLI 在遠端模式實跑 | - |
 
 ---
 **建立日期**: 2026-10-21  
