@@ -2,6 +2,39 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.31.0 — 2026-10-21
+
+### 舊版 Memoria 記憶遷移工具（#15）
+
+2026-08-14 以前同步到 Memoria 的對話都放在 `project:TeleNexus` 分區，summary 也只是 `user=… platform=…` 這類 metadata。現在聊天只查 `user:<id>`，所以這些舊記憶召回不到。新工具 `dist/tools/memoria-legacy-scope-cli.js`（`npm run memoria:migrate-legacy-scope`）把它們分到正確的分區。
+
+- 依每筆對話事件記錄的 `platform` 與 `user_id` 分類：Telegram、Web 對話與 passthrough 指令分到 `user:<id>`，排程產出分到 `scheduler:<id>`，並從事件重建 summary。歸屬不明的留在原處，列進人工審閱清單。
+- 預設只預覽，完全唯讀。加 `--write` 才會寫入：先在 volume 內備份整個資料庫，再用單一 transaction 改寫，commit 前自我檢查 `events` 沒有被動到，失敗就整批回滾；完成後留下逐筆的遷移紀錄。重跑時不會重複處理，也不會產生新的備份。
+- 寫入前確認 Memoria 已停止：只有連線被拒或解析不到主機才算已停止；任何 HTTP 回應（包括 503 與轉址）、逾時或其他錯誤都拒絕寫入。
+- `--db` 必填。
+
+2026-10-21 在另一台部署的資料副本上照操作文件跑完整流程：可遷移 2,300 筆、人工審閱 1 筆；遷移後聊天召回到的舊決策從 0/10 變成 7/10，沒有注入排程產出或其他使用者的資料；用備份覆蓋回去後各資料表與遷移前相同。證據見 [issue 0015](docs/issues/issue-0015/README.md)。
+
+### summary 截斷不再寫出不合法的 UTF-8（#15）
+
+同步到 Memoria 的 summary 每邊截到 240 個 UTF-16 單位。截斷點剛好落在 emoji 中間時，會留下半個 surrogate pair，寫進資料庫就是不合法的 UTF-8。現在遇到這種情況少取一個字元；其他情況的結果不變。
+
+### 遠端模式的健康報告與回填狀態誠實化（#17、#16 第一部分）
+
+官方 Compose 把 Memoria 拆成獨立的 HTTP 服務後，telenexus 讀不到它的 `sessions.db`，但健康報告與回填 worker 都把「沒讀到」當成「沒有資料」。
+
+- 健康報告（`npm run memory:health`、`GET /api/memory-health`、`memory-status.md`）的封存區塊新增 `source`、`status`、`detail`；讀不到的統計以 `null` 呈現，不再是 0。一致性改成逐項列出已檢查、未檢查或不可判定，不再在沒檢查時回報 `ok: true`；空的本機封存也會檢查。
+- 回填 worker 依封存來源判定狀態，log 印出實際原因（遠端模式不支援、找不到檔案、讀取失敗、沒有新資料……），不再一律印成 `no new archive sessions`；健康報告的 backfill 區塊也顯示同一個判定。
+- `memory:backfill` 在遠端模式的錯誤訊息改成說明是遠端模式，仍然失敗退出。
+
+遠端模式要不要支援回填，仍在 GitHub [#16](https://github.com/raybird/telenexus/issues/16) 討論。
+
+### 升級注意
+
+- **`GET /api/memory-health` 的 JSON 形狀有變**：封存統計讀不到時是 `null`，並多了 `archive.source`／`status`／`detail` 與 backfill 的 `sourceState`／`sourceDetail`。有自己的腳本在解析這份 JSON 的話，請一併調整。判讀方式見 [Web Console 參考](docs/web-console-reference.md)。
+- **遷移不會自動執行**。2026-08-14 以前就在使用的部署，照 [安裝與升級指南](docs/installation.md) 的「舊版記憶遷移」手動執行：需要停止整組服務，遷移後要重建 Memoria 索引，重建前不要執行任何 `memoria prune`。
+- 遷移後語料變多，無關問句的召回 confidence 也跟著上升：在資料副本上，無關問句被注入舊對話的比例從 1/4 升到 2/4。門檻的重新校準在 GitHub [#19](https://github.com/raybird/telenexus/issues/19) 處理，要不要現在遷移可以參考這個數字。
+
 ## 2.30.1 — 2026-10-18
 
 ### 回收空間後截斷 WAL（#14）
