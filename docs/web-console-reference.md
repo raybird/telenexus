@@ -70,7 +70,7 @@ WEB_USER_ID=
 - `memoria-status.md` 的「Recall Metrics by Version」是聊天召回依 TeleNexus 版本的彙總，資料在 `moltbot.db`，跨重啟累積、保留 30 天；上方的「Recall Telemetry」只有記憶體裡最近 50 筆，重啟就歸零。這一節列出目前版本，以及保留期內最近的前一個版本，用來比較升級前後：
   - `Recalls` 是召回次數，含失敗。它計的是召回，不是訊息：接續的 session 失效、改開新 session 時，同一則訊息會重新組 prompt 而召回兩次。
   - `Hit Rate` 是 Memoria 有回傳結果的比例。
-  - `Injected Rate` 是結果實際交給 prompt 組裝的比例：信心低於 `MEMORIA_RECALL_MIN_CONFIDENCE` 而丟棄的不算。
+  - `Injected Rate` 是結果實際交給 prompt 組裝的比例：被注入判準丟棄的不算，包括信心低於 `MEMORIA_RECALL_MIN_CONFIDENCE`，以及內容 token 不到 2 個（issue 0019）。
   - `Degraded Rate` 是語意索引退回字面召回的比例。
   - 三個比例的分母都是成功的召回次數，失敗另列。成功少於 20 次時顯示 `unknown` 並附 n，不顯示成 0%；讀取資料庫失敗時顯示 `Status: error` 與原因。
   - 遷移舊記憶的時間點不會自動標出，請以升級後的版本為界比較。

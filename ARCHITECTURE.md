@@ -76,6 +76,9 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 - `src/core/memoria-sync.ts`
   - 對話成功後背景 POST 到 Memoria HTTP 服務 (`/v1/remember` @ `MEMORIA_ENDPOINT`)
   - hook queue 保留為離線重試緩衝;POST 失敗的 payload 留存待重灌
+- `src/core/memoria-recall.ts`、`src/core/memoria-recall-query.ts`
+  - 聊天召回：問句先拿掉疑問詞與虛詞再送 `/v1/recall`
+  - 注入判準是 confidence 達 `MEMORIA_RECALL_MIN_CONFIDENCE`，而且第一筆 snippet 含 2 個以上內容 token（issue 0019）
 - `src/services/memory-backfill-worker.ts`
   - 針對 sessions archive 做 backfill / dry-run 掃描
 

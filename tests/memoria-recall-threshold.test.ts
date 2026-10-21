@@ -80,7 +80,8 @@ async function recallSnippets(confidence: number | null): Promise<string[]> {
   let snippets: string[] = [];
   await withMemoria(confidence, async (endpoint) => {
     const client = new MemoriaRecallClient({ endpoint, timeoutMs: 2000 });
-    snippets = (await client.recallWithMeta('問題', 'user:u')).snippets;
+    // 問句與 snippet 共用 4 個內容 token,這裡只看 confidence 門檻(內容 token 的條件見 issue 0019 的測試)
+    snippets = (await client.recallWithMeta('殭屍程序的結論', 'user:u')).snippets;
   });
   return snippets;
 }

@@ -5,6 +5,11 @@ import { recordRuntimeIssue } from '../utils/errors.js';
 import { emitEvent } from '../services/event-bus.js';
 import { isDegradedRoute, recordMemoriaRecallTrace } from '../services/memoria-recall-telemetry.js';
 import { createLogger } from './logger.js';
+import {
+  MIN_MATCHED_TOKENS,
+  countMatchedContentTokens,
+  stripFunctionWords
+} from './memoria-recall-query.js';
 
 const logger = createLogger('MemoriaRecall');
 
@@ -87,7 +92,9 @@ function getRecallTopK(): number {
 
 /**
  * confidence 低於這個值的召回結果不注入 prompt(issue 0012)。預設 0.2 取自正式資料快照的抽樣:
- * 無關問題最高 0.143、相關問題最低 0.25。設為 0 等於停用;不是 0～1 的數字時用預設值。
+ * 無關問題最高 0.143、相關問題最低 0.25。issue 0019 起 confidence 是對拿掉疑問詞與虛詞後的問句算的,
+ * 另外還要求第一筆 snippet 含 MIN_MATCHED_TOKENS 個內容 token。設為 0 等於停用整個判準;
+ * 不是 0～1 的數字時用預設值。
  */
 const DEFAULT_RECALL_MIN_CONFIDENCE = 0.2;
 
@@ -122,8 +129,10 @@ export class MemoriaRecallClient {
 
   /** 回傳 snippets 之外,同時保留 recall_id 與 hit id,供 UFL outcome 回報使用。失敗回空結果不 throw。 */
   async recallWithMeta(query: string, scope?: string): Promise<MemoriaRecallResult> {
+    // 疑問詞與虛詞會讓無關問句碰巧拿到高 confidence(issue 0019);整句都是功能詞時改送原句
+    const contentQuery = stripFunctionWords(query);
     const payload = {
-      query,
+      query: contentQuery || query,
       project: this.project,
       ...(scope ? { scope } : {}),
       top_k: this.topK,
@@ -160,8 +169,12 @@ export class MemoriaRecallClient {
       const latencyMs = Date.now() - startedAt;
       // null 代表該路由無法判斷匹配品質,不能當成 0 擋掉。
       const minConfidence = getRecallMinConfidence();
+      const matchedTokens = countMatchedContentTokens(contentQuery, snippets[0] ?? '');
       const droppedLowConfidence =
-        rawHits.length > 0 && meta.confidence !== null && meta.confidence < minConfidence;
+        rawHits.length > 0 &&
+        meta.confidence !== null &&
+        minConfidence > 0 &&
+        (meta.confidence < minConfidence || matchedTokens < MIN_MATCHED_TOKENS);
 
       recordMemoriaRecallTrace({
         timestamp: startedAt,
@@ -182,7 +195,12 @@ export class MemoriaRecallClient {
         hit_count: rawHits.length,
         latency_ms: latencyMs,
         ...(droppedLowConfidence
-          ? { dropped_low_confidence: true, min_confidence: minConfidence }
+          ? {
+              dropped_low_confidence: true,
+              min_confidence: minConfidence,
+              matched_tokens: matchedTokens,
+              min_matched_tokens: MIN_MATCHED_TOKENS
+            }
           : {})
       });
       // 語意索引服務不了、實際端出字面結果時要出聲——這種降級不講就是靜默降級。
@@ -198,6 +216,7 @@ export class MemoriaRecallClient {
         logger.info('recall_dropped_low_confidence', {
           confidence: meta.confidence,
           minConfidence,
+          matchedTokens,
           hits: rawHits.length
         });
         return { snippets: [], hits: [], meta };
