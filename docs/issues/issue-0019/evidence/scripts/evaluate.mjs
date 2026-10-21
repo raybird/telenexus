@@ -68,6 +68,7 @@ export function score(frozen, raw, criterion) {
     relatedTotal: related.length,
     controlInjected: control.filter((r) => r.injected).length,
     controlTotal: control.length,
+    injectedIds: rows.filter((r) => r.injected).map((r) => r.id),
     injectedControlIds: control.filter((r) => r.injected).map((r) => r.id),
     missedRelatedIds: related.filter((r) => !r.hit).map((r) => r.id)
   };

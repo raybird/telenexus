@@ -6,6 +6,8 @@ GitHub：[#19](https://github.com/raybird/telenexus/issues/19)
 - [implementation-plan.md](./implementation-plan.md)
 - [evidence/step1-evaluation-set.md](./evidence/step1-evaluation-set.md)
 - [evidence/step2-criteria.md](./evidence/step2-criteria.md)
+- [evidence/step3-implementation.md](./evidence/step3-implementation.md)
+- [evidence/step4-end-to-end.md](./evidence/step4-end-to-end.md)
 
 ## 概述
 
@@ -36,9 +38,10 @@ GitHub：[#19](https://github.com/raybird/telenexus/issues/19)
 
 ## 涉及檔案
 
-- `src/core/memoria-recall.ts` - 注入判準；目前是 `droppedLowConfidence` 的計算
-- 可能還有 `src/prompt/builder.ts` - 若判準要用到問句或 snippet 的處理
-- `tests/` - 判準的單元測試，用合成資料
+- `src/core/memoria-recall.ts` - 注入判準：`droppedLowConfidence` 的計算，以及送出的問句
+- `src/core/memoria-recall-query.ts`（新增）- 問句改寫與內容 token 的計算
+- `ARCHITECTURE.md`、`CLAUDE.md`、`docs/summary-aware-retrieval-plan.md`、`docs/web-console-reference.md` - 登記模組並更新判準的說明
+- `tests/memoria-recall-criteria.test.ts`（新增）、`tests/memoria-recall-threshold.test.ts` - 判準的測試，用合成資料
 - `docs/issues/issue-0019/evidence/` - 評估集的組成、凍結雜湊、量測結果；不含問句原文與對話內容
 - `docs/issues/issue-0019/evidence/scripts/` - 量測腳本，不含私人資料
 - `docs/configuration-reference.md`、`docs/current-chat-prompt.md` - 判準的說明
@@ -123,6 +126,7 @@ GitHub：[#19](https://github.com/raybird/telenexus/issues/19)
 | 2026-10-21 | 步驟 2：第一版判準在驗收集未達門檻（無關注入 4/17） | - |
 | 2026-10-21 | 規格修訂：做第二版並以全新驗收集驗收 | 使用者 |
 | 2026-10-21 | 步驟 2：第二版判準在全新驗收集上，相關命中 17/17、無關注入 1/17，通過 | - |
+| 2026-10-21 | 步驟 3、4：實作、測試與文件；編譯後的 client 與離線計算比對 134 題，全部一致 | - |
 
 ---
 **建立日期**: 2026-10-21  
