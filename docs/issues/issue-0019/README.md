@@ -8,6 +8,8 @@ GitHub：[#19](https://github.com/raybird/telenexus/issues/19)
 - [evidence/step2-criteria.md](./evidence/step2-criteria.md)
 - [evidence/step3-implementation.md](./evidence/step3-implementation.md)
 - [evidence/step4-end-to-end.md](./evidence/step4-end-to-end.md)
+- [evidence/step5-review-followup.md](./evidence/step5-review-followup.md)
+- [review-fe4504b.md](./review-fe4504b.md)
 
 ## 概述
 
@@ -21,7 +23,7 @@ GitHub：[#19](https://github.com/raybird/telenexus/issues/19)
   - 中文切成 2 字的窗格，英數字串各算一個 token。
   - 短問句與「什麼」「多少」這類泛用詞、數字，容易因巧合得到高覆蓋率。
 - 部署的 Memoria 映像釘在 1.28.1（`docker/memoria.Dockerfile`）。
-- 2026-10-21 在資料副本上重現：用同一個 Memoria 1.28.1 映像，「推薦科幻電影」0.143、「怎麼煮義大利麵」0.167，和 #15 的量測相同。
+- 2026-10-21 在資料副本上重現：用同一個 Memoria 1.28.1 映像，#15 的電影、義大利麵兩題對照題分別是 0.143、0.167，和 #15 的量測相同。
 - #15 凍結的 16 題問句已找不到：原文本來就不進 repo，當時的暫存也已經清掉。
 
 **範圍**：只改 TeleNexus（使用者 Q1）。可以做的有：
@@ -127,6 +129,7 @@ GitHub：[#19](https://github.com/raybird/telenexus/issues/19)
 | 2026-10-21 | 規格修訂：做第二版並以全新驗收集驗收 | 使用者 |
 | 2026-10-21 | 步驟 2：第二版判準在全新驗收集上，相關命中 17/17、無關注入 1/17，通過 | - |
 | 2026-10-21 | 步驟 3、4：實作、測試與文件；編譯後的 client 與離線計算比對 134 題，全部一致 | - |
+| 2026-10-21 | 本機獨立審查 review-fe4504b：RETURN TO execute-task。MUST FIX 1 項，是測試字串與驗收題相同；已修正，另外處理 SHOULD FIX 1～4 與 NICE | reviewer |
 
 ---
 **建立日期**: 2026-10-21  

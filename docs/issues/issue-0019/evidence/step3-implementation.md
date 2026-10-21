@@ -84,3 +84,22 @@ M2 第一次只有單元測試轉紅：整合測試「命中的只有數字」�
   - 新的程式與測試檔已依 prettier 格式化。
   - `CLAUDE.md` 通過。
   - `docs/configuration-reference.md` 在 main 上本來就沒通過，這次沒有處理。
+
+### 命令與 exit code
+
+（審查 review-fe4504b 指出原本的紀錄沒有命令，以下是審查後續重跑的結果。）
+
+```bash
+export TMPDIR=$HOME/.cache/memoria-release-tmp
+env -u MEMORIA_HOME -u MEMORIA_ARCHIVE_DB npx tsx --test tests/memoria-recall-criteria.test.ts tests/memoria-recall-threshold.test.ts
+# → # tests 27、# pass 27、# fail 0
+npm run build              # exit 0
+npm run lint               # exit 0
+env -u MEMORIA_HOME -u MEMORIA_ARCHIVE_DB npm test   # exit 0；# tests 594、# pass 594、# fail 0
+```
+
+突變的做法：
+- 每次以 `python3` 對單一字串取代一次，取代前先確認那段字串只出現一次；
+- 跑上面那兩個測試檔；
+- 從 scratchpad 的備份複製回來；
+- 最後以 `diff -q` 確認與備份相同。
