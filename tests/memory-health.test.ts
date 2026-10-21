@@ -580,3 +580,170 @@ test('issue 0016 AC-3：健康報告的 backfill 區塊列出來源狀態與原�
     assert.match(formatMemoryHealthMarkdown(report), /^- Backfill Source State: pending$/m);
   });
 });
+
+// ---- issue 0018：本機資料庫沒讀到時照樣產生報告 ----
+
+function writeNotSqlite(file: string): void {
+  fs.writeFileSync(file, 'this is not a sqlite database, just text '.repeat(40));
+}
+
+function writeLocalArchive(tempDir: string): string {
+  const archivePath = path.join(tempDir, 'archive', 'sessions.db');
+  writeArchiveDb(archivePath, [
+    { id: 'session-from-checkpoint', timestamp: '2026-05-31T10:38:00.556Z' }
+  ]);
+  process.env.MEMORIA_ARCHIVE_DB = archivePath;
+  return archivePath;
+}
+
+function memoryHealthIssueCount(): number {
+  return getRecentIssues().filter((issue) => issue.scope.startsWith('memory-health')).length;
+}
+
+test('AC-1：運作資料庫不存在時是 unavailable，數字為 null，不 throw', async () => {
+  await withArchiveEnv({}, async ({ dbDir }) => {
+    writeRetrievalDb(dbDir, []);
+
+    const report = collectMemoryHealthReport();
+
+    assert.equal(report.operational.status, 'unavailable');
+    assert.match(report.operational.detail ?? '', /moltbot\.db/);
+    assert.equal(report.operational.exists, false);
+    assert.equal(report.operational.totalMessages, null);
+    assert.equal(report.operational.totalSchedules, null);
+    assert.equal(report.operational.lastMessageAt, null);
+    assert.equal(report.operational.modelResponses24h, null);
+    assert.equal(report.retrieval.status, 'ok');
+    assert.equal(report.retrieval.detail, null);
+
+    const markdown = formatMemoryHealthMarkdown(report);
+    assert.match(markdown, /- Operational Status: unavailable\n/);
+    assert.match(markdown, /- Operational Detail: \S/);
+    assert.match(markdown, /- Operational Total Messages: unknown\n/);
+    assert.match(markdown, /- Operational Total Schedules: unknown\n/);
+    assert.match(markdown, /- Operational Last Message At: unknown\n/);
+    assert.match(markdown, /- Operational Model Responses 24h: unknown\n/);
+  });
+});
+
+for (const [label, prepare] of [
+  ['不是 SQLite 檔', (file: string) => writeNotSqlite(file)],
+  ['缺少資料表', (file: string) => new Database(file).close()]
+] as const) {
+  test(`AC-1／AC-2：運作資料庫${label}時是 error，數字與推算的缺口都是 null，不記 runtime issue`, async () => {
+    await withArchiveEnv({}, async ({ tempDir, dbDir }) => {
+      writeLocalArchive(tempDir);
+      writeRetrievalDb(dbDir, []);
+      prepare(path.join(dbDir, 'moltbot.db'));
+      const issuesBefore = memoryHealthIssueCount();
+
+      const report = collectMemoryHealthReport();
+
+      assert.equal(report.operational.status, 'error');
+      assert.equal(report.operational.exists, true);
+      assert.ok(report.operational.detail);
+      assert.equal(report.operational.totalMessages, null);
+      assert.equal(report.operational.modelResponses24h, null);
+      assert.equal(report.archive.status, 'ok');
+      assert.equal(report.archive.sessions24h, 0);
+      assert.equal(report.archive.estimatedGapRecent24h, null);
+      assert.equal(memoryHealthIssueCount(), issuesBefore);
+
+      const markdown = formatMemoryHealthMarkdown(report);
+      assert.match(markdown, /- Operational Status: error\n/);
+      assert.match(markdown, /- Archive Estimated Gap Recent 24h: unknown\n/);
+    });
+  });
+}
+
+test('AC-1／AC-2：檢索資料庫不是 SQLite 檔時是 error，orphan 檢查是 error、ok 為 null', async () => {
+  await withArchiveEnv({}, async ({ tempDir, dbDir, checkpointFile }) => {
+    writeLocalArchive(tempDir);
+    writeOperationalDbWithRecentModelReply(dbDir);
+    writeCheckpoint(checkpointFile);
+    writeNotSqlite(path.join(dbDir, 'memory.db'));
+    const issuesBefore = memoryHealthIssueCount();
+
+    const report = collectMemoryHealthReport();
+
+    assert.equal(report.retrieval.status, 'error');
+    assert.match(report.retrieval.detail ?? '', /not a database/);
+    assert.equal(report.retrieval.exists, true);
+    assert.equal(report.retrieval.entities, null);
+    assert.equal(report.retrieval.observations, null);
+    assert.equal(report.retrieval.relations, null);
+    assert.equal(report.consistency.checks.orphanSourceSession, 'error');
+    assert.equal(report.consistency.orphanSourceSessionObservations, null);
+    assert.equal(report.consistency.sourceSessionTaggedObservations, null);
+    assert.equal(report.consistency.observationsMissingSourceSession, null);
+    // checkpoint 兩項不讀檢索資料庫，照常檢查
+    assert.equal(report.consistency.checks.checkpointSession, 'checked');
+    assert.equal(report.consistency.checks.checkpointAhead, 'checked');
+    assert.equal(report.consistency.ok, null);
+    assert.equal(report.operational.status, 'ok');
+    assert.equal(report.operational.modelResponses24h, 1);
+    assert.equal(memoryHealthIssueCount(), issuesBefore);
+
+    const markdown = formatMemoryHealthMarkdown(report);
+    assert.match(markdown, /- Retrieval Status: error\n/);
+    assert.match(markdown, /- Retrieval Detail: \S/);
+    assert.match(markdown, /- Retrieval Entities: unknown\n/);
+    assert.match(markdown, /- Retrieval Observations: unknown\n/);
+    assert.match(markdown, /- Retrieval Relations: unknown\n/);
+    assert.match(markdown, /- Consistency Check Orphan Source Session: error\n/);
+    assert.match(markdown, /- Consistency Tagged Observations: unknown\n/);
+    assert.match(markdown, /- Consistency Missing Source Session Tag: unknown\n/);
+    assert.match(markdown, /- Consistency OK: unknown\n/);
+  });
+});
+
+test('AC-1／AC-2：檢索資料庫不存在時是 unavailable，orphan 檢查 skipped，其餘通過即 ok=true', async () => {
+  await withArchiveEnv({}, async ({ tempDir, dbDir, checkpointFile }) => {
+    writeLocalArchive(tempDir);
+    writeOperationalDbWithRecentModelReply(dbDir);
+    writeCheckpoint(checkpointFile);
+
+    const report = collectMemoryHealthReport();
+
+    assert.equal(report.retrieval.status, 'unavailable');
+    assert.match(report.retrieval.detail ?? '', /memory\.db/);
+    assert.equal(report.retrieval.exists, false);
+    assert.equal(report.retrieval.entities, null);
+    assert.equal(report.retrieval.observations, null);
+    assert.equal(report.retrieval.relations, null);
+    assert.equal(report.consistency.checks.orphanSourceSession, 'skipped');
+    assert.equal(report.consistency.orphanSourceSessionObservations, 0);
+    assert.equal(report.consistency.sourceSessionTaggedObservations, 0);
+    assert.equal(report.consistency.observationsMissingSourceSession, 0);
+    assert.equal(report.consistency.checks.checkpointSession, 'checked');
+    assert.equal(report.consistency.checks.checkpointAhead, 'checked');
+    assert.equal(report.consistency.ok, true);
+
+    const markdown = formatMemoryHealthMarkdown(report);
+    assert.match(markdown, /- Retrieval Status: unavailable\n/);
+    assert.match(markdown, /- Retrieval Entities: unknown\n/);
+    assert.match(markdown, /- Consistency Check Orphan Source Session: skipped\n/);
+    assert.match(markdown, /- Consistency OK: true\n/);
+  });
+});
+
+test('AC-1：兩個本機資料庫都可讀時狀態是 ok、detail 為 null', async () => {
+  await withArchiveEnv({}, async ({ dbDir }) => {
+    writeOperationalDbWithRecentModelReply(dbDir);
+    writeRetrievalDb(dbDir, ['tagged [source_session=s1]']);
+
+    const report = collectMemoryHealthReport();
+
+    assert.equal(report.operational.status, 'ok');
+    assert.equal(report.operational.detail, null);
+    assert.equal(report.operational.totalMessages, 1);
+    assert.equal(report.retrieval.status, 'ok');
+    assert.equal(report.retrieval.detail, null);
+    assert.equal(report.retrieval.observations, 1);
+
+    const markdown = formatMemoryHealthMarkdown(report);
+    assert.match(markdown, /- Operational Status: ok\n/);
+    assert.match(markdown, /- Operational Detail: \(none\)\n/);
+    assert.match(markdown, /- Retrieval Status: ok\n/);
+  });
+});

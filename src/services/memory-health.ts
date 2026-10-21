@@ -27,7 +27,9 @@ export type BackfillCheckpoint = {
  * 本服務不讀取（issue 0017 決定不為此呼叫 Memoria API）。
  */
 export type ArchiveSource = 'local' | 'remote';
-export type ArchiveStatus = 'ok' | 'unavailable' | 'error';
+/** 讀取狀態：`unavailable` 是檔案不存在，`error` 是檔案在但讀不了；兩者的數字欄位都是 null */
+export type ReadStatus = 'ok' | 'unavailable' | 'error';
+export type ArchiveStatus = ReadStatus;
 /** `skipped` 是沒有可檢查的對象（例如沒有 checkpoint），視為通過；`unsupported` / `error` 是沒檢查到。 */
 export type ConsistencyCheckStatus = 'checked' | 'skipped' | 'unsupported' | 'error';
 
@@ -41,18 +43,23 @@ export type MemoryHealthReport = {
     archiveDb: string;
     checkpointFile: string;
   };
+  /** 以下兩個區塊的數字欄位在 status 不是 ok 時是 null，不是 0 */
   operational: {
     exists: boolean;
-    totalMessages: number;
-    totalSchedules: number;
+    status: ReadStatus;
+    detail: string | null;
+    totalMessages: number | null;
+    totalSchedules: number | null;
     lastMessageAt: string | null;
-    modelResponses24h: number;
+    modelResponses24h: number | null;
   };
   retrieval: {
     exists: boolean;
-    entities: number;
-    observations: number;
-    relations: number;
+    status: ReadStatus;
+    detail: string | null;
+    entities: number | null;
+    observations: number | null;
+    relations: number | null;
   };
   archive: {
     enabled: boolean;
@@ -93,9 +100,10 @@ export type MemoryHealthReport = {
       checkpointSession: ConsistencyCheckStatus;
       checkpointAhead: ConsistencyCheckStatus;
     };
-    sourceSessionTaggedObservations: number;
+    /** 檢索資料庫讀不了時是 null */
+    sourceSessionTaggedObservations: number | null;
     orphanSourceSessionObservations: number | null;
-    observationsMissingSourceSession: number;
+    observationsMissingSourceSession: number | null;
     checkpointAheadOfArchive: boolean | null;
     checkpointSessionMissing: boolean | null;
   };
@@ -152,25 +160,110 @@ function readCheckpoint(checkpointPath: string): BackfillCheckpoint | null {
   }
 }
 
-function getSqliteCounts(
-  dbPath: string,
-  queries: Array<{ key: string; sql: string }>
-): Record<string, number> {
-  if (!fs.existsSync(dbPath)) {
-    return Object.fromEntries(queries.map((item) => [item.key, 0]));
-  }
+type LocalRead<T> = {
+  exists: boolean;
+  status: ReadStatus;
+  detail: string | null;
+  values: T | null;
+};
 
-  const db = new Database(dbPath, { readonly: true, fileMustExist: true });
-  try {
-    const counts: Record<string, number> = {};
-    for (const query of queries) {
-      const row = db.prepare(query.sql).get() as { count?: number } | undefined;
-      counts[query.key] = row?.count || 0;
-    }
-    return counts;
-  } finally {
-    db.close();
+/**
+ * 讀本機資料庫。讀不了（不是 SQLite、缺資料表…）時回 error 而不 throw：這份報告每輪 context
+ * snapshot 都會重算，throw 會讓整批 snapshot 停止更新。比照封存，失敗只寫在報告裡、不記 runtime issue。
+ */
+function readLocalDb<T>(
+  dbPath: string,
+  label: string,
+  read: (db: Database.Database) => T
+): LocalRead<T> {
+  if (!fs.existsSync(dbPath)) {
+    return {
+      exists: false,
+      status: 'unavailable',
+      detail: `找不到${label}：${dbPath}`,
+      values: null
+    };
   }
+  try {
+    const db = new Database(dbPath, { readonly: true, fileMustExist: true });
+    try {
+      return { exists: true, status: 'ok', detail: null, values: read(db) };
+    } finally {
+      db.close();
+    }
+  } catch (err) {
+    return {
+      exists: true,
+      status: 'error',
+      detail: err instanceof Error ? err.message : String(err),
+      values: null
+    };
+  }
+}
+
+type OperationalStats = {
+  totalMessages: number;
+  totalSchedules: number;
+  lastMessageAt: string | null;
+  modelResponses24h: number;
+};
+
+function readOperationalStats(db: Database.Database): OperationalStats {
+  const messageStats = db
+    .prepare(`SELECT COUNT(*) as total, MAX(timestamp) as last_message_at FROM messages`)
+    .get() as { total?: number; last_message_at?: number };
+  const scheduleStats = db.prepare(`SELECT COUNT(*) as count FROM schedules`).get() as {
+    count?: number;
+  };
+  const cutoffMs = Date.now() - 24 * 60 * 60 * 1000;
+  const modelStats = db
+    .prepare(`SELECT COUNT(*) as count FROM messages WHERE role = 'model' AND timestamp >= ?`)
+    .get(cutoffMs) as { count?: number };
+  return {
+    totalMessages: messageStats.total || 0,
+    lastMessageAt:
+      typeof messageStats.last_message_at === 'number' && messageStats.last_message_at > 0
+        ? new Date(messageStats.last_message_at).toISOString()
+        : null,
+    totalSchedules: scheduleStats.count || 0,
+    modelResponses24h: modelStats.count || 0
+  };
+}
+
+type RetrievalRows = {
+  entities: number;
+  observations: number;
+  relations: number;
+  /** 不含 `[source_session=` 字面值的觀察數 */
+  untaggedObservations: number;
+  /** 含該字面值、要再跑 regex 判定的觀察內容 */
+  candidateContents: Array<string | undefined>;
+};
+
+function readRetrievalRows(db: Database.Database): RetrievalRows {
+  const count = (sql: string) =>
+    (db.prepare(sql).get() as { count?: number } | undefined)?.count || 0;
+  // 這份報告每次 context snapshot 都會重算,先前是 `SELECT content FROM observations` 把整張表
+  // 的內容拉進記憶體再逐列跑 regex。extractSourceSessionId 的 pattern 必然含 `[source_session=`
+  // 這段字面值,而 SQLite 的 LIKE 對 ASCII 預設不分大小寫,和 regex 的 /i 一致——所以不含該
+  // 子字串的列不可能命中,可以只用 COUNT 算掉、完全不搬運內容(實測生產資料 100% 屬於此類)。
+  // 命中 LIKE 的列仍照舊跑原本的 regex,語意與先前逐列掃描完全相同。
+  const MARKER_LIKE = '%[source_session=%';
+  const untagged = db
+    .prepare(
+      `SELECT COUNT(*) as count FROM observations WHERE content IS NULL OR content NOT LIKE ?`
+    )
+    .get(MARKER_LIKE) as { count?: number } | undefined;
+  const candidates = db
+    .prepare(`SELECT content FROM observations WHERE content LIKE ?`)
+    .all(MARKER_LIKE) as Array<{ content?: string }>;
+  return {
+    entities: count('SELECT COUNT(*) as count FROM entities'),
+    observations: count('SELECT COUNT(*) as count FROM observations'),
+    relations: count('SELECT COUNT(*) as count FROM relations'),
+    untaggedObservations: untagged?.count || 0,
+    candidateContents: candidates.map((row) => row.content)
+  };
 }
 
 function extractSourceSessionId(content: string | null | undefined): string | null {
@@ -349,7 +442,7 @@ function checkCheckpointField(
 }
 
 function collectConsistencyReport(
-  retrievalDb: string,
+  retrieval: LocalRead<RetrievalRows>,
   archive: ArchiveRead,
   checkpoint: BackfillCheckpoint | null
 ): ConsistencyReport {
@@ -357,43 +450,27 @@ function collectConsistencyReport(
   const archiveCheck: ConsistencyCheckStatus =
     archive.status === 'ok' ? 'checked' : archive.status === 'error' ? 'error' : 'unsupported';
   const archiveSessionIds = archive.sessionIds;
+  // orphan 檢查還要有觀察可查：檢索資料庫不存在就沒有對象（skipped），讀不了則是沒檢查到（error）
+  const orphanCheck: ConsistencyCheckStatus =
+    retrieval.status === 'error'
+      ? 'error'
+      : retrieval.status === 'unavailable'
+        ? 'skipped'
+        : archiveCheck;
 
   let sourceSessionTaggedObservations = 0;
-  let observationsMissingSourceSession = 0;
+  let observationsMissingSourceSession = retrieval.values?.untaggedObservations ?? 0;
   let orphanSourceSessionObservations = 0;
 
-  if (fs.existsSync(retrievalDb)) {
-    const db = new Database(retrievalDb, { readonly: true, fileMustExist: true });
-    try {
-      // 這份報告每次 context snapshot 都會重算,先前是 `SELECT content FROM observations` 把整張表
-      // 的內容拉進記憶體再逐列跑 regex。extractSourceSessionId 的 pattern 必然含 `[source_session=`
-      // 這段字面值,而 SQLite 的 LIKE 對 ASCII 預設不分大小寫,和 regex 的 /i 一致——所以不含該
-      // 子字串的列不可能命中,可以只用 COUNT 算掉、完全不搬運內容(實測生產資料 100% 屬於此類)。
-      // 命中 LIKE 的列仍照舊跑原本的 regex,語意與先前逐列掃描完全相同。
-      const MARKER_LIKE = '%[source_session=%';
-      const missingRow = db
-        .prepare(
-          `SELECT COUNT(*) as count FROM observations WHERE content IS NULL OR content NOT LIKE ?`
-        )
-        .get(MARKER_LIKE) as { count?: number } | undefined;
-      observationsMissingSourceSession = missingRow?.count || 0;
-
-      const candidates = db
-        .prepare(`SELECT content FROM observations WHERE content LIKE ?`)
-        .all(MARKER_LIKE) as Array<{ content?: string }>;
-      for (const row of candidates) {
-        const sessionId = extractSourceSessionId(row.content);
-        if (!sessionId) {
-          observationsMissingSourceSession += 1;
-          continue;
-        }
-        sourceSessionTaggedObservations += 1;
-        if (archiveSessionIds && !archiveSessionIds.has(sessionId)) {
-          orphanSourceSessionObservations += 1;
-        }
-      }
-    } finally {
-      db.close();
+  for (const content of retrieval.values?.candidateContents ?? []) {
+    const sessionId = extractSourceSessionId(content);
+    if (!sessionId) {
+      observationsMissingSourceSession += 1;
+      continue;
+    }
+    sourceSessionTaggedObservations += 1;
+    if (archiveSessionIds && !archiveSessionIds.has(sessionId)) {
+      orphanSourceSessionObservations += 1;
     }
   }
 
@@ -413,25 +490,28 @@ function collectConsistencyReport(
   );
 
   const checks = {
-    orphanSourceSession: archiveCheck,
+    orphanSourceSession: orphanCheck,
     checkpointSession: checkpointSession.status,
     checkpointAhead: checkpointAhead.status
   };
   const foundProblem =
-    (archiveCheck === 'checked' && orphanSourceSessionObservations > 0) ||
+    (orphanCheck === 'checked' && orphanSourceSessionObservations > 0) ||
     checkpointSession.problem === true ||
     checkpointAhead.problem === true;
   const allChecked = Object.values(checks).every(
     (status) => status === 'checked' || status === 'skipped'
   );
 
+  const retrievalRead = retrieval.status !== 'error';
   return {
     ok: foundProblem ? false : allChecked ? true : null,
     checks,
-    sourceSessionTaggedObservations,
+    sourceSessionTaggedObservations: retrievalRead ? sourceSessionTaggedObservations : null,
     orphanSourceSessionObservations:
-      archiveCheck === 'checked' ? orphanSourceSessionObservations : null,
-    observationsMissingSourceSession,
+      orphanCheck === 'checked' || orphanCheck === 'skipped'
+        ? orphanSourceSessionObservations
+        : null,
+    observationsMissingSourceSession: retrievalRead ? observationsMissingSourceSession : null,
     checkpointAheadOfArchive: checkpointAhead.problem,
     checkpointSessionMissing: checkpointSession.problem
   };
@@ -458,56 +538,24 @@ export function collectMemoryHealthReport(): MemoryHealthReport {
   const checkpoint = readCheckpoint(checkpointFile);
   const generatedAt = new Date().toISOString();
 
-  let totalMessages = 0;
-  let totalSchedules = 0;
-  let lastMessageAt: string | null = null;
-  let modelResponses24h = 0;
-
-  if (fs.existsSync(operationalDb)) {
-    const db = new Database(operationalDb, { readonly: true, fileMustExist: true });
-    try {
-      const messageStats = db
-        .prepare(`SELECT COUNT(*) as total, MAX(timestamp) as last_message_at FROM messages`)
-        .get() as { total?: number; last_message_at?: number };
-      totalMessages = messageStats.total || 0;
-      lastMessageAt =
-        typeof messageStats.last_message_at === 'number' && messageStats.last_message_at > 0
-          ? new Date(messageStats.last_message_at).toISOString()
-          : null;
-
-      const scheduleStats = db.prepare(`SELECT COUNT(*) as count FROM schedules`).get() as {
-        count?: number;
-      };
-      totalSchedules = scheduleStats.count || 0;
-
-      const cutoffMs = Date.now() - 24 * 60 * 60 * 1000;
-      const modelStats = db
-        .prepare(`SELECT COUNT(*) as count FROM messages WHERE role = 'model' AND timestamp >= ?`)
-        .get(cutoffMs) as { count?: number };
-      modelResponses24h = modelStats.count || 0;
-    } finally {
-      db.close();
-    }
-  }
-
-  const retrievalCounts = getSqliteCounts(retrievalDb, [
-    { key: 'entities', sql: 'SELECT COUNT(*) as count FROM entities' },
-    { key: 'observations', sql: 'SELECT COUNT(*) as count FROM observations' },
-    { key: 'relations', sql: 'SELECT COUNT(*) as count FROM relations' }
-  ]);
+  const operational = readLocalDb(operationalDb, '運作資料庫', readOperationalStats);
+  const retrieval = readLocalDb(retrievalDb, '檢索資料庫', readRetrievalRows);
 
   const archive = readArchive(archiveDb);
 
   const syncFailures24h = countRecentMemoriaIssues();
+  const modelResponses24h = operational.values?.modelResponses24h ?? null;
   const estimatedGapRecent24h =
-    archive.sessions24h === null ? null : Math.max(modelResponses24h - archive.sessions24h, 0);
+    archive.sessions24h === null || modelResponses24h === null
+      ? null
+      : Math.max(modelResponses24h - archive.sessions24h, 0);
   const archiveEnabled =
     (process.env.MEMORIA_SYNC_ENABLED || 'auto').trim().toLowerCase() !== 'off';
   const backfillEnabled =
     (process.env.MEMORY_BACKFILL_ENABLED || 'false').trim().toLowerCase() === 'true';
   const dryRunRaw = (process.env.MEMORY_BACKFILL_DRY_RUN || 'true').trim().toLowerCase();
   const backfillDryRun = !(dryRunRaw === 'false' || dryRunRaw === '0' || dryRunRaw === 'off');
-  const consistency = collectConsistencyReport(retrievalDb, archive, checkpoint);
+  const consistency = collectConsistencyReport(retrieval, archive, checkpoint);
   const backfillSource = judgeBackfillSource(archive, checkpoint, archiveDb);
 
   return {
@@ -521,17 +569,21 @@ export function collectMemoryHealthReport(): MemoryHealthReport {
       checkpointFile
     },
     operational: {
-      exists: fs.existsSync(operationalDb),
-      totalMessages,
-      totalSchedules,
-      lastMessageAt,
+      exists: operational.exists,
+      status: operational.status,
+      detail: operational.detail,
+      totalMessages: operational.values?.totalMessages ?? null,
+      totalSchedules: operational.values?.totalSchedules ?? null,
+      lastMessageAt: operational.values?.lastMessageAt ?? null,
       modelResponses24h
     },
     retrieval: {
-      exists: fs.existsSync(retrievalDb),
-      entities: retrievalCounts.entities || 0,
-      observations: retrievalCounts.observations || 0,
-      relations: retrievalCounts.relations || 0
+      exists: retrieval.exists,
+      status: retrieval.status,
+      detail: retrieval.detail,
+      entities: retrieval.values?.entities ?? null,
+      observations: retrieval.values?.observations ?? null,
+      relations: retrieval.values?.relations ?? null
     },
     archive: {
       enabled: archiveEnabled,
@@ -589,14 +641,18 @@ export function formatMemoryHealthMarkdown(report: MemoryHealthReport): string {
     `- Archive Sync Failures 24h: ${report.archive.syncFailures24h}`,
     `- Archive Estimated Gap Recent 24h: ${orUnknown(report.archive.estimatedGapRecent24h)}`,
     `- Operational DB Exists: ${String(report.operational.exists)}`,
-    `- Operational Total Messages: ${report.operational.totalMessages}`,
-    `- Operational Total Schedules: ${report.operational.totalSchedules}`,
-    `- Operational Last Message At: ${report.operational.lastMessageAt || '(none)'}`,
-    `- Operational Model Responses 24h: ${report.operational.modelResponses24h}`,
+    `- Operational Status: ${report.operational.status}`,
+    `- Operational Detail: ${report.operational.detail || '(none)'}`,
+    `- Operational Total Messages: ${orUnknown(report.operational.totalMessages)}`,
+    `- Operational Total Schedules: ${orUnknown(report.operational.totalSchedules)}`,
+    `- Operational Last Message At: ${report.operational.status === 'ok' ? report.operational.lastMessageAt || '(none)' : 'unknown'}`,
+    `- Operational Model Responses 24h: ${orUnknown(report.operational.modelResponses24h)}`,
     `- Retrieval DB Exists: ${String(report.retrieval.exists)}`,
-    `- Retrieval Entities: ${report.retrieval.entities}`,
-    `- Retrieval Observations: ${report.retrieval.observations}`,
-    `- Retrieval Relations: ${report.retrieval.relations}`,
+    `- Retrieval Status: ${report.retrieval.status}`,
+    `- Retrieval Detail: ${report.retrieval.detail || '(none)'}`,
+    `- Retrieval Entities: ${orUnknown(report.retrieval.entities)}`,
+    `- Retrieval Observations: ${orUnknown(report.retrieval.observations)}`,
+    `- Retrieval Relations: ${orUnknown(report.retrieval.relations)}`,
     `- Backfill Enabled: ${String(report.backfill.enabled)}`,
     `- Backfill Dry Run: ${String(report.backfill.dryRun)}`,
     `- Backfill Source State: ${report.backfill.sourceState}`,
@@ -615,9 +671,9 @@ export function formatMemoryHealthMarkdown(report: MemoryHealthReport): string {
     `- Consistency Check Orphan Source Session: ${checks.orphanSourceSession}`,
     `- Consistency Check Checkpoint Session: ${checks.checkpointSession}`,
     `- Consistency Check Checkpoint Ahead: ${checks.checkpointAhead}`,
-    `- Consistency Tagged Observations: ${report.consistency.sourceSessionTaggedObservations}`,
+    `- Consistency Tagged Observations: ${orUnknown(report.consistency.sourceSessionTaggedObservations)}`,
     `- Consistency Orphan Observations: ${orUnknown(report.consistency.orphanSourceSessionObservations)}`,
-    `- Consistency Missing Source Session Tag: ${report.consistency.observationsMissingSourceSession}`,
+    `- Consistency Missing Source Session Tag: ${orUnknown(report.consistency.observationsMissingSourceSession)}`,
     `- Consistency Checkpoint Ahead Of Archive: ${orUnknown(report.consistency.checkpointAheadOfArchive)}`,
     `- Consistency Checkpoint Session Missing: ${orUnknown(report.consistency.checkpointSessionMissing)}`,
     '',
