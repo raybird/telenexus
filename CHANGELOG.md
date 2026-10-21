@@ -39,7 +39,7 @@
 #16 要求在「支援遠端回填」和「正式標成不支援」之間做選擇。這一版選了正式標成不支援，原因有兩個：
 
 - Memoria 的 HTTP API 沒有可分頁、可 checkpoint 的 session 列出 API；
-- 回填寫入的 `memory.db` 目前沒有聊天路徑會讀。
+- 遠端模式下回填本來就讀不到封存。（更正，2026-10-21：發版時這裡寫「`memory.db` 沒有聊天路徑會讀」，這句不對。TeleNexus 的 prompt 組裝確實不讀 `memory.db`，但 opencode 的 `mcp-memory-libsql` MCP 工具會讀寫它，見 `workspace/.opencode/opencode.json`。）
 
 具體改變：
 

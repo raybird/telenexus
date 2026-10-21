@@ -15,7 +15,8 @@ GitHub #16 要求「明確選擇支援遠端回填（透過可分頁、可 check
 
 已確認的現況：
 - Memoria 的 HTTP API 只能依單一 ID 取 session 摘要（`GET /v1/sessions/:id/summary`），沒有可分頁、可 checkpoint 的 session 列出 API。部署釘的 1.28.1 和本機裝的最新版都一樣。要支援遠端回填，得先改 Memoria。
-- 回填把候選寫進 `memory.db`。在 `src/` 裡，讀寫 `memory.db` 的只有回填本身（`memory-backfill.ts`、`memory-backfill-cli.ts`）和 `memory-health.ts`。聊天組 prompt 用的是 `moltbot.db` 與 Memoria 召回。
+- 回填把候選寫進 `memory.db`。在 `src/` 裡，讀寫 `memory.db` 的只有回填本身（`memory-backfill.ts`、`memory-backfill-cli.ts`）和 `memory-health.ts`。TeleNexus 組 prompt 用的是 `moltbot.db` 與 Memoria 召回。
+  - 更正（2026-10-21，合併後發現）：原本這裡只查了 `src/`。opencode 的 MCP 設定 `workspace/.opencode/opencode.json` 有 `mcp-memory-libsql`（`LIBSQL_URL=file:../data/memory.db`），所以 agent 在聊天中可以透過 MCP 工具讀寫 `memory.db`。正式不支援的決定不受影響，它的主因是 Memoria 沒有可分頁的 session 列出 API。
 - 遠端模式的原因說明只有一個來源，是 `judgeBackfillSource()`（`src/services/memory-health.ts`），內容是「遠端 Memoria 模式：回填只讀本機的 sessions.db，目前不支援遠端封存」。同一句話會出現在三個地方：
   - worker 每輪的 `skipped. remote-unsupported: …`；
   - 健康報告的 `backfill.sourceDetail`；
@@ -84,7 +85,7 @@ GitHub #16 要求「明確選擇支援遠端回填（透過可分頁、可 check
 
 | 編號 | 事項 | 狀態 | 影響 |
 |---|---|---|---|
-| N-1 | 回填寫入的 `memory.db` 目前沒有任何聊天路徑讀取，只有回填本身和健康報告會讀寫（以 `grep` 查 `src/` 確認）。本機模式的回填要不要保留、要不要接回聊天，不在本 issue 範圍內 | 揭露，不阻塞 | 可另開 issue；是否開立由使用者決定 |
+| N-1 | 原本寫「回填寫入的 `memory.db` 目前沒有任何聊天路徑讀取」，這句不對：只查了 `src/`，漏了 opencode 的 `mcp-memory-libsql` MCP（`workspace/.opencode/opencode.json`），agent 可以透過它讀寫 `memory.db`。正確的說法是 TeleNexus 的 prompt 組裝不讀 `memory.db`，回填寫入的候選只有 agent 呼叫 MCP 工具時才會用到 | 已更正（2026-10-21） | 要不要另開 issue，依更正後的前提重新請使用者決定 |
 | N-2 | GitHub #16 要不要在合併後關閉 | 合併後由使用者決定 | 不影響驗收 |
 
 ## 實作與驗證步驟
