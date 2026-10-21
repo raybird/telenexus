@@ -10,10 +10,18 @@ export const FUNCTION_WORDS = [
   '的', '了', '嗎', '呢', '吧', '啊', '呀', '喔', '哦'
 ];
 
+// 第二版加入的單字虛詞：代名詞、助動詞、介系詞、副詞。拆開內容詞的風險較高（例如「會議」少了「會」），
+// 所以另列一份，量測時與第一份分開比較。
+export const SINGLE_CHAR_FUNCTION_WORDS = [
+  '我', '你', '他', '她', '它', '要', '在', '是', '有', '會', '就', '都', '也', '還', '再', '很',
+  '把', '被', '讓', '給', '對', '從', '到', '和', '跟', '與'
+];
+
 const sorted = [...FUNCTION_WORDS].sort((a, b) => b.length - a.length);
 
-export function stripFunctionWords(query) {
+export function stripFunctionWords(query, { singleChars = false } = {}) {
   let out = query;
   for (const word of sorted) out = out.split(word).join(' ');
+  if (singleChars) for (const word of SINGLE_CHAR_FUNCTION_WORDS) out = out.split(word).join(' ');
   return out.replace(/\s+/g, ' ').trim();
 }
