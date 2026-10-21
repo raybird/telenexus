@@ -354,7 +354,8 @@ test('issue 0016：checkpoint 的處理時間不是字串時 start() 不 throw�
 // issue 0016 第二部分：遠端模式且回填開啟時，啟動警告一次，排程照常
 async function captureStart(
   worker: MemoryBackfillWorker,
-  waitMs: number
+  waitMs: number,
+  afterStart?: () => Promise<void>
 ): Promise<{ logs: string[]; warns: string[] }> {
   const logs: string[] = [];
   const warns: string[] = [];
@@ -365,6 +366,7 @@ async function captureStart(
   try {
     worker.start();
     await new Promise((resolve) => setTimeout(resolve, waitMs));
+    await afterStart?.();
   } finally {
     worker.shutdown();
     console.log = originalLog;
@@ -385,19 +387,24 @@ test('issue 0016 第二部分 AC-2：遠端模式開啟回填時，啟動用 war
         return makeReport();
       }
     });
-    const { logs, warns } = await captureStart(worker, 50);
+    // 再跑一輪 interval：警告只在啟動時印，不會每輪都印
+    const { logs, warns } = await captureStart(worker, 50, () => worker.runOnce('interval'));
     assert.equal(warns.length, 1, warns.join('\n'));
     assert.match(warns[0] ?? '', /遠端 Memoria 模式不支援回填/);
+    assert.match(warns[0] ?? '', /每輪只會印 skipped/);
     assert.match(warns[0] ?? '', /MEMORY_BACKFILL_ENABLED 設為 false/);
     assert.ok(
       logs.some((line) => /Starting\. .*source=remote/.test(line)),
       logs.join('\n')
     );
-    // 排程照常建立：startup 那一輪有跑，而且照舊印 skipped
-    assert.ok(
-      logs.some((line) => line.includes('startup skipped. remote-unsupported: ')),
-      logs.join('\n')
-    );
+    // 排程照常建立：startup 那一輪有跑；startup 與 interval 各印一行 skipped
+    for (const trigger of ['startup', 'interval']) {
+      assert.equal(
+        logs.filter((line) => line.includes(`${trigger} skipped. remote-unsupported: `)).length,
+        1,
+        logs.join('\n')
+      );
+    }
     assert.equal(runCount, 0);
   });
 });
