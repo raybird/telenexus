@@ -101,17 +101,18 @@ npm run memoria:migrate-legacy-scope -- [同上]
    - 完成判準：SCN-012 的各項數字都列出，且舊決策命中數高於遷移前、排程與其他 scope 的注入為 0；回復後內容雜湊相同。
    - 相依：步驟 3。
    - 完成證據：[evidence/step4-end-to-end.md](evidence/step4-end-to-end.md)——照文件跑完整流程，回復後各資料表與寫入前相同；舊決策 0/10 → 7/10，排程與其他 scope 的注入為 0；兩位使用者的合成資料各自隔離。量測時發現 summary 截斷會切開 emoji，依使用者決定新增 SCN-013 並修正（`cf5cbff`），再以修正後的映像重跑一次。
-5. ⏳ **操作文件與常青文件**
+5. ✅ **操作文件與常青文件**
    - 做法：`docs/installation.md` 的「升級」下新增舊記憶遷移一節，寫明預覽、停止、寫入、重建索引、啟動與回復的命令，以及 Memoria 停止期間同步會進 hook queue。依需要更新 `docs/configuration-reference.md`。以步驟 4 的量測結果起草 TBD-1 的 GitHub issue。
    - 產出：文件變更；TBD-1 的 issue 草稿。
    - 完成判準：文件的命令與步驟 4 實際跑過的一致；`npm run build`、`npm run test`、`npm run lint` 通過。
    - 相依：步驟 4。
+   - 完成證據：`docs/installation.md`「升級」下新增「舊版記憶遷移」一節，命令就是步驟 4 實際跑過的那一組（預覽、停止、寫入、重建索引、啟動、回復），並寫明完整 volume 名稱、`--user 1000:1000`、必須用 `docker compose run` 的原因，以及遷移期間停整組服務。`docs/configuration-reference.md` 不需要改：工具沒有新增環境變數，只沿用 `MEMORIA_ENDPOINT`。TBD-1 已另開 GitHub #19。build、test、lint 的結果見步驟 4 的交付檢查；這一步只改文件。
 
 ## 檢查清單
 
-- [ ] 步驟 1 的前提都已驗證，CLI 設計已依結果修訂
-- [ ] SCN-001～SCN-012 都有對應證據
-- [ ] 測試與 CLI 都在 `env -u MEMORIA_HOME -u MEMORIA_ARCHIVE_DB` 下執行，沒有碰到 `~/.memoria` 與正式部署
-- [ ] 公開證據已去識別化
-- [ ] `npm run build`、`npm run test`（核對 `# tests` 數與測試檔數）、`npm run lint` 通過
-- [ ] 改 symbol 前跑 `gitnexus_impact` 並 `grep`；提交前跑 `detect_changes`
+- [x] 步驟 1 的前提都已驗證，CLI 設計已依結果修訂
+- [x] SCN-001～SCN-013 都有對應證據
+- [x] 測試與 CLI 都在 `env -u MEMORIA_HOME -u MEMORIA_ARCHIVE_DB` 下執行，沒有碰到 `~/.memoria` 與正式部署
+- [x] 公開證據已去識別化
+- [x] `npm run build`、`npm run test`（核對 `# tests` 數與測試檔數）、`npm run lint` 通過
+- [x] 改 symbol 前跑 `gitnexus_impact` 並 `grep`；提交前跑 `detect_changes`

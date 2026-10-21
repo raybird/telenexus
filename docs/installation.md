@@ -52,6 +52,46 @@ curl -fsSL https://raw.githubusercontent.com/raybird/telenexus/main/scripts/inst
 
 `--upgrade` 會重新下載最新 bundle 覆蓋部署檔（`.env`、`ai-config.yaml`、`data/`、`workspace/` 完整保留），然後 `docker compose pull` 拉新映像並 `--force-recreate` 換上。
 
+### 舊版記憶遷移（2026-08-14 以前的部署）
+
+2026-08-14 以前同步到 Memoria 的對話都在 `project:TeleNexus` 分區，summary 也只是 `user=… platform=…` 這類 metadata。現在的聊天只查 `user:<id>`，所以這些舊記憶找不到。遷移工具依每筆對話事件記錄的 `platform` 與 `user_id`，把舊資料分到 `user:<id>`（Telegram、Web 對話與 passthrough 指令）或 `scheduler:<id>`（排程產出），並從事件重建 summary。歸屬不明的會留在原處，列在人工審閱清單。
+
+以下命令都在部署目錄執行。`<專案>` 是 Compose 專案名稱，預設是部署目錄的名稱，可以用 `docker volume ls | grep memoria_data` 確認。
+
+```bash
+# 1. 預覽：只讀，不改任何東西，Memoria 不用停
+docker compose run --rm --no-deps --user 1000:1000 -v <專案>_memoria_data:/memoria \
+  telenexus node dist/tools/memoria-legacy-scope-cli.js --db /memoria/.memory/sessions.db
+
+# 2. 停止整組服務；遷移期間的對話不會同步進 Memoria
+docker compose stop
+
+# 3. 寫入：先在 volume 內備份整個資料庫，再改寫並留下遷移紀錄
+docker compose run --rm --no-deps --user 1000:1000 -v <專案>_memoria_data:/memoria \
+  telenexus node dist/tools/memoria-legacy-scope-cli.js --db /memoria/.memory/sessions.db --write
+
+# 4. 重建索引，再啟動
+docker compose run --rm --no-deps memoria memoria index build
+docker compose start
+```
+
+- **volume 一定要寫完整名稱**：寫成 `memoria_data:/memoria` 時，Compose 會另外建一個空的 volume，工具會因為找不到資料庫而結束。
+- **`--user 1000:1000`**：Memoria 映像的檔案屬於 UID 1000；`.env` 的 `PUID` 不是 1000 時，沒加這個參數會寫不進去。
+- **用 `docker compose run`**：工具寫入前會連 `MEMORIA_ENDPOINT` 確認 Memoria 已停止，連得上就拒絕寫入。單純 `docker run` 不在 Compose 的網路裡，做不了這個檢查。
+- **重跑安全**：已遷移的不會再處理；沒有可遷移的資料時不會產生新的備份。
+- **輸出位置**：備份與遷移紀錄在 volume 的 `/.memory/legacy-scope-migration/<時間戳>/`，檔名分別是 `sessions.backup.db` 與 `record.json`，寫入時的輸出會列出完整路徑。遷移紀錄含 session ID，請留在部署機器上。
+
+要回復到遷移前，停止服務後把備份覆蓋回去：
+
+```bash
+docker compose stop
+docker compose run --rm --no-deps memoria sh -c \
+  'cp /data/.memory/legacy-scope-migration/<時間戳>/sessions.backup.db /data/.memory/sessions.db && rm -f /data/.memory/sessions.db-wal /data/.memory/sessions.db-shm /data/.memory/sessions.db-journal'
+docker compose start
+```
+
+遷移後，無關問句的召回 confidence 會跟著語料變多而上升，可能讓不相關的舊對話被注入；門檻的重新校準另行處理（見 GitHub [#19](https://github.com/raybird/telenexus/issues/19)）。
+
 ## 指定版本與回滾
 
 ### 網頁工具切換邊界（2026-10-04）
