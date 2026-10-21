@@ -11,6 +11,7 @@ import {
 import { readHealthState } from './model-health-check.js';
 import { loadProviderStatus } from '../config/ai-config.js';
 import { getRecentIssues, recordRuntimeIssue } from '../utils/errors.js';
+import { readAppVersion } from '../utils/app-version.js';
 import type { MemoryManager } from '../core/memory.js';
 import type { MemoriaSyncStatus } from '../core/memoria-sync.js';
 import { collectMemoryHealthReport, formatMemoryHealthMarkdown } from './memory-health.js';
@@ -200,21 +201,27 @@ export function writeContextSnapshots(
     [
       'memoria-status',
       () =>
-        options.memoriaStatus
-          ? formatMemoriaStatusMarkdown(options.memoriaStatus)
-          : formatMemoriaStatusMarkdown({
-              mode: 'off',
-              available: false,
-              disabled: true,
-              endpointReachable: false,
-              endpoint: '(unknown)',
-              hookQueueEnabled: false,
-              hookQueuePollMs: 0,
-              recentFailureCount: 0,
-              lastSyncAt: null,
-              lastFailureAt: null,
-              lastFailureMessage: null
-            })
+        formatMemoriaStatusMarkdown(
+          options.memoriaStatus ?? {
+            mode: 'off',
+            available: false,
+            disabled: true,
+            endpointReachable: false,
+            endpoint: '(unknown)',
+            hookQueueEnabled: false,
+            hookQueuePollMs: 0,
+            recentFailureCount: 0,
+            lastSyncAt: null,
+            lastFailureAt: null,
+            lastFailureMessage: null
+          },
+          {
+            recallMetrics: {
+              currentVersion: readAppVersion(),
+              read: () => memory.summarizeMemoriaRecallByVersion()
+            }
+          }
+        )
     ],
     ['memory-intent-status', formatMemoryIntentTraceMarkdown],
     ['prompt-session-status', formatPromptSessionTraceMarkdown]

@@ -7,9 +7,15 @@ import path from 'node:path';
 import type { AddressInfo } from 'node:net';
 import Database from 'better-sqlite3';
 import { MemoriaRecallClient } from '../src/core/memoria-recall.js';
-import { MemoryManager } from '../src/core/memory.js';
+import { MemoryManager, type MemoriaRecallVersionSummary } from '../src/core/memory.js';
+import {
+  formatMemoriaStatusMarkdown,
+  formatRecallMetricsByVersionMarkdown
+} from '../src/services/memoria-status.js';
 import { startRecallMetricsStore } from '../src/services/recall-metrics-store.js';
 import { getRecentIssues } from '../src/utils/errors.js';
+import { readAppVersion } from '../src/utils/app-version.js';
+import { writeContextSnapshots } from '../src/services/context-snapshots.js';
 
 /**
  * Issue 0020 AC-1：每次聊天召回逐筆存進 moltbot.db 的 memoria_recall_events，跨重啟保留。
@@ -281,4 +287,187 @@ test('AC-1：寫入失敗不影響召回，只印 warn，不記 runtime issue', 
     getRecentIssues().reduce((sum, issue) => sum + issue.count, 0),
     issuesBefore
   );
+});
+
+/**
+ * Issue 0020 AC-2～AC-4：依版本彙總、樣本不足時不可判定、呈現在 memoria-status.md。
+ */
+
+function event(
+  appVersion: string,
+  ts: number,
+  overrides: Partial<Parameters<MemoryManager['appendMemoriaRecallEvent']>[0]> = {}
+): Parameters<MemoryManager['appendMemoriaRecallEvent']>[0] {
+  return {
+    ts,
+    appVersion,
+    scopeKind: 'user',
+    ok: true,
+    routeMode: 'hybrid_tree',
+    hitCount: 1,
+    droppedLowConfidence: false,
+    injected: true,
+    degraded: false,
+    latencyMs: 10,
+    ...overrides
+  };
+}
+
+function summary(
+  version: string,
+  succeeded: number,
+  overrides: Partial<MemoriaRecallVersionSummary> = {}
+): MemoriaRecallVersionSummary {
+  return {
+    version,
+    total: succeeded,
+    succeeded,
+    withHits: succeeded,
+    injected: succeeded,
+    degraded: 0,
+    firstAt: Date.UTC(2026, 9, 1),
+    lastAt: Date.UTC(2026, 9, 2),
+    ...overrides
+  };
+}
+
+test('AC-2：依版本彙總次數與比例的分子，失敗另計', async () => {
+  await withTempDb(async () => {
+    const memory = new MemoryManager();
+    const t0 = Date.now() - 10 * DAY_MS;
+    memory.appendMemoriaRecallEvent(event('2.30.1', t0));
+    memory.appendMemoriaRecallEvent(event('2.30.1', t0 + 1000, { hitCount: 0, injected: false }));
+    memory.appendMemoriaRecallEvent(
+      event('2.30.1', t0 + 2000, { ok: false, routeMode: 'error', hitCount: 0, injected: false })
+    );
+    memory.appendMemoriaRecallEvent(
+      event('2.31.0', t0 + 5 * DAY_MS, { droppedLowConfidence: true, injected: false })
+    );
+    memory.appendMemoriaRecallEvent(
+      event('2.31.0', t0 + 6 * DAY_MS, { routeMode: 'vector_unavailable', degraded: true })
+    );
+
+    const rows = memory.summarizeMemoriaRecallByVersion();
+    assert.deepEqual(
+      rows.map((row) => ({ ...row })),
+      [
+        {
+          version: '2.31.0',
+          total: 2,
+          succeeded: 2,
+          withHits: 2,
+          injected: 1,
+          degraded: 1,
+          firstAt: t0 + 5 * DAY_MS,
+          lastAt: t0 + 6 * DAY_MS
+        },
+        {
+          version: '2.30.1',
+          total: 3,
+          succeeded: 2,
+          withHits: 1,
+          injected: 1,
+          degraded: 0,
+          firstAt: t0,
+          lastAt: t0 + 2000
+        }
+      ]
+    );
+  });
+});
+
+test('AC-2／AC-4：列出目前版本與保留期內最近的前一個版本', () => {
+  const md = formatRecallMetricsByVersionMarkdown('2.31.0', () => [
+    summary('2.31.0', 40, { withHits: 30, injected: 20, degraded: 4 }),
+    summary('2.30.1', 25, { injected: 5, lastAt: Date.UTC(2026, 9, 1) }),
+    summary('2.29.0', 50, { lastAt: Date.UTC(2026, 8, 1) })
+  ]);
+  assert.match(md, /^## Recall Metrics by Version/);
+  assert.match(md, /### Current Version: 2\.31\.0/);
+  assert.match(md, /- Hit Rate: 75\.0% \(30\/40\)/);
+  assert.match(md, /- Injected Rate: 50\.0% \(20\/40\)/);
+  assert.match(md, /- Degraded Rate: 10\.0% \(4\/40\)/);
+  assert.match(md, /### Previous Version: 2\.30\.1/);
+  assert.match(md, /- Injected Rate: 20\.0% \(5\/25\)/);
+  assert.ok(!md.includes('2.29.0'), '只列最近的前一個版本');
+});
+
+for (const { succeeded, decidable } of [
+  { succeeded: 19, decidable: false },
+  { succeeded: 20, decidable: true }
+]) {
+  test(`AC-3：成功 ${succeeded} 次時${decidable ? '顯示比例' : '三個比例都是 unknown'}`, () => {
+    const md = formatRecallMetricsByVersionMarkdown('2.31.0', () => [
+      summary('2.31.0', succeeded, { total: succeeded + 3, withHits: 0, injected: 0 })
+    ]);
+    if (decidable) {
+      assert.match(md, /- Hit Rate: 0\.0% \(0\/20\)/);
+      assert.match(md, /- Injected Rate: 0\.0% \(0\/20\)/);
+      assert.match(md, /- Degraded Rate: 0\.0% \(0\/20\)/);
+    } else {
+      for (const label of ['Hit Rate', 'Injected Rate', 'Degraded Rate']) {
+        assert.match(md, new RegExp(`- ${label}: unknown（樣本不足，n=19）`));
+      }
+      assert.ok(!md.includes('0.0%'));
+    }
+    assert.match(md, new RegExp(`- Recalls: ${succeeded + 3}（成功 ${succeeded}、失敗 3）`));
+  });
+}
+
+test('AC-3：完全沒有資料時寫明尚無樣本', () => {
+  const md = formatRecallMetricsByVersionMarkdown('2.31.0', () => []);
+  assert.match(md, /### Current Version: 2\.31\.0\n- \(尚無樣本\)/);
+  assert.match(md, /### Previous Version\n- \(保留期內沒有其他版本的資料\)/);
+  assert.ok(!md.includes('%'));
+});
+
+test('AC-4：讀取資料庫失敗時該節標示失敗，memoria-status.md 其他內容照常', () => {
+  let md = '';
+  assert.doesNotThrow(() => {
+    md = formatMemoriaStatusMarkdown(
+      {
+        mode: 'on',
+        available: true,
+        disabled: false,
+        endpointReachable: true,
+        endpoint: 'http://memoria:3917',
+        hookQueueEnabled: false,
+        hookQueuePollMs: 0,
+        recentFailureCount: 0,
+        lastSyncAt: null,
+        lastFailureAt: null,
+        lastFailureMessage: null
+      },
+      {
+        recallMetrics: {
+          currentVersion: '2.31.0',
+          read: () => {
+            throw new Error('no such table: memoria_recall_events');
+          }
+        }
+      }
+    );
+  });
+  assert.match(md, /## Sync Bridge/);
+  assert.match(md, /## Recall Telemetry/);
+  assert.match(
+    md,
+    /## Recall Metrics by Version\n\n- Status: error\n- Detail: no such table: memoria_recall_events/
+  );
+});
+
+test('AC-4：writeContextSnapshots 把資料庫裡的指標寫進 memoria-status.md', async () => {
+  await withTempDb(async () => {
+    const memory = new MemoryManager();
+    for (let i = 0; i < 20; i += 1) {
+      memory.appendMemoriaRecallEvent(event(readAppVersion(), Date.now() - i * 1000));
+    }
+    writeContextSnapshots(memory);
+    const md = fs.readFileSync(
+      path.join(projectDir, 'workspace', 'context', 'memoria-status.md'),
+      'utf8'
+    );
+    assert.match(md, new RegExp(`### Current Version: ${readAppVersion().replace(/\./g, '\\.')}`));
+    assert.match(md, /- Injected Rate: 100\.0% \(20\/20\)/);
+  });
 });
