@@ -382,7 +382,9 @@ function judgeBackfillSource(
       ? {
           source,
           state: 'remote-unsupported',
-          detail: '遠端 Memoria 模式：回填只讀本機的 sessions.db，目前不支援遠端封存'
+          // 正式不支援：Memoria 沒有可分頁、可 checkpoint 的 session 列出 API（issue 0016 第二部分）
+          detail:
+            '遠端 Memoria 模式不支援回填：回填只讀本機的 sessions.db（MEMORIA_ARCHIVE_DB 或 MEMORIA_HOME 指向的檔案），請把 MEMORY_BACKFILL_ENABLED 設為 false'
         }
       : { source, state: 'unavailable', detail: `${archive.detail}：${archiveDb}` };
   }

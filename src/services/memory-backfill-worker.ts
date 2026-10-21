@@ -166,9 +166,16 @@ export class MemoryBackfillWorker {
       return;
     }
 
+    const source = currentArchiveSource();
     console.log(
-      `[MemoryBackfillWorker] Starting. mode=${this.dryRun ? 'dry-run' : 'write'} source=${currentArchiveSource()} intervalMs=${this.intervalMs} startupDelayMs=${this.startupDelayMs}`
+      `[MemoryBackfillWorker] Starting. mode=${this.dryRun ? 'dry-run' : 'write'} source=${source} intervalMs=${this.intervalMs} startupDelayMs=${this.startupDelayMs}`
     );
+    if (source === 'remote') {
+      // 照常排程，每輪仍印 skipped（issue 0016 第一部分 Q3：只印一次的話，之後看 log 會以為回填正常）
+      console.warn(
+        '[MemoryBackfillWorker] 遠端 Memoria 模式不支援回填，worker 每輪只會印 skipped；請把 MEMORY_BACKFILL_ENABLED 設為 false。'
+      );
+    }
 
     this.startupTimer = setTimeout(() => {
       void this.runOnce('startup');

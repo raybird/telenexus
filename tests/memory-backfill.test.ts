@@ -298,3 +298,18 @@ test('issue 0016 AC-4：設定的封存路徑不存在時，錯誤訊息寫明�
     );
   });
 });
+
+test('issue 0016 第二部分 AC-1：遠端模式失敗退出的訊息是正式的不支援', () => {
+  withoutArchiveEnv(() => {
+    assert.throws(
+      () => runMemoryBackfillDryRun({ saveCheckpoint: false }),
+      (error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        assert.match(message, /遠端 Memoria 模式不支援回填/);
+        assert.match(message, /MEMORY_BACKFILL_ENABLED 設為 false/);
+        assert.doesNotMatch(message, /目前/);
+        return true;
+      }
+    );
+  });
+});

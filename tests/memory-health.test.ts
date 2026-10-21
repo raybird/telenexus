@@ -748,3 +748,22 @@ test('AC-1：兩個本機資料庫都可讀時狀態是 ok、detail 為 null', a
     assert.match(markdown, /- Retrieval Status: ok\n/);
   });
 });
+
+// issue 0016 第二部分：遠端模式正式標成不支援回填
+function assertFormalUnsupported(text: string): void {
+  assert.match(text, /遠端 Memoria 模式不支援回填/);
+  assert.match(text, /sessions\.db/);
+  assert.match(text, /MEMORY_BACKFILL_ENABLED 設為 false/);
+  assert.doesNotMatch(text, /目前/);
+}
+
+test('issue 0016 第二部分 AC-1：遠端模式的原因說明是正式的不支援，報告的 JSON 與 markdown 都帶同一句', async () => {
+  await withArchiveEnv({}, ({ dbDir }) => {
+    writeRetrievalDb(dbDir, []);
+    const { detail } = assessBackfillSource();
+    assertFormalUnsupported(detail);
+    const report = collectMemoryHealthReport();
+    assert.equal(report.backfill.sourceDetail, detail);
+    assert.ok(formatMemoryHealthMarkdown(report).includes(`- Backfill Source Detail: ${detail}`));
+  });
+});

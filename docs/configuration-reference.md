@@ -217,7 +217,14 @@ MEMORY_BACKFILL_CHECKPOINT_FILE=/app/data/memory-backfill-checkpoint.json
 - `memory:backfill:write` 會將高信心候選寫入 `data/memory.db`
 - 建議先跑 `memory:backfill:dry-run -- --json` 抽查候選品質，再進行 write
 - 若要常態化跑 worker，可設 `MEMORY_BACKFILL_ENABLED=true`；worker 會自動 `save checkpoint`
-- 回填只讀本機的 `sessions.db`（`MEMORIA_ARCHIVE_DB` 或 `MEMORIA_HOME` 指向的檔案）。官方 Compose 的遠端 Memoria 模式讀不到封存，worker 每輪會印 `skipped. remote-unsupported: …`，`memory:backfill` 會失敗退出並說明原因
+- 回填只適用於 `MEMORIA_ARCHIVE_DB` 或 `MEMORIA_HOME` 指向本機 `sessions.db` 的部署。
+- **遠端 Memoria 模式（官方 Compose）正式不支援回填**，這不是暫時的限制（issue 0016 第二部分，2026-10-21 決定）：
+  - 原因：Memoria 的 HTTP API 沒有可分頁、可 checkpoint 的 session 列出 API，只能依單一 ID 取摘要，所以 telenexus 沒辦法透過 API 逐批讀封存。
+  - 不建議為了回填，把 Memoria 可寫的 `sessions.db` 共享給 telenexus 容器。
+  - 遠端部署請保持 `MEMORY_BACKFILL_ENABLED=false`。
+  - 如果開了，worker 啟動時會 warn 一次不支援，之後照常排程，每輪印 `skipped. remote-unsupported: …`。
+  - `memory:backfill` 會失敗退出並說明原因。
+  - 健康報告的 `Backfill Source State` 是 `remote-unsupported`。
 - worker 每輪的訊息依回填來源狀態而定：只有 `pending` 才執行；`no new archive sessions` 只代表封存可讀但沒有比 checkpoint 新的 session；`unavailable`、`empty` 各印各的原因；封存讀取失敗時記 `memory-backfill:worker` runtime issue。啟動訊息的 `source=local|remote` 是封存來源。目前的狀態也在 `npm run memory:health` 的 `Backfill Source State` 一行
 
 ## Telegram 檔案回傳

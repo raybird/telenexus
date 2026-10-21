@@ -350,3 +350,81 @@ test('issue 0016：checkpoint 的處理時間不是字串時 start() 不 throw�
     assert.equal(issuesAfter, issuesBefore + 1);
   });
 });
+
+// issue 0016 第二部分：遠端模式且回填開啟時，啟動警告一次，排程照常
+async function captureStart(
+  worker: MemoryBackfillWorker,
+  waitMs: number
+): Promise<{ logs: string[]; warns: string[] }> {
+  const logs: string[] = [];
+  const warns: string[] = [];
+  const originalLog = console.log;
+  const originalWarn = console.warn;
+  console.log = (...args: unknown[]) => logs.push(args.map(String).join(' '));
+  console.warn = (...args: unknown[]) => warns.push(args.map(String).join(' '));
+  try {
+    worker.start();
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  } finally {
+    worker.shutdown();
+    console.log = originalLog;
+    console.warn = originalWarn;
+  }
+  return { logs, warns };
+}
+
+test('issue 0016 第二部分 AC-2：遠端模式開啟回填時，啟動用 warn 印一次不支援，排程照常、每輪仍印 skipped', async () => {
+  await withSourceEnv(async () => {
+    let runCount = 0;
+    const worker = new MemoryBackfillWorker({
+      enabled: true,
+      startupDelayMs: 0,
+      intervalMs: 60_000,
+      runBackfill: async () => {
+        runCount += 1;
+        return makeReport();
+      }
+    });
+    const { logs, warns } = await captureStart(worker, 50);
+    assert.equal(warns.length, 1, warns.join('\n'));
+    assert.match(warns[0] ?? '', /遠端 Memoria 模式不支援回填/);
+    assert.match(warns[0] ?? '', /MEMORY_BACKFILL_ENABLED 設為 false/);
+    assert.ok(
+      logs.some((line) => /Starting\. .*source=remote/.test(line)),
+      logs.join('\n')
+    );
+    // 排程照常建立：startup 那一輪有跑，而且照舊印 skipped
+    assert.ok(
+      logs.some((line) => line.includes('startup skipped. remote-unsupported: ')),
+      logs.join('\n')
+    );
+    assert.equal(runCount, 0);
+  });
+});
+
+test('issue 0016 第二部分 AC-2：本機模式或回填沒開時，啟動不印警告', async () => {
+  await withSourceEnv(async ({ tempDir }) => {
+    const archivePath = path.join(tempDir, 'sessions.db');
+    writeArchive(archivePath, ['2026-10-03T04:02:40.861Z']);
+    process.env.MEMORIA_ARCHIVE_DB = archivePath;
+    const local = await captureStart(
+      new MemoryBackfillWorker({
+        enabled: true,
+        startupDelayMs: 60_000,
+        intervalMs: 60_000,
+        runBackfill: async () => makeReport()
+      }),
+      0
+    );
+    assert.deepEqual(local.warns, []);
+    assert.ok(local.logs.some((line) => /Starting\. .*source=local/.test(line)));
+  });
+
+  await withSourceEnv(async () => {
+    const disabled = await captureStart(new MemoryBackfillWorker({ enabled: false }), 0);
+    assert.deepEqual(disabled.warns, []);
+    assert.deepEqual(disabled.logs, [
+      '[MemoryBackfillWorker] Disabled by MEMORY_BACKFILL_ENABLED.'
+    ]);
+  });
+});
