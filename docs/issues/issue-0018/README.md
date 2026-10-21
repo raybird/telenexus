@@ -44,13 +44,18 @@ GitHub：[#18](https://github.com/raybird/telenexus/issues/18)
    - 檢查方式：單元測試對兩個資料庫各做「不存在」與「內容不是 SQLite」兩種情況，確認不 throw、欄位與 markdown 符合上述值；再以編譯後的 `node dist/tools/memory-health-cli.js --json` 在暫存 `DB_DIR` 下實跑。
 2. **AC-2：連帶的推導值跟著變成未知**
    - 運作資料庫不是 `ok` 時，`archive.estimatedGapRecent24h` 是 `null`，因為它由運作資料庫的 24 小時回應數算出。
-   - 檢索資料庫不是 `ok` 時：
-     - orphan 檢查：`unavailable` 時標 `unsupported`，`error` 時標 `error`。
+   - 檢索資料庫是 `error` 時：
+     - orphan 檢查標 `error`。
      - `orphanSourceSessionObservations`、`sourceSessionTaggedObservations`、`observationsMissingSourceSession` 是 `null`。
      - 沒有查到其他問題時，`consistency.ok` 是 `null`。
+   - 檢索資料庫是 `unavailable`（檔案不存在）時：
+     - 沒有觀察就沒有可查的對象，orphan 檢查標 `skipped`，視為通過，與 #17 AC-4「前提不存在的檢查視為通過」相同。
+     - 三個一致性計數是 0。
+     - 其他檢查都通過時，`consistency.ok` 可以是 `true`。
+     - 現在的程式不會建立 `memory.db` 的資料表，只有 `memory:backfill --write` 會寫入已存在的檔案，所以新部署本來就沒有這個檔案。
    - checkpoint 的兩項檢查不讀檢索資料庫，判定不變。
    - markdown 對這些欄位顯示 `unknown`。
-   - 檢查方式：單元測試在檢索資料庫不存在與讀不了兩種情況下，各放一份可讀的本機封存與 checkpoint，確認上述欄位；在運作資料庫讀不了而封存可讀時，確認 `estimatedGapRecent24h=null`。
+   - 檢查方式：單元測試在檢索資料庫不存在與讀不了兩種情況下，各放一份可讀的本機封存與 checkpoint，確認上述欄位，包括「不存在」時 `consistency.ok=true`；在運作資料庫讀不了而封存可讀時，確認 `estimatedGapRecent24h=null`。
 3. **AC-3：各個 snapshot 互不牽連**
    - `writeContextSnapshots()` 的 10 個 snapshot 各自計算、各自寫入。
    - 任何一個在計算或寫入時 throw，其餘照常更新，失敗的那個保留上一次的內容。
@@ -76,6 +81,10 @@ GitHub：[#18](https://github.com/raybird/telenexus/issues/18)
     - (d) 報告本身不記 runtime issue（AC-1）；
     - (e) snapshot 互不牽連，scope 為 `context-snapshot:<檔名>`，狀態只存在記憶體（AC-3、AC-4）；
     - (f) API 仍回 200（AC-1）。
+- **規格修訂（2026-10-21，實作前）**：
+  - 原因：Q3 的建議說明寫「服務啟動就會建立這兩個檔案」。這對 `moltbot.db` 成立，`MemoryManager` 啟動時會建表；對 `memory.db` 不成立，現在的程式不會建立它的資料表。照原核准，新部署的一致性會永遠是未知。
+  - 處理：更正後重問，使用者選「標 unavailable，一致性視為沒有可查的（建議）」。內容是：`memory.db` 不存在時 `retrieval.status=unavailable`、計數為 `null`，orphan 檢查標 `skipped`、三個一致性計數為 0、`consistency.ok` 可以是 `true`。
+  - 影響：AC-2 依此修訂並重新核准；讀不了（`error`）的情況與 `moltbot.db` 的部分維持原核准。
 
 ## 風險與首要驗證
 
@@ -119,6 +128,7 @@ GitHub：[#18](https://github.com/raybird/telenexus/issues/18)
 |------|------|--------|
 | 2026-10-21 | 建立；逐題確認 Q1～Q3 與推導行為 | - |
 | 2026-10-21 | AC-1～AC-4 核准；記錄不開 PR 的 Gate 豁免 | 使用者 |
+| 2026-10-21 | 規格修訂：`memory.db` 不存在時 orphan 檢查標 `skipped`（Q3 前提更正後重問，AC-2） | 使用者 |
 
 ---
 **建立日期**: 2026-10-21  
