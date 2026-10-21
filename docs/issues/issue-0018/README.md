@@ -94,7 +94,7 @@ GitHub：[#18](https://github.com/raybird/telenexus/issues/18)
 
 | 編號 | 事項 | 狀態 | 影響 |
 |---|---|---|---|
-| (無) | | | |
+| D-1 | snapshot 失敗要不要推 Telegram 告警（審查 [review-6446a2d.md](review-6446a2d.md) SHOULD FIX 3，`需決策`）。照 AC-4，每個 snapshot 每次轉為失敗只記 1 筆，達不到 ErrorAlerter 的門檻（預設 10 分鐘 3 次），所以預設不會告警 | 已決定（2026-10-21）：使用者選「接受，文件寫明」。行為不變，`docs/web-console-reference.md` 寫明不會告警，以及看得到失敗的地方 | 不改 AC-4，不是規格修訂 |
 
 ## 實作與驗證步驟
 
@@ -123,6 +123,11 @@ GitHub：[#18](https://github.com/raybird/telenexus/issues/18)
        - `moltbot.db` 不是 SQLite、沒有 `memory.db`：`operational=error`、`retrieval=unavailable`，orphan 是 `skipped`，`consistency.ok=true`。這時封存是遠端模式，也沒有 checkpoint，所以沒有可查的對象，與修訂後的 AC-2 相符；#17 時同樣情況是 `null`。
      - 文件：`docs/web-console-reference.md` 補上 `operational`／`retrieval` 的狀態判讀與 snapshot 的失敗訊號；並更正原本「遠端模式下 `consistency.ok` 一律是 `null`」的說法。
      - 交付檢查：`npm run build` exit 0；`env -u MEMORIA_HOME -u MEMORIA_ARCHIVE_DB npm run test` exit 0，`# tests 555`、`# pass 555`、`# fail 0`，比 #15 結束時的 546 多 9 個，就是本 issue 新增的測試數；`tests/` 下 71 個測試檔，`tests/docker/` 的 4 個檔案都出現在輸出中（地雷 L-01）；`npm run lint` exit 0。
+4. ✅ **審查後續：[review-6446a2d.md](review-6446a2d.md)**
+   - 產出：`src/services/context-snapshots.ts`、`tests/context-snapshots.test.ts`、`tests/memory-health.test.ts`、`docs/web-console-reference.md`、本 issue 的證據。
+   - 驗收：AC-1、AC-3、AC-4。
+   - 相依：步驟 1～3。
+   - 完成證據：[evidence/step4-review-followup.md](evidence/step4-review-followup.md)。SHOULD FIX 1、2、4 已修正並補測試；SHOULD FIX 3 依 D-1 只改文件。補上的測試在修正前是紅燈，4 個突變都轉紅。
 
 ## Gate 豁免紀錄
 
@@ -137,6 +142,9 @@ GitHub：[#18](https://github.com/raybird/telenexus/issues/18)
 | 2026-10-21 | 建立；逐題確認 Q1～Q3 與推導行為 | - |
 | 2026-10-21 | AC-1～AC-4 核准；記錄不開 PR 的 Gate 豁免 | 使用者 |
 | 2026-10-21 | 規格修訂：`memory.db` 不存在時 orphan 檢查標 `skipped`（Q3 前提更正後重問，AC-2） | 使用者 |
+| 2026-10-21 | 本機獨立審查 review-6446a2d：PASS，有 4 項 SHOULD FIX | reviewer |
+| 2026-10-21 | D-1：snapshot 失敗不推 Telegram，只在文件寫明（審查 SHOULD FIX 3） | 使用者 |
+| 2026-10-21 | 審查後續：SHOULD FIX 1、2、4 修正，NICE TO HAVE 2 修正 | - |
 
 ---
 **建立日期**: 2026-10-21  
