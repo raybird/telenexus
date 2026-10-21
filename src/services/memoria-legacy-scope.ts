@@ -351,7 +351,11 @@ async function checkMemoriaStopped(
 ): Promise<{ endpoint: string; reachable: false; detail: string }> {
   let detail: string;
   try {
-    const res = await fetch(`${endpoint}/v1/health`, { signal: AbortSignal.timeout(timeoutMs) });
+    // 不跟隨轉址:轉到沒有服務的位址會被誤判成已停止;轉址本身就是有服務在回應
+    const res = await fetch(`${endpoint}/v1/health`, {
+      redirect: 'manual',
+      signal: AbortSignal.timeout(timeoutMs)
+    });
     await res.body?.cancel();
     throw new LegacyScopeMigrationError(
       `Memoria 服務仍在執行（${endpoint} 回應 HTTP ${res.status}），請先停止 Memoria 再寫入`

@@ -172,10 +172,15 @@ function listTree(dir: string): string[] {
 
 /** 假的 Memoria:預設 /v1/health 回 200;`hang` 時收下請求但永遠不回。 */
 function startHealthServer(
-  behavior: { status?: number; hang?: boolean } = {}
+  behavior: { status?: number; hang?: boolean; redirectTo?: string } = {}
 ): Promise<{ endpoint: string; close: () => Promise<void> }> {
   const server = http.createServer((req, res) => {
     if (behavior.hang) return;
+    if (behavior.redirectTo) {
+      res.writeHead(302, { Location: `${behavior.redirectTo}${req.url ?? ''}` });
+      res.end();
+      return;
+    }
     const status = req.url === '/v1/health' ? (behavior.status ?? 200) : 404;
     res.writeHead(status, { 'Content-Type': 'application/json' });
     res.end('{"ok":true}');
@@ -347,7 +352,8 @@ test('SCN-007: 連得上 Memoria 時拒絕寫入，資料庫不變也沒有備�
 
 for (const [label, behavior] of [
   ['回 503（Memoria 自我檢查失敗）', { status: 503 }],
-  ['逾時沒有回應', { hang: true }]
+  ['逾時沒有回應', { hang: true }],
+  ['轉址到沒有服務在聽的位址', { redirectTo: STOPPED_ENDPOINT }]
 ] as const) {
   test(`SCN-007: Memoria ${label}時也拒絕寫入，不當成已停止`, async () => {
     const server = await startHealthServer(behavior);
