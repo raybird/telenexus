@@ -68,7 +68,7 @@ WEB_USER_ID=
 - `backfill.sourceState` 是回填來源目前的狀態，和 worker 決定要不要執行用的是同一個判定：`remote-unsupported`（遠端模式，回填只讀本機 `sessions.db`）、`unavailable`（設定的封存路徑不存在）、`error`（封存讀取失敗）、`empty`（封存沒有 session）、`up-to-date`（沒有比 checkpoint 新的 session）、`pending`（有待處理的 session；回填有啟用時，worker 下一輪會執行）。原因寫在 `backfill.sourceDetail`；回填沒啟用時也會顯示。`lastRunStatus` 等欄位是 checkpoint 裡最後一次**實際執行**的紀錄，worker 每輪被擋下時不會更新它們
 - Status 頁也會顯示最近幾輪 backfill run 摘要，方便直接抽查候選品質
 - `memoria-status.md` 的「Recall Metrics by Version」是聊天召回依 TeleNexus 版本的彙總，資料在 `moltbot.db`，跨重啟累積、保留 30 天；上方的「Recall Telemetry」只有記憶體裡最近 50 筆，重啟就歸零。這一節列出目前版本，以及保留期內最近的前一個版本，用來比較升級前後：
-  - `Recalls` 是召回次數，含失敗。
+  - `Recalls` 是召回次數，含失敗。它計的是召回，不是訊息：接續的 session 失效、改開新 session 時，同一則訊息會重新組 prompt 而召回兩次。
   - `Hit Rate` 是 Memoria 有回傳結果的比例。
   - `Injected Rate` 是結果實際交給 prompt 組裝的比例：信心低於 `MEMORIA_RECALL_MIN_CONFIDENCE` 而丟棄的不算。
   - `Degraded Rate` 是語意索引退回字面召回的比例。

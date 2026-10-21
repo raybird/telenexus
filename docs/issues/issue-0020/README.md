@@ -29,7 +29,7 @@ GitHub：[#20](https://github.com/raybird/telenexus/issues/20)
 - `src/core/memory.ts` - 新增 `memoria_recall_events` 表，以及寫入、彙總、清理的方法
 - `src/services/memoria-recall-telemetry.ts` - 召回結果的通知 hook，以及每次召回是否注入的判定
 - `src/core/memoria-recall.ts` - 每次召回（含失敗）回報一筆結果
-- 新的 `src/services/recall-metrics-store.ts` - 訂閱 hook 寫入資料庫，每日清理超過保留期的資料；仿照 `issue-store.ts`
+- 新的 `src/services/recall-metrics-store.ts` - 訂閱 hook 寫入資料庫，啟動時與每 6 小時清理超過保留期的資料；仿照 `issue-store.ts`
 - `src/services/memoria-status.ts` - 新增依版本彙總的區塊
 - `src/services/context-snapshots.ts` - 產生 `memoria-status.md` 時傳入版本與彙總的讀取函式
 - 新的 `src/utils/app-version.ts` - `readAppVersion()` 由 `src/web/server.ts` 搬來共用
@@ -93,7 +93,7 @@ GitHub：[#20](https://github.com/raybird/telenexus/issues/20)
 
 | 編號 | 事項 | 狀態 | 影響 |
 |---|---|---|---|
-| (無) | | | |
+| D-1 | 第一個提交單獨檢出時測試載入失敗，用 ff-only 合併會在 main 留下測試壞掉的提交，干擾 `git bisect`（審查 [review-ed4c001.md](review-ed4c001.md) SHOULD FIX 2，`需決策`） | 已解決（2026-10-21）：使用者選「重整分支歷史」。分支還沒推送；原 HEAD 保留在 `backup/issue-0020-ed4c001` | 不改驗收條件 |
 
 ## 實作與驗證步驟
 
@@ -112,6 +112,14 @@ GitHub：[#20](https://github.com/raybird/telenexus/issues/20)
    - 完成判準：全部通過。
    - 相依：步驟 1、2。
    - 完成證據：[evidence/step3-delivery.md](evidence/step3-delivery.md)。編譯後的程式跨兩個程序實跑，數字與假服務的規則相符；`# tests 574`、`# pass 574`；build、lint 通過。
+4. ✅ **審查後續：[review-ed4c001.md](review-ed4c001.md)**
+   - 產出：`tests/recall-metrics.test.ts`、`src/core/memoria-recall.ts`、`src/services/recall-metrics-store.ts`、`src/services/memoria-status.ts`、`src/services/memoria-recall-telemetry.ts`、`ARCHITECTURE.md`、`CLAUDE.md`、文件與證據。
+   - 驗收：AC-1、AC-2、AC-4。
+   - 相依：步驟 1～3。
+   - 完成證據：[evidence/step4-review-followup.md](evidence/step4-review-followup.md)。
+     - SHOULD FIX 1、3 已處理；SHOULD FIX 2 依 D-1 重整歷史，每個實作提交單獨檢出時全套測試都通過。
+     - 新增的 3 個測試中，scope 的測試在舊程式上是紅燈；另外 2 個守的是既有行為，以突變證明有效。
+     - `# tests 577`、`# pass 577`。
 
 ## Gate 豁免紀錄
 
@@ -125,6 +133,9 @@ GitHub：[#20](https://github.com/raybird/telenexus/issues/20)
 |------|------|--------|
 | 2026-10-21 | 建立；逐題確認 Q1～Q3 與交付方式 | - |
 | 2026-10-21 | AC-1～AC-4 核准；記錄不開 PR 的 Gate 豁免 | 使用者 |
+| 2026-10-21 | 本機獨立審查 review-ed4c001：PASS，有 3 項 SHOULD FIX；使用者指示審查 PASS 而且沒有要修的項目時自動合併，有的話先修、複審再回報 | reviewer／使用者 |
+| 2026-10-21 | D-1：重整分支歷史（審查 SHOULD FIX 2） | 使用者 |
+| 2026-10-21 | 審查後續：SHOULD FIX 1、3 與 NICE 1、2、4～7 | - |
 
 ---
 **建立日期**: 2026-10-21  

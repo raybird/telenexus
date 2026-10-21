@@ -108,6 +108,9 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 - `src/services/issue-store.ts`
   - 將 `recordRuntimeIssue` 事件寫入 SQLite `runtime_issues` 表（7 天保留、每 6h 清理）
   - 提供 `Past 24h by Scope` 與 `Rate-limit Issues (24h)` 給 `error-summary.md`
+- `src/services/recall-metrics-store.ts`
+  - 將每次聊天召回的結果寫入 SQLite `memoria_recall_events` 表（30 天保留、啟動時與每 6h 清理；不存問句、內容與使用者 ID）
+  - 提供依版本彙總的召回指標給 `memoria-status.md` 的 `Recall Metrics by Version`
 - `src/services/error-alerter.ts`
   - 滑動視窗統計 per scope 錯誤頻率，超過閾值即推 Telegram 給 `ALLOWED_USER_ID`
   - 環境變數：`ERROR_ALERT_THRESHOLD` / `ERROR_ALERT_WINDOW_MS` / `ERROR_ALERT_COOLDOWN_MS`
