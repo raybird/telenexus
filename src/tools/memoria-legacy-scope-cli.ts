@@ -8,7 +8,6 @@ import {
   runLegacyScopeMigration,
   type LegacyScopeReport
 } from '../services/memoria-legacy-scope.js';
-import { resolveMemoriaSessionsDbPath } from '../utils/paths.js';
 
 dotenv.config({ quiet: true });
 
@@ -25,7 +24,9 @@ function printText(report: LegacyScopeReport): void {
   lines.push(`人工審閱（不遷移）：${report.totals.review} 筆`);
   for (const item of report.review) lines.push(`  - ${item.sessionId}：${item.reason}`);
   if (report.serviceCheck) {
-    lines.push(`服務檢查：${report.serviceCheck.endpoint} 連不上，視為 Memoria 已停止`);
+    lines.push(
+      `服務檢查：${report.serviceCheck.endpoint} 沒有服務在聽（${report.serviceCheck.detail}），視為 Memoria 已停止`
+    );
   }
   if (report.mode === 'write') {
     lines.push(`已遷移：${report.migrated} 筆`);
@@ -40,7 +41,8 @@ const program = new Command();
 program
   .name('memoria-legacy-scope')
   .description('把舊版 project scope 的 Memoria 記憶分類遷移到 user: / scheduler: 分區')
-  .option('--db <path>', 'Memoria sessions.db 路徑', resolveMemoriaSessionsDbPath())
+  // 不給預設值:沿用 MEMORIA_HOME 在維護者主機上會指到私人的記憶庫,而且那裡的服務檢查必定連不上
+  .requiredOption('--db <path>', 'Memoria sessions.db 路徑（必填）')
   .option('--from-scope <scope>', '要遷移的舊分區', DEFAULT_LEGACY_SCOPE)
   .option('--write', '實際寫入（會先備份整個資料庫）；不加只預覽')
   .option('--json', '輸出 JSON')

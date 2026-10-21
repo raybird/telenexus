@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
 import { buildSummary } from '../core/memoria-sync.js';
-import { getMemoriaEndpoint, pingMemoriaEndpoint } from '../core/memoria-recall.js';
+import { getMemoriaEndpoint } from '../core/memoria-recall.js';
 
 /**
  * 舊版 Memoria 記憶的分類遷移(issue 0015)。
@@ -49,7 +49,7 @@ export type LegacyScopeReport = {
   dbPath: string;
   fromScope: string;
   /** 只在 write 時檢查;預覽不需要停止 Memoria。 */
-  serviceCheck: { endpoint: string; reachable: boolean } | null;
+  serviceCheck: { endpoint: string; reachable: boolean; detail: string } | null;
   totals: { candidates: number; migrate: number; review: number };
   byTargetScope: Record<string, number>;
   plan: LegacyScopePlanItem[];
@@ -65,6 +65,8 @@ export type LegacyScopeOptions = {
   write?: boolean;
   /** 預設與聊天召回相同(`MEMORIA_ENDPOINT`)。 */
   memoriaEndpoint?: string;
+  /** 服務檢查的逾時;逾時不算已停止。 */
+  memoriaTimeoutMs?: number;
 };
 
 type EventRow = {
@@ -90,8 +92,9 @@ function parseObject(raw: string | null): Record<string, unknown> | null {
 function ownerOf(metadata: string | null): Owner | string {
   const meta = parseObject(metadata);
   if (!meta) return 'metadata 無法解析';
+  if (meta.user_id === undefined || meta.user_id === null) return '缺少 user_id';
   const userId = typeof meta.user_id === 'string' ? meta.user_id.trim() : '';
-  if (!userId) return '缺少 user_id';
+  if (!userId) return 'user_id 不是有效的字串';
   const platform = typeof meta.platform === 'string' ? meta.platform : '';
   if (!SUPPORTED_PLATFORMS.has(platform)) return `platform 不支援：${platform || '（無）'}`;
   return { platform, userId };
@@ -334,6 +337,38 @@ function writeMigration(
   return { planned, backupPath, recordPath };
 }
 
+/** 只有這些錯誤代表「沒有服務在聽」;其他失敗(逾時、TLS…)都不能證明 Memoria 已停止。 */
+const STOPPED_ERROR_CODES = new Set(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN']);
+
+/**
+ * 寫入前確認 Memoria 已停止。不用 pingMemoriaEndpoint():它把非 2xx 與逾時都當成連不上,
+ * 但 Memoria 自我檢查失敗時 /v1/health 回 503,忙碌時可能逾時,那些都是「還在跑」。
+ * 這裡只要有任何 HTTP 回應、或無法確定,就拒絕寫入。
+ */
+async function checkMemoriaStopped(
+  endpoint: string,
+  timeoutMs: number
+): Promise<{ endpoint: string; reachable: false; detail: string }> {
+  let detail: string;
+  try {
+    const res = await fetch(`${endpoint}/v1/health`, { signal: AbortSignal.timeout(timeoutMs) });
+    await res.body?.cancel();
+    throw new LegacyScopeMigrationError(
+      `Memoria 服務仍在執行（${endpoint} 回應 HTTP ${res.status}），請先停止 Memoria 再寫入`
+    );
+  } catch (err) {
+    if (err instanceof LegacyScopeMigrationError) throw err;
+    const code = (err as { cause?: { code?: unknown } }).cause?.code;
+    if (typeof code === 'string' && STOPPED_ERROR_CODES.has(code)) {
+      return { endpoint, reachable: false, detail: code };
+    }
+    detail = typeof code === 'string' ? code : (err as Error).name || String(err);
+  }
+  throw new LegacyScopeMigrationError(
+    `無法確認 Memoria 已停止（${endpoint}：${detail}），請先停止 Memoria 再寫入`
+  );
+}
+
 function buildReport(
   mode: LegacyScopeReport['mode'],
   options: LegacyScopeOptions,
@@ -385,13 +420,7 @@ export async function runLegacyScopeMigration(
   }
 
   const endpoint = options.memoriaEndpoint ?? getMemoriaEndpoint();
-  const reachable = await pingMemoriaEndpoint({ endpoint, timeoutMs: 2000 });
-  const serviceCheck = { endpoint, reachable };
-  if (reachable) {
-    throw new LegacyScopeMigrationError(
-      `Memoria 服務仍在執行（${endpoint}），請先停止 Memoria 再寫入`
-    );
-  }
+  const serviceCheck = await checkMemoriaStopped(endpoint, options.memoriaTimeoutMs ?? 2000);
 
   // 沒東西可搬就不備份、不開 transaction:重跑不留下新檔案
   if (planned.plan.length === 0) {

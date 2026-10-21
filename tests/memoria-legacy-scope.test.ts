@@ -29,8 +29,17 @@ const SCHEMA = fs.readFileSync(
 );
 const CLI = path.join(ROOT, 'src', 'tools', 'memoria-legacy-scope-cli.ts');
 const LEGACY = 'project:TeleNexus';
-/** 測試一律指向這個關閉的埠,服務檢查才會判定 Memoria 已停止。 */
-const STOPPED_ENDPOINT = 'http://127.0.0.1:9';
+/**
+ * 測試一律指向這個沒有服務在聽的埠,服務檢查才會判定 Memoria 已停止。
+ * 不用 9 這類小埠號:fetch 會直接擋掉,工具會(正確地)判定無法確認。
+ */
+const STOPPED_ENDPOINT = await new Promise<string>((resolve) => {
+  const probe = http.createServer();
+  probe.listen(0, '127.0.0.1', () => {
+    const { port } = probe.address() as AddressInfo;
+    probe.close(() => resolve(`http://127.0.0.1:${port}`));
+  });
+});
 
 type LegacySession = {
   id: string;
@@ -42,6 +51,8 @@ type LegacySession = {
   scope?: string;
   /** 覆寫 ModelMessage 的 metadata 欄位,用來做不一致的情況。 */
   modelMeta?: Record<string, unknown>;
+  /** 覆寫 UserMessage 的 metadata 欄位。 */
+  userMeta?: Record<string, unknown>;
   userEvents?: number;
   modelEvents?: number;
   rawUserContent?: string;
@@ -98,7 +109,7 @@ function createArchive(dir: string, sessions: LegacySession[]): string {
         s.id,
         now,
         s.rawUserContent ?? JSON.stringify({ role: 'user', text: s.userText ?? `問題 ${s.id}` }),
-        JSON.stringify(meta)
+        JSON.stringify({ ...meta, ...(s.userMeta ?? {}) })
       );
     }
     const modelCount = s.modelEvents ?? 1;
@@ -159,9 +170,14 @@ function listTree(dir: string): string[] {
   return fs.readdirSync(dir, { recursive: true }).map(String).sort();
 }
 
-function startHealthServer(): Promise<{ endpoint: string; close: () => Promise<void> }> {
+/** 假的 Memoria:預設 /v1/health 回 200;`hang` 時收下請求但永遠不回。 */
+function startHealthServer(
+  behavior: { status?: number; hang?: boolean } = {}
+): Promise<{ endpoint: string; close: () => Promise<void> }> {
   const server = http.createServer((req, res) => {
-    res.writeHead(req.url === '/v1/health' ? 200 : 404, { 'Content-Type': 'application/json' });
+    if (behavior.hang) return;
+    const status = req.url === '/v1/health' ? (behavior.status ?? 200) : 404;
+    res.writeHead(status, { 'Content-Type': 'application/json' });
     res.end('{"ok":true}');
   });
   return new Promise((resolve) => {
@@ -169,7 +185,11 @@ function startHealthServer(): Promise<{ endpoint: string; close: () => Promise<v
       const { port } = server.address() as AddressInfo;
       resolve({
         endpoint: `http://127.0.0.1:${port}`,
-        close: () => new Promise((done) => server.close(() => done()))
+        close: () =>
+          new Promise((done) => {
+            server.closeAllConnections();
+            server.close(() => done());
+          })
       });
     });
   });
@@ -276,7 +296,12 @@ const UNCLEAR: Array<{ session: LegacySession; reason: RegExp }> = [
   { session: { id: 'two-user-msg', userEvents: 2 }, reason: /UserMessage/ },
   { session: { id: 'model-platform', modelMeta: { platform: 'scheduler' } }, reason: /不一致/ },
   { session: { id: 'model-user', modelMeta: { user_id: 'u9' } }, reason: /不一致/ },
-  { session: { id: 'bad-content', rawUserContent: 'not json' }, reason: /文字/ }
+  { session: { id: 'bad-content', rawUserContent: 'not json' }, reason: /文字/ },
+  { session: { id: 'two-model-msg', modelEvents: 2 }, reason: /ModelMessage 超過一筆/ },
+  {
+    session: { id: 'num-user', userMeta: { user_id: 42 }, modelMeta: { user_id: 42 } },
+    reason: /有效的字串/
+  }
 ];
 
 test('SCN-004: 歸屬或內容不明的 session 列入人工審閱，不列入遷移', async () => {
@@ -319,6 +344,37 @@ test('SCN-007: 連得上 Memoria 時拒絕寫入，資料庫不變也沒有備�
     await server.close();
   }
 });
+
+for (const [label, behavior] of [
+  ['回 503（Memoria 自我檢查失敗）', { status: 503 }],
+  ['逾時沒有回應', { hang: true }]
+] as const) {
+  test(`SCN-007: Memoria ${label}時也拒絕寫入，不當成已停止`, async () => {
+    const server = await startHealthServer(behavior);
+    try {
+      await withTempDir(async (dir) => {
+        const dbPath = createArchive(dir, MIXED);
+        const before = sha256(dbPath);
+        const treeBefore = listTree(dir);
+
+        await assert.rejects(
+          runLegacyScopeMigration({
+            dbPath,
+            write: true,
+            memoriaEndpoint: server.endpoint,
+            memoriaTimeoutMs: 300
+          }),
+          (err: unknown) =>
+            err instanceof LegacyScopeMigrationError && /停止 Memoria/.test(err.message)
+        );
+        assert.equal(sha256(dbPath), before);
+        assert.deepEqual(listTree(dir), treeBefore);
+      });
+    } finally {
+      await server.close();
+    }
+  });
+}
 
 // ---- SCN-008 資料不符預期時中止 ----
 
@@ -405,6 +461,22 @@ test('CLI：預覽輸出各分區筆數，結束碼 0', async () => {
   });
 });
 
+test('CLI：沒有指定 --db 時拒絕執行，不沿用 MEMORIA_HOME', async () => {
+  await withTempDir(async (dir) => {
+    const dbPath = createArchive(dir, MIXED);
+    const before = sha256(dbPath);
+    const child = spawnSync(process.execPath, ['--import', 'tsx', CLI, '--write'], {
+      cwd: ROOT,
+      env: { ...process.env, MEMORIA_HOME: dir, MEMORIA_ENDPOINT: STOPPED_ENDPOINT },
+      encoding: 'utf8',
+      timeout: 60_000
+    });
+    assert.notEqual(child.status, 0);
+    assert.match(child.stderr, /--db/);
+    assert.equal(sha256(dbPath), before);
+  });
+});
+
 test('CLI：前置檢查失敗時以非 0 結束並說明原因', async () => {
   await withTempDir(async (dir) => {
     const child = runCli(['--db', path.join(dir, 'missing.db')]);
@@ -471,7 +543,11 @@ test('SCN-002: 寫入後依分類改 scope、重建 summary，移除舊索引節
 
     assert.equal(report.mode, 'write');
     assert.equal(report.migrated, 5);
-    assert.deepEqual(report.serviceCheck, { endpoint: STOPPED_ENDPOINT, reachable: false });
+    assert.deepEqual(report.serviceCheck, {
+      endpoint: STOPPED_ENDPOINT,
+      reachable: false,
+      detail: 'ECONNREFUSED'
+    });
     assert.deepEqual(sessionRow(dbPath, 'chat-1'), {
       scope: 'user:u1',
       summary: '工具用完要清理嗎 → 要，跑清理腳本'
@@ -664,5 +740,63 @@ test('CLI：寫入時列出備份與遷移紀錄的位置', async () => {
     assert.match(child.stdout, /已遷移：5 筆/);
     assert.match(child.stdout, /備份：.*sessions\.backup\.db/);
     assert.match(child.stdout, /遷移紀錄：.*\.json/);
+  });
+});
+
+test('SCN-002: 寫入不動其他 scope 的索引節點', async () => {
+  await withTempDir(async (dir) => {
+    const dbPath = createArchive(dir, [
+      ...MIXED,
+      { id: 'new-1', platform: 'telegram', scope: 'user:u1' },
+      { id: 'new-2', platform: 'scheduler', scope: 'scheduler:u1' }
+    ]);
+    const others = () =>
+      query(dbPath, 'SELECT * FROM memory_nodes WHERE scope != ? ORDER BY id', LEGACY);
+    const otherSources = () =>
+      query(
+        dbPath,
+        "SELECT * FROM memory_node_sources WHERE session_id LIKE 'new-%' ORDER BY node_id"
+      );
+    // 其他 scope 也可能有沒有來源的 topic、沒有子節點的 root;遷移只能清自己分區的
+    const db = new Database(dbPath);
+    db.prepare(
+      `INSERT INTO memory_nodes (id, parent_id, project, title, summary, level, path_key, scope)
+       VALUES ('node:topic:user:u1:stale', 'node:root:user:u1', 'TeleNexus', 'stale', 'stale', 1, 'stale', 'user:u1'),
+              ('node:root:user:u9', NULL, 'TeleNexus', 'root', 'root', 0, 'user:u9', 'user:u9')`
+    ).run();
+    db.close();
+    const nodesBefore = others();
+    const sourcesBefore = otherSources();
+    assert.equal(
+      nodesBefore.length,
+      8,
+      '兩個 scope 各有 root、topic 與 session node，另加兩個孤立節點'
+    );
+
+    await runLegacyScopeMigration({ dbPath, write: true, memoriaEndpoint: STOPPED_ENDPOINT });
+
+    assert.deepEqual(others(), nodesBefore);
+    assert.deepEqual(otherSources(), sourcesBefore);
+  });
+});
+
+test('SCN-009: commit 前的自我檢查發現 events 被改動時整批回滾', async () => {
+  await withTempDir(async (dir) => {
+    const dbPath = createArchive(dir, MIXED);
+    // 模擬改寫 sessions 時連帶動到 events(例如 Memoria 改版加了這種 trigger)
+    const db = new Database(dbPath);
+    db.exec(`CREATE TRIGGER touch_events AFTER UPDATE ON sessions
+             BEGIN UPDATE events SET content = content || ' ' WHERE session_id = new.id; END;`);
+    db.close();
+    const before = dumpTables(dbPath);
+
+    await assert.rejects(
+      runLegacyScopeMigration({ dbPath, write: true, memoriaEndpoint: STOPPED_ENDPOINT }),
+      (err: unknown) =>
+        err instanceof LegacyScopeMigrationError &&
+        /回滾/.test(err.message) &&
+        /自我檢查/.test(err.message)
+    );
+    assert.deepEqual(dumpTables(dbPath), before);
   });
 });
