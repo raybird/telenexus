@@ -174,7 +174,9 @@ export class MemoriaRecallClient {
         rawHits.length > 0 &&
         meta.confidence !== null &&
         minConfidence > 0 &&
-        (meta.confidence < minConfidence || matchedTokens < MIN_MATCHED_TOKENS);
+        // snippet 全部空白時本來就不會注入,不必再以內容 token 判定為丟棄
+        (meta.confidence < minConfidence ||
+          (snippets.length > 0 && matchedTokens < MIN_MATCHED_TOKENS));
 
       recordMemoriaRecallTrace({
         timestamp: startedAt,

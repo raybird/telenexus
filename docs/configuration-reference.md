@@ -169,12 +169,15 @@ MEMORIA_RECALL_MIN_CONFIDENCE=0.2
   - `confidence` 不低於此值。
   - 第一筆 snippet 至少含 2 個問句裡的內容 token；純數字的 token 不算。
   - 送給 Memoria 的問句會先拿掉疑問詞與虛詞（「什麼」「怎麼」「多少」「的」「嗎」等，清單在 `src/core/memoria-recall-query.ts`）。所以 `confidence` 是這些內容詞出現在第一筆結果裡的比例，Memoria 的召回紀錄存的也是改寫後的問句。整句都是功能詞時改送原句，而且不注入。
-  - 原因：Memoria 的 `confidence` 把疑問詞也算進覆蓋率。舊記憶遷移後語料變多，「晚餐吃什麼好」這類無關問句碰巧命中「什麼」「麼好」就超過門檻。
+  - 原因：Memoria 的 `confidence` 把疑問詞也算進覆蓋率。舊記憶遷移後語料變多，短的無關問句只要碰巧命中「什麼」「怎麼」這類窗格就超過門檻。
   - 量測：在遷移後的資料副本上，無關問句的注入率從 47% 降到 6%（17 題中 1 題），相關問句的命中率不變（`docs/issues/issue-0019/evidence/step2-criteria.md`）。
   - 已知限制：
     - 兩個一般詞碰巧同時出現，例如「小時」，仍會注入。
     - 只看 Memoria 回傳的前 200 字 snippet。
     - token 的切法複製自 Memoria 1.28.1，升級 Memoria 時要確認切法沒變。
+    - 拿掉功能詞後只剩 1 個內容 token 的問句，例如只問一個英文名稱或一個 2 字詞，在字面路由上一律不注入。
+    - 只拿掉中文的疑問詞與虛詞；英文的 what、how、the 等照樣算 token。
+    - 設為 `0` 只停用注入判準，送出的問句仍然會改寫，所以只改這個設定無法完全回到 issue 0019 之前的行為。
   - `confidence` 為 null（該路由無法判斷）時照常注入。
   - 被擋下時，`memoria_recall` 事件帶 `dropped_low_confidence: true`、`min_confidence`、`matched_tokens` 與 `min_matched_tokens`。這次召回沒有被使用，因此不回報 UFL outcome。
 - 召回指標：每次聊天召回（成功或失敗）都在 `moltbot.db` 的 `memoria_recall_events` 寫一筆，欄位是時間、TeleNexus 版本、scope 種類、`ok`、`route_mode`、命中數、是否因信心過低丟棄、是否注入、是否降級、latency；不存問句、snippet 與使用者 ID。保留 30 天，啟動時與之後每 6 小時清理。寫入失敗不影響聊天，只在 log 印 `[recall-metrics]` 開頭的 warn。彙總呈現在 `memoria-status.md` 的「Recall Metrics by Version」，判讀見 `docs/web-console-reference.md`

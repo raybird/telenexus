@@ -7,10 +7,14 @@ import path from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { MemoriaRecallClient } from '../src/core/memoria-recall.js';
 import {
+  FUNCTION_WORDS,
+  SINGLE_CHAR_FUNCTION_WORDS,
   countMatchedContentTokens,
   stripFunctionWords,
   tokenizeQuery
 } from '../src/core/memoria-recall-query.js';
+// 量測判準用的腳本(issue 0019 步驟 2);清單與套用順序必須和實作一致,量測的數字才代表出貨的程式
+import * as measured from '../docs/issues/issue-0019/evidence/scripts/function-words.mjs';
 import { MemoryManager } from '../src/core/memory.js';
 import { addEventHook } from '../src/services/event-bus.js';
 import {
@@ -40,10 +44,13 @@ after(() => {
 
 const SNIPPET = '那次清理殭屍程序的結論是改用 /proc 統計，每 15 分鐘跑一次，保留 30 天';
 
-/** 假的 Memoria:回傳一筆 hit 與指定的 confidence,並記下收到的 query。 */
+/** 假的 Memoria:回傳指定的 hit(預設一筆 SNIPPET)與 confidence,並記下收到的 query。 */
 async function withMemoria(
   confidence: number | null,
-  fn: (endpoint: string, queries: string[]) => Promise<void>
+  fn: (endpoint: string, queries: string[]) => Promise<void>,
+  data: { id: string; snippet: string; score: number }[] = [
+    { id: 'hit-1', snippet: SNIPPET, score: 0.3 }
+  ]
 ): Promise<void> {
   const queries: string[] = [];
   const server = http.createServer((req, res) => {
@@ -54,7 +61,7 @@ async function withMemoria(
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(
         JSON.stringify({
-          data: [{ id: 'hit-1', snippet: SNIPPET, score: 0.3 }],
+          data,
           meta: {
             recall_id: 'rc-1',
             route_mode: 'hybrid_fallback',
@@ -88,35 +95,53 @@ async function withThresholdEnv(value: string | undefined, fn: () => Promise<voi
 
 async function recallOnce(
   query: string,
-  confidence: number | null
+  confidence: number | null,
+  data?: { id: string; snippet: string; score: number }[]
 ): Promise<{ snippets: string[]; recallId?: string; sent: string }> {
   let out: { snippets: string[]; recallId?: string; sent: string } = { snippets: [], sent: '' };
-  await withMemoria(confidence, async (endpoint, queries) => {
-    const client = new MemoriaRecallClient({ endpoint, timeoutMs: 2000 });
-    const result = await client.recallWithMeta(query, 'user:u');
-    out = {
-      snippets: result.snippets,
-      ...(result.recallId ? { recallId: result.recallId } : {}),
-      sent: queries[0] ?? ''
-    };
-  });
+  await withMemoria(
+    confidence,
+    async (endpoint, queries) => {
+      const client = new MemoriaRecallClient({ endpoint, timeoutMs: 2000 });
+      const result = await client.recallWithMeta(query, 'user:u');
+      out = {
+        snippets: result.snippets,
+        ...(result.recallId ? { recallId: result.recallId } : {}),
+        sent: queries[0] ?? ''
+      };
+    },
+    data
+  );
   return out;
 }
 
 test('stripFunctionWords 把疑問詞與虛詞換成空白,前後的字不會接成新詞', () => {
-  assert.equal(stripFunctionWords('晚餐吃什麼好？'), '晚餐吃 好？');
+  assert.equal(stripFunctionWords('週末做什麼好？'), '週末做 好？');
   assert.equal(stripFunctionWords('殭屍程序後來怎麼處理的呢'), '殭屍程序 處理');
   // 單字虛詞也拿掉:「要準備」只剩「準備」,不會留下「要準」這個窗格
   assert.equal(stripFunctionWords('出國前要準備什麼東西？'), '出國前 準備 東西？');
   assert.equal(stripFunctionWords('什麼？'), '？');
 });
 
+test('清單與套用順序和量測用的 function-words.mjs(第二版)相同', () => {
+  assert.deepEqual(
+    FUNCTION_WORDS,
+    [...measured.FUNCTION_WORDS].sort((a, b) => b.length - a.length)
+  );
+  assert.deepEqual(SINGLE_CHAR_FUNCTION_WORDS, measured.SINGLE_CHAR_FUNCTION_WORDS);
+  // 先拿多字詞再拿單字:「是不是」整個拿掉,先拿單字會留下「不」
+  for (const q of ['是不是', '你有沒有看到', '要不要再試幾次', '他們跟我們都在']) {
+    assert.equal(stripFunctionWords(q), measured.stripFunctionWords(q, { singleChars: true }), q);
+  }
+  assert.equal(stripFunctionWords('是不是'), '');
+});
+
 test('tokenizeQuery 與 Memoria 1.28.1 相同:英數字整段、中文切成 2 字窗格', () => {
-  assert.deepEqual(tokenizeQuery('Taonix 排程 改成'), ['taonix', '排程', '改成']);
+  assert.deepEqual(tokenizeQuery('Docker 映像 改版'), ['docker', '映像', '改版']);
   assert.deepEqual(tokenizeQuery('殭屍程序 處理'), ['殭屍', '屍程', '程序', '處理']);
   assert.deepEqual(tokenizeQuery('17 乘以 23'), ['17', '乘以', '23']);
   // 單一中文字與單一數字長度不足 2,丟掉
-  assert.deepEqual(tokenizeQuery('5 公斤 磅'), ['公斤']);
+  assert.deepEqual(tokenizeQuery('3 公尺 秒'), ['公尺']);
 });
 
 test('countMatchedContentTokens 只算不是純數字、而且出現在 snippet 裡的 token', () => {
@@ -205,6 +230,32 @@ for (const { label, env, query, confidence, kept } of CASES) {
     });
   });
 }
+
+test('AC-3:只看第一筆 snippet;第二筆命中再多也不算', async () => {
+  await withThresholdEnv(undefined, async () => {
+    const { snippets } = await recallOnce('殭屍程序後來怎麼處理', 0.5, [
+      { id: 'hit-1', snippet: '程序清單', score: 0.4 },
+      { id: 'hit-2', snippet: SNIPPET, score: 0.3 }
+    ]);
+    assert.deepEqual(snippets, []);
+  });
+});
+
+test('AC-3:有 hit 但 snippet 全部空白時,不記為被判準丟棄', async () => {
+  const traces: MemoriaRecallTrace[] = [];
+  const off = addMemoriaRecallTraceHook((trace) => traces.push(trace));
+  try {
+    await withThresholdEnv(undefined, async () => {
+      await recallOnce('殭屍程序後來怎麼處理', 0.5, [{ id: 'hit-1', snippet: '  ', score: 0.4 }]);
+    });
+  } finally {
+    off();
+  }
+  assert.deepEqual(
+    traces.map((t) => [t.droppedLowConfidence, t.injected]),
+    [[false, false]]
+  );
+});
 
 test('AC-3:被新判準擋下時,事件與 trace 都記為丟棄、未注入,也不回傳 recall_id', async () => {
   const events: Record<string, unknown>[] = [];

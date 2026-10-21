@@ -8,7 +8,7 @@
  */
 
 /** 疑問詞、虛詞與句尾語氣詞。只收語法功能詞,不收主題詞。多字詞依長度由長到短比對。 */
-const FUNCTION_WORDS = [
+export const FUNCTION_WORDS = [
   '為什麼',
   '怎麼樣',
   '怎麼辦',
@@ -68,7 +68,7 @@ const FUNCTION_WORDS = [
 ].sort((a, b) => b.length - a.length);
 
 /** 代名詞、助動詞、介系詞與副詞的單字,在多字詞之後才拿掉。 */
-const SINGLE_CHAR_FUNCTION_WORDS = [
+export const SINGLE_CHAR_FUNCTION_WORDS = [
   '我',
   '你',
   '他',
