@@ -26,4 +26,6 @@
   - 開了的話，worker 啟動時 warn 一次，每輪照印 skipped，CLI 會失敗退出，健康報告的狀態是 `remote-unsupported`。
 - `.env.example` 的回填區塊加了一行註解。
 - 以 `grep -rn "目前不支援\|不支援遠端封存" docs/*.md .env.example src` 檢查：沒有結果。
+  - 審查 review-3dc3f44 指出：`src/services/memory-backfill.ts` 本來就有一個 NUL 位元組，`grep` 會把它當二進位檔、不出任何訊息就跳過。審查者用 Python 另外查過，這個檔案也沒有舊說法。
+  - `CHANGELOG.md` 2.31.0 段落寫「仍在 #16 討論」，那是已經發版的紀錄，不改；下一版的 release notes 要寫明已定案。
 - `docs/configuration-reference.md` 在 main 上本來就有 Prettier 警告，這次沒有重排整份檔案。
