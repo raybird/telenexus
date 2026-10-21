@@ -21,9 +21,18 @@ import { formatPromptSessionTraceMarkdown } from './prompt-session-telemetry.js'
 /**
  * 正在失敗的 snapshot。由成功（或程序啟動後第一次）轉為失敗時才記 runtime issue：這裡每 60 秒
  * 與每則訊息都會重算，每次都記的話，要靠 recordRuntimeIssue 的 60 秒 dedupe 而且錯誤訊息
- * 每次都相同才不會洗版；runtime_issue 事件又會讓 event-projector 再排一輪寫入。
+ * 每次都相同才不會洗版。
+ *
+ * runtime_issue 會觸發 event-projector；距上次執行超過節流間隔時，它在 recordRuntimeIssue 裡
+ * **同步**重入這個函式一次。所以必須先 add 再 record：重入那一輪看到已在失敗中，不會再發事件，
+ * 寫入輪數才有上限。
  */
 const failingSnapshots = new Set<string>();
+
+/** 測試用：清空失敗狀態，讓每個測試都從「尚未失敗」開始 */
+export function clearContextSnapshotFailures(): void {
+  failingSnapshots.clear();
+}
 
 /**
  * 每個 snapshot 各自計算、各自寫入：任何一個 throw 都只讓它保留上一次的內容，
@@ -224,7 +233,12 @@ export function writeContextSnapshots(
       console.warn(`[System] Failed to write context snapshot ${name}:`, error);
       if (!failingSnapshots.has(name)) {
         failingSnapshots.add(name);
-        recordRuntimeIssue(`context-snapshot:${name}`, error);
+        try {
+          recordRuntimeIssue(`context-snapshot:${name}`, error);
+        } catch {
+          // 回報本身也會解析工作目錄（events.jsonl）；工作目錄被刪掉時它同樣 throw，
+          // 這裡不能讓它傳到每則訊息的處理路徑上，上面的 console.warn 已留下紀錄
+        }
       }
     }
   }

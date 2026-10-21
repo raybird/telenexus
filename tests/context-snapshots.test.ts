@@ -4,7 +4,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { MemoryManager } from '../src/core/memory.js';
-import { writeContextSnapshots } from '../src/services/context-snapshots.js';
+import {
+  clearContextSnapshotFailures,
+  writeContextSnapshots
+} from '../src/services/context-snapshots.js';
 import {
   clearPromptSessionTraces,
   recordPromptSessionTrace
@@ -14,7 +17,8 @@ import {
   recordMemoryIntentTrace
 } from '../src/services/memory-intent-telemetry.js';
 import type { MemoriaSyncStatus } from '../src/core/memoria-sync.js';
-import { getRecentIssues } from '../src/utils/errors.js';
+import { addIssueHook, getRecentIssues } from '../src/utils/errors.js';
+import { initEventProjector } from '../src/services/event-projector.js';
 
 function withTempProject<T>(fn: (projectDir: string) => T): T {
   const prevCwd = process.cwd();
@@ -135,10 +139,10 @@ const SNAPSHOT_FILES = [
 ];
 
 /** 只實作 writeContextSnapshots 用到的兩個方法；failSchedules 為 true 時 scheduler-status 會 throw */
-function stubMemory(state: { failSchedules: boolean }): MemoryManager {
+function stubMemory(state: { failSchedules: boolean; message?: () => string }): MemoryManager {
   return {
     getActiveSchedules: () => {
-      if (state.failSchedules) throw new Error('schedules table is broken');
+      if (state.failSchedules) throw new Error(state.message?.() ?? 'schedules table is broken');
       return [];
     },
     countIssuesByScope: () => []
@@ -150,6 +154,7 @@ function withSnapshotDataDir<T>(fn: (projectDir: string, contextDir: string) => 
     const prevDbDir = process.env.DB_DIR;
     process.env.DB_DIR = path.join(projectDir, 'data');
     fs.mkdirSync(process.env.DB_DIR, { recursive: true });
+    clearContextSnapshotFailures();
     try {
       return fn(projectDir, path.join(projectDir, 'workspace', 'context'));
     } finally {
@@ -240,5 +245,99 @@ test('AC-4：snapshot 開始失敗時記一次 runtime issue，持續失敗不�
     );
     // console.warn 照舊保留：每次失敗都印
     assert.equal(logs.warn.filter((line) => line.includes('scheduler-status')).length, 4);
+  });
+});
+
+test('AC-3／AC-4：snapshot 目錄無法建立時不 throw，每個檔案各記一次', () => {
+  withSnapshotDataDir((projectDir, contextDir) => {
+    // 讓 workspace/context 變成一般檔案，mkdir 與寫入都會失敗
+    fs.rmSync(contextDir, { recursive: true, force: true });
+    fs.writeFileSync(contextDir, 'not a directory');
+    const before = SNAPSHOT_FILES.map((file) =>
+      issueCount(`context-snapshot:${file.replace(/\.md$/, '')}`)
+    );
+
+    quietly(() => {
+      assert.doesNotThrow(() => writeContextSnapshots(stubMemory({ failSchedules: false })));
+      assert.doesNotThrow(() => writeContextSnapshots(stubMemory({ failSchedules: false })));
+    });
+
+    const after = SNAPSHOT_FILES.map((file) =>
+      issueCount(`context-snapshot:${file.replace(/\.md$/, '')}`)
+    );
+    assert.deepEqual(
+      after.map((count, i) => count - before[i]!),
+      SNAPSHOT_FILES.map(() => 1)
+    );
+    assert.ok(fs.existsSync(path.join(projectDir, 'workspace', 'context')));
+  });
+});
+
+test('AC-3：工作目錄被刪掉、又沒有 APP_PROJECT_DIR 時，不 throw 給呼叫端', () => {
+  const prevCwd = process.cwd();
+  const prevProjectDir = process.env.APP_PROJECT_DIR;
+  const prevDbDir = process.env.DB_DIR;
+  const gone = fs.mkdtempSync(path.join(os.tmpdir(), 'telenexus-context-snapshots-gone-'));
+  delete process.env.APP_PROJECT_DIR;
+  delete process.env.DB_DIR;
+  process.chdir(gone);
+  fs.rmSync(gone, { recursive: true, force: true });
+  clearContextSnapshotFailures();
+  try {
+    quietly(() => {
+      for (let round = 0; round < 3; round += 1) {
+        assert.doesNotThrow(() => writeContextSnapshots(stubMemory({ failSchedules: false })));
+      }
+    });
+  } finally {
+    process.chdir(prevCwd);
+    if (prevProjectDir === undefined) delete process.env.APP_PROJECT_DIR;
+    else process.env.APP_PROJECT_DIR = prevProjectDir;
+    if (prevDbDir === undefined) delete process.env.DB_DIR;
+    else process.env.DB_DIR = prevDbDir;
+  }
+});
+
+test('AC-4：接上 event-projector 時，開始失敗那一刻只同步重入一次', () => {
+  withSnapshotDataDir(() => {
+    // 每次的錯誤訊息都不同：60 秒 dedupe 合併不了，次數上限只能靠失敗狀態保證
+    let attempt = 0;
+    const memory = stubMemory({
+      failSchedules: true,
+      message: () => `schedules table vanished (attempt ${(attempt += 1)})`
+    });
+    let rounds = 0;
+    let depth = 0;
+    let maxDepth = 0;
+    const write = (): void => {
+      rounds += 1;
+      depth += 1;
+      maxDepth = Math.max(maxDepth, depth);
+      try {
+        writeContextSnapshots(memory);
+      } finally {
+        depth -= 1;
+      }
+    };
+    // 間隔設得夠長：第一個事件同步執行，之後的只排尾端補寫，由 stop() 取消
+    const stop = initEventProjector(write, { minIntervalMs: 60_000 });
+    // 前面的測試已把 recentIssues 的 20 筆緩衝擠滿，這裡改數 hook 的呼叫次數
+    let recorded = 0;
+    const unhook = addIssueHook((issue) => {
+      if (issue.scope === 'context-snapshot:scheduler-status') recorded += 1;
+    });
+    try {
+      quietly(() => {
+        write();
+        write();
+      });
+    } finally {
+      unhook();
+      stop();
+    }
+
+    assert.equal(recorded, 1);
+    assert.equal(maxDepth, 2, '轉為失敗時應該只同步重入一次');
+    assert.equal(rounds, 3, '外層兩輪加上一次同步重入');
   });
 });

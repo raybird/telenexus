@@ -596,8 +596,9 @@ function writeLocalArchive(tempDir: string): string {
   return archivePath;
 }
 
-function memoryHealthIssueCount(): number {
-  return getRecentIssues().filter((issue) => issue.scope.startsWith('memory-health')).length;
+/** 所有 scope 的 runtime issue 次數總和；dedupe 命中只會加 count，所以要加總 count，不能只數筆數 */
+function runtimeIssueCount(): number {
+  return getRecentIssues().reduce((sum, issue) => sum + issue.count, 0);
 }
 
 test('AC-1：運作資料庫不存在時是 unavailable，數字為 null，不 throw', async () => {
@@ -635,7 +636,7 @@ for (const [label, prepare] of [
       writeLocalArchive(tempDir);
       writeRetrievalDb(dbDir, []);
       prepare(path.join(dbDir, 'moltbot.db'));
-      const issuesBefore = memoryHealthIssueCount();
+      const issuesBefore = runtimeIssueCount();
 
       const report = collectMemoryHealthReport();
 
@@ -647,7 +648,7 @@ for (const [label, prepare] of [
       assert.equal(report.archive.status, 'ok');
       assert.equal(report.archive.sessions24h, 0);
       assert.equal(report.archive.estimatedGapRecent24h, null);
-      assert.equal(memoryHealthIssueCount(), issuesBefore);
+      assert.equal(runtimeIssueCount(), issuesBefore);
 
       const markdown = formatMemoryHealthMarkdown(report);
       assert.match(markdown, /- Operational Status: error\n/);
@@ -662,7 +663,7 @@ test('AC-1／AC-2：檢索資料庫不是 SQLite 檔時是 error，orphan 檢查
     writeOperationalDbWithRecentModelReply(dbDir);
     writeCheckpoint(checkpointFile);
     writeNotSqlite(path.join(dbDir, 'memory.db'));
-    const issuesBefore = memoryHealthIssueCount();
+    const issuesBefore = runtimeIssueCount();
 
     const report = collectMemoryHealthReport();
 
@@ -682,7 +683,7 @@ test('AC-1／AC-2：檢索資料庫不是 SQLite 檔時是 error，orphan 檢查
     assert.equal(report.consistency.ok, null);
     assert.equal(report.operational.status, 'ok');
     assert.equal(report.operational.modelResponses24h, 1);
-    assert.equal(memoryHealthIssueCount(), issuesBefore);
+    assert.equal(runtimeIssueCount(), issuesBefore);
 
     const markdown = formatMemoryHealthMarkdown(report);
     assert.match(markdown, /- Retrieval Status: error\n/);
