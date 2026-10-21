@@ -21,7 +21,7 @@ node dist/tools/memoria-legacy-scope-cli.js [--db <sessions.db>] [--from-scope p
 npm run memoria:migrate-legacy-scope -- [同上]
 ```
 
-- `--db` 預設沿用 `resolveMemoriaSessionsDbPath()`，也就是 `MEMORIA_ARCHIVE_DB` 或 `MEMORIA_HOME/.memory/sessions.db`。
+- `--db` 預設沿用 `resolveMemoriaSessionsDbPath()`，也就是 `MEMORIA_ARCHIVE_DB` 或 `MEMORIA_HOME/.memory/sessions.db`。正式部署的 run 容器沒有這兩個變數，文件一律明寫 `--db`（步驟 1）。
 - `--from-scope` 預設 `project:TeleNexus`；只處理 `scope` 等於它的 session。
 - 不加 `--write` 只預覽（SCN-001）。
 - 備份與遷移紀錄放在資料庫所在目錄下的 `legacy-scope-migration/<時間戳>/`，所以在容器裡會留在 Memoria 的 volume 內。紀錄含 session ID，不離開 volume。
@@ -29,7 +29,7 @@ npm run memoria:migrate-legacy-scope -- [同上]
 ### 流程
 
 1. **前置檢查**（SCN-008）：`PRAGMA quick_check` 必須是 `ok`；`sessions`、`events`、`memory_nodes`、`memory_node_sources` 必須有遷移用到的欄位。任何一項不符就以非 0 結束，不寫入、不備份。
-2. **服務檢查**（SCN-007，只在 `--write` 時）：設定了 `MEMORIA_ENDPOINT` 時，以短逾時打 `/v1/health`；有回應就拒絕寫入。沒有設定時印出「略過檢查」的警告，由操作文件要求先停止 Memoria。
+2. **服務檢查**（SCN-007，只在 `--write` 時）：設定了 `MEMORIA_ENDPOINT` 時，以短逾時打 `/v1/health`；有回應就拒絕寫入。沒有設定時印出「略過檢查」的警告，由操作文件要求先停止 Memoria。檔案鎖偵測不到閒置的 Memoria（`journal_mode=delete`，步驟 1），所以不另做。
 3. **分類**（SCN-002、SCN-004）：純函式，輸入舊 session 與其事件，輸出遷移計畫與人工審閱清單。
    - 歸入人工審閱的情況：沒有 `UserMessage`，或有多筆；metadata 無法解析、缺 `user_id`；`platform` 不是 `telegram`／`console`／`scheduler`；`ModelMessage` 的 `platform` 或 `user_id` 與 `UserMessage` 不一致；事件內容無法取出文字。
    - 目標 scope：`scheduler` → `scheduler:<user_id>`，其餘 → `user:<user_id>`，與 `buildScope()` 相同。
@@ -48,7 +48,7 @@ npm run memoria:migrate-legacy-scope -- [同上]
 | 舊記憶 | 沒有工具，只能手寫 SQL（本機 2026-08-14 就是這樣遷的） | 預覽 → 停 Memoria → `--write` → `memoria index build` → 啟動 Memoria |
 | 回復 | 無 | 停 Memoria，以備份檔覆蓋 `sessions.db`，刪除 `-wal`／`-shm`，再啟動 |
 
-確切命令（volume 名稱、使用者、entrypoint）由步驟 1 驗證後寫進 `docs/installation.md`。
+步驟 1 驗證過的執行方式：`docker compose run --rm --no-deps --user 1000:1000 -v <專案名稱>_memoria_data:/memoria telenexus node dist/tools/memoria-legacy-scope-cli.js --db /memoria/.memory/sessions.db`。volume 一定要寫完整名稱，短名稱會另建一個空 volume；`--user 1000:1000` 對齊 Memoria 映像的檔案擁有者；要用 `docker compose run`，服務檢查才連得到 `memoria`。重建索引用 `docker compose run --rm --no-deps memoria memoria index build`。
 
 ## 測試策略
 
@@ -75,11 +75,12 @@ npm run memoria:migrate-legacy-scope -- [同上]
 
 ## 實作步驟
 
-1. ⏳ **在拋棄式 Compose 部署上驗證操作路徑**（首要驗證；SCN-010、SCN-011 的前提）
+1. ✅ **在拋棄式 Compose 部署上驗證操作路徑**（首要驗證；SCN-010、SCN-011 的前提）
    - 做法：以 release 映像 v2.30.1 與 `docker/memoria.Dockerfile` 建立獨立的 Compose 專案，把資料副本放進它的 Memoria volume。依序跑：停 Memoria、以 telenexus 映像掛載 volume 執行調查腳本的 `full` 模式（含 `VACUUM INTO` 備份）、以 Memoria 映像跑 `memoria index build`、啟動 Memoria 並召回、再以備份覆蓋並確認回復。
    - 產出：`evidence/step1-operational-path.md`，記錄每個命令、結果，以及需要調整的前提（volume 名稱、使用者與權限、entrypoint、唯讀 rootfs）。
    - 完成判準：整條路徑都跑通，或找出不成立的前提並據此修訂本計畫的 CLI 設計；回復後各資料表筆數與內容雜湊與遷移前相同，Memoria 健康檢查通過。
    - 相依：無。
+   - 完成證據：[evidence/step1-operational-path.md](evidence/step1-operational-path.md)——整條路徑跑通，回復後各資料表的筆數與內容雜湊與遷移前相同。找出三個不成立或要寫明的前提：Compose 的短 volume 名稱會另建空 volume、PUID 不是 1000 時寫不進去、檔案鎖偵測不到執行中的 Memoria。據此修訂了下方「CLI」與「使用方式對照」，不影響驗收劇本。
 2. ⏳ **分類、預覽與防護**（SCN-001、SCN-004、SCN-007、SCN-008）
    - 做法：先寫測試確認失敗，再實作前置檢查、服務檢查、分類與預覽輸出，以及 CLI 骨架。`memoria-sync.ts` 匯出 summary 函式前後跑既有測試。
    - 產出：`src/services/memoria-legacy-scope.ts`、`src/tools/memoria-legacy-scope-cli.ts`、`package.json` 的 script、測試與 `evidence/step2-red-green.md`。
