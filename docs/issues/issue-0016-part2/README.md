@@ -2,6 +2,13 @@
 
 GitHub：[#16](https://github.com/raybird/telenexus/issues/16)（第一部分見 [issue-0016](../issue-0016/README.md)）
 
+## 文件清單
+- [evidence/step1-messages.md](./evidence/step1-messages.md)
+- [evidence/step2-cli-and-docs.md](./evidence/step2-cli-and-docs.md)
+- [evidence/step3-review-followup.md](./evidence/step3-review-followup.md)
+- [review-3dc3f44.md](./review-3dc3f44.md)
+- [review-0640b95.md](./review-0640b95.md)
+
 ## 概述
 
 GitHub #16 要求「明確選擇支援遠端回填（透過可分頁、可 checkpoint 的 API／匯出）或將目前模式標為 unsupported」。第一部分（issue-0016，已合併）只讓狀態如實呈現，這個選擇留成 TBD-1。2026-10-21 使用者選「正式標成不支援（建議）」。
@@ -111,10 +118,13 @@ GitHub #16 要求「明確選擇支援遠端回填（透過可分頁、可 check
 |------|------|------|
 | 2026-10-21 | 建立。使用者選擇正式標成不支援、Q1「維持每輪都印」、Q2 交付方式 | - |
 | 2026-10-21 | 步驟 1、2：原因說明、啟動警告與文件；4 個新測試、5 個突變都轉紅，全套 598 個通過，編譯後的 CLI 在遠端模式實跑 | - |
-| 2026-10-21 | 本機獨立審查 review-3dc3f44：PASS，SHOULD FIX 1 項（遠端 AC-2 測試太弱）。已補強測試，見 [evidence/step3-review-followup.md](evidence/step3-review-followup.md) | reviewer |
+| 2026-10-21 | 本機獨立審查 review-3dc3f44：PASS，SHOULD FIX 1 項（遠端 AC-2 測試太弱）。 | reviewer |
+| 2026-10-21 | 依審查補強遠端 AC-2 測試，見 [evidence/step3-review-followup.md](evidence/step3-review-followup.md) | - |
+| 2026-10-21 | 本機獨立複審 review-0640b95：PASS，沒有 MUST FIX 或 SHOULD FIX | reviewer |
+| 2026-10-21 | 依使用者事先的指示（審查 PASS 而且沒有要修的項目時自動合併）以 `git merge --ff-only` 合併進 `main`（`6eefdc2`） | 使用者 |
 
 ---
 **建立日期**: 2026-10-21  
 **分級**: Small  
 **風險**: Low\
-**狀態**: 進行中
+**狀態**: 已完成
