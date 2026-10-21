@@ -2,6 +2,59 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.32.0 — 2026-10-21
+
+### 召回注入判準重新校準（#19）
+
+2.31.0 的遷移工具把舊記憶分到 `user:` 分區之後，語料變多，短的無關問句容易碰巧命中「什麼」「怎麼」「多少」這類疑問詞與數字，讓 Memoria 的 `confidence`（問句 token 出現在第一筆結果裡的比例）超過門檻。
+
+- 送出召回前，先把中文的疑問詞與虛詞換成空白；全部被拿掉時送原句。
+- 注入另需第一筆結果至少含 2 個不是純數字的問句 token；`confidence` 仍需 ≥ `MEMORIA_RECALL_MIN_CONFIDENCE`。
+- 在另一台部署的資料副本上，以事先凍結、只跑一次的驗收集量測：
+  - 無關問句被注入的比例從 8/17 降到 1/17；
+  - 相關問句命中仍是 17/17。
+
+  樣本小，證據與限制見 [issue 0019](docs/issues/issue-0019/README.md)。
+
+- 被這個條件擋下時，`memoria_recall` 事件多帶 `matched_tokens` 與 `min_matched_tokens`。
+
+### 聊天召回指標依版本保存（#20）
+
+每次聊天召回的結果（成功或失敗、有沒有結果、有沒有注入、是否退回字面召回）逐筆存進 `moltbot.db` 的 `memoria_recall_events`。
+
+- 保留 30 天，不存問句、snippet 與使用者 ID。
+- `memoria-status.md` 新增「Recall Metrics by Version」，列出目前版本與前一個版本的召回次數、命中率、注入率與退回率，用來比較升級前後。
+- 成功少於 20 次時比例顯示 `unknown` 並附 n。
+
+### 本機資料庫讀不了時，健康報告與 context snapshot 照常更新（#18）
+
+- 運作資料庫（`moltbot.db`）或檢索資料庫（`memory.db`）讀不了時，健康報告不再 throw：
+  - 該區塊標 `status=unavailable`（檔案不存在）或 `error`（讀不了），原因寫在 `detail`；
+  - 數字以 `null` 呈現；
+  - 不記 runtime issue。
+- `workspace/context/` 的 10 個 snapshot 改成各自產生、各自寫入，一個失敗不再讓整輪都停在舊內容。由成功轉為失敗時記一次 `context-snapshot:<檔名>` runtime issue。
+
+### 遠端 Memoria 模式正式不支援記憶回填（#16）
+
+#16 要求在「支援遠端回填」和「正式標成不支援」之間做選擇。這一版選了正式標成不支援，原因有兩個：
+
+- Memoria 的 HTTP API 沒有可分頁、可 checkpoint 的 session 列出 API；
+- 回填寫入的 `memory.db` 目前沒有聊天路徑會讀。
+
+具體改變：
+
+- 遠端模式的原因說明改成正式不支援，並寫出處理方式：把 `MEMORY_BACKFILL_ENABLED` 設為 `false`。worker 每輪的訊息、健康報告與 `memory:backfill` 的錯誤訊息都是這一句。
+- 遠端模式又開了回填時，worker 啟動會 warn 一次；排程照常，每輪仍印 skipped。
+
+### 升級注意
+
+- **聊天召回會注入得比較少**（#19）：短問句或只剩一個關鍵詞的問句，在字面路由上不再注入舊對話。
+  - `MEMORIA_RECALL_MIN_CONFIDENCE=0` 會停用整個注入判準，但問句仍會先拿掉疑問詞與虛詞再送出，所以回不到 2.31.0 的行為。
+  - 已知限制見 [設定參考](docs/configuration-reference.md)。
+- **`GET /api/memory-health` 的 JSON 又有變**（#18）：`operational` 與 `retrieval` 多了 `status`／`detail`，讀不了時數字是 `null`。有自己的腳本在解析這份 JSON 的話，請一併調整。
+- `memoria_recall_events` 表會在啟動時自動建立，不需要手動遷移（#20）。
+- 用官方 Compose 部署、開過 `MEMORY_BACKFILL_ENABLED=true` 的話，請改回 `false`（#16）。
+
 ## 2.31.0 — 2026-10-21
 
 ### 舊版 Memoria 記憶遷移工具（#15）
