@@ -81,9 +81,12 @@ function collapseWhitespace(text: string): string {
 
 function truncateForSummary(text: string): string {
   const collapsed = collapseWhitespace(text);
-  return collapsed.length <= SUMMARY_SIDE_CHAR_LIMIT
-    ? collapsed
-    : `${collapsed.slice(0, SUMMARY_SIDE_CHAR_LIMIT - 1)}…`;
+  if (collapsed.length <= SUMMARY_SIDE_CHAR_LIMIT) return collapsed;
+  // 截斷點落在 emoji 這類 surrogate pair 中間時少取一個單位:落單的前半寫進
+  // SQLite 會變成不合法的 UTF-8(issue 0015 在舊資料上遇到 3 筆)
+  let head = collapsed.slice(0, SUMMARY_SIDE_CHAR_LIMIT - 1);
+  if (/[\ud800-\udbff]$/.test(head)) head = head.slice(0, -1);
+  return `${head}…`;
 }
 
 /**

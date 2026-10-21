@@ -37,7 +37,7 @@ GitHub：[#15](https://github.com/raybird/telenexus/issues/15)
 ### 遷移工具
 - `src/tools/memoria-legacy-scope-cli.ts` - 新增 CLI，隨 release 映像出貨（`dist/tools/`）
 - `src/services/memoria-legacy-scope.ts` - 新增分類、預覽、備份、改寫與紀錄的邏輯
-- `src/core/memoria-sync.ts` - 匯出現有的 summary 組法給遷移重用，行為不變
+- `src/core/memoria-sync.ts` - 匯出現有的 summary 組法給遷移重用；截斷時不切開 emoji（SCN-013）
 - `package.json` - 新增 npm script
 
 ### 文件
@@ -143,13 +143,19 @@ Feature: 把舊版 project scope 的 Memoria 記憶分類遷移到聊天與排�
     And 遷移前就存在的資料遷移後仍然命中
     And 注入的結果裡沒有排程產出，也沒有其他 scope 的資料
     And 無關問句的注入率照實列出，不設通過門檻
+
+  @SCN-013
+  Scenario: summary 截斷時不切開 emoji
+    Given 一則使用者訊息或回覆超過 240 字，截斷點剛好落在 emoji 中間
+    When 同步把這一輪寫進 Memoria，或遷移工具從事件重建 summary
+    Then summary 不含切成一半的 emoji，截斷處以「…」結尾
 ```
 
 ## Gherkin 核准紀錄
 - **核准 commit**: ee4340b
 - **核准來源**: 使用者 2026-10-21 對話的逐題確認。Q1「遷移工具要在哪裡、以什麼方式執行」選「telenexus 映像內的腳本（建議）」（SCN-011）。Q2「遷移後無關問句的 confidence 上升，要在本 issue 處理嗎」選「本 issue 只量測，校準另開（建議）」（SCN-012、TBD-1）。Q3「出錯時要怎麼回復」選「寫入前自動備份整個 DB（建議）」（SCN-003、SCN-010）。之後列出 SCN-001～SCN-012 請使用者確認，選「全部照寫核准（建議）」。
 
-全部 Scenario 於 2026-10-21 核准。
+SCN-001～SCN-012 於 2026-10-21 核准。SCN-013 是同日的規格修訂：步驟 4 在資料副本上發現 3/2,300 筆 summary 的截斷點落在 emoji 中間，工具會寫出不合法的 UTF-8；正式同步用的是同一個截斷函式。使用者選「修共用的截斷函式（建議）」。
 
 ## 重構步驟概要
 1. ✅ **步驟 1** - 在拋棄式 Compose 部署上驗證操作路徑
@@ -188,6 +194,7 @@ Feature: 把舊版 project scope 的 Memoria 記憶分類遷移到聊天與排�
 | 2026-10-20 | 調查分類依據並在資料副本上模擬遷移（evidence/） | - |
 | 2026-10-21 | 建立；逐題確認執行方式、門檻校準範圍與回復方式 | 使用者 |
 | 2026-10-21 | SCN-001～SCN-012 核准；記錄不開 PR 的 Gate 豁免 | 使用者 |
+| 2026-10-21 | 規格修訂：新增 SCN-013，summary 截斷不切開 emoji，同步與遷移共用的截斷函式一起修 | 使用者 |
 
 ---
 **建立日期**: 2026-10-21  

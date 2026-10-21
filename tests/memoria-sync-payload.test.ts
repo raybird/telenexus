@@ -341,3 +341,23 @@ test('過長的訊息在 summary 裡會被截斷', async () => {
     }
   );
 });
+
+test('截斷處落在 emoji 上時不會留下落單的 surrogate(issue 0015)', async () => {
+  // 第 239 個 UTF-16 單位剛好是 🎉 的前半;切開會留下 \ud83c,寫進 SQLite 變成不合法的 UTF-8
+  const long = `${'排'.repeat(238)}🎉${'尾'.repeat(20)}`;
+  await withCapturedPayload(
+    {
+      userId: '42',
+      userMessage: long,
+      modelMessage: '好',
+      isPassthroughCommand: false,
+      forceNewSession: false
+    },
+    (payload) => {
+      const summary = String(payload.summary);
+      assert.doesNotMatch(summary, /[\ud800-\udbff](?![\udc00-\udfff])/, '不能有落單的前半');
+      assert.doesNotMatch(summary, /(?<![\ud800-\udbff])[\udc00-\udfff]/, '不能有落單的後半');
+      assert.equal(summary, `${'排'.repeat(238)}… → 好`);
+    }
+  );
+});
