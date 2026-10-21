@@ -94,7 +94,7 @@ GitHub：[#18](https://github.com/raybird/telenexus/issues/18)
 
 | 編號 | 事項 | 狀態 | 影響 |
 |---|---|---|---|
-| D-1 | snapshot 失敗要不要推 Telegram 告警（審查 [review-6446a2d.md](review-6446a2d.md) SHOULD FIX 3，`需決策`）。照 AC-4，每個 snapshot 每次轉為失敗只記 1 筆，達不到 ErrorAlerter 的門檻（預設 10 分鐘 3 次），所以預設不會告警 | 已決定（2026-10-21）：使用者選「接受，文件寫明」。行為不變，`docs/web-console-reference.md` 寫明不會告警，以及看得到失敗的地方 | 不改 AC-4，不是規格修訂 |
+| D-1 | snapshot 失敗要不要推 Telegram 告警（審查 [review-6446a2d.md](review-6446a2d.md) SHOULD FIX 3，`需決策`）。照 AC-4，每個 snapshot 每次轉為失敗只記 1 筆，達不到 ErrorAlerter 的門檻（預設 10 分鐘 3 次），所以預設不會告警 | 已解決（2026-10-21）：使用者選「接受，文件寫明」。行為不變，`docs/web-console-reference.md` 寫明不會告警，以及看得到失敗的地方 | 不改 AC-4，不是規格修訂 |
 
 ## 實作與驗證步驟
 
@@ -127,7 +127,7 @@ GitHub：[#18](https://github.com/raybird/telenexus/issues/18)
    - 產出：`src/services/context-snapshots.ts`、`tests/context-snapshots.test.ts`、`tests/memory-health.test.ts`、`docs/web-console-reference.md`、本 issue 的證據。
    - 驗收：AC-1、AC-3、AC-4。
    - 相依：步驟 1～3。
-   - 完成證據：[evidence/step4-review-followup.md](evidence/step4-review-followup.md)。SHOULD FIX 1、2、4 已修正並補測試；SHOULD FIX 3 依 D-1 只改文件。補上的測試在修正前是紅燈，4 個突變都轉紅。
+   - 完成證據：[evidence/step4-review-followup.md](evidence/step4-review-followup.md)。SHOULD FIX 1、2、4 已修正並補測試；SHOULD FIX 3 依 D-1 只改文件。3 個新測試中，「工作目錄被刪掉」在修正前是紅燈；另外 2 個守的是既有行為，以突變證明有效。4 個突變都轉紅。複審 [review-55ab72d.md](review-55ab72d.md) 的文件後續見同一份證據。
 
 ## Gate 豁免紀錄
 
@@ -145,6 +145,7 @@ GitHub：[#18](https://github.com/raybird/telenexus/issues/18)
 | 2026-10-21 | 本機獨立審查 review-6446a2d：PASS，有 4 項 SHOULD FIX | reviewer |
 | 2026-10-21 | D-1：snapshot 失敗不推 Telegram，只在文件寫明（審查 SHOULD FIX 3） | 使用者 |
 | 2026-10-21 | 審查後續：SHOULD FIX 1、2、4 修正，NICE TO HAVE 2 修正 | - |
+| 2026-10-21 | 本機獨立複審 review-55ab72d：PASS；SHOULD FIX 1～3 都是文件準確度，已修正 | reviewer |
 
 ---
 **建立日期**: 2026-10-21  

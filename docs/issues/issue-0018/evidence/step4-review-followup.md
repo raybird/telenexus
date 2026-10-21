@@ -19,7 +19,7 @@
 
 ## 紅燈
 
-補上的測試先在 `6446a2d` 的程式上執行：
+補上的測試要用到新增的 `clearContextSnapshotFailures()`，在 `6446a2d` 的程式上會因為缺少這個 export 而載入失敗。下表是補上重設之前、以及補上重設但還沒修正程式時的結果（複審另把 export 補進 `6446a2d` 重跑，結果相同）：
 
 | 測試 | 修正前 |
 |---|---|
@@ -55,3 +55,15 @@ npx tsx --test tests/context-snapshots.test.ts tests/memory-health.test.ts
 | Md：`readLocalDb()` 讀不了時記 `local-db:<label>`（審查的 M7） | 運作資料庫不是 SQLite、缺少資料表，檢索資料庫不是 SQLite（3 個）。對照：舊的斷言在同一個突變下 19/19 全過 |
 
 每次只改一處，跑完就還原（`diff` 確認與原檔相同）。
+
+## 複審後續（[review-55ab72d.md](../review-55ab72d.md)）
+
+| 審查項目 | 處理 |
+|---|---|
+| SHOULD FIX 1：釘選訊息的錯誤計數不可靠 | 從 `docs/web-console-reference.md` 的清單拿掉。這個數字是 `getRecentIssues().length`，緩衝滿 20 筆後就不再變動；標籤寫 24h 也不對，這是既有問題，不在本 issue 範圍。 |
+| SHOULD FIX 2：README 步驟 4 誇大了紅燈 | 改成「3 個新測試中只有工作目錄被刪掉的那個在修正前是紅燈，另外 2 個以突變證明」；本檔紅燈表的前言補上缺少 export 的說明。 |
+| SHOULD FIX 3：D-1 的狀態用詞 | 改成 `已解決`。 |
+| NICE 1：目錄無法建立的測試以前後差計數 | 不處理。現在的結果是確定的：測試檔各自一個程序，而且它前面的測試記的筆數固定。之後在它前面加測試時若受影響，會以紅燈出現，不會是假綠燈。 |
+| NICE 2：紅燈表第一列漏寫 projector 測試 | 不處理。那次執行時 projector 測試還沒有改成以 hook 計數，它的失敗原因在「寫測試時另外發現兩件事」已交代。 |
+
+這一輪只改文件，沒有改程式與測試。
