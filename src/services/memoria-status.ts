@@ -1,6 +1,7 @@
 import type { MemoriaSyncStatus } from '../core/memoria-sync.js';
 import type { MemoriaRecallVersionSummary } from '../core/memory.js';
 import { formatMemoriaRecallTelemetryMarkdown } from './memoria-recall-telemetry.js';
+import { RECALL_METRICS_RETENTION_DAYS } from './recall-metrics-store.js';
 
 /** 成功次數少於這個值時，比例標成不可判定（issue 0020）。 */
 const MIN_RECALL_SAMPLES = 20;
@@ -70,7 +71,7 @@ export function formatRecallMetricsByVersionMarkdown(
 
   return [
     ...header,
-    `- 保留 30 天；比例只計成功的召回，成功少於 ${MIN_RECALL_SAMPLES} 次時顯示 unknown`,
+    `- 保留 ${RECALL_METRICS_RETENTION_DAYS} 天；比例只計成功的召回，成功少於 ${MIN_RECALL_SAMPLES} 次時顯示 unknown`,
     '',
     `### Current Version: ${currentVersion}`,
     ...(current ? formatVersionLines(current) : ['- (尚無樣本)']),

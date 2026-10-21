@@ -471,3 +471,50 @@ test('AC-4：writeContextSnapshots 把資料庫裡的指標寫進 memoria-status
     assert.match(md, /- Injected Rate: 100\.0% \(20\/20\)/);
   });
 });
+
+test('AC-2／AC-4：降版時依最後一筆的時間挑前一版，不依版本號大小', async () => {
+  await withTempDb(async () => {
+    const memory = new MemoryManager();
+    const t0 = Date.now() - 20 * DAY_MS;
+    // 2.29.0 → 升到 2.31.0 → 降回 2.30.1：時間順序和版本號大小不一致
+    memory.appendMemoriaRecallEvent(event('2.29.0', t0));
+    memory.appendMemoriaRecallEvent(event('2.31.0', t0 + 5 * DAY_MS));
+    memory.appendMemoriaRecallEvent(event('2.30.1', t0 + 10 * DAY_MS));
+
+    assert.deepEqual(
+      memory.summarizeMemoriaRecallByVersion().map((row) => row.version),
+      ['2.30.1', '2.31.0', '2.29.0']
+    );
+    const md = formatRecallMetricsByVersionMarkdown('2.29.0', () =>
+      memory.summarizeMemoriaRecallByVersion()
+    );
+    assert.match(md, /### Previous Version: 2\.30\.1/);
+  });
+});
+
+test('AC-1：scope 不是 prefix:id 格式時記 other，不寫入整串', async () => {
+  await withTempDb(async (dbPath) => {
+    const memory = new MemoryManager();
+    const store = startRecallMetricsStore(memory, { appVersion: '9.9.9' });
+    try {
+      await recallOnce({ status: 200, hits: 1, confidence: 0.5 }, 'secret-user-42');
+      // recallOnce 的 scope 有預設值，沒帶 scope 的情況直接呼叫 client
+      await withMemoria({ status: 200, hits: 1, confidence: 0.5 }, async (endpoint) => {
+        await new MemoriaRecallClient({ endpoint, timeoutMs: 2000 }).recallWithMeta(QUERY);
+      });
+    } finally {
+      store.stop();
+    }
+    assert.deepEqual(
+      readRows(dbPath).map((row) => row.scope_kind),
+      ['other', 'none']
+    );
+  });
+});
+
+test('readAppVersion 讀 package.json 的 version', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'package.json'), 'utf8')) as {
+    version: string;
+  };
+  assert.equal(readAppVersion(), pkg.version);
+});

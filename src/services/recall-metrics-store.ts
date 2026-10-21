@@ -6,7 +6,8 @@ import type { MemoryManager } from '../core/memory.js';
 import { addMemoriaRecallTraceHook, isDegradedRoute } from './memoria-recall-telemetry.js';
 
 const PURGE_INTERVAL_MS = 6 * 60 * 60 * 1000;
-const RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+export const RECALL_METRICS_RETENTION_DAYS = 30;
+const RETENTION_MS = RECALL_METRICS_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 
 export function startRecallMetricsStore(
   memory: MemoryManager,
@@ -36,7 +37,9 @@ export function startRecallMetricsStore(
     try {
       const removed = memory.purgeOldMemoriaRecallEvents(Date.now() - RETENTION_MS);
       if (removed > 0) {
-        console.log(`[recall-metrics] purged ${removed} recall events older than 30 days`);
+        console.log(
+          `[recall-metrics] purged ${removed} recall events older than ${RECALL_METRICS_RETENTION_DAYS} days`
+        );
       }
     } catch (err) {
       console.warn('[recall-metrics] purge failed:', err);

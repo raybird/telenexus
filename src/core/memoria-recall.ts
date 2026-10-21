@@ -131,7 +131,12 @@ export class MemoriaRecallClient {
     };
 
     const startedAt = Date.now();
-    const scopeKind = scope ? (scope.split(':')[0] ?? scope) : 'none';
+    // 只留前綴；不是 `prefix:id` 格式時記 other，不把整串（可能是 ID）寫進資料庫
+    const scopeKind = !scope
+      ? 'none'
+      : scope.includes(':')
+        ? scope.slice(0, scope.indexOf(':'))
+        : 'other';
     try {
       const { status, body } = await memoriaHttpRequest(
         this.endpoint,

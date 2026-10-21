@@ -55,8 +55,9 @@ export function recordMemoriaRecallTrace(trace: MemoriaRecallTrace): void {
   for (const hook of traceHooks) {
     try {
       hook(trace);
-    } catch {
-      // hook 自己負責回報；這裡在召回的路徑上，不能讓它影響聊天
+    } catch (err) {
+      // 這裡在召回的路徑上，不能讓 hook 影響聊天；留一行 warn，免得 hook 本身的錯誤被吞得無影無蹤
+      console.warn('[memoria-recall] trace hook failed:', err);
     }
   }
 }
