@@ -146,9 +146,11 @@ GitHub：[#18](https://github.com/raybird/telenexus/issues/18)
 | 2026-10-21 | D-1：snapshot 失敗不推 Telegram，只在文件寫明（審查 SHOULD FIX 3） | 使用者 |
 | 2026-10-21 | 審查後續：SHOULD FIX 1、2、4 修正，NICE TO HAVE 2 修正 | - |
 | 2026-10-21 | 本機獨立複審 review-55ab72d：PASS；SHOULD FIX 1～3 都是文件準確度，已修正 | reviewer |
+| 2026-10-21 | 本機獨立複審 review-f52ec17：PASS，沒有 MUST FIX 與 SHOULD FIX | reviewer |
+| 2026-10-21 | 依使用者指示以 `git merge --ff-only` 合併進 `main`（`57e6b46`）；釘選訊息「Recent errors (24h)」標籤不符的既有問題已回報使用者，是否另開 issue 由使用者決定 | 使用者 |
 
 ---
 **建立日期**: 2026-10-21  
 **分級**: Small  
 **風險**: Low\
-**狀態**: 進行中
+**狀態**: 已完成
