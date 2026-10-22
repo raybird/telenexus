@@ -85,7 +85,7 @@ GitHub #16 要求「明確選擇支援遠端回填（透過可分頁、可 check
 
 | 編號 | 事項 | 狀態 | 影響 |
 |---|---|---|---|
-| N-1 | 原本寫「回填寫入的 `memory.db` 目前沒有任何聊天路徑讀取」，這句不對：只查了 `src/`，漏了 opencode 的 `mcp-memory-libsql` MCP（`workspace/.opencode/opencode.json`），agent 可以透過它讀寫 `memory.db`。正確的說法是 TeleNexus 的 prompt 組裝不讀 `memory.db`，回填寫入的候選只有 agent 呼叫 MCP 工具時才會用到 | 已更正（2026-10-21） | 要不要另開 issue，依更正後的前提重新請使用者決定 |
+| N-1 | 原本寫「回填寫入的 `memory.db` 目前沒有任何聊天路徑讀取」，這句不對：只查了 `src/`，漏了 opencode 的 `mcp-memory-libsql` MCP（`workspace/.opencode/opencode.json`），agent 可以透過它讀寫 `memory.db`。正確的說法是 TeleNexus 的 prompt 組裝不讀 `memory.db`，回填寫入的候選只有 agent 呼叫 MCP 工具時才會用到 | 已更正（2026-10-21）；2026-10-22 查正式部署：近 30 天 agent 呼叫這個 MCP 0 次，回填從未寫入。使用者選擇退役，另開 [#22](https://github.com/raybird/telenexus/issues/22) | 不影響本 issue |
 | N-2 | GitHub #16 要不要在合併後關閉 | 合併後由使用者決定 | 不影響驗收 |
 
 ## 實作與驗證步驟
