@@ -95,13 +95,49 @@ for (const mode of ['non-stream', 'stream'] as const) {
     assert.equal(result.text, 'CONFIG_CAPTURED');
     const config = JSON.parse(fs.readFileSync(process.env.BROWSER_CONFIG_CAPTURE!, 'utf8'));
     assert.equal(config.mcp?.telenexus_browser?.type, 'local');
+    assert.equal(config.mcp?.['mcp-memory-libsql']?.enabled, false);
   });
 }
 
 test('SCN-006 同名自訂 browser 設定保持原樣，不覆寫或重複註冊', () => {
   const original = '{"mcp":{"telenexus_browser":{"type":"local","command":["custom-browser"]}}}';
   process.env.OPENCODE_CONFIG_CONTENT = original;
-  assert.equal(new ConfigAgent().environment().OPENCODE_CONFIG_CONTENT, original);
+  const env = new ConfigAgent().environment();
+  const config = JSON.parse(env.OPENCODE_CONFIG_CONTENT!);
+  // issue 0022 SCN-003：自訂 browser 時仍停用舊部署的 mcp-memory-libsql，browser 設定不動
+  assert.deepEqual(config.mcp.telenexus_browser, { type: 'local', command: ['custom-browser'] });
+  assert.deepEqual(Object.keys(config.mcp).sort(), ['mcp-memory-libsql', 'telenexus_browser']);
+  assert.equal(config.mcp['mcp-memory-libsql'].enabled, false);
+  assert.equal(env.TELENEXUS_BROWSER_AUDIT_FILE, process.env.TELENEXUS_BROWSER_AUDIT_FILE);
+  assert.equal(process.env.OPENCODE_CONFIG_CONTENT, original);
+});
+
+// issue 0022：舊部署的 workspace/.opencode/opencode.json 還留著 mcp-memory-libsql，升級不會覆蓋它。
+// 注入完整的停用條目（只給 enabled 時，沒有舊設定的部署每輪會多一行 ERROR log，見 issue 0022 步驟 1）。
+test('issue 0022 SCN-001/002 預設注入完整的 mcp-memory-libsql 停用條目', () => {
+  delete process.env.OPENCODE_CONFIG_CONTENT;
+  const config = JSON.parse(new ConfigAgent().environment().OPENCODE_CONFIG_CONTENT ?? '{}');
+  assert.deepEqual(config.mcp?.['mcp-memory-libsql'], {
+    type: 'local',
+    command: ['mcp-memory-libsql'],
+    enabled: false
+  });
+  assert.ok(config.mcp.telenexus_browser);
+});
+
+test('issue 0022 SCN-003 使用者自訂的 mcp-memory-libsql 原樣保留', () => {
+  const entry = {
+    type: 'local',
+    command: ['npx', '-y', 'mcp-memory-libsql'],
+    enabled: true,
+    environment: { LIBSQL_URL: 'file:../data/memory.db' }
+  };
+  const original = JSON.stringify({ mcp: { 'mcp-memory-libsql': entry } });
+  process.env.OPENCODE_CONFIG_CONTENT = original;
+  const config = JSON.parse(new ConfigAgent().environment().OPENCODE_CONFIG_CONTENT!);
+  assert.deepEqual(config.mcp['mcp-memory-libsql'], entry);
+  assert.ok(config.mcp.telenexus_browser);
+  assert.equal(process.env.OPENCODE_CONFIG_CONTENT, original);
 });
 
 test('無效 inline 設定如實失敗，不靜默丟失原設定或印出內容', () => {

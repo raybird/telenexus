@@ -66,7 +66,7 @@
    - 不成立時停止，回報結果並重新決定 Q1。
    - 產出：`evidence/step1-opencode-mcp-disable.md`。
    - 相依：Scenario 全部核准。
-2. 📝 **注入停用**（SCN-001～003）
+2. ✅ **注入停用**（SCN-001～003）——證據：[evidence/step2-config-injection.md](evidence/step2-config-injection.md)
    - 做法：
      - 改 `getEnv()` 前，跑 `gitnexus_impact` 並用 `grep` 核對呼叫點。
      - 在 `tests/opencode-browser-config.test.ts` 加測試，先轉紅再實作。測試涵蓋四種情況：

@@ -120,6 +120,9 @@ const OPENCODE_RATE_LIMIT_MESSAGE =
  */
 export const OPENCODE_SESSION_NOT_FOUND_PATTERN = /Session not found/;
 
+/** 舊部署 workspace/.opencode/opencode.json 裡的 MCP 鍵名（已退役，issue 0022）。 */
+const LEGACY_MEMORY_MCP = 'mcp-memory-libsql';
+
 function buildSessionMissingResult(): AgentStructuredResult {
   return buildTextOnlyStructuredResult('opencode', 'Opencode 找不到要接續的 session。', {
     failure: { kind: 'session-missing', message: 'Session not found' }
@@ -152,12 +155,24 @@ export class OpencodeAgent extends CliAgentBase {
     if (typeof mcp !== 'object' || Array.isArray(mcp)) {
       throw new Error('OPENCODE_CONFIG_CONTENT 的 mcp 必須是設定物件。');
     }
+    // 舊部署的 workspace/.opencode/opencode.json 還留著 mcp-memory-libsql（升級不覆蓋 workspace/），
+    // 映像也不再安裝它，所以在這裡停用（issue 0022）。給完整條目：只給 enabled 時，
+    // 沒有舊設定的部署每輪會多一行「Ignoring MCP config entry without type」的 ERROR log。
+    const withLegacyMemoryDisabled = Object.hasOwn(mcp, LEGACY_MEMORY_MCP)
+      ? mcp
+      : {
+          ...mcp,
+          [LEGACY_MEMORY_MCP]: { type: 'local', command: [LEGACY_MEMORY_MCP], enabled: false }
+        };
     if (Object.hasOwn(mcp, 'telenexus_browser')) {
       logger.warn('browser.custom-config-preserved', { builtinCleanup: false });
-      return env;
+      return {
+        ...env,
+        OPENCODE_CONFIG_CONTENT: JSON.stringify({ ...config, mcp: withLegacyMemoryDisabled })
+      };
     }
     config.mcp = {
-      ...mcp,
+      ...withLegacyMemoryDisabled,
       telenexus_browser: {
         type: 'local',
         command: [
