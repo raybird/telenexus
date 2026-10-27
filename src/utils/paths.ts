@@ -83,11 +83,3 @@ export function resolveMemoryBackfillCheckpointPath(): string {
   }
   return path.resolve(resolveDataDir(), 'memory-backfill-checkpoint.json');
 }
-
-export function resolveMemoryBackfillReportPath(): string {
-  const explicitPath = process.env.MEMORY_BACKFILL_REPORT_FILE?.trim();
-  if (explicitPath) {
-    return path.resolve(explicitPath);
-  }
-  return path.resolve(resolveDataDir(), 'memory-backfill-report.json');
-}

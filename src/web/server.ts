@@ -17,7 +17,6 @@ import { resolveContextDir } from '../utils/paths.js';
 import { getRecentIssues } from '../utils/errors.js';
 import { readAppVersion } from '../utils/app-version.js';
 import { collectMemoryHealthReport } from '../services/memory-health.js';
-import { getRecentMemoryBackfillReports } from '../services/memory-backfill.js';
 import type { BuildPromptFn } from '../core/prompt-build.js';
 
 type WebServerOptions = {
@@ -2003,12 +2002,6 @@ export function startWebServer(options: WebServerOptions): WebServerHandle {
 
     if (req.method === 'GET' && url.pathname === '/api/memory-health') {
       sendJson(res, 200, { ok: true, report: collectMemoryHealthReport() });
-      return;
-    }
-
-    if (req.method === 'GET' && url.pathname === '/api/memory-backfill/report') {
-      const limit = Number.parseInt(url.searchParams.get('limit') || '10', 10);
-      sendJson(res, 200, { ok: true, items: getRecentMemoryBackfillReports(limit) });
       return;
     }
 

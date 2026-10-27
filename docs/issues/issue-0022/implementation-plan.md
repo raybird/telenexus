@@ -80,7 +80,7 @@
      - 既有的 browser 設定測試照常通過。
    - 產出：`evidence/step2-config-injection.md`。
    - 相依：步驟 1。
-3. 📝 **移除回填與啟動警告**（SCN-005、006）
+3. ✅ **移除回填與啟動警告**（SCN-005、006）——證據：[evidence/step3-backfill-removal.md](evidence/step3-backfill-removal.md)
    - 做法：
      - 刪檔前，用 `grep -rn` 與 `gitnexus_impact` 列出所有引用，包括 `src/`、`tests/`、`scripts/`、`package.json`。
      - 啟動警告抽成可測的小函式，在 `main.ts` 呼叫。先寫測試覆蓋 true、false、未設定三種情況，確認紅燈。

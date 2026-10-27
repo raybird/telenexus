@@ -27,7 +27,7 @@ import {
 } from './services/opencode-session-retention.js';
 import { ChatSessionStore } from './services/chat-session-store.js';
 import { loadAiConfig } from './core/config-loader.js';
-import { MemoryBackfillWorker } from './services/memory-backfill-worker.js';
+import { warnIfMemoryBackfillConfigured } from './services/retired-memory-backfill.js';
 import { startErrorAlerter } from './services/error-alerter.js';
 import { startIssueStore } from './services/issue-store.js';
 import { startRecallMetricsStore } from './services/recall-metrics-store.js';
@@ -291,10 +291,6 @@ async function bootstrap() {
     };
   };
 
-  const memoryBackfillWorker = new MemoryBackfillWorker({
-    onAfterRun: writeContextSnapshotsFn
-  });
-
   // Telegram 與 Web 的 pipeline 共用同一個實例:它每次寫入都把整份綁定寫回檔案。
   const chatSessionStore = new ChatSessionStore();
 
@@ -354,7 +350,6 @@ async function bootstrap() {
     stopContextRefresh();
     modelHealthCheck?.stop();
     opencodeRetention?.stop();
-    memoryBackfillWorker.shutdown();
     scheduler.shutdown();
     // 子程序是 detached 的,不會跟著終端機的 Ctrl-C 一起收到 SIGINT,要明確收掉。
     const terminated = terminateAllChildren();
@@ -369,7 +364,6 @@ async function bootstrap() {
     stopContextRefresh();
     modelHealthCheck?.stop();
     opencodeRetention?.stop();
-    memoryBackfillWorker.shutdown();
     scheduler.shutdown();
     // 子程序是 detached 的,不會跟著終端機的 Ctrl-C 一起收到 SIGINT,要明確收掉。
     const terminated = terminateAllChildren();
@@ -435,7 +429,7 @@ async function bootstrap() {
   await scheduler.init();
   writeSchedulerHealth('startup:init', memory);
   writeContextSnapshotsFn();
-  memoryBackfillWorker.start();
+  warnIfMemoryBackfillConfigured();
 
   if (parseBool(process.env.PINNED_STATUS_ENABLED, true)) {
     const pinned = new PinnedStatusManager(telegram, ALLOWED_USER_ID);
