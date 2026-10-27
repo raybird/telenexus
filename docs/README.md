@@ -67,8 +67,6 @@
 - 模型健康檢查規劃（尚未實作）：`docs/model-health-check-plan.md`
 - 發版 SOP 指令流：`npm run release:minor -- -m "<commit message>"`
 - 記憶健康檢查：`npm run memory:health`
-- Sessions archive dry-run 回填：`npm run memory:backfill:dry-run`
-- Sessions archive 寫入回填：`npm run memory:backfill:write`
 - 記憶人工標記 CLI：`npm run memory:cli -- summaries`
 - 核心規則記憶 seed：`npm run memory:seed-sar-anchors`
 
@@ -106,7 +104,7 @@
 - `docs/web-local-chat-dashboard-plan.md` — Web Console 規劃草案
 - `docs/web-console-ux-evolution.md` — Web UI & UX 進化總結
 - `docs/memoria-capability-hint-and-memory-intent-plan.md` — Memoria 提示計畫
-- `docs/sessions-db-backfill-implementation-plan.md` — Sessions 回填實作計畫
+- `docs/sessions-db-backfill-implementation-plan.md` — Sessions 回填實作計畫（已退役，issue 0022）
 - `docs/memory-system-analysis-2026-03-30.md` — 記憶系統分析報告
 - `docs/sar-improvement-plan-minimal.md` — SAR 最小改進計畫（偏 roadmap）
 - `docs/chat-prompt-config-proposal.md` — Chat prompt 設定提案

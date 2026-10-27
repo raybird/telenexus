@@ -7,6 +7,7 @@
 2026-10-04：OpenCode 聊天（串流／非串流、local／runner）沿用 webfetch 讀普通公開網頁；JS 正文才使用內建 `telenexus_browser` MCP。映像固定 Chrome DevTools MCP 1.10.1、Chrome 154.0.8037.92，不在每次工作下載套件。摘要路徑不額外注入此工具。
 
 - `OPENCODE_CONFIG_CONTENT` 支援 JSON／JSONC 物件；工作 env 合併 MCP，不改寫持久 OpenCode 設定或認證。既有 memory／自訂 MCP 保留。
+- inline 設定沒有定義 `mcp-memory-libsql` 時，工作 env 一律帶它的停用條目（已退役，見「已退役：mcp-memory-libsql 與記憶回填」）。
 - `telenexus_browser` 是內建命名空間；若 inline 設定已明確定義同名 entry，保留自訂設定並記 `browser.custom-config-preserved`，不承諾自訂 entry 的內建收尾保障。持久設定的同名 entry 不屬此 inline 保留判斷，請避免命名衝突。
 - 每個工作使用獨立臨時 root／profile；內建 launcher 負責 EOF／信號／子程序退出的收尾。`TELENEXUS_BROWSER_AUDIT_FILE` 是產品內部注入的 `APP_PROJECT_DIR/data/browser-lifecycle.jsonl` 路徑，不是新增的使用者設定旋鈕。
 - 清理失敗寫入該 JSONL（只記錯誤碼與程序身份，不記 URL／token）；無自動輪替，維護者需依部署的 log 保存政策管理。記錄存在代表需要查核，不代表清理成功。
@@ -182,50 +183,46 @@ MEMORIA_RECALL_MIN_CONFIDENCE=0.2
   - 被擋下時，`memoria_recall` 事件帶 `dropped_low_confidence: true`、`min_confidence`、`matched_tokens` 與 `min_matched_tokens`。這次召回沒有被使用，因此不回報 UFL outcome。
 - 召回指標：每次聊天召回（成功或失敗）都在 `moltbot.db` 的 `memoria_recall_events` 寫一筆，欄位是時間、TeleNexus 版本、scope 種類、`ok`、`route_mode`、命中數、是否因信心過低丟棄、是否注入、是否降級、latency；不存問句、snippet 與使用者 ID。保留 30 天，啟動時與之後每 6 小時清理。寫入失敗不影響聊天，只在 log 印 `[recall-metrics]` 開頭的 warn。彙總呈現在 `memoria-status.md` 的「Recall Metrics by Version」，判讀見 `docs/web-console-reference.md`
 
-## Sessions archive / memory backfill
+## 已退役：mcp-memory-libsql 與記憶回填
 
-新增的 health / dry-run backfill 設定：
+最後驗證：2026-10-27（issue 0022）。
+
+`data/memory.db` 這條路已退役：agent 不再呼叫 `mcp-memory-libsql`（2026-03-29 起 prompt 就不再指示它使用知識圖譜），回填也從未寫入正式部署。長期記憶由 Memoria 負責。
+
+- **MCP**：
+  - 映像不再安裝 `mcp-memory-libsql`。
+  - TeleNexus 交給 opencode 的 `OPENCODE_CONFIG_CONTENT` 一律帶一個停用條目 `{"type":"local","command":["mcp-memory-libsql"],"enabled":false}`。這個條目會和 `workspace/.opencode/opencode.json` 合併，所以舊部署留在那裡的設定不會再啟動，也不會讓 `npx` 每輪去 npm 下載。
+  - 新安裝本來就沒有這份設定，帶著停用條目也不會出錯。
+- **回填**：worker、`npm run memory:backfill:*`、`GET /api/memory-backfill/report` 都已移除，`MEMORY_BACKFILL_*` 不再有作用。`MEMORY_BACKFILL_ENABLED` 還是開著時，服務啟動會 warn 一行。
+- **健康報告**：`memory-status.md` 只剩運作資料庫（`moltbot.db`）與封存兩個區塊，見 `docs/web-console-reference.md`。
+- **既有檔案**：`data/memory.db`、`data/memory-backfill-checkpoint.json`、`data/memory-backfill-report.json` 原地保留，TeleNexus 不再讀寫。需要時可以用 sqlite 自行讀取，表名是 `entities`、`observations`、`relations`。
+
+升級不需要手動步驟：
+
+- `.env` 裡的 `MEMORY_BACKFILL_*` 可以順手刪掉；
+- `workspace/.opencode/opencode.json` 的 `mcp` 區塊留著也沒關係，會被停用。
+
+想繼續用 `mcp-memory-libsql`，就在 `.env` 的 `OPENCODE_CONFIG_CONTENT` 寫完整條目。inline 設定自己定義了這個鍵時，TeleNexus 保留原樣、不加停用條目：
 
 ```env
-MEMORY_BACKFILL_ENABLED=false
-MEMORY_BACKFILL_DRY_RUN=true
-MEMORY_BACKFILL_INTERVAL_MS=300000
-MEMORY_BACKFILL_STARTUP_DELAY_MS=15000
-MEMORY_BACKFILL_BATCH_SIZE=50
-MEMORY_BACKFILL_MAX_CANDIDATES_PER_RUN=20
-MEMORY_BACKFILL_CHECKPOINT_FILE=/app/data/memory-backfill-checkpoint.json
+OPENCODE_CONFIG_CONTENT={"mcp":{"mcp-memory-libsql":{"type":"local","command":["npx","-y","mcp-memory-libsql"],"enabled":true,"environment":{"LIBSQL_URL":"file:../data/memory.db"}}}}
 ```
 
-說明：
+映像不再內建這個套件，所以容器每次重建後，第一次執行時 `npx` 會從 npm 下載。
 
-- `MEMORY_BACKFILL_ENABLED=false`（預設）：先不上正式寫入 worker
-- `MEMORY_BACKFILL_DRY_RUN=true`（預設）：只掃描 `sessions.db` 並輸出候選，不寫入 `memory.db`
-- `MEMORY_BACKFILL_INTERVAL_MS`：背景 worker 週期，預設 5 分鐘
-- `MEMORY_BACKFILL_STARTUP_DELAY_MS`：服務啟動後延遲多久跑第一輪 backfill
-- `MEMORY_BACKFILL_BATCH_SIZE`：每次 dry-run 掃描的 archive session 上限
-- `MEMORY_BACKFILL_MAX_CANDIDATES_PER_RUN`：每次最多輸出的候選知識數
-- `MEMORY_BACKFILL_CHECKPOINT_FILE`：dry-run / worker 共用的 checkpoint 檔位置
+**升級前確認有沒有在用**：在部署目錄執行下面的命令（唯讀），它會算出 opencode 保留的 session 裡 `mcp-memory-libsql` 工具的呼叫次數與最後一次時間。opencode session 預設只保留 30 天，見上方 `OPENCODE_SESSION_RETENTION_DAYS`。次數是 0 就可以直接升級；不是 0 的話，照上一段在 `OPENCODE_CONFIG_CONTENT` 設定。
 
-常用指令：
+```bash
+docker compose exec -T telenexus node - <<'EOF'
+const Database = require('/app/node_modules/better-sqlite3');
+const db = new Database(process.env.HOME + '/.local/share/opencode/opencode.db', { readonly: true });
+console.log(db.prepare(`SELECT COUNT(*) AS calls, datetime(MAX(time_created) / 1000, 'unixepoch') AS last
+  FROM part WHERE json_extract(data, '$.type') = 'tool'
+  AND json_extract(data, '$.tool') LIKE 'mcp-memory-libsql%'`).get());
+EOF
+```
 
-- `npm run memory:health`
-- `npm run memory:backfill:dry-run`
-- `npm run memory:backfill:write`
-
-注意：
-
-- `memory:backfill:write` 會將高信心候選寫入 `data/memory.db`
-- 建議先跑 `memory:backfill:dry-run -- --json` 抽查候選品質，再進行 write
-- 若要常態化跑 worker，可設 `MEMORY_BACKFILL_ENABLED=true`；worker 會自動 `save checkpoint`
-- 回填只適用於 `MEMORIA_ARCHIVE_DB` 或 `MEMORIA_HOME` 指向本機 `sessions.db` 的部署。
-- **遠端 Memoria 模式（官方 Compose）正式不支援回填**，這不是暫時的限制（issue 0016 第二部分，2026-10-21 決定）：
-  - 原因：Memoria 的 HTTP API 沒有可分頁、可 checkpoint 的 session 列出 API，只能依單一 ID 取摘要，所以 telenexus 沒辦法透過 API 逐批讀封存。
-  - 不建議為了回填，把 Memoria 可寫的 `sessions.db` 共享給 telenexus 容器。
-  - 遠端部署請保持 `MEMORY_BACKFILL_ENABLED=false`。
-  - 如果開了，worker 啟動時會 warn 一次不支援，之後照常排程，每輪印 `skipped. remote-unsupported: …`。
-  - `memory:backfill` 會失敗退出並說明原因。
-  - 健康報告的 `Backfill Source State` 是 `remote-unsupported`。
-- worker 每輪的訊息依回填來源狀態而定：只有 `pending` 才執行；`no new archive sessions` 只代表封存可讀但沒有比 checkpoint 新的 session；`unavailable`、`empty` 各印各的原因；封存讀取失敗時記 `memory-backfill:worker` runtime issue。啟動訊息的 `source=local|remote` 是封存來源。目前的狀態也在 `npm run memory:health` 的 `Backfill Source State` 一行
+輸出 `{ calls: 0, last: null }` 代表保留期內沒有呼叫過。better-sqlite3 不把雙引號當字串，所以 SQL 裡的字串一律用單引號。
 
 ## Telegram 檔案回傳
 
@@ -321,7 +318,7 @@ recordRuntimeIssue(scope, err)
 - `ERROR_ALERT_WINDOW_MS`（預設 `600000` = 10 分）：滑動視窗長度
 - `ERROR_ALERT_COOLDOWN_MS`（預設 `1800000` = 30 分）：同 scope 至少冷卻 N 毫秒才能再次推送
 - 訊息推送對象：`ALLOWED_USER_ID`
-- 觸發 scope 範例：`memory-backfill:worker`、`scheduler:task-timeout`、`scheduler:task-failed`、`gemini:rate-limit`、`opencode:rate-limit`
+- 觸發 scope 範例：`scheduler:task-timeout`、`scheduler:task-failed`、`gemini:rate-limit`、`opencode:rate-limit`
 
 **Schedule task timeout**
 

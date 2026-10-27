@@ -79,8 +79,9 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 - `src/core/memoria-recall.ts`、`src/core/memoria-recall-query.ts`
   - 聊天召回：問句先拿掉疑問詞與虛詞再送 `/v1/recall`
   - 注入判準是 confidence 達 `MEMORIA_RECALL_MIN_CONFIDENCE`，而且第一筆 snippet 含 2 個以上內容 token（issue 0019）
-- `src/services/memory-backfill-worker.ts`
-  - 針對 sessions archive 做 backfill / dry-run 掃描
+- `src/services/memory-health.ts`
+  - 記憶健康報告（`memory-status.md`、`/api/memory-health`）：運作資料庫 `moltbot.db` 與 Memoria 封存兩個區塊
+  - `data/memory.db`、`mcp-memory-libsql` 與記憶回填已退役（issue 0022），見 `docs/configuration-reference.md`
 
 ### 排程與 Web
 
@@ -218,7 +219,7 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 - 新增 provider：實作 `AIAgent` 介面並接入 `DynamicAIAgent`
 - 新增命令：擴充 `CommandRouter`
 - 新增 Web 視圖：在 `src/web/public/app/views/` 與對應 service 擴充
-- 新增記憶治理規則：優先補 `summary metadata`、SAR ranking、backfill 驗證
+- 新增記憶治理規則：優先補 `summary metadata`、SAR ranking
 
 ## 文件對照
 

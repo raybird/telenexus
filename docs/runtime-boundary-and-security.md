@@ -63,7 +63,7 @@
   - `runner-audit.log`：runner request JSONL 稽核軌跡。
   - `system-architecture.md`：高層架構與資料流說明。
   - `operations-policy.md`：允許/禁止操作、執行規範。
-  - `memory-status.md`：記憶健康度與 backfill 狀態。
+  - `memory-status.md`：記憶健康度（運作資料庫與 Memoria 封存）。
   - `memoria-status.md`：Memoria CLI 可用性與最近同步狀態。
   - `prompt-session-status.md`：prompt mode、prompt 長度、memory context 使用量。
   - `memory-intent-status.md`：模型輸出的結構化 memory intent 觀測。
@@ -91,7 +91,7 @@
 - sync 是背景補強,不可阻塞主聊天;hook-queue 保留為**離線重試緩衝**,memoria 服務短暫不可達時 payload 留存待重灌,不丟記憶。
 - `MEMORIA_SYNC_ENABLED=auto` 時,只要設了 `MEMORIA_ENDPOINT`(compose 內預設指向 memoria 服務)即啟用;不可達不停用,交由 queue 重試。
 - 問題應分開判讀：
-  - `memory.db` / `moltbot.db` 問題：會直接影響主對話與排程
+  - `moltbot.db` 問題：會直接影響主對話與排程
   - Memoria 服務問題：主要影響跨 session 長期補強,不應拖垮主流程
 
 ## 6) 安全基準檢查清單

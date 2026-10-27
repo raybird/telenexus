@@ -52,6 +52,16 @@ curl -fsSL https://raw.githubusercontent.com/raybird/telenexus/main/scripts/inst
 
 `--upgrade` 會重新下載最新 bundle 覆蓋部署檔（`.env`、`ai-config.yaml`、`data/`、`workspace/` 完整保留），然後 `docker compose pull` 拉新映像並 `--force-recreate` 換上。
 
+### mcp-memory-libsql 與記憶回填退役（issue 0022）
+
+升級不需要手動步驟：
+
+- `workspace/.opencode/opencode.json` 裡舊的 `mcp-memory-libsql` 條目會被 TeleNexus 停用，不必修改；
+- `data/memory.db` 與回填的 checkpoint／報告檔原地保留，不再讀寫；
+- `.env` 裡的 `MEMORY_BACKFILL_*` 可以順手刪掉，`MEMORY_BACKFILL_ENABLED` 留著開啟時，啟動 log 會提醒一行。
+
+升級前怎麼確認這個 MCP 有沒有在用，以及想繼續用時怎麼設定，見 `docs/configuration-reference.md` 的「已退役：mcp-memory-libsql 與記憶回填」。
+
 ### 舊版記憶遷移（2026-08-14 以前的部署）
 
 2026-08-14 以前同步到 Memoria 的對話都在 `project:TeleNexus` 分區，summary 也只是 `user=… platform=…` 這類 metadata。現在的聊天只查 `user:<id>`，所以這些舊記憶找不到。遷移工具依每筆對話事件記錄的 `platform` 與 `user_id`，把舊資料分到 `user:<id>`（Telegram、Web 對話與 passthrough 指令）或 `scheduler:<id>`（排程產出），並從事件重建 summary。歸屬不明的會留在原處，列在人工審閱清單。

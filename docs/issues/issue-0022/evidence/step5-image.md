@@ -70,7 +70,7 @@ stderr (前 5 行):
 
 ## 其他檢查
 
-`tests/docker/*.test.ts`、`tests/skill-browser-migration.test.ts`、`tests/opencode-browser-config.test.ts` 合跑（含 `compose-parity.test.ts`）：`# tests 28`、`# pass 28`、`# fail 0`。這時還沒加新的靜態測試。
+`tests/docker/*.test.ts`、`tests/skill-browser-migration.test.ts`、`tests/opencode-browser-config.test.ts` 合跑（含 `compose-parity.test.ts`）：`# tests 28`、`# pass 28`、`# fail 0`。這次合跑在新增靜態測試之前。
 
 ## 精煉
 

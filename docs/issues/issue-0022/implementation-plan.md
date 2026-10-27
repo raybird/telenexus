@@ -115,7 +115,7 @@
      - `tests/docker/compose-parity.test.ts` 照常通過。
    - 產出：`evidence/step5-image.md`。
    - 相依：步驟 2。
-6. 📝 **文件與交付檢查**（SCN-009）
+6. ✅ **文件與交付檢查**（SCN-009）——證據：[evidence/step6-docs-and-checks.md](evidence/step6-docs-and-checks.md)
    - 做法：依 project.md 的常青文件表更新以下文件。
      - `docs/configuration-reference.md`：
        - 回填段落改成退役說明；

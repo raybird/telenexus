@@ -42,7 +42,6 @@ WEB_USER_ID=
 - `POST /api/chat/stream`（SSE: `start` / `status` / `chunk` / `done` / `error`）
 - `GET /api/memory/stats`
 - `GET /api/memory-health`
-- `GET /api/memory-backfill/report`
 - `GET /api/memory/recent`
 - `GET /api/memory/stream`（SSE: `snapshot` / `update` / `ping`）
 - `GET /api/memory/search`
@@ -61,12 +60,10 @@ WEB_USER_ID=
 
 - cron 採 5 欄位（`minute hour day month weekday`）
 - 若啟用 `WEB_AUTH_TOKEN`，前端匯出 URL 會附帶 token 參數
-- Status 頁會額外顯示 `memory-status.md`，可用來觀察 archive gap 與 backfill 指標
+- Status 頁會額外顯示 `memory-status.md`，可用來觀察 archive gap
 - `memory-status.md` 與 `GET /api/memory-health` 是同一份報告。`archive.source` 是 `local`（有設定 `MEMORIA_ARCHIVE_DB` / `MEMORIA_HOME`，或預設路徑存在）或 `remote`（官方 Compose 的拆分部署，本服務不讀 memoria 的 volume）；`archive.status` 是 `ok` / `unavailable` / `error`，原因寫在 `archive.detail`。封存沒讀到時，封存統計與 `estimatedGapRecent24h` 是 `null`（markdown 顯示 `unknown`），不是 0
-- 本機的運作資料庫（`operational`，`moltbot.db`）與檢索資料庫（`retrieval`，`memory.db`）也各有 `status`（`ok` / `unavailable` 檔案不存在 / `error` 檔案在但讀不了）與 `detail`。不是 `ok` 時，該區塊的數字是 `null`（markdown 顯示 `unknown`）；運作資料庫沒讀到時 `estimatedGapRecent24h` 也是 `null`。讀不了只寫在報告裡，不記 runtime issue。新部署通常沒有 `memory.db`（目前只有 `memory:backfill --write` 會寫入已存在的檔案），`retrieval.status=unavailable` 屬正常
-- 一致性的三項檢查各有狀態（`consistency.checks`）：`checked`、`skipped`（沒有可檢查的對象，例如沒有 checkpoint，視為通過）、`unsupported`（封存沒讀到）、`error`（封存或檢索資料庫讀取失敗）。檢索資料庫不存在時，沒有觀察可查，orphan 檢查是 `skipped`，三個一致性計數是 0；讀不了時 orphan 檢查是 `error`，計數是 `null`。`consistency.ok` 查到問題為 `false`，每項都 `checked` / `skipped` 且沒問題才是 `true`，有項目沒檢查到時是 `null`（markdown 顯示 `unknown`），代表沒檢查，不代表正常。封存沒讀到時，checkpoint 有 session ID 或處理時間、或者有 `memory.db`，就是 `null`；兩者都沒有時沒有可查的對象，會是 `true`。`ok` 只代表跨庫一致性：封存本身有沒有讀到，看 `archive.status`
-- `backfill.sourceState` 是回填來源目前的狀態，和 worker 決定要不要執行用的是同一個判定：`remote-unsupported`（遠端模式；回填只讀本機 `sessions.db`，遠端模式正式不支援回填，見 `configuration-reference.md`）、`unavailable`（設定的封存路徑不存在）、`error`（封存讀取失敗）、`empty`（封存沒有 session）、`up-to-date`（沒有比 checkpoint 新的 session）、`pending`（有待處理的 session；回填有啟用時，worker 下一輪會執行）。原因寫在 `backfill.sourceDetail`；回填沒啟用時也會顯示。`lastRunStatus` 等欄位是 checkpoint 裡最後一次**實際執行**的紀錄，worker 每輪被擋下時不會更新它們
-- Status 頁也會顯示最近幾輪 backfill run 摘要，方便直接抽查候選品質
+- 本機的運作資料庫（`operational`，`moltbot.db`）也有 `status`（`ok` / `unavailable` 檔案不存在 / `error` 檔案在但讀不了）與 `detail`。不是 `ok` 時，該區塊的數字是 `null`（markdown 顯示 `unknown`），`estimatedGapRecent24h` 也是 `null`。讀不了只寫在報告裡，不記 runtime issue
+- 報告只有運作資料庫與封存兩個區塊。`data/memory.db` 的檢索、回填與一致性區塊已隨 issue 0022 移除，`memory.db` 存在時也不讀；`GET /api/memory-backfill/report` 回 404
 - `memoria-status.md` 的「Recall Metrics by Version」是聊天召回依 TeleNexus 版本的彙總，資料在 `moltbot.db`，跨重啟累積、保留 30 天；上方的「Recall Telemetry」只有記憶體裡最近 50 筆，重啟就歸零。這一節列出目前版本，以及保留期內最近的前一個版本，用來比較升級前後：
   - `Recalls` 是召回次數，含失敗。它計的是召回，不是訊息：接續的 session 失效、改開新 session 時，同一則訊息會重新組 prompt 而召回兩次。
   - `Hit Rate` 是 Memoria 有回傳結果的比例。
