@@ -11,7 +11,10 @@ GitHub：[#22](https://github.com/raybird/telenexus/issues/22)
 
 - **agent 不呼叫**：opencode 透過 `mcp-memory-libsql`（`workspace/.opencode/opencode.json`，`LIBSQL_URL=file:../data/memory.db`）讀寫 `memory.db`。v2.32.0 映像裡這個 MCP 能正常連上，但近 30 天（opencode session 保留期）的工具呼叫中，它是 0 次。
 - **原因是刻意的**：
-  - 2026-03-29 的 `6b77b19` 從預設 prompt 拿掉了知識圖譜指示，`tests/ai-config.test.ts` 也防止加回去。
+  - 2026-03-29 的 `6b77b19` 從程式內建的預設 prompt 拿掉了知識圖譜指示，`tests/ai-config.test.ts` 也防止加回去。
+    - 這只對預設值成立。出貨的 `ai-config.example.yaml` 仍有三行條列，點名 `create_entities`、`create_relations`、`search_entities`；正式部署的 `ai-config.yaml` 是從範例複製的，同樣帶著這三行。
+    - `src/prompt/builder.ts` 的知識管理標題也還寫「你有 MCP Memory 工具」。
+    - 這是本機審查（2026-10-27）發現的缺口，見待確認事項 TBD-2。
   - workspace 的 AGENTS.md 與 `skills/memory` 指向 `memory-cli.js`，它讀的是 `moltbot.db`。
   - 2026-05-23 起，長期記憶改由 Memoria 負責。
 - **回填從沒寫進正式部署**：
@@ -67,13 +70,16 @@ GitHub：[#22](https://github.com/raybird/telenexus/issues/22)
 | `MEMORY_BACKFILL_ENABLED=true` | 排程回填 | 啟動時 warn 一行，說明回填已移除、變數不再有作用 |
 | 健康報告 | 運作資料庫、檢索資料庫、封存、回填、一致性 | 運作資料庫、封存 |
 | `data/memory.db` | 回填與健康報告會讀寫 | TeleNexus 不再讀寫，檔案原地保留 |
+| prompt 的知識管理段落 | 標題寫「你有 MCP Memory 工具」；範例設定點名 MCP 工具 | 標題不提 MCP；範例改用預設條列；`ai-config.yaml` 和舊範例一字不差時換成預設條列，啟動 warn 一行 |
 
 ## 涉及檔案
 
 ```text
 src/
+├── config/ai-config.ts               # 可改：舊範例條列換成預設條列、啟動警告
 ├── core/opencode.ts                  # 可改：getEnv() 注入停用
 ├── main.ts                           # 可改：拿掉 worker，加啟動警告
+├── prompt/builder.ts                 # 可改：只改知識管理段落的標題（SCN-010）
 ├── services/
 │   ├── memory-backfill.ts            # 刪除
 │   ├── memory-backfill-worker.ts     # 刪除
@@ -86,11 +92,13 @@ src/
     └── public/app/                   # 可改：Status 頁、Dashboard 警告、status-service
 Dockerfile                            # 可改：不再全域安裝 mcp-memory-libsql
 workspace/.opencode/opencode.json     # 可改：拿掉 mcp 區塊，model 不動
+ai-config.example.yaml                # 可改：memory_policy_lines 改成和預設條列相同
 package.json                          # 可改：拿掉 memory:backfill:dry-run／write
 tests/                                # 可改：回填測試刪除，health／snapshot／opencode 設定測試修改或新增
 .env.example、.env.production.example # 可改：拿掉 MEMORY_BACKFILL_*
 docs/                                 # 可改：常青文件（見實作計畫步驟 6）
-src/core/memoria-*.ts、src/core/memory.ts、src/prompt/  # 不可觸及：Memoria 召回／同步與 moltbot.db
+src/core/memoria-*.ts、src/core/memory.ts             # 不可觸及：Memoria 召回／同步與 moltbot.db
+src/prompt/ 的其他部分                                # 不可觸及：prompt 模式與組裝順序
 docs/sessions-db-backfill-implementation-plan.md 等歷史文件  # 不可觸及
 ```
 
@@ -173,7 +181,36 @@ Feature: 退役 memory.db 這條路
     And 寫明 data/memory.db 原地保留、升級不需要手動步驟
     And 寫明另一台部署升級前的檢查方式，以及想保留 MCP 時怎麼在 OPENCODE_CONFIG_CONTENT 設定
     And 文件裡沒有留下回填的設定說明與 npm scripts
+
+  @SCN-010
+  Scenario: prompt 不再指示已退役的 MCP Memory 工具
+    When 組出 full prompt
+    Then 知識管理段落沒有「你有 MCP Memory 工具」這句
+    And ai-config.example.yaml 的 memory_policy_lines 不提 create_entities、create_relations、search_entities
+
+  @SCN-011
+  Scenario Outline: 使用者設定的 memory_policy_lines
+    Given ai-config.yaml 的 memory_policy_lines 是 <內容>
+    When 組出 full prompt
+    Then 知識管理段落使用 <結果>
+
+    Examples:
+      | 內容 | 結果 |
+      | 和舊範例的三行完全相同 | 預設條列，服務啟動時 warn 一行 |
+      | 使用者改過的條列 | 使用者的條列原樣 |
+      | 未設定 | 預設條列，不 warn |
 ```
+
+SCN-011 的「舊範例的三行」是 v2.32.0 以前 `ai-config.example.yaml` 唯一出貨過的有效條列（`fc0d60f` 起都相同）：
+
+```yaml
+memory_policy_lines:
+  - 當對話包含重要資訊時，主動使用 create_entities 儲存
+  - 當發現實體間關係時，使用 create_relations
+  - 需要回想時，使用 search_entities
+```
+
+比對時每行去掉頭尾空白，順序與行數都要相同。只要改過一個字、多一行或少一行，就視為使用者自訂。
 
 ## Gherkin 核准紀錄
 - **核准 commit**: 44a2107
@@ -182,6 +219,8 @@ Feature: 退役 memory.db 這條路
   - 2026-10-22：Q1「程式注入停用（建議）」、Q2「原地保留（建議）」、Q3「直接移除（建議）」、Q4「留運作庫與封存（建議）」。
   - 2026-10-27：Q5「不阻塞，升級前再查（建議）」、Q6「分支＋本機審查，PASS 後自動合併（建議）」。
   - 2026-10-27：Scenario 總結確認，使用者選「全部核准（建議）」。
+  - 2026-10-27（規格修訂）：本機獨立審查（review-4e99ceb.md）發現 TBD-2。使用者選「擴大 #22（建議）」，再選「程式自動替換舊範例（建議）」，SCN-010、SCN-011 依該選項的劇本核准。
+- **修訂核准 commit**: 待回填
 
 | Scenario | 核准日期 | 狀態 |
 |----------|---------|------|
@@ -194,6 +233,8 @@ Feature: 退役 memory.db 這條路
 | SCN-007 | 2026-10-27 | 已核准 |
 | SCN-008 | 2026-10-27 | 已核准 |
 | SCN-009 | 2026-10-27 | 已核准 |
+| SCN-010 | 2026-10-27 | 已核准 |
+| SCN-011 | 2026-10-27 | 已核准 |
 
 ## 重構步驟概要
 
@@ -220,6 +261,7 @@ Feature: 退役 memory.db 這條路
 | 編號 | 事項 | 狀態 | 影響 |
 |------|------|------|------|
 | TBD-1 | 另一台部署有沒有在用 `mcp-memory-libsql`。那台開著回填 dry-run，2026-10-03 起刻意停擺，從本機查不到。升級那台之前，由使用者執行實作計畫步驟 6 寫進文件的唯讀檢查命令；有在用的話，在那台的 `OPENCODE_CONFIG_CONTENT` 設定這個 MCP（SCN-003 會保留它） | 待確認 | 不阻塞本次交付（Q5）；影響那台升級後是否保留 MCP |
+| TBD-2 | 本機審查 `review-4e99ceb.md` S1：prompt 標題、`ai-config.example.yaml` 與正式部署的 `ai-config.yaml` 仍指示 agent 使用 MCP Memory 工具；`configuration-reference.md` 新寫的「2026-03-29 起 prompt 就不再指示」不正確 | 已解決：使用者選擇擴大 #22，新增 SCN-010、SCN-011，文件一併更正（SCN-009） | 退役後指示會指向不存在的工具；4e99ceb 不合併，補實作後重新審查 |
 
 ## Gate 豁免紀錄
 
@@ -233,9 +275,10 @@ Feature: 退役 memory.db 這條路
 |------|------|--------|
 | 2026-10-22 | 在正式部署唯讀查詢 MCP 與 `memory.db` 的使用情況；使用者選擇退役，開 GitHub #22；Q1～Q4 回答 | - |
 | 2026-10-27 | Q5、Q6 回答；建立 issue 文件；SCN-001～009 全部核准 | 使用者 |
+| 2026-10-27 | 步驟 1～6 完成（分支 4e99ceb）；本機獨立審查 PASS 但有一項需決策（TBD-2）；使用者選擇擴大範圍，SCN-010、SCN-011 核准 | 使用者 |
 
 ---
 **建立日期**: 2026-10-27  
 **分級**: Medium  
 **風險**: High\
-**狀態**: 待實作
+**狀態**: 實作中
