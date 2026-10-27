@@ -422,7 +422,7 @@ export class Scheduler {
   private async executeTask(schedule: Schedule): Promise<void> {
     emitEvent('schedule_fire', { scheduleId: schedule.id, name: schedule.name });
     try {
-      // 1. 檢索長期記憶 (MCP Memory)
+      // 1. 檢索長期記憶（moltbot.db 最近訊息）
       const longTermMemory = await this.retrieveLongTermMemory(schedule.user_id, schedule.prompt);
 
       // 2. 組合 Prompt

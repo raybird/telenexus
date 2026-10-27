@@ -12,7 +12,12 @@ import { createMessagePipeline } from './core/message-pipeline.js';
 import { Scheduler } from './core/scheduler.js';
 import { startWebServer } from './web/server.js';
 import { parseBool, parsePositiveInt, parseNumber } from './utils/env.js';
-import { loadChatPromptConfig, validateAiConfig, loadProviderStatus } from './config/ai-config.js';
+import {
+  loadChatPromptConfig,
+  validateAiConfig,
+  loadProviderStatus,
+  warnIfRetiredMemoryPolicyLines
+} from './config/ai-config.js';
 import { shouldSummarize, buildMemoryContextAsync, buildChatPrompt } from './prompt/builder.js';
 import { getMemoriaRecallClient } from './core/memoria-recall.js';
 import { recordRuntimeIssue, getRecentIssues } from './utils/errors.js';
@@ -430,6 +435,7 @@ async function bootstrap() {
   writeSchedulerHealth('startup:init', memory);
   writeContextSnapshotsFn();
   warnIfMemoryBackfillConfigured();
+  warnIfRetiredMemoryPolicyLines();
 
   if (parseBool(process.env.PINNED_STATUS_ENABLED, true)) {
     const pinned = new PinnedStatusManager(telegram, ALLOWED_USER_ID);

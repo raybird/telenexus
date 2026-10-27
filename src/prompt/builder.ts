@@ -581,7 +581,7 @@ export function buildChatPrompt(
 
   if (!isCompact && config.memoryPolicyEnabled) {
     const lines = config.memoryPolicyLines.map((line) => `- ${line}`).join('\n');
-    sections.push(`【知識管理 - 重要】\n你有 MCP Memory 工具可以儲存長期知識與關係：\n${lines}`);
+    sections.push(`【知識管理 - 重要】\n${lines}`);
   }
 
   if (!isCompact && config.workspacePolicyEnabled) {

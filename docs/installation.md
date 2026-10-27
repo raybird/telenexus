@@ -58,7 +58,8 @@ curl -fsSL https://raw.githubusercontent.com/raybird/telenexus/main/scripts/inst
 
 - `workspace/.opencode/opencode.json` 裡舊的 `mcp-memory-libsql` 條目會被 TeleNexus 停用，不必修改；
 - `data/memory.db` 與回填的 checkpoint／報告檔原地保留，不再讀寫；
-- `.env` 裡的 `MEMORY_BACKFILL_*` 可以順手刪掉，`MEMORY_BACKFILL_ENABLED` 留著開啟時，啟動 log 會提醒一行。
+- `.env` 裡的 `MEMORY_BACKFILL_*` 可以順手刪掉，`MEMORY_BACKFILL_ENABLED` 留著開啟時，啟動 log 會提醒一行；
+- `ai-config.yaml` 是升級不會覆蓋的使用者檔案。它的 `chat_prompt.memory_policy_lines` 如果還是舊範例那三行（點名 `create_entities` 等工具），TeleNexus 會改用預設條列，啟動 log 提醒一行；刪掉這段就不再提醒。
 
 升級前怎麼確認這個 MCP 有沒有在用，以及想繼續用時怎麼設定，見 `docs/configuration-reference.md` 的「已退役：mcp-memory-libsql 與記憶回填」。
 

@@ -130,6 +130,8 @@ chat_prompt:
     - ...
 ```
 
+`memory_policy_lines` 沒設定時用程式內建的預設條列。設定的條列和 v2.32.0 以前範例的三行（點名已退役的 `create_entities` 等 MCP 工具）一字不差時，也改用預設條列，見 `docs/configuration-reference.md` 的「已退役：mcp-memory-libsql 與記憶回填」。
+
 ## 6) 以哪裡為準
 
 若文件與程式碼不一致，以下優先順序較可靠：

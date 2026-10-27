@@ -136,6 +136,17 @@
      - 證據檔已去敏（[L-10](../../agents/landmines.md#l-10-證據檔把本機資訊帶進公開-repo)）。
    - 產出：`evidence/step6-docs-and-checks.md`。
    - 相依：步驟 2～5。
+7. ✅ **prompt 不再指示 MCP Memory 工具**（SCN-010、SCN-011，2026-10-27 規格修訂後新增）——證據：[evidence/step7-prompt.md](evidence/step7-prompt.md)
+   - 做法：
+     - `src/prompt/builder.ts` 拿掉知識管理標題的「你有 MCP Memory 工具」；
+     - `src/config/ai-config.ts` 讓 `loadChatPromptConfig()` 把和舊範例三行一字不差的條列換成預設條列，並新增啟動時呼叫的 `warnIfRetiredMemoryPolicyLines()`；
+     - `ai-config.example.yaml` 的條列改成和預設相同；
+     - 文件：更正 `configuration-reference.md` 那句不正確的說法，補上 prompt 的處理。
+   - 完成判準：
+     - SCN-011 的三列 Examples 與邊界（只差空白、改一個字、只留兩行）都有測試；
+     - 對正式部署 `ai-config.yaml` 的唯讀複本，實跑編譯後的程式，會 warn、prompt 不提工具；
+     - 全套測試、build、lint 都 exit 0。
+   - 相依：步驟 6。
 
 ## 使用方式對照
 
@@ -158,6 +169,7 @@
 | SCN-007 | 整合 | `collectMemoryHealthReport`、`formatMemoryHealthMarkdown` 與 context snapshot 的測試，使用暫存 `DB_DIR` |
 | SCN-008 | 靜態 + 實跑 | 前端沒有測試框架，以 `grep` 與 `/api/status` 實跑替代 |
 | SCN-009 | 靜態 | 文件 diff 對照與 `grep` |
+| SCN-010、011 | 單元＋實跑 | `loadChatPromptConfig`、`warnIfRetiredMemoryPolicyLines`、`buildChatPrompt` 的測試；對正式部署 `ai-config.yaml` 的唯讀複本實跑編譯後程式 |
 
 刪除的測試只限「只驗證被移除行為」的案例，每一個都列在對應步驟的證據裡。
 

@@ -12,7 +12,7 @@ const program = new Command();
 
 program
   .name('memory-health')
-  .description('Show memory archive and backfill health')
+  .description('Show operational database and memory archive health')
   .version('0.1.0');
 
 program.option('--json', 'Output JSON').action((options) => {

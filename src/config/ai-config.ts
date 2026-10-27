@@ -39,6 +39,37 @@ export const DEFAULT_CHAT_PROMPT_CONFIG: ChatPromptConfig = {
   ]
 };
 
+/**
+ * v2.32.0 以前 ai-config.example.yaml 出貨的 memory_policy_lines，點名已退役的
+ * mcp-memory-libsql 工具（issue 0022）。整組逐字相同才視為沒改過的舊範例。
+ */
+const RETIRED_EXAMPLE_MEMORY_POLICY_LINES = [
+  '當對話包含重要資訊時，主動使用 create_entities 儲存',
+  '當發現實體間關係時，使用 create_relations',
+  '需要回想時，使用 search_entities'
+];
+
+function linesOrDefault(value: unknown, fallback: string[]): string[] {
+  if (!Array.isArray(value)) return fallback;
+  const lines = value
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+  return lines.length > 0 ? lines : fallback;
+}
+
+/** ai-config.yaml 設定的 memory_policy_lines（還沒換掉舊範例） */
+function configuredMemoryPolicyLines(raw: Record<string, unknown>): string[] {
+  return linesOrDefault(raw.memory_policy_lines, DEFAULT_CHAT_PROMPT_CONFIG.memoryPolicyLines);
+}
+
+function isRetiredExampleMemoryPolicy(lines: string[]): boolean {
+  return (
+    lines.length === RETIRED_EXAMPLE_MEMORY_POLICY_LINES.length &&
+    lines.every((line, i) => line === RETIRED_EXAMPLE_MEMORY_POLICY_LINES[i])
+  );
+}
+
 export function loadAiConfigRaw(): Record<string, unknown> | undefined {
   try {
     const configPath = path.resolve(process.cwd(), 'ai-config.yaml');
@@ -66,14 +97,7 @@ export function loadChatPromptConfig(): ChatPromptConfig {
   const boolOrDefault = (value: unknown, fallback: boolean): boolean =>
     typeof value === 'boolean' ? value : fallback;
 
-  const linesOrDefault = (value: unknown, fallback: string[]): string[] => {
-    if (!Array.isArray(value)) return fallback;
-    const lines = value
-      .filter((item): item is string => typeof item === 'string')
-      .map((item) => item.trim())
-      .filter((item) => item.length > 0);
-    return lines.length > 0 ? lines : fallback;
-  };
+  const memoryPolicyLines = configuredMemoryPolicyLines(raw);
 
   return {
     language: toLanguageInstruction(
@@ -96,15 +120,26 @@ export function loadChatPromptConfig(): ChatPromptConfig {
       raw.include_ai_response_suffix,
       DEFAULT_CHAT_PROMPT_CONFIG.includeAiResponseSuffix
     ),
-    memoryPolicyLines: linesOrDefault(
-      raw.memory_policy_lines,
-      DEFAULT_CHAT_PROMPT_CONFIG.memoryPolicyLines
-    ),
+    memoryPolicyLines: isRetiredExampleMemoryPolicy(memoryPolicyLines)
+      ? DEFAULT_CHAT_PROMPT_CONFIG.memoryPolicyLines
+      : memoryPolicyLines,
     workspacePolicyLines: linesOrDefault(
       raw.workspace_policy_lines,
       DEFAULT_CHAT_PROMPT_CONFIG.workspacePolicyLines
     )
   };
+}
+
+/** 服務啟動時呼叫：ai-config.yaml 還是舊範例的條列時 warn 一行；條列本身由 loadChatPromptConfig 換成預設 */
+export function warnIfRetiredMemoryPolicyLines(
+  warn: (message: string) => void = console.warn
+): boolean {
+  const raw = (loadAiConfigRaw()?.chat_prompt || {}) as Record<string, unknown>;
+  if (!isRetiredExampleMemoryPolicy(configuredMemoryPolicyLines(raw))) return false;
+  warn(
+    '[System] ai-config.yaml 的 chat_prompt.memory_policy_lines 是舊範例，點名已退役的 MCP Memory 工具（issue 0022），已改用預設條列；可以把這段從 ai-config.yaml 刪掉。'
+  );
+  return true;
 }
 
 export function loadProviderStatus(): { provider: string; model: string; timezone: string } {

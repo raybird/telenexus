@@ -28,9 +28,10 @@ chat_prompt:
   workspace_policy_enabled: true
   include_ai_response_suffix: true
   memory_policy_lines:
-    - 當對話包含重要資訊時，主動使用 create_entities 儲存
-    - 當發現實體間關係時，使用 create_relations
-    - 需要回想時，使用 search_entities
+    - 當對話包含重要資訊（如：使用者偏好、專案細節、重要決策）時，請優先整理成可延續的摘要與規則
+    - 需要回想相關背景時，先利用 TeleNexus 已注入的記憶內容與可用檢索能力
+    - 若發現內容屬於長期有效的固定做法，請用清楚、可重用的語句表達
+    - 避免把短期雜訊當成長期記憶；真正值得保留的應是規則、決策與穩定脈絡
   workspace_policy_lines:
     - 你的當前工作目錄是 workspace/
     - 優先讀取 workspace/context/

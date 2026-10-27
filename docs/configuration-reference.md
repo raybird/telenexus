@@ -187,20 +187,25 @@ MEMORIA_RECALL_MIN_CONFIDENCE=0.2
 
 最後驗證：2026-10-27（issue 0022）。
 
-`data/memory.db` 這條路已退役：agent 不再呼叫 `mcp-memory-libsql`（2026-03-29 起 prompt 就不再指示它使用知識圖譜），回填也從未寫入正式部署。長期記憶由 Memoria 負責。
+`data/memory.db` 這條路已退役：保留期內的 opencode session 沒有任何一次 `mcp-memory-libsql` 工具呼叫，回填也從未寫入正式部署。長期記憶由 Memoria 負責。
 
 - **MCP**：
   - 映像不再安裝 `mcp-memory-libsql`。
   - TeleNexus 交給 opencode 的 `OPENCODE_CONFIG_CONTENT` 一律帶一個停用條目 `{"type":"local","command":["mcp-memory-libsql"],"enabled":false}`。這個條目會和 `workspace/.opencode/opencode.json` 合併，所以舊部署留在那裡的設定不會再啟動，也不會讓 `npx` 每輪去 npm 下載。
   - 新安裝本來就沒有這份設定，帶著停用條目也不會出錯。
 - **回填**：worker、`npm run memory:backfill:*`、`GET /api/memory-backfill/report` 都已移除，`MEMORY_BACKFILL_*` 不再有作用。`MEMORY_BACKFILL_ENABLED` 還是開著時，服務啟動會 warn 一行。
+- **prompt**：
+  - 知識管理段落的標題不再寫「你有 MCP Memory 工具」。
+  - `ai-config.example.yaml` 的 `memory_policy_lines` 改成和程式預設相同的條列。
+  - 2026-03-29 起程式內建的預設條列就不提工具了，但 v2.32.0 以前的範例仍點名 `create_entities`、`create_relations`、`search_entities`，從範例複製的 `ai-config.yaml` 也一樣。`ai-config.yaml` 的條列和那三行舊範例一字不差（每行去掉頭尾空白後比對）時，TeleNexus 改用預設條列，服務啟動時 warn 一行。改過任何一個字，就照使用者的條列使用。
 - **健康報告**：`memory-status.md` 只剩運作資料庫（`moltbot.db`）與封存兩個區塊，見 `docs/web-console-reference.md`。
 - **既有檔案**：`data/memory.db`、`data/memory-backfill-checkpoint.json`、`data/memory-backfill-report.json` 原地保留，TeleNexus 不再讀寫。需要時可以用 sqlite 自行讀取，表名是 `entities`、`observations`、`relations`。
 
 升級不需要手動步驟：
 
 - `.env` 裡的 `MEMORY_BACKFILL_*` 可以順手刪掉；
-- `workspace/.opencode/opencode.json` 的 `mcp` 區塊留著也沒關係，會被停用。
+- `workspace/.opencode/opencode.json` 的 `mcp` 區塊留著也沒關係，會被停用；
+- `ai-config.yaml` 裡舊範例的 `memory_policy_lines` 會自動改用預設條列，想讓啟動的 warn 消失，就把這段刪掉。
 
 想繼續用 `mcp-memory-libsql`，就在 `.env` 的 `OPENCODE_CONFIG_CONTENT` 寫完整條目。inline 設定自己定義了這個鍵時，TeleNexus 保留原樣、不加停用條目：
 
