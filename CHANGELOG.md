@@ -2,6 +2,38 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.33.0 — 2026-10-27
+
+### 退役 `data/memory.db` 這條路（#22）
+
+`mcp-memory-libsql` 與記憶回填都退役了，長期記憶由 Memoria 負責。退役的根據：
+- 正式部署保留期內的 opencode session 裡，agent 沒有任何一次 `mcp-memory-libsql` 工具呼叫；
+- 回填從未寫入正式部署。
+
+- **舊部署留下的 MCP 不再啟動**：
+  - TeleNexus 交給 opencode 的 `OPENCODE_CONFIG_CONTENT` 一律帶上 `mcp-memory-libsql` 的完整停用條目，所以 `workspace/.opencode/opencode.json` 裡的舊設定會被停用，也不會每輪經過 `npx` 去 npm 下載。
+  - 沒有這份設定的新部署帶著停用條目也不會出錯，不會留下 ERROR log。
+  - inline 設定自己定義了這個 MCP 時，原樣保留。
+- **映像不再安裝 `mcp-memory-libsql`**，repo 的 `workspace/.opencode/opencode.json` 也拿掉了 `mcp` 區塊。
+- **記憶回填移除**：
+  - worker、`npm run memory:backfill:dry-run`／`memory:backfill:write` 與 `GET /api/memory-backfill/report` 都已移除，API 改回 404。
+  - `MEMORY_BACKFILL_*` 不再有作用。`MEMORY_BACKFILL_ENABLED` 還開著時，啟動 log 會提醒一行。
+- **健康報告只剩兩個區塊**：`memory-status.md` 與 `/api/memory-health` 只剩運作資料庫（`moltbot.db`）與封存，不再讀 `memory.db`。Web Console 拿掉了回填的欄位、Recent Backfill Runs 與 backfill 警告。
+- **prompt 不再指示 MCP Memory 工具**：
+  - 知識管理段落拿掉「你有 MCP Memory 工具」，`ai-config.example.yaml` 改用和程式預設相同的條列。
+  - `ai-config.yaml` 的 `memory_policy_lines` 和 2.32.0 以前範例的三行（點名 `create_entities`、`create_relations`、`search_entities`）一字不差時，改用預設條列，啟動時提醒一行。改過任何一個字，就照原樣使用。
+
+### 升級注意
+
+- **不需要手動步驟**：
+  - `data/memory.db` 與回填的 checkpoint／報告檔原地保留，TeleNexus 不再讀寫；
+  - `workspace/.opencode/opencode.json` 的舊 `mcp` 區塊留著也沒關係。
+- **想讓啟動的提醒消失**：
+  - 從 `.env` 刪掉 `MEMORY_BACKFILL_*`；
+  - 從 `ai-config.yaml` 刪掉舊範例的 `memory_policy_lines`。
+- **有在用 `mcp-memory-libsql` 的部署**：升級前先跑設定參考裡的唯讀檢查命令，算出它的呼叫次數；想繼續用的話，在 `.env` 的 `OPENCODE_CONFIG_CONTENT` 寫完整條目。兩者都見 [設定參考](docs/configuration-reference.md) 的「已退役：mcp-memory-libsql 與記憶回填」。
+- **`GET /api/memory-health` 的 JSON 少了 `retrieval`、`backfill`、`consistency`**，`paths` 只剩 `operationalDb` 與 `archiveDb`。有自己的腳本在解析這份 JSON 的話，請一併調整。
+
 ## 2.32.0 — 2026-10-21
 
 ### 召回注入判準重新校準（#19）
