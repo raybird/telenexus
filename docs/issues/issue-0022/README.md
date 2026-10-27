@@ -4,6 +4,8 @@ GitHub：[#22](https://github.com/raybird/telenexus/issues/22)
 
 ## 文件清單
 - [implementation-plan.md](./implementation-plan.md)
+- [review-4e99ceb.md](./review-4e99ceb.md)：第一輪本機審查（rebase 前的 HEAD），提出 TBD-2
+- [review-f15dd15.md](./review-f15dd15.md)：第二輪本機審查，PASS
 
 ## 概述
 
@@ -276,9 +278,10 @@ memory_policy_lines:
 | 2026-10-22 | 在正式部署唯讀查詢 MCP 與 `memory.db` 的使用情況；使用者選擇退役，開 GitHub #22；Q1～Q4 回答 | - |
 | 2026-10-27 | Q5、Q6 回答；建立 issue 文件；SCN-001～009 全部核准 | 使用者 |
 | 2026-10-27 | 步驟 1～6 完成（分支 4e99ceb）；本機獨立審查 PASS 但有一項需決策（TBD-2）；使用者選擇擴大範圍，SCN-010、SCN-011 核准 | 使用者 |
+| 2026-10-27 | 步驟 7 完成（f15dd15）；第二輪本機獨立審查 [review-f15dd15.md](./review-f15dd15.md) PASS，沒有要修的項目；依 Gate 豁免以 `git merge --ff-only` 合併到 main（90ad876），未推送、未發版 | - |
 
 ---
 **建立日期**: 2026-10-27  
 **分級**: Medium  
 **風險**: High\
-**狀態**: 實作中
+**狀態**: 已完成（2026-10-27 合併到 main 的 90ad876；未推送、未發版；TBD-1 待那台部署升級前確認）

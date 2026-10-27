@@ -175,9 +175,9 @@
 
 ## 檢查清單
 
-- [ ] Scenario 全部核准並提交（核准 commit 回填）
-- [ ] 步驟 1 契約探測成立
-- [ ] 改 symbol 前跑 `gitnexus_impact` 並以 `grep` 核對；commit 前跑 `gitnexus_detect_changes`（在 worktree 時改用 `git diff --stat`）
-- [ ] build、test、lint 都 exit 0，`# tests` 數與檔數相稱
-- [ ] 證據檔去敏
-- [ ] 本機獨立審查 PASS 後才合併；不發版、不推送
+- [x] Scenario 全部核准並提交（核准 commit 回填）
+- [x] 步驟 1 契約探測成立
+- [x] 改 symbol 前跑 `gitnexus_impact` 並以 `grep` 核對；commit 前跑 `gitnexus_detect_changes`（在 worktree 時改用 `git diff --stat`）
+- [x] build、test、lint 都 exit 0，`# tests` 數與檔數相稱
+- [x] 證據檔去敏
+- [x] 本機獨立審查 PASS 後才合併；不發版、不推送（review-f15dd15.md PASS，2026-10-27 以 ff-only 合併到 main 的 90ad876）
