@@ -12,13 +12,14 @@
  config = parse(OPENCODE_CONFIG_CONTENT || '{}')
  mcp = config.mcp ?? {}
 +if mcp 沒有 'mcp-memory-libsql'
-+  mcp['mcp-memory-libsql'] = { enabled: false }   // 只覆蓋 enabled，與 workspace 舊設定合併
++  mcp['mcp-memory-libsql'] = { type: 'local', command: ['mcp-memory-libsql'], enabled: false }
  if mcp 有 'telenexus_browser'
 -  return env                                       // 使用者自訂 browser 時原樣回傳
 +  return env + 合併後的 OPENCODE_CONFIG_CONTENT   // 自訂 browser 仍保留，但同樣停用舊 MCP
  mcp.telenexus_browser = {...內建設定}
 ```
 
+- > NOTE（2026-10-27，步驟 1）：原本只注入 `{ enabled: false }`。契約探測發現，沒有舊設定的部署每輪會多一行 `level=ERROR … "Ignoring MCP config entry without type"`，所以改成帶 `type` 與 `command` 的完整條目。和舊設定合併後一樣是停用的，條目停用所以 `command` 不會被執行。見 [evidence/step1-opencode-mcp-disable.md](evidence/step1-opencode-mcp-disable.md) 的 C、D、E 組。
 - 使用者自訂 `telenexus_browser` 時，現在是原樣回傳 env，不帶 `TELENEXUS_BROWSER_AUDIT_FILE`。這個行為不變，只是 `OPENCODE_CONFIG_CONTENT` 會多帶停用條目。
 - 使用者在 `OPENCODE_CONFIG_CONTENT` 自己設了 `mcp-memory-libsql`（任何內容）時，不覆寫它（SCN-003）。
 - 停用條目的鍵名寫成一個常數，並註明它對應的是舊部署 `workspace/.opencode/opencode.json` 的鍵名。
@@ -49,7 +50,7 @@
 
 ## 實作步驟
 
-1. 📝 **契約探測：注入停用在 `opencode run` 的行為**（SCN-001、002；首要驗證）
+1. ✅ **契約探測：注入停用在 `opencode run` 的行為**（SCN-001、002；首要驗證）——證據：[evidence/step1-opencode-mcp-disable.md](evidence/step1-opencode-mcp-disable.md)。成立；注入內容改成完整條目（D、E 組）
    - 做法：
      - 用 `ghcr.io/raybird/telenexus:v2.32.0`，在暫存目錄建立 workspace。
      - MCP 指令換成假指令：被啟動時在 workspace 外寫標記檔，然後以 MCP stdio 格式回應或直接結束。
