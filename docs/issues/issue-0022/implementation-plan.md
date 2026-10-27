@@ -90,7 +90,7 @@
      - `grep` 在 `src/`、`tests/`、`package.json` 找不到 `memory-backfill`、`MemoryBackfill`、`MEMORY_BACKFILL_`。啟動警告本身與 `scripts/backfill-summary-metadata.ts` 除外。
    - 產出：`evidence/step3-backfill-removal.md`。
    - 相依：Scenario 全部核准，與步驟 2 無相依。
-4. 📝 **健康報告與 Web Console**（SCN-007、008）
+4. ✅ **健康報告與 Web Console**（SCN-007、008）——證據：[evidence/step4-health-report.md](evidence/step4-health-report.md)
    - 做法：
      - 先在 `tests/memory-health.test.ts` 與 `tests/context-snapshots.test.ts` 加測試並確認紅燈。測試涵蓋三點：
        - 報告沒有那三個區塊和那兩個路徑；

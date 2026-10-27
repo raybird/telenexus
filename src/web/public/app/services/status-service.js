@@ -8,9 +8,6 @@ export function createStatusService(api) {
     },
     getMemoryHealth() {
       return api.request('/api/memory-health');
-    },
-    getBackfillReport(limit = 10) {
-      return api.request(`/api/memory-backfill/report?limit=${encodeURIComponent(String(limit))}`);
     }
   };
 }

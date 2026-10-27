@@ -209,14 +209,16 @@ test('AC-3：其中一個 snapshot throw 時，其他照常更新，失敗的保
   });
 });
 
-test('AC-3：檢索資料庫不是 SQLite 時 memory-status 照常更新並標 error，其他檔案也都寫入', () => {
+// issue 0022：memory.db 已不屬於健康報告，壞掉的舊檔不影響 memory-status
+test('AC-3：data/memory.db 不是 SQLite 時 memory-status 照常更新、不提它，其他檔案也都寫入', () => {
   withSnapshotDataDir((_projectDir, contextDir) => {
     fs.writeFileSync(path.join(process.env.DB_DIR!, 'memory.db'), 'not a sqlite file '.repeat(50));
 
     quietly(() => writeContextSnapshots(stubMemory({ failSchedules: false })));
 
     const memoryStatus = fs.readFileSync(path.join(contextDir, 'memory-status.md'), 'utf8');
-    assert.match(memoryStatus, /- Retrieval Status: error\n/);
+    assert.match(memoryStatus, /# Memory Status/);
+    assert.doesNotMatch(memoryStatus, /Retrieval|memory\.db|retrieval_db/);
     for (const file of SNAPSHOT_FILES) {
       assert.ok(fs.existsSync(path.join(contextDir, file)), `${file} 應該要寫入`);
     }

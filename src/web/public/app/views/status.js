@@ -35,11 +35,6 @@ export function mountStatusView(container, ctx) {
         <pre id="memory" class="snapshot"></pre>
       </section>
     </div>
-
-    <section class="col mt-md">
-      <strong>Recent Backfill Runs</strong>
-      <div id="backfillReport" class="snapshot"></div>
-    </section>
   `;
 
   const refreshBtn = byId(container, '#refreshBtn');
@@ -50,32 +45,6 @@ export function mountStatusView(container, ctx) {
   const provider = byId(container, '#provider');
   const runner = byId(container, '#runner');
   const memory = byId(container, '#memory');
-  const backfillReport = byId(container, '#backfillReport');
-
-  function renderBackfillReport(items) {
-    if (!Array.isArray(items) || items.length === 0) {
-      backfillReport.textContent = '(empty)';
-      return;
-    }
-    backfillReport.textContent = items
-      .map((item) => {
-        const top = Array.isArray(item.topCandidates)
-          ? item.topCandidates
-              .slice(0, 2)
-              .map((candidate) => `${candidate.type}:${candidate.summary}`)
-              .join(' | ')
-          : '';
-        return [
-          `[${item.mode}] ${item.at}`,
-          `scanned=${item.scannedSessions} candidates=${item.candidates} written=${item.written} duplicates=${item.duplicatesSkipped}`,
-          `checkpoint=${item.checkpointAfter || '(none)'}`,
-          top ? `top=${top}` : ''
-        ]
-          .filter(Boolean)
-          .join('\n');
-      })
-      .join('\n\n');
-  }
 
   function renderMetrics(st) {
     const providerInfo = st.provider || {};
@@ -92,8 +61,6 @@ export function mountStatusView(container, ctx) {
       ['Runner Success', runnerInfo.success_rate || '-'],
       ['Archive Sessions', memoryInfo.archive_total_sessions || '-'],
       ['Archive Gap 24h', memoryInfo.archive_estimated_gap_recent_24h || '-'],
-      ['Backfill Status', memoryInfo.backfill_last_run_status || '-'],
-      ['Backfill Written', memoryInfo.backfill_last_written || '-'],
       ['Recent Errors', String(issues.length)]
     ];
     metrics.innerHTML = '';
@@ -113,8 +80,6 @@ export function mountStatusView(container, ctx) {
     runner.textContent = data.snapshots?.runner || '(empty)';
     memory.textContent = data.snapshots?.memory || '(empty)';
     renderMetrics(data.structured || {});
-    const report = await ctx.services.status.getBackfillReport(6);
-    renderBackfillReport(report.items || []);
     statusMsg.textContent = `Updated: ${new Date().toLocaleString('zh-TW')}`;
   }
 

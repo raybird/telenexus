@@ -262,7 +262,6 @@ async function refreshGlobalAlert() {
     const issues = Array.isArray(st.error?.recentIssues) ? st.error.recentIssues.length : 0;
     const runnerSuccess = parsePercent(st.runner?.success_rate || '');
     const archiveGap = Number.parseInt(st.memory?.archive_estimated_gap_recent_24h || '0', 10) || 0;
-    const backfillStatus = String(st.memory?.backfill_last_written || '0');
     const errorThreshold = Number(state.get().config.errorThreshold || 1);
     const runnerWarnThreshold = Number(state.get().config.runnerWarnThreshold || 80);
 
@@ -276,10 +275,6 @@ async function refreshGlobalAlert() {
     }
     if (runnerSuccess !== null && runnerSuccess < runnerWarnThreshold) {
       showAlert('warn', `Runner Warning: success rate ${runnerSuccess}% < ${runnerWarnThreshold}%`);
-      return;
-    }
-    if (backfillStatus === '0' && st.memory?.backfill_enabled === 'true') {
-      showAlert('warn', 'Memory Warning: backfill enabled but last written = 0');
       return;
     }
     hideAlert();
