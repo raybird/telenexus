@@ -106,3 +106,11 @@ test('runtime image avoids installing both system Chromium and agent-browser Chr
     'runtime image should not point Puppeteer at Debian chromium when Chromium is not installed',
   );
 });
+
+test('issue 0022 SCN-004 映像與 repo 設定不再提供 mcp-memory-libsql', () => {
+  assert.doesNotMatch(dockerfile, /mcp-memory-libsql/, 'Dockerfile 不應再安裝已退役的 mcp-memory-libsql');
+  const repoConfig = JSON.parse(
+    readFileSync(new URL('../../workspace/.opencode/opencode.json', import.meta.url), 'utf8'),
+  ) as { mcp?: Record<string, unknown> };
+  assert.equal(Object.hasOwn(repoConfig.mcp ?? {}, 'mcp-memory-libsql'), false);
+});

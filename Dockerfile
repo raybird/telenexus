@@ -53,7 +53,7 @@ ENV UV_INSTALL_DIR=/usr/local/bin
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install global CLI tools (含 pnpm，Memoria 使用)
-RUN npm install -g pnpm opencode-ai@1.18.34 mcp-memory-libsql \
+RUN npm install -g pnpm opencode-ai@1.18.34 \
   && npm cache clean --force
 
 # 2026-10-04：網頁閱讀後端使用獨立固定 binary。

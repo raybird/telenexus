@@ -104,7 +104,7 @@
      - 靜態檢查與 `/api/status` 實跑結果。
    - 產出：`evidence/step4-health-report.md`。
    - 相依：步驟 3（共用 `paths.ts` 與回填型別的移除）。
-5. 📝 **映像與 repo 設定**（SCN-004）
+5. ✅ **映像與 repo 設定**（SCN-004）——證據：[evidence/step5-image.md](evidence/step5-image.md)
    - 做法：
      - 改 `Dockerfile` 與 `workspace/.opencode/opencode.json`。
      - 以 `docker build`（production stage）建出本機映像，確認 `/usr/local/lib/node_modules/mcp-memory-libsql` 不存在。
