@@ -5,22 +5,50 @@ import os from 'node:os';
 import path from 'node:path';
 import { MemoryManager } from '../src/core/memory.js';
 import { PinnedStatusManager } from '../src/services/pinned-status-manager.js';
-import { countRecentErrors } from '../src/services/pinned-status.js';
+import { countRecentErrors, startPinnedStatus } from '../src/services/pinned-status.js';
+import type { PinnedSnapshot } from '../src/services/pinned-status-manager.js';
+import { startIssueStore } from '../src/services/issue-store.js';
+import { emitEvent } from '../src/services/event-bus.js';
+import { recordRuntimeIssue } from '../src/utils/errors.js';
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 
 async function withTempDb(fn: () => Promise<void>): Promise<void> {
   const prevDbPath = process.env.DB_PATH;
+  const prevProjectDir = process.env.APP_PROJECT_DIR;
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'telenexus-pinned-status-db-'));
   process.env.DB_PATH = path.join(tempDir, 'moltbot.db');
+  // emitEvent 會寫 workspace/context/events.jsonl，指到暫存目錄
+  process.env.APP_PROJECT_DIR = tempDir;
   try {
     await fn();
   } finally {
     if (prevDbPath === undefined) delete process.env.DB_PATH;
     else process.env.DB_PATH = prevDbPath;
+    if (prevProjectDir === undefined) delete process.env.APP_PROJECT_DIR;
+    else process.env.APP_PROJECT_DIR = prevProjectDir;
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
+}
+
+const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+function recordingTarget() {
+  const updates: PinnedSnapshot[] = [];
+  return {
+    updates,
+    target: {
+      initialize: async () => {},
+      update: async (snapshot: PinnedSnapshot) => {
+        updates.push(snapshot);
+      }
+    }
+  };
+}
+
+function fixedSources(recentErrors: () => number | null) {
+  return { model: () => 'm', activeSchedules: () => 0, memorySize: () => 0, recentErrors };
 }
 
 function stubConnector() {
@@ -104,4 +132,100 @@ test('issue 0021 AC-1 有數字時照實顯示', async () => {
   const mgr = new PinnedStatusManager(connector as never, 'chat-1', { throttleMs: 0 });
   await mgr.initialize({ model: 'm', activeSchedules: 0, recentErrors: 30, memorySize: 0 });
   assert.match(texts.at(-1) ?? '', /^Recent errors \(24h\): 30$/m);
+});
+
+test('issue 0021 AC-1 新的 runtime issue 觸發的那次更新已經包含這一筆', async () => {
+  await withTempDb(async () => {
+    const memory = new MemoryManager();
+    const store = startIssueStore(memory);
+    const { target, updates } = recordingTarget();
+    const pinned = await startPinnedStatus(
+      target,
+      fixedSources(() => countRecentErrors(memory))
+    );
+    try {
+      recordRuntimeIssue('issue-0021-test', new Error(`ordering ${Date.now()}`));
+      await tick();
+      assert.equal(updates.length, 1);
+      assert.equal(updates[0]?.recentErrors, 1);
+      assert.equal(typeof updates[0]?.lastRequestAt, 'number');
+    } finally {
+      pinned.stop();
+      store.stop();
+    }
+  });
+});
+
+test('issue 0021 AC-2 錯誤超過 24 小時後，定期更新把數字改成新的值', async () => {
+  await withTempDb(async () => {
+    const t0 = Date.now();
+    let clock = t0;
+    const memory = new MemoryManager();
+    memory.appendRuntimeIssue('scope-a', 'one hour ago', t0 - HOUR);
+    const { connector, texts } = stubConnector();
+    const manager = new PinnedStatusManager(connector as never, 'chat-1', { throttleMs: 0 });
+    const pinned = await startPinnedStatus(
+      manager,
+      fixedSources(() => countRecentErrors(memory, clock))
+    );
+    try {
+      assert.match(texts.at(-1) ?? '', /^Recent errors \(24h\): 1$/m);
+
+      clock = t0 + 23 * HOUR + 1000;
+      pinned.refresh();
+      await tick();
+      assert.match(texts.at(-1) ?? '', /^Recent errors \(24h\): 0$/m);
+      assert.equal(texts.length, 2);
+    } finally {
+      pinned.stop();
+    }
+  });
+});
+
+test('issue 0021 AC-2 數字沒變的定期更新不編輯訊息（Last request 的分鐘數不算）', async () => {
+  let errors = 3;
+  const { target, updates } = recordingTarget();
+  const pinned = await startPinnedStatus(
+    target,
+    fixedSources(() => errors)
+  );
+  try {
+    emitEvent('request_done', { ok: true });
+    await tick();
+    assert.equal(updates.length, 1);
+
+    pinned.refresh();
+    pinned.refresh();
+    await tick();
+    assert.equal(updates.length, 1, '數字沒變不應送出更新');
+
+    errors = 2;
+    pinned.refresh();
+    await tick();
+    assert.equal(updates.length, 2);
+    assert.equal(updates[1]?.recentErrors, 2);
+  } finally {
+    pinned.stop();
+  }
+});
+
+test('issue 0021 讀取來源 throw 時，事件觸發的更新不讓程序崩潰', async () => {
+  const { target, updates } = recordingTarget();
+  let fail = false;
+  const sources = {
+    ...fixedSources(() => 0),
+    activeSchedules: () => {
+      if (fail) throw new Error('boom');
+      return 0;
+    }
+  };
+  const pinned = await startPinnedStatus(target, sources);
+  try {
+    fail = true;
+    emitEvent('request_done', { ok: true });
+    await tick();
+    assert.equal(updates.length, 0);
+  } finally {
+    pinned.stop();
+  }
 });

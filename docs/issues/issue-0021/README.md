@@ -41,7 +41,7 @@ Telegram 釘選狀態訊息有一行 `Recent errors (24h): N`（`src/services/pi
    - 檢查方式：以暫存資料庫的單元測試放入 24 小時內 25 列與 24 小時前的列，確認數字是 25；重新開啟同一個資料庫後數字不變；呼叫 `recordRuntimeIssue()` 後，事件觸發的那次更新包含新的一筆。
 2. **AC-2：閒置時數字仍會隨時間更新**
    - 釘選訊息跟著 context 快照的計時器（`CONTEXT_REFRESH_MS`，預設 60 秒）重新計算，錯誤超過 24 小時後，即使沒有聊天與排程，數字也會下降。
-   - 文字沒有改變時不呼叫 Telegram 編輯訊息（沿用現有行為），閒置時不增加 API 請求。
+   - 定期更新只在錯誤數改變時才編輯訊息，閒置時不增加 API 請求。訊息裡的 `Last request: Nm ago` 每分鐘都在變，所以不能靠「整段文字沒變就不編輯」。
    - 檢查方式：單元測試讓錯誤超出 24 小時，觸發定期更新，確認訊息被編輯成新數字；數字沒變的定期更新不產生編輯。
 3. **AC-3：讀不到 `runtime_issues` 時顯示 unknown**
    - 顯示 `Recent errors (24h): unknown`；其他欄位照常顯示，釘選訊息照常更新，不 throw。
@@ -69,14 +69,16 @@ Telegram 釘選狀態訊息有一行 `Recent errors (24h): N`（`src/services/pi
 
 ## 實作與驗證步驟
 
-1. ⏳ **AC-1、AC-3：計數與 unknown**
+1. ✅ **AC-1、AC-3：計數與 unknown**
    - 驗證方式：先寫測試確認失敗，再讓 `PinnedSnapshot.recentErrors` 允許未知、`renderText()` 顯示 `unknown`，並實作 24 小時計數。改 symbol 前跑 `gitnexus_impact`，並以 `grep` 核對呼叫者。
    - 完成判準：AC-1 的計數與重啟、AC-3 都有紅燈與綠燈紀錄；以突變確認 24 小時邊界與 `unknown` 會被測試擋下。
    - 相依：無。驗收條件已於 2026-10-28 核准。
-2. ⏳ **AC-1（事件順序）、AC-2：接線與定期更新**
+   - 完成證據：[evidence/step1-count-and-unknown.md](evidence/step1-count-and-unknown.md)。空殼上紅燈 4/5；綠燈 8/8（含既有 3 個釘選測試）；5 個突變都轉紅。
+2. ✅ **AC-1（事件順序）、AC-2：接線與定期更新**
    - 驗證方式：把 `src/main.ts` 的釘選接線抽成可測的函式，先寫測試確認失敗，再處理事件順序並接上定期更新。
    - 完成判準：「事件觸發的更新包含新的一筆」與 AC-2 都有紅燈與綠燈紀錄；以突變確認拿掉順序處理或定期更新時測試轉紅。
    - 相依：步驟 1。
+   - 完成證據：[evidence/step2-wiring-and-refresh.md](evidence/step2-wiring-and-refresh.md)。照搬舊接線的空殼上紅燈 3/9；綠燈 9/9；4 個突變都轉紅；全套 `# tests 587`、`# pass 587`。`main.ts` 的兩處接線沒有單元測試，限制見該檔。
 3. ⏳ **交付檢查**
    - 驗證方式：更新 `ARCHITECTURE.md`、`CLAUDE.md`、`docs/configuration-reference.md`；執行 `npm run build`、`npm run test`（核對 `# tests` 數與測試檔數相稱）、`npm run lint`。
    - 完成判準：全部通過。
@@ -94,6 +96,7 @@ Telegram 釘選狀態訊息有一行 `Recent errors (24h): N`（`src/services/pi
 |------|------|--------|
 | 2026-10-28 | 建立；逐題確認 Q1～Q4 與交付方式 | - |
 | 2026-10-28 | AC-1～AC-3 核准；記錄不開 PR 的 Gate 豁免 | 使用者 |
+| 2026-10-28 | AC-2 措辭修訂：原寫「文字沒有改變時不呼叫 Telegram」，但 `Last request` 的分鐘數每分鐘都在變，改寫成「只在錯誤數改變時才編輯」。目標「閒置時不增加 API 請求」與檢查方式不變 | - |
 
 ---
 **建立日期**: 2026-10-28  

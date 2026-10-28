@@ -39,6 +39,7 @@ import { startRecallMetricsStore } from './services/recall-metrics-store.js';
 import { readAppVersion } from './utils/app-version.js';
 import { initEventProjector } from './services/event-projector.js';
 import { PinnedStatusManager } from './services/pinned-status-manager.js';
+import { countRecentErrors, startPinnedStatus } from './services/pinned-status.js';
 import { addEventHook } from './services/event-bus.js';
 import {
   shouldIncludeMemoryContext,
@@ -437,30 +438,20 @@ async function bootstrap() {
   warnIfMemoryBackfillConfigured();
   warnIfRetiredMemoryPolicyLines();
 
+  let pinnedStatus: { refresh: () => void } | null = null;
   if (parseBool(process.env.PINNED_STATUS_ENABLED, true)) {
-    const pinned = new PinnedStatusManager(telegram, ALLOWED_USER_ID);
-    await pinned.initialize({
-      model: loadProviderStatus().model,
-      activeSchedules: memory.getActiveSchedules().length,
-      recentErrors: getRecentIssues().length,
-      memorySize: memory.getMessagesPage(ALLOWED_USER_ID, 0, 1).total
-    });
-    addEventHook((type) => {
-      if (['request_done', 'request_error', 'schedule_fire', 'runtime_issue'].includes(type)) {
-        void pinned.update({
-          model: loadProviderStatus().model,
-          activeSchedules: memory.getActiveSchedules().length,
-          recentErrors: getRecentIssues().length,
-          memorySize: memory.getMessagesPage(ALLOWED_USER_ID, 0, 1).total,
-          lastRequestAt: Date.now()
-        });
-      }
+    pinnedStatus = await startPinnedStatus(new PinnedStatusManager(telegram, ALLOWED_USER_ID), {
+      model: () => loadProviderStatus().model,
+      activeSchedules: () => memory.getActiveSchedules().length,
+      memorySize: () => memory.getMessagesPage(ALLOWED_USER_ID, 0, 1).total,
+      recentErrors: () => countRecentErrors(memory)
     });
   }
 
   const contextRefreshMs = getContextRefreshMs();
   contextRefreshTimer = setInterval(() => {
     writeContextSnapshotsFn();
+    pinnedStatus?.refresh();
   }, contextRefreshMs);
   contextRefreshTimer.unref();
   console.log(`[System] Context snapshots auto-refresh every ${contextRefreshMs}ms`);
