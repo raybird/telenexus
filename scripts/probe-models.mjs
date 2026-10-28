@@ -52,12 +52,13 @@ const VERDICTS = {
   ok: { label: '✅ 可用', order: 0 },
   'empty-output': { label: '⚠️  空輸出', order: 1 },
   'rate-limited': { label: '⛔ 429 限流', order: 2 },
-  eol: { label: '⛔ 已下架', order: 3 },
-  'not-found': { label: '⛔ 模型不存在', order: 4 },
-  'client-outdated': { label: '⛔ 需升級 opencode', order: 5 },
-  'upstream-error': { label: '⛔ 上游錯誤', order: 6 },
-  timeout: { label: '⛔ 逾時', order: 7 },
-  error: { label: '⛔ 錯誤', order: 8 }
+  'quota-exhausted': { label: '⛔ 額度用完', order: 3 },
+  eol: { label: '⛔ 已下架', order: 4 },
+  'not-found': { label: '⛔ 模型不存在', order: 5 },
+  'client-outdated': { label: '⛔ 需升級 opencode', order: 6 },
+  'upstream-error': { label: '⛔ 上游錯誤', order: 7 },
+  timeout: { label: '⛔ 逾時', order: 8 },
+  error: { label: '⛔ 錯誤', order: 9 }
 };
 
 function parseArgs(argv) {
@@ -118,7 +119,8 @@ function readConfiguredModel() {
   return null;
 }
 
-function runCommand(command, args, timeoutMs) {
+/** `abortPattern` 命中 stderr 時立刻結束子程序，不等逾時（issue 0023：額度用完後只會在背景重試）。 */
+function runCommand(command, args, timeoutMs, abortPattern) {
   return new Promise((resolve) => {
     const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
@@ -136,6 +138,7 @@ function runCommand(command, args, timeoutMs) {
     });
     child.stderr.on('data', (chunk) => {
       stderr += chunk;
+      if (abortPattern && abortPattern.test(stderr)) child.kill('SIGKILL');
     });
     child.on('error', (error) => {
       clearTimeout(timer);
@@ -234,6 +237,10 @@ function classify({ code, stdout, stderr, timedOut }) {
   // 這個順序是對的,但 src/services/model-health-check.ts 的探針原本是反過來的
   // (先看 exit code),導致 2026-09-08 的下架連續 9 天沒被自動偵測到。
   // 兩邊的判定語意要一起維護:樣式與對應表的來源是 src/core/rate-limit.ts。
+  // 額度用完最先判：它也符合 RATE_LIMIT_PATTERN，而且該輪是被中止的，與 src/services/model-health-check.ts
+  // 的 interpretProbeOutput() 順序相同。
+  if (QUOTA_EXHAUSTED_PATTERN.test(stderr)) return 'quota-exhausted';
+
   const upstreamError = extractUpstreamError(stdout);
   if (upstreamError?.statusCode !== undefined) return verdictForStatus(upstreamError.statusCode);
 
@@ -280,7 +287,8 @@ async function probeModel(model, options) {
         model,
         options.prompt
       ],
-      options.timeoutSec * 1000
+      options.timeoutSec * 1000,
+      QUOTA_EXHAUSTED_PATTERN
     );
     const statusCode = extractUpstreamError(result.stdout)?.statusCode;
     rounds.push({

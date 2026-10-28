@@ -10,7 +10,7 @@
 
 ## 影響分析
 
-- `gitnexus_impact`（repo telenexus）：`interpretProbeOutput`、`defaultProbe` 都回報 LOW，0 個上游。這和實際不符（[GitNexus impact 會低報](../../agents/landmines.md)），所以另外用 grep 查：
+- `gitnexus_impact`（repo telenexus）：`interpretProbeOutput`、`defaultProbe` 都回報 LOW，0 個上游。這和實際不符（GitNexus 的 impact 會漏報呼叫者，先前的 issue 已遇過），所以另外用 grep 查：
   - `defaultProbe` 是 `startModelHealthCheck` 的預設 probe；`main.ts` 與 `runner.ts` 各啟動一次，runner 不推播。
   - `interpretProbeOutput`、`classifyFailure` 只有 `defaultProbe` 和測試使用。
 - 比對 `FailureCategory` 的分支（`grep -rn "'rate-limited'\|'client-outdated'\|category ===" src`）只在 `model-health-check.ts`：

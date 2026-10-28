@@ -21,7 +21,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'probe-models.mjs');
 const FIXTURES = path.join(ROOT, 'tests', 'fixtures', 'opencode');
 
-type FakeRun = { stdout?: string; stderr?: string; exit?: number };
+type FakeRun = { stdout?: string; stderr?: string; exit?: number; sleepSec?: number };
 type Round = { verdict: string; statusCode?: number; rateLimitHits: number };
 type ProbeResult = { model: string; verdict: string; rounds: Round[] };
 
@@ -34,6 +34,7 @@ before(() => {
     `#!/bin/sh
 [ -n "$FAKE_OPENCODE_STDERR" ] && cat "$FAKE_OPENCODE_STDERR" >&2
 [ -n "$FAKE_OPENCODE_STDOUT" ] && cat "$FAKE_OPENCODE_STDOUT"
+[ -n "$FAKE_OPENCODE_SLEEP" ] && exec sleep "$FAKE_OPENCODE_SLEEP"
 exit "\${FAKE_OPENCODE_EXIT:-0}"
 `,
     { mode: 0o755 }
@@ -52,6 +53,8 @@ function runScript(run: FakeRun, extraArgs: string[] = []) {
   };
   delete env.FAKE_OPENCODE_STDOUT;
   delete env.FAKE_OPENCODE_STDERR;
+  delete env.FAKE_OPENCODE_SLEEP;
+  if (run.sleepSec !== undefined) env.FAKE_OPENCODE_SLEEP = String(run.sleepSec);
   if (run.stdout) env.FAKE_OPENCODE_STDOUT = path.join(FIXTURES, run.stdout);
   if (run.stderr) env.FAKE_OPENCODE_STDERR = path.join(FIXTURES, run.stderr);
 
@@ -153,4 +156,53 @@ test('issue 0023 額度用完的樣式與 src/core/rate-limit.ts 的那一份完
   assert.ok(match, '找不到 QUOTA_EXHAUSTED_PATTERN 的定義');
   assert.equal(match[1], UPSTREAM_QUOTA_EXHAUSTED_PATTERN.source);
   assert.equal(UPSTREAM_QUOTA_EXHAUSTED_PATTERN.flags, 'i');
+});
+
+// ── issue 0023 SCN-004：免費額度用完 ───────────────────────────────────────
+
+test('issue 0023 SCN-004 額度用完時該輪立刻結束，標示為額度用完而不是逾時', () => {
+  // opencode 在背景重試、stdout 空白（步驟 1 實測）；--timeout 給 60 秒，該輪仍要很快結束。
+  const startedAt = Date.now();
+  const child = runScript({ stderr: '1.18.34-free-usage-limit.stderr.txt', sleepSec: 20 }, [
+    '--json',
+    '--rounds',
+    '1',
+    '--timeout',
+    '60'
+  ]);
+  const elapsedMs = Date.now() - startedAt;
+  const parsed = JSON.parse(child.stdout) as { results: ProbeResult[] };
+  const result = parsed.results[0];
+
+  assert.ok(elapsedMs < 8000, `應在幾秒內結束，實際 ${elapsedMs}ms`);
+  assert.equal(result?.verdict, 'quota-exhausted');
+  assert.equal(result?.rounds[0]?.verdict, 'quota-exhausted');
+});
+
+test('issue 0023 SCN-004 額度用完排在限流之前判定，表格顯示「⛔ 額度用完」', () => {
+  const { result } = probe({ stderr: '1.18.34-free-usage-limit.stderr.txt', exit: 0 });
+  assert.equal(result.verdict, 'quota-exhausted');
+
+  const child = runScript({ stderr: '1.18.34-free-usage-limit.stderr.txt', exit: 0 }, [
+    '--rounds',
+    '1'
+  ]);
+  assert.match(child.stdout, /⛔ 額度用完/);
+  assert.doesNotMatch(child.stdout, /⛔ 429 限流|⛔ 逾時/);
+});
+
+test('issue 0023 SCN-007 一般 429 仍是限流，不提早中止', () => {
+  const startedAt = Date.now();
+  const child = runScript({ stderr: '1.18.34-upstream-429-retry.stderr.txt', sleepSec: 20 }, [
+    '--json',
+    '--rounds',
+    '1',
+    '--timeout',
+    '10'
+  ]);
+  const elapsedMs = Date.now() - startedAt;
+  const parsed = JSON.parse(child.stdout) as { results: ProbeResult[] };
+
+  assert.ok(elapsedMs >= 9500, `一般 429 應等到 --timeout，實際 ${elapsedMs}ms`);
+  assert.equal(parsed.results[0]?.verdict, 'rate-limited');
 });

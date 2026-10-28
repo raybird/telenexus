@@ -58,7 +58,7 @@ message="stream error"[^\n]*\bsmall=false\b[^\n]*\berror\.error="AI_APICallError
    - 做法：`interpretProbeOutput` 的單元測試，加上 `defaultProbe` 以假 opencode 驅動的測試，確認不等到逾時就結束；告警文字與簽章穩定性的測試。
    - 完成判準：紅燈、綠燈；突變「不中止」「類別判成 rate-limited」會轉紅；既有 `RATE_LIMIT_DEGRADED_THRESHOLD` 測試照舊。
    - 相依：步驟 2。
-5. ⏳ **models:probe**（SCN-004）
+5. ✅ **models:probe**（SCN-004）——證據：[evidence/step5-models-probe.md](evidence/step5-models-probe.md)。紅燈 2/13；綠燈；6 個突變都轉紅；全套 `# tests 618`
    - 做法：`tests/probe-models-script.test.ts` 加額度用完的判定與中止測試。
    - 完成判準：紅燈、綠燈；`--timeout` 很長時該輪仍很快結束。
    - 相依：步驟 2。
