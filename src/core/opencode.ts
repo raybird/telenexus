@@ -8,8 +8,10 @@ import { recordRuntimeIssue } from '../utils/errors.js';
 import { CliAgentBase, type CliAgentConfig, type CliStreamParse } from './cli-agent-base.js';
 import { getOpencodeTaskTimeoutMs } from '../config/timeouts.js';
 import {
+  UPSTREAM_QUOTA_EXHAUSTED_PATTERN,
   UPSTREAM_RATE_LIMIT_PATTERN,
   hasUpstreamModelInvalid,
+  isUpstreamQuotaExhausted,
   type UpstreamError
 } from './rate-limit.js';
 import { resolveProjectDir } from '../utils/paths.js';
@@ -114,6 +116,13 @@ const OPENCODE_RATE_LIMIT_MESSAGE =
   '⏳ Opencode 上游配額已達上限 (HTTP 429)，本次任務已快速中止以避免長時間退避重試。請稍後再試或錯開排程時間。';
 
 /**
+ * 免費額度用完（issue 0023）。和 429 走同一條快速失敗路徑，但不是「稍後再試」就會好：
+ * 額度是整個帳號共用的，換成同帳號的其他免費模型也一樣被擋。
+ */
+const OPENCODE_QUOTA_EXHAUSTED_MESSAGE =
+  '⛔ Opencode 免費額度已用完，本次任務已快速中止。額度恢復前，同一個帳號的其他免費模型也會被擋。可以等額度恢復、訂閱 OpenCode Go，或在 ai-config.yaml 換成其他 provider 的模型。';
+
+/**
  * `-s` 指定的 session 不存在時,opencode 1.18.34 以 exit 1 結束、stdout 沒有任何事件,
  * stderr 是 `Error: Session not found`(含 ANSI 色碼,但這段字是連續的)。從未存在與已刪除的
  * session 相同,不到一秒就失敗,沒有送出上游請求(issue 0012 步驟 1 實測)。
@@ -211,6 +220,10 @@ export class OpencodeAgent extends CliAgentBase {
     // 它認不得 opencode 1.18 的 `Rate limit exceeded`,而且會被舊版回吐的 request body 誤觸。
     rateLimitPattern: UPSTREAM_RATE_LIMIT_PATTERN,
     rateLimitMessage: OPENCODE_RATE_LIMIT_MESSAGE,
+    quotaExhausted: {
+      pattern: UPSTREAM_QUOTA_EXHAUSTED_PATTERN,
+      message: OPENCODE_QUOTA_EXHAUSTED_MESSAGE
+    },
     sessionMissing: {
       pattern: OPENCODE_SESSION_NOT_FOUND_PATTERN,
       buildResult: buildSessionMissingResult
@@ -539,11 +552,18 @@ ${text}
       }
 
       if (isProcessError && error.code === 'ERATELIMIT') {
-        logger.warn('rate_limit');
-        recordRuntimeIssue('opencode:rate-limit', error);
-        return buildTextOnlyStructuredResult('opencode', OPENCODE_RATE_LIMIT_MESSAGE, {
-          failure: { kind: 'rate-limit', message }
-        });
+        // 中止樣式同時認限流與額度用完，這裡再用觸發中止的 stderr 分辨是哪一種。
+        const quotaExhausted = isUpstreamQuotaExhausted(error.stderr ?? '');
+        logger.warn(quotaExhausted ? 'quota_exhausted' : 'rate_limit');
+        recordRuntimeIssue(
+          quotaExhausted ? 'opencode:quota-exhausted' : 'opencode:rate-limit',
+          error
+        );
+        return buildTextOnlyStructuredResult(
+          'opencode',
+          quotaExhausted ? OPENCODE_QUOTA_EXHAUSTED_MESSAGE : OPENCODE_RATE_LIMIT_MESSAGE,
+          { failure: { kind: 'rate-limit', message } }
+        );
       }
 
       if (isProcessError && (error.code === 'ETIMEDOUT' || error.signal === 'SIGTERM')) {

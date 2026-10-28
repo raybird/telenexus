@@ -31,6 +31,11 @@ export type CliAgentConfig = {
   rateLimitPattern: RegExp;
   rateLimitMessage: string;
   /**
+   * 額度用完（issue 0023）。`rateLimitPattern` 已經涵蓋它、負責中止；中止後 stderr 符合這個
+   * `pattern` 時，改用 `message` 回覆，runtime issue 記成 `<provider>:quota-exhausted`。
+   */
+  quotaExhausted?: { pattern: RegExp; message: string };
+  /**
    * 指定接續的 session 不存在。`pattern` 只在沒有解析到任何事件、exit 非 0 時比對 stderr,
    * 符合就以 `buildResult()` 結束回合,不發事件給畫面:呼叫端會改開新 session 重跑。
    */
@@ -439,12 +444,20 @@ export abstract class CliAgentBase implements AIAgent {
 
           if (signal || (code && code !== 0)) {
             if (rateLimited) {
-              console.warn(`[${provider}] streamChat fail-fast on upstream 429.`);
-              recordRuntimeIssue(`${provider}:rate-limit`, new Error('streamChat upstream 429'));
+              const quota = this.config.quotaExhausted;
+              const quotaExhausted = Boolean(quota?.pattern.test(stderr));
+              const reason = quotaExhausted
+                ? 'streamChat upstream quota exhausted'
+                : 'streamChat upstream 429';
+              console.warn(`[${provider}] ${reason}; failing fast.`);
+              recordRuntimeIssue(
+                `${provider}:${quotaExhausted ? 'quota-exhausted' : 'rate-limit'}`,
+                new Error(reason)
+              );
               const rlResult = buildTextOnlyStructuredResult(
                 provider,
-                this.config.rateLimitMessage,
-                { failure: { kind: 'rate-limit', message: 'streamChat upstream 429' } }
+                quotaExhausted && quota ? quota.message : this.config.rateLimitMessage,
+                { failure: { kind: 'rate-limit', message: reason } }
               );
               if (!started) {
                 await emitStart();

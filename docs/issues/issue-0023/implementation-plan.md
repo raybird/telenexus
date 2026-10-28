@@ -50,7 +50,7 @@ message="stream error"[^\n]*\bsmall=false\b[^\n]*\berror\.error="AI_APICallError
    - 做法：先寫測試，用步驟 1 的樣本、SCN-005 的三種寫法、SCN-006 的三種反例，以及既有的 429 樣本確認失敗，再改 `rate-limit.ts` 與 `probe-models.mjs` 的副本。
    - 完成判準：紅燈、綠燈與突變（拿掉 `small=false` 限定、拿掉 `error.error` 限定、改成區分大小寫）都轉紅。
    - 相依：步驟 1。
-3. ⏳ **聊天與排程**（SCN-001、002）
+3. ✅ **聊天與排程**（SCN-001、002）——證據：[evidence/step3-chat-and-schedule.md](evidence/step3-chat-and-schedule.md)。紅燈 2/4；綠燈；5 個突變都轉紅；全套 `# tests 608`
    - 做法：非串流與串流各寫一個以假 opencode（stderr 輸出步驟 1 樣本後持續等待）驅動的測試，確認約 1 秒內回額度訊息、scope 是 `opencode:quota-exhausted`、`failure.kind` 是 `rate-limit`；既有 429 測試照舊通過。串流測試的 `onEvent` 用 async 延遲回呼（[L-05](../../agents/landmines.md#l-05-串流測試用同步回呼測不到漏行)）。
    - 完成判準：紅燈、綠燈；突變「一律回 429 訊息」會轉紅。
    - 相依：步驟 2。
