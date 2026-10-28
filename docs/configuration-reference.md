@@ -338,6 +338,7 @@ recordRuntimeIssue(scope, err)
 **Rate-limit 計數 (`error-summary.md`)**
 
 - `gemini:rate-limit` / `opencode:rate-limit` 被合計顯示為 `Rate-limit Issues (24h)`
+- opencode 免費額度用完（上游回 `Free usage limit reached`）同樣快速中止，但記成 `opencode:quota-exhausted`，回覆改為額度說明。這個 scope 不算進 `Rate-limit Issues (24h)`，要看 `Past 24h by Scope (persisted)`。模型健康檢查記成 `model-health:quota-exhausted` 並告警（issue 0023）
 - `Past 24h by Scope (persisted)` 區塊跨重啟保留，可看週期性模式
 
 **Pinned 狀態訊息**

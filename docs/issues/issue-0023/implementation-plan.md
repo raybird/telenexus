@@ -62,7 +62,7 @@ message="stream error"[^\n]*\bsmall=false\b[^\n]*\berror\.error="AI_APICallError
    - 做法：`tests/probe-models-script.test.ts` 加額度用完的判定與中止測試。
    - 完成判準：紅燈、綠燈；`--timeout` 很長時該輪仍很快結束。
    - 相依：步驟 2。
-6. ⏳ **文件與交付檢查**
+6. ✅ **文件與交付檢查**——證據：[evidence/step6-docs-and-delivery.md](evidence/step6-docs-and-delivery.md)。build、lint、`# tests 618`（76 個測試檔）
    - 做法：更新 `CLAUDE.md`（Upstream 429 fail-fast、Model health check）、`docs/configuration-reference.md`、`tests/fixtures/opencode/README.md`；執行 `npm run build`、`npm run test`（核對 `# tests` 與測試檔數）、`npm run lint`。
    - 完成判準：全部通過。
    - 相依：步驟 1～5。
