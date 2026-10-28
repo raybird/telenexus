@@ -61,7 +61,7 @@ opencode 免費層的用量額度用完時，上游每一次呼叫都回 `Free u
 - `src/services/model-health-check.ts` - 新增 `quota-exhausted` 類別、stderr 命中時立刻結束探測、告警文字
 
 ### 觀測與文件
-- `tests/` - SCN-001～008；`tests/fixtures/opencode/` 新增真實樣本
+- `tests/` - SCN-001～007；`tests/fixtures/opencode/` 新增真實樣本
 - `CLAUDE.md`（Upstream 429 fail-fast、Model health check）、`docs/configuration-reference.md`、`tests/fixtures/opencode/README.md`
 
 ## Gherkin 驗收劇本

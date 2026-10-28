@@ -119,6 +119,9 @@ const OPENCODE_RATE_LIMIT_MESSAGE =
  * 免費額度用完（issue 0023）。和 429 走同一條快速失敗路徑，但不是「稍後再試」就會好：
  * 額度是整個帳號共用的，換成同帳號的其他免費模型也一樣被擋。
  */
+const OPENCODE_QUOTA_EXHAUSTED_REASON =
+  'Opencode upstream free usage quota exhausted; aborted before internal backoff retries.';
+
 const OPENCODE_QUOTA_EXHAUSTED_MESSAGE =
   '⛔ Opencode 免費額度已用完，本次任務已快速中止。額度恢復前，同一個帳號的其他免費模型也會被擋。可以等額度恢復、訂閱 OpenCode Go，或在 ai-config.yaml 換成其他 provider 的模型。';
 
@@ -553,17 +556,21 @@ ${text}
 
       if (isProcessError && error.code === 'ERATELIMIT') {
         // 中止樣式同時認限流與額度用完，這裡再用觸發中止的 stderr 分辨是哪一種。
-        const quotaExhausted = isUpstreamQuotaExhausted(error.stderr ?? '');
-        logger.warn(quotaExhausted ? 'quota_exhausted' : 'rate_limit');
-        recordRuntimeIssue(
-          quotaExhausted ? 'opencode:quota-exhausted' : 'opencode:rate-limit',
-          error
-        );
-        return buildTextOnlyStructuredResult(
-          'opencode',
-          quotaExhausted ? OPENCODE_QUOTA_EXHAUSTED_MESSAGE : OPENCODE_RATE_LIMIT_MESSAGE,
-          { failure: { kind: 'rate-limit', message } }
-        );
+        // 中止的 ProcessError 訊息固定寫 HTTP 429；額度用完時另給一句，runner-status 的
+        // Last Error 與 error-summary 才不會把它說成 429。
+        if (isUpstreamQuotaExhausted(error.stderr ?? '')) {
+          logger.warn('quota_exhausted');
+          const quotaError = new Error(OPENCODE_QUOTA_EXHAUSTED_REASON);
+          recordRuntimeIssue('opencode:quota-exhausted', quotaError);
+          return buildTextOnlyStructuredResult('opencode', OPENCODE_QUOTA_EXHAUSTED_MESSAGE, {
+            failure: { kind: 'rate-limit', message: quotaError.message }
+          });
+        }
+        logger.warn('rate_limit');
+        recordRuntimeIssue('opencode:rate-limit', error);
+        return buildTextOnlyStructuredResult('opencode', OPENCODE_RATE_LIMIT_MESSAGE, {
+          failure: { kind: 'rate-limit', message }
+        });
       }
 
       if (isProcessError && (error.code === 'ETIMEDOUT' || error.signal === 'SIGTERM')) {

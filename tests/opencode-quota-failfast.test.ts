@@ -96,6 +96,13 @@ for (const mode of ['non-stream', 'stream'] as const) {
     assert.equal(deriveRunOutcome(result).ok, false);
     assert.ok(newScopes.includes('opencode:quota-exhausted'), `scopes: ${newScopes.join(',')}`);
     assert.ok(!newScopes.includes('opencode:rate-limit'), `scopes: ${newScopes.join(',')}`);
+    // runner-status.md 的 Last Error 與 error-summary.md 顯示的是這兩段訊息，不能寫成 429。
+    assert.ok(result.failure?.message, '缺少 failure.message');
+    assert.doesNotMatch(result.failure.message, /429|rate-limit/i);
+    assert.match(result.failure.message, /quota exhausted/i);
+    const issues = getRecentIssues().filter((entry) => entry.scope === 'opencode:quota-exhausted');
+    assert.ok(issues.length > 0);
+    for (const issue of issues) assert.doesNotMatch(issue.message, /429|rate-limit/i);
   });
 
   test(`issue 0023 SCN-007 ${mode} 一般 429 仍回限流訊息與 opencode:rate-limit`, async () => {

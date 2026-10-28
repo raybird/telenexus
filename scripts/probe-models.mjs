@@ -291,13 +291,15 @@ async function probeModel(model, options) {
       QUOTA_EXHAUSTED_PATTERN
     );
     const statusCode = extractUpstreamError(result.stdout)?.statusCode;
+    const verdict = classify(result);
     rounds.push({
       round,
-      verdict: classify(result),
+      verdict,
       ...(statusCode !== undefined ? { statusCode } : {}),
       durationMs: result.durationMs,
       textLength: extractText(result.stdout).length,
-      rateLimitHits: count429(result.stderr),
+      // 額度用完的那一行也符合限流樣式，算成 429 次數會誤導。
+      rateLimitHits: verdict === 'quota-exhausted' ? 0 : count429(result.stderr),
       sample: extractText(result.stdout).replace(/\s+/g, ' ').slice(0, 70)
     });
   }

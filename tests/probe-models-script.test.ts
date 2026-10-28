@@ -188,7 +188,8 @@ test('issue 0023 SCN-004 額度用完排在限流之前判定，表格顯示「�
     '1'
   ]);
   assert.match(child.stdout, /⛔ 額度用完/);
-  assert.doesNotMatch(child.stdout, /⛔ 429 限流|⛔ 逾時/);
+  assert.doesNotMatch(child.stdout, /⛔ 429 限流|⛔ 逾時|429×/);
+  assert.equal(result.rounds[0]?.rateLimitHits, 0);
 });
 
 test('issue 0023 SCN-007 一般 429 仍是限流，不提早中止', () => {
