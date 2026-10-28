@@ -5,7 +5,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { UPSTREAM_RATE_LIMIT_PATTERN } from '../src/core/rate-limit.js';
+import {
+  UPSTREAM_QUOTA_EXHAUSTED_PATTERN,
+  UPSTREAM_RATE_LIMIT_PATTERN
+} from '../src/core/rate-limit.js';
 
 /**
  * Issue 0008:scripts/probe-models.mjs 要認得上游的 error 事件。
@@ -142,4 +145,12 @@ test('限流樣式與 src/core/rate-limit.ts 的那一份完全相同', () => {
   assert.ok(match, '找不到 RATE_LIMIT_PATTERN 的定義');
   assert.equal(match[1], UPSTREAM_RATE_LIMIT_PATTERN.source);
   assert.equal(UPSTREAM_RATE_LIMIT_PATTERN.flags, 'i');
+});
+
+test('issue 0023 額度用完的樣式與 src/core/rate-limit.ts 的那一份完全相同', () => {
+  const source = fs.readFileSync(SCRIPT, 'utf8');
+  const match = source.match(/const QUOTA_EXHAUSTED_PATTERN =\s*\/(.+)\/i;/);
+  assert.ok(match, '找不到 QUOTA_EXHAUSTED_PATTERN 的定義');
+  assert.equal(match[1], UPSTREAM_QUOTA_EXHAUSTED_PATTERN.source);
+  assert.equal(UPSTREAM_QUOTA_EXHAUSTED_PATTERN.flags, 'i');
 });

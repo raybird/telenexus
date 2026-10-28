@@ -46,7 +46,7 @@ message="stream error"[^\n]*\bsmall=false\b[^\n]*\berror\.error="AI_APICallError
    - 不寫入正式資料；這一次呼叫只會被上游拒絕。探測建立的 session 用 `opencode session delete` 刪掉。
    - 完成判準：證據檔記錄主代理行與標題代理行的次數、stdout 有沒有 error 事件，以及現行 `UPSTREAM_RATE_LIMIT_PATTERN` 不命中。樣本若含家目錄路徑等可識別資訊，揭露處理方式（[L-10](../../agents/landmines.md)）。
    - 相依：無（SCN 已於 2026-10-28 核准）；必須在額度恢復前完成（README TBD-1）。
-2. ⏳ **判定樣式**（SCN-005、006、007）
+2. ✅ **判定樣式**（SCN-005、006、007）——證據：[evidence/step2-patterns.md](evidence/step2-patterns.md)。紅燈 7/23；綠燈；5 個突變都轉紅
    - 做法：先寫測試，用步驟 1 的樣本、SCN-005 的三種寫法、SCN-006 的三種反例，以及既有的 429 樣本確認失敗，再改 `rate-limit.ts` 與 `probe-models.mjs` 的副本。
    - 完成判準：紅燈、綠燈與突變（拿掉 `small=false` 限定、拿掉 `error.error` 限定、改成區分大小寫）都轉紅。
    - 相依：步驟 1。

@@ -19,7 +19,8 @@
  *   - `small=false`(主代理)。標題代理用另一顆小模型,它被限流不代表主模型不能用。
  *   - 訊息含限流字樣。`Too Many Requests` 是以真實 nvidia 429 的 body 重現的(body 沒有訊息時
  *     opencode 退回 HTTP 狀態文字);`Rate limit exceeded` 是免費層 2026-08-16 事故紀錄的措辭;
- *     `quota` 與 `429` 是其他常見寫法,沒有實際樣本。`rate limit` 也認 `RateLimitError`、
+ *     `quota` 與 `429` 是其他常見寫法,沒有實際樣本；`usage limit reached` 是免費層額度用完
+ *     （2026-10-28，issue 0023），訊息與 scope 另由 UPSTREAM_QUOTA_EXHAUSTED_PATTERN 判定。`rate limit` 也認 `RateLimitError`、
  *     `rate_limit_exceeded` 這類寫法,但排除 `rate limiter`(那是元件名稱,不是被限流)。
  * 上游換成清單以外的措辭時這個分支不會命中,回合會退避到逾時後記為逾時失敗。
  * 樣本與比對過程見 docs/issues/issue-0008/evidence/step1-compat-probe.md。
@@ -28,7 +29,24 @@
  * 沒有建置的正式映像裡直接執行,無法 import 這裡的 TypeScript —— 改動兩邊要同步。
  */
 export const UPSTREAM_RATE_LIMIT_PATTERN =
-  /"status(?:Code)?"\s*:\s*429\b|\bstatus(?:Code)?[=\s]+429\b|RESOURCE_EXHAUSTED|message="stream error"[^\n]*\bsmall=false\b[^\n]*\berror\.error="AI_APICallError: [^"\n]*(?:Too Many Requests|rate[ _-]?limit(?!ers?\b)|quota|\b429\b)/i;
+  /"status(?:Code)?"\s*:\s*429\b|\bstatus(?:Code)?[=\s]+429\b|RESOURCE_EXHAUSTED|message="stream error"[^\n]*\bsmall=false\b[^\n]*\berror\.error="AI_APICallError: [^"\n]*(?:Too Many Requests|rate[ _-]?limit(?!ers?\b)|quota|usage limit reached|\b429\b)/i;
+
+/**
+ * opencode 免費層的用量額度用完（issue 0023）。2026-10-28 的真實樣本：
+ *   message="stream error" … small=false … error.error="AI_APICallError: Free usage limit reached. …"
+ * 範圍和上面 1.18 分支相同：只認主代理 stream error 行的 `error.error` 欄位。措辭認
+ * `usage limit reached`，涵蓋上游拿掉 Free 或改成付費方案的寫法。
+ * 這句也併在 UPSTREAM_RATE_LIMIT_PATTERN 裡，所以既有的快速失敗會中止回合；這個樣式只用來
+ * 決定訊息與 runtime issue 的 scope。stdout 沒有 error 事件，只能靠 stderr。
+ *
+ * 注意:scripts/probe-models.mjs 另有一份相同的副本，改動兩邊要同步。
+ */
+export const UPSTREAM_QUOTA_EXHAUSTED_PATTERN =
+  /message="stream error"[^\n]*\bsmall=false\b[^\n]*\berror\.error="AI_APICallError: [^"\n]*usage limit reached/i;
+
+export function isUpstreamQuotaExhausted(output: string): boolean {
+  return UPSTREAM_QUOTA_EXHAUSTED_PATTERN.test(output);
+}
 
 /** 同一段輸出裡出現幾次限流。次數本身就是訊號:健康的模型答一句話不需要重試。 */
 export function countUpstreamRateLimitHits(output: string): number {

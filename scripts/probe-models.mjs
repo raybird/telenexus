@@ -207,7 +207,15 @@ function extractUpstreamError(stdout) {
  * logfmt：stderr 不再有狀態碼，只能認主代理 stream error 行裡的上游訊息；理由見那邊的註解。
  */
 const RATE_LIMIT_PATTERN =
-  /"status(?:Code)?"\s*:\s*429\b|\bstatus(?:Code)?[=\s]+429\b|RESOURCE_EXHAUSTED|message="stream error"[^\n]*\bsmall=false\b[^\n]*\berror\.error="AI_APICallError: [^"\n]*(?:Too Many Requests|rate[ _-]?limit(?!ers?\b)|quota|\b429\b)/i;
+  /"status(?:Code)?"\s*:\s*429\b|\bstatus(?:Code)?[=\s]+429\b|RESOURCE_EXHAUSTED|message="stream error"[^\n]*\bsmall=false\b[^\n]*\berror\.error="AI_APICallError: [^"\n]*(?:Too Many Requests|rate[ _-]?limit(?!ers?\b)|quota|usage limit reached|\b429\b)/i;
+
+/**
+ * 免費層額度用完（issue 0023）。必須與 src/core/rate-limit.ts 的 UPSTREAM_QUOTA_EXHAUSTED_PATTERN
+ * 完全相同（tests/probe-models-script.test.ts 比對原始字串）。這句也在 RATE_LIMIT_PATTERN 裡，
+ * classify() 要先判它。
+ */
+const QUOTA_EXHAUSTED_PATTERN =
+  /message="stream error"[^\n]*\bsmall=false\b[^\n]*\berror\.error="AI_APICallError: [^"\n]*usage limit reached/i;
 
 /**
  * 狀態碼到判定的對應,與 src/core/rate-limit.ts 的 classifyUpstreamStatus() 一致。
