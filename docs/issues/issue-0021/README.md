@@ -16,7 +16,9 @@ Telegram 釘選狀態訊息有一行 `Recent errors (24h): N`（`src/services/pi
 本 issue 改從 SQLite `runtime_issues` 計算 24 小時內的列數。`error-summary.md` 的「Past 24h by Scope (persisted)」用的也是這份資料，兩處數字因此對得起來。
 
 已確認的現況：
-- `runtime_issues` 由 `IssueStore`（`src/services/issue-store.ts`）寫入，保留 7 天。同一個 fingerprint（scope＋訊息前 120 字）60 秒內只寫一列，所以一列代表一次發生，60 秒內的重複併成一次。
+- `runtime_issues` 由 `IssueStore`（`src/services/issue-store.ts`）寫入，保留 7 天。寫入前有兩層去重：
+  - 記憶體緩衝：同一個 scope＋訊息在上一次發生後 60 秒內又發生，只遞增 `count`，不呼叫 `IssueStore`。視窗跟著最後一次發生往後移，所以持續反覆、間隔不到 60 秒的錯誤只記第一次（審查 review-64b4025 N-4 實測）。
+  - `IssueStore`：同一個 fingerprint（scope＋訊息前 120 字）60 秒內只寫一列。
 - 釘選訊息只在 `request_done`、`request_error`、`schedule_fire`、`runtime_issue` 事件時更新，閒置時不會更新。
 - `recordRuntimeIssue()` 會先發 `runtime_issue` 事件，再呼叫 `IssueStore` 的 hook 寫入資料庫。在事件 hook 裡同步查 `runtime_issues`，會查不到剛發生的這一筆。
 
@@ -35,7 +37,7 @@ Telegram 釘選狀態訊息有一行 `Recent errors (24h): N`（`src/services/pi
 ## 驗收條件
 
 1. **AC-1：顯示 `runtime_issues` 最近 24 小時的列數**
-   - 數字等於 `runtime_issues` 中時間在最近 24 小時內的列數，與同一時間 `error-summary.md`「Past 24h by Scope (persisted)」各 scope 的數字加總相同。
+   - 數字等於 `runtime_issues` 中時間在最近 24 小時內的列數，與同一時間 `error-summary.md`「Past 24h by Scope (persisted)」背後的查詢（`countIssuesByScope`）加總相同。那一節只列前 10 個 scope，超過 10 個時畫面上的加總會比較少。
    - 超過 20 照實顯示；服務重啟後，重啟前 24 小時內的錯誤仍然算在內；超過 24 小時的不算。
    - 新的 runtime issue 觸發的那次更新，計數已經包含這一筆。
    - 檢查方式：以暫存資料庫的單元測試放入 24 小時內 25 列與 24 小時前的列，確認數字是 25；重新開啟同一個資料庫後數字不變；呼叫 `recordRuntimeIssue()` 後，事件觸發的那次更新包含新的一筆。
@@ -62,7 +64,7 @@ Telegram 釘選狀態訊息有一行 `Recent errors (24h): N`（`src/services/pi
 
 **風險**: Low — 只改釘選訊息的一個數字。
 - 查詢走 `runtime_issues(ts)` 的既有索引，保留 7 天、列數少，每次更新多一次 `COUNT(*)`，成本可忽略。
-- 定期更新在文字沒變時不呼叫 Telegram，不增加 API 請求。
+- 定期更新只在錯誤數改變時才編輯訊息，閒置時不增加 Telegram API 請求。
 - 讀取失敗顯示 `unknown`，不影響訊息其他欄位與聊天。
 
 首要驗證是 AC-1 的「事件觸發時包含剛發生的這一筆」：事件先於資料庫寫入，是這次唯一需要處理的順序問題。
@@ -84,6 +86,11 @@ Telegram 釘選狀態訊息有一行 `Recent errors (24h): N`（`src/services/pi
    - 完成判準：全部通過。
    - 相依：步驟 1、2。
    - 完成證據：[evidence/step3-delivery.md](evidence/step3-delivery.md)。build、lint 通過；`# tests 587`、`# pass 587`。
+4. ✅ **審查後續：[review-64b4025.md](review-64b4025.md)**
+   - 產出：`tests/pinned-status.test.ts`、`src/services/pinned-status.ts`（註解）、`docs/configuration-reference.md`、README。
+   - 驗收：AC-1～AC-3。
+   - 相依：步驟 1～3。
+   - 完成證據：[evidence/step4-review-followup.md](evidence/step4-review-followup.md)。S-1、S-2、N-1～N-4 已處理，N-5 不處理並記錄理由；審查時全綠的兩個突變現在都會轉紅；`# tests 589`、`# pass 589`。
 
 ## Gate 豁免紀錄
 
@@ -98,6 +105,8 @@ Telegram 釘選狀態訊息有一行 `Recent errors (24h): N`（`src/services/pi
 | 2026-10-28 | 建立；逐題確認 Q1～Q4 與交付方式 | - |
 | 2026-10-28 | AC-1～AC-3 核准；記錄不開 PR 的 Gate 豁免 | 使用者 |
 | 2026-10-28 | AC-2 措辭修訂：原寫「文字沒有改變時不呼叫 Telegram」，但 `Last request` 的分鐘數每分鐘都在變，改寫成「只在錯誤數改變時才編輯」。目標「閒置時不增加 API 請求」與檢查方式不變 | - |
+| 2026-10-28 | 本機獨立審查 review-64b4025：PASS，2 項 SHOULD FIX 與 5 項 NICE TO HAVE；審查判定 AC-2 的修訂屬於措辭修訂 | reviewer |
+| 2026-10-28 | 審查後續：補 S-1、S-2、N-1 的測試；N-2、N-4 修正 AC-1 說明與「已確認的現況」的措辭（error-summary 只列前 10 個 scope、去重視窗會往後移），條件與檢查方式不變；N-5 不處理 | - |
 
 ---
 **建立日期**: 2026-10-28  

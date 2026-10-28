@@ -204,6 +204,12 @@ test('issue 0021 AC-2 數字沒變的定期更新不編輯訊息（Last request 
     await tick();
     assert.equal(updates.length, 2);
     assert.equal(updates[1]?.recentErrors, 2);
+
+    // 送出後要記住新的數字，否則之後每次定期更新都會再送一次
+    pinned.refresh();
+    pinned.refresh();
+    await tick();
+    assert.equal(updates.length, 2, '已送出的數字不應重送');
   } finally {
     pinned.stop();
   }
@@ -228,4 +234,67 @@ test('issue 0021 讀取來源 throw 時，事件觸發的更新不讓程序崩�
   } finally {
     pinned.stop();
   }
+});
+
+test('issue 0021 定期更新時讀取來源 throw，不讓計時器崩潰也不送更新', async () => {
+  const { target, updates } = recordingTarget();
+  let errors: number | null = 1;
+  let fail = false;
+  const sources = {
+    ...fixedSources(() => errors),
+    activeSchedules: () => {
+      if (fail) throw new Error('database is locked');
+      return 0;
+    }
+  };
+  const pinned = await startPinnedStatus(target, sources);
+  try {
+    // 資料庫讀不到時，錯誤數變成 null，其他來源也跟著 throw
+    fail = true;
+    errors = null;
+    assert.doesNotThrow(() => pinned.refresh());
+    await tick();
+    assert.equal(updates.length, 0);
+
+    // 恢復後，同一個 null 仍要補送出去
+    fail = false;
+    pinned.refresh();
+    await tick();
+    assert.equal(updates.length, 1);
+    assert.equal(updates[0]?.recentErrors, null);
+  } finally {
+    pinned.stop();
+  }
+});
+
+test('issue 0021 AC-3 查詢 throw 時，釘選訊息從啟動到事件更新都顯示 unknown', async () => {
+  await withTempDb(async () => {
+    const broken = {
+      countIssuesByScope: () => {
+        throw new Error('SqliteError: database disk image is malformed');
+      }
+    };
+    const { connector, texts } = stubConnector();
+    const manager = new PinnedStatusManager(connector as never, 'chat-1', { throttleMs: 0 });
+    const pinned = await startPinnedStatus(manager, {
+      model: () => 'm',
+      activeSchedules: () => 2,
+      memorySize: () => 7,
+      recentErrors: () => countRecentErrors(broken)
+    });
+    try {
+      assert.match(texts.at(-1) ?? '', /^Recent errors \(24h\): unknown$/m);
+
+      emitEvent('request_done', { ok: true });
+      await tick();
+      const last = texts.at(-1) ?? '';
+      assert.equal(texts.length, 2, '事件更新照常送出');
+      assert.match(last, /^Recent errors \(24h\): unknown$/m);
+      assert.match(last, /^Active schedules: 2$/m);
+      assert.match(last, /^Memory size: 7$/m);
+      assert.match(last, /^Last request: 0m ago$/m);
+    } finally {
+      pinned.stop();
+    }
+  });
 });

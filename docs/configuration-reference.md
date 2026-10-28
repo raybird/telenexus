@@ -346,4 +346,4 @@ recordRuntimeIssue(scope, err)
 - 節流間隔固定 5000ms；訂閱 `request_done`、`request_error`、`schedule_fire`、`runtime_issue` 事件觸發更新
 - 另外跟著 context 快照的計時器（`CONTEXT_REFRESH_MS`）重算錯誤數，只在數字改變時編輯訊息，所以閒置時錯誤超過 24 小時也會從計數中消失，不會每分鐘多一次 Telegram 請求
 - 顯示欄位：目前模型、活躍排程數、最近 24h 異常筆數、記憶庫大小、最後請求時間
-- `Recent errors (24h)` 是 SQLite `runtime_issues` 最近 24 小時的列數（同一 scope＋訊息 60 秒內只記一列），跨重啟保留，和 `error-summary.md` 的 `Past 24h by Scope (persisted)` 各 scope 加總相同；讀不到資料庫時顯示 `unknown`。v2.33.0 及更早的版本，這裡是記憶體緩衝的條目數（最多 20、不過期、重啟歸零）
+- `Recent errors (24h)` 是 SQLite `runtime_issues` 最近 24 小時的列數，跨重啟保留。同一個 scope＋訊息在上一次發生後 60 秒內又發生，不另記一列，所以持續反覆的錯誤只算第一次。它和 `error-summary.md` 的 `Past 24h by Scope (persisted)` 是同一個查詢，但那一節只列前 10 個 scope，超過 10 個時各列加總會比這裡少；讀不到資料庫時顯示 `unknown`。v2.33.0 及更早的版本，這裡是記憶體緩衝的條目數（最多 20、不過期、重啟歸零）

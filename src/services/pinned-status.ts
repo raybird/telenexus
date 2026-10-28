@@ -25,7 +25,7 @@ type PinnedStatusTarget = {
 
 /**
  * 最近 24 小時 runtime_issues 的列數，和 error-summary.md「Past 24h by Scope (persisted)」
- * 是同一個查詢，兩處數字對得起來。讀不到時回傳 null，由釘選訊息顯示 unknown。
+ * 是同一個查詢（那一節只列前 10 個 scope）。讀不到時回傳 null，由釘選訊息顯示 unknown。
  */
 export function countRecentErrors(
   memory: Pick<MemoryManager, 'countIssuesByScope'>,
