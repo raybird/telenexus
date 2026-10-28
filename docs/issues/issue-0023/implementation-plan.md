@@ -54,7 +54,7 @@ message="stream error"[^\n]*\bsmall=false\b[^\n]*\berror\.error="AI_APICallError
    - 做法：非串流與串流各寫一個以假 opencode（stderr 輸出步驟 1 樣本後持續等待）驅動的測試，確認約 1 秒內回額度訊息、scope 是 `opencode:quota-exhausted`、`failure.kind` 是 `rate-limit`；既有 429 測試照舊通過。串流測試的 `onEvent` 用 async 延遲回呼（[L-05](../../agents/landmines.md#l-05-串流測試用同步回呼測不到漏行)）。
    - 完成判準：紅燈、綠燈；突變「一律回 429 訊息」會轉紅。
    - 相依：步驟 2。
-4. ⏳ **健康檢查**（SCN-003）
+4. ✅ **健康檢查**（SCN-003）——證據：[evidence/step4-health-check.md](evidence/step4-health-check.md)。紅燈 4/7；綠燈；7 個突變都轉紅；全套 `# tests 615`
    - 做法：`interpretProbeOutput` 的單元測試，加上 `defaultProbe` 以假 opencode 驅動的測試，確認不等到逾時就結束；告警文字與簽章穩定性的測試。
    - 完成判準：紅燈、綠燈；突變「不中止」「類別判成 rate-limited」會轉紅；既有 `RATE_LIMIT_DEGRADED_THRESHOLD` 測試照舊。
    - 相依：步驟 2。

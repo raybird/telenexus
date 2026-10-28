@@ -15,7 +15,8 @@ import { runProcess, trackChildProcess, terminateProcessTree } from '../core/pro
 import {
   classifyUpstreamStatus,
   countUpstreamRateLimitHits,
-  hasUpstreamModelInvalid
+  hasUpstreamModelInvalid,
+  isUpstreamQuotaExhausted
 } from '../core/rate-limit.js';
 import {
   findUpstreamError,
@@ -26,10 +27,12 @@ import {
 /**
  * `client-outdated`:上游因為 opencode 版本太舊而拒絕(HTTP 426),模型本身沒問題。
  * `upstream-error`:上游回了其他錯誤。與 `unknown` 的差別是這裡確定有一個 error 事件。
+ * `quota-exhausted`:opencode 免費層的額度用完(issue 0023),整個帳號共用,換同帳號的免費模型沒用。
  */
 export type FailureCategory =
   | 'model-invalid'
   | 'rate-limited'
+  | 'quota-exhausted'
   | 'client-outdated'
   | 'upstream-error'
   | 'unknown';
@@ -97,6 +100,8 @@ export const DEFAULT_REMIND_MS = 6 * 60 * 60 * 1000;
  * 也不要把認證失敗誤報成模型下架。
  */
 export function classifyFailure(output: string): FailureCategory {
+  // 額度用完的那一行也符合限流樣式,要先判它。
+  if (isUpstreamQuotaExhausted(output)) return 'quota-exhausted';
   // 先看限流:被節流時上游根本沒機會回下架訊息,兩者不會同時出現。
   if (countUpstreamRateLimitHits(output) > 0) return 'rate-limited';
   return hasUpstreamModelInvalid(output) ? 'model-invalid' : 'unknown';
@@ -259,6 +264,18 @@ function buildAlertText(
     );
   }
 
+  if (!outcome.ok && outcome.category === 'quota-exhausted') {
+    return (
+      `${header}\n` +
+      `模型：${model}\n` +
+      `原因：opencode 免費額度已用完\n` +
+      `錯誤：${snippet}\n\n` +
+      `額度是整個帳號共用的，額度恢復前同帳號的其他免費模型也會被擋。\n` +
+      `可以等額度恢復、訂閱 OpenCode Go，或在 ai-config.yaml 換成其他 provider 的模型；\n` +
+      `換之前用 npm run models:probe -- --models <名稱> 實測。`
+    );
+  }
+
   if (!outcome.ok && outcome.category === 'rate-limited') {
     return (
       `${header}\n` +
@@ -272,6 +289,13 @@ function buildAlertText(
 
   // 無法歸因時措辭必須誠實,不猜成模型下架。
   return `${header}\n` + `模型：${model}\n` + `原因：無法確認模型可用性\n` + `錯誤：${snippet}`;
+}
+
+/** 額度用完那一行的上游訊息;取不到時退回整段輸出。不帶 log 欄位,同一個故障每次都是同一句。 */
+function quotaExhaustedMessage(output: string): string {
+  const line = output.split('\n').find((candidate) => isUpstreamQuotaExhausted(candidate)) ?? '';
+  const message = /\berror\.error="AI_APICallError: ([^"\n]*)"/.exec(line)?.[1];
+  return message ?? output.trim().slice(0, 2000);
 }
 
 /**
@@ -290,6 +314,12 @@ export function interpretProbeOutput(
   output: string,
   stdout = ''
 ): HealthCheckOutcome {
+  // 額度用完時 stdout 沒有事件,opencode 在背景重試,這一行會被下面的限流計數算進去;
+  // 它是主代理 error.error 裡的明確措辭,比次數精確,所以最先判(issue 0023)。
+  if (isUpstreamQuotaExhausted(output)) {
+    return { ok: false, category: 'quota-exhausted', message: quotaExhaustedMessage(output) };
+  }
+
   // error 事件是最精確的訊號:它直接帶狀態碼,不必從 log 文字裡猜。2026-09-17 的 426 就是
   // 因為下面的樣式只列舉了 429 與 410 而被判成健康 —— 這裡不看狀態碼是哪一個,有就是不健康。
   const upstream = findUpstreamError(stdout)?.upstreamError;
@@ -424,6 +454,12 @@ export async function defaultProbe(model: string, timeoutMs: number): Promise<He
     });
     child.stderr?.on('data', (chunk: Buffer) => {
       stderr += chunk.toString();
+      // 額度用完後 opencode 只會在背景重試,等到逾時也只會得到 unknown(issue 0023)。
+      // 一般 429 不在這裡中止:重試後可能成功,次數才是判定依據。
+      if (!settled && isUpstreamQuotaExhausted(stderr)) {
+        terminateProcessTree(child);
+        finish(interpretProbeOutput(null, stderr, stdout));
+      }
     });
     child.on('error', (error) => {
       finish({ ok: false, category: 'unknown', message: (error as Error).message });
