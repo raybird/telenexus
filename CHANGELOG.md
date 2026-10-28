@@ -2,6 +2,32 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.33.1 — 2026-10-28
+
+### 釘選訊息的 `Recent errors (24h)` 改成真正的 24 小時計數（#21）
+
+以前這個數字是記憶體緩衝的條目數：最多 20、不會過期、重啟就歸零，所以可能高估也可能低估。
+
+- **數字來源改成 SQLite `runtime_issues` 最近 24 小時的列數**，和 `error-summary.md` 的「Past 24h by Scope (persisted)」是同一個查詢。超過 20 照實顯示，重啟前 24 小時內的錯誤也照算。
+- **新的錯誤觸發的那次更新就包含這一筆**。以前錯誤事件比寫入資料庫早，直接查會少算剛發生的這一筆。
+- **閒置時也會更新**：跟著 context 快照的計時器（`CONTEXT_REFRESH_MS`，預設 60 秒）重算，錯誤超過 24 小時就從計數消失。只在數字改變時編輯訊息，閒置時不會多送 Telegram 請求。
+- **讀不到資料庫時顯示 `unknown`**，其他欄位照常顯示與更新。
+
+### opencode 免費額度用完時快速失敗（#23）
+
+免費層額度用完（`Free usage limit reached`）時，opencode 不會輸出任何事件，只會在背景一直重試。以前每次聊天、排程都要等到逾時才結束，健康檢查只能報成 `unknown`，排程則記成 `task-timeout`，看不出真正的原因。
+
+- **聊天與排程約 1 秒就中止**。回覆會說明：免費額度已經用完，同一個帳號的其他免費模型也會被擋，可以等額度恢復、訂閱 OpenCode Go，或在 `ai-config.yaml` 換成其他 provider 的模型。回覆和錯誤紀錄都不會寫成 HTTP 429。
+- **runtime issue 的 scope 是 `opencode:quota-exhausted`**，和一般限流的 `opencode:rate-limit` 分開。`runner-audit.log` 照樣記成 `ok:false`。
+- **健康檢查一看到就中止探測並告警「opencode 免費額度已用完」**，不用等到逾時。之後的探測只依原本的提醒間隔再提醒。
+- **`npm run models:probe` 直接顯示 `⛔ 額度用完`**，該輪立刻結束，不再等 `--timeout`。
+- 判定只看主代理那一行 `error.error` 欄位裡的 `usage limit reached`（不分大小寫），所以回覆內容提到這幾個字不會誤判。一般 429 的行為不變。
+
+### 升級注意
+
+- 不需要手動步驟。#21：升級後釘選訊息第一次顯示的數字可能比以前大：它現在算的是 24 小時內每一次發生的列數，不再是緩衝裡最多 20 個條目。
+- #23：升級 TeleNexus 不會讓額度恢復，只會讓失敗快一點出現、原因講清楚。已知限制：額度用完時，健康檢查建立的 opencode session 刪不掉，會留到保留期（預設 30 天）清掉。
+
 ## 2.33.0 — 2026-10-27
 
 ### 退役 `data/memory.db` 這條路（#22）
