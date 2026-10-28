@@ -13,7 +13,7 @@ Telegram 釘選狀態訊息有一行 `Recent errors (24h): N`（`src/services/pi
 
 所以這個數字可能高估，也可能低估。2026-10-28 唯讀查正式部署的 `moltbot.db`：過去 24 小時 `runtime_issues` 有 30 列、6 種錯誤，緩衝最多只能顯示 20。
 
-本 issue 改從 SQLite `runtime_issues` 計算 24 小時內的列數。`error-summary.md` 的「Past 24h by Scope (persisted)」用的也是這份資料，兩處數字因此對得起來。
+本 issue 改從 SQLite `runtime_issues` 計算 24 小時內的列數。`error-summary.md` 的「Past 24h by Scope (persisted)」用的也是同一個查詢；那一節只列前 10 個 scope，超過 10 個時畫面上的加總會比釘選訊息少。
 
 已確認的現況：
 - `runtime_issues` 由 `IssueStore`（`src/services/issue-store.ts`）寫入，保留 7 天。寫入前有兩層去重：
@@ -98,6 +98,13 @@ Telegram 釘選狀態訊息有一行 `Recent errors (24h): N`（`src/services/pi
 |------|----------|-----------|----------|
 | 2026-10-28 | 不開 PR；改由獨立 subagent 在本機審查分支，PASS 且沒有要修的項目時以 `git merge --ff-only` 合併進 `main`，不推送、不發版 | 交付方式選「分支＋本機審查，PASS 後自動合併（建議）」 | 沒有 GitHub 上的 PR 紀錄；審查報告保存在本 issue 目錄 |
 
+## 待確認事項
+
+| 編號 | 事項 | 狀態 | 影響 |
+|------|------|------|------|
+| TBD-1 | `tests/pinned-status.test.ts` 有兩個測試呼叫 `emitEvent` 時沒有指向暫存目錄，會在執行目錄的 `workspace/context/events.jsonl` 寫入假的 `request_done`（複審 [review-3bb8538.md](review-3bb8538.md) N-1）。路徑在 gitignore 內，`tests/event-projector.test.ts` 本來也這樣 | 不處理（2026-10-28）：NICE TO HAVE，不影響驗收；只在跑 `docker:dev` 的同時於 repo 目錄跑測試時，開發環境的事件流會多幾筆 | 不影響 AC |
+| TBD-2 | Telegram 編輯訊息失敗後，定期更新不補送，訊息停在舊數字，直到下一次數字改變或事件（審查 review-64b4025 N-5） | 不處理（2026-10-28）：改動前也不重試，不算退步；補送需要另訂重試策略 | 不影響 AC |
+
 ## Timeline
 
 | 日期 | 異動 | 負責人 |
@@ -107,9 +114,11 @@ Telegram 釘選狀態訊息有一行 `Recent errors (24h): N`（`src/services/pi
 | 2026-10-28 | AC-2 措辭修訂：原寫「文字沒有改變時不呼叫 Telegram」，但 `Last request` 的分鐘數每分鐘都在變，改寫成「只在錯誤數改變時才編輯」。目標「閒置時不增加 API 請求」與檢查方式不變 | - |
 | 2026-10-28 | 本機獨立審查 review-64b4025：PASS，2 項 SHOULD FIX 與 5 項 NICE TO HAVE；審查判定 AC-2 的修訂屬於措辭修訂 | reviewer |
 | 2026-10-28 | 審查後續：補 S-1、S-2、N-1 的測試；N-2、N-4 修正 AC-1 說明與「已確認的現況」的措辭（error-summary 只列前 10 個 scope、去重視窗會往後移），條件與檢查方式不變；N-5 不處理 | - |
+| 2026-10-28 | 本機獨立複審 review-3bb8538：PASS，沒有 MUST FIX 與 SHOULD FIX，2 項 NICE TO HAVE（N-2 已在結案時修正，N-1 記為 TBD-1） | reviewer |
+| 2026-10-28 | 依使用者事先的指示（審查 PASS 而且沒有要修的項目時自動合併）以 `git merge --ff-only` 合併進 `main`（`2a862da`），未推送、未發版 | 使用者 |
 
 ---
 **建立日期**: 2026-10-28  
 **分級**: Small  
 **風險**: Low\
-**狀態**: 實作中
+**狀態**: 已完成
