@@ -6,7 +6,8 @@ const log = createLogger('pinned-status');
 export type PinnedSnapshot = {
   model: string;
   activeSchedules: number;
-  recentErrors: number;
+  /** 最近 24 小時的 runtime issue 數；null 表示讀不到，顯示 unknown */
+  recentErrors: number | null;
   memorySize: number;
   lastRequestAt?: number;
 };
@@ -97,7 +98,7 @@ export class PinnedStatusManager {
       '📌 *TeleNexus 狀態*',
       `Model: \`${s.model}\``,
       `Active schedules: ${s.activeSchedules}`,
-      `Recent errors (24h): ${s.recentErrors}`,
+      `Recent errors (24h): ${s.recentErrors ?? 'unknown'}`,
       `Memory size: ${s.memorySize}`
     ];
     if (s.lastRequestAt) {
