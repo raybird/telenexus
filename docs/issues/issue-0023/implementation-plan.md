@@ -41,7 +41,7 @@ message="stream error"[^\n]*\bsmall=false\b[^\n]*\berror\.error="AI_APICallError
 
 ## 實作步驟
 
-1. ⏳ **擷取真實樣本，確認現行樣式不命中**（首要驗證；SCN-005、006）
+1. ✅ **擷取真實樣本，確認現行樣式不命中**（首要驗證；SCN-005、006）——證據：[evidence/step1-real-sample.md](evidence/step1-real-sample.md)。主代理行約 1.6 秒出現，stdout 沒有事件，現行樣式不命中
    - 做法：在 agent-runner 容器內，以 TeleNexus 的參數 `opencode run --format json --print-logs --log-level ERROR --model opencode/big-pickle "Reply with exactly: OK"`，stdin 接 `/dev/null`（[L-12](../../agents/landmines.md#l-12-opencode-run-在-stdin-沒關時一直等待)），跑約 30 秒後中止。stdout 與 stderr 分開存成 `tests/fixtures/opencode/1.18.34-free-usage-limit.{stdout.jsonl,stderr.txt}`。
    - 不寫入正式資料；這一次呼叫只會被上游拒絕。探測建立的 session 用 `opencode session delete` 刪掉。
    - 完成判準：證據檔記錄主代理行與標題代理行的次數、stdout 有沒有 error 事件，以及現行 `UPSTREAM_RATE_LIMIT_PATTERN` 不命中。樣本若含家目錄路徑等可識別資訊，揭露處理方式（[L-10](../../agents/landmines.md)）。

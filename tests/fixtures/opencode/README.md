@@ -1,6 +1,6 @@
 # opencode 輸出樣本
 
-2026-10-01 擷取的原始輸出，檔名開頭是 opencode 版本。擷取方式與每個樣本的 exit code 見 `docs/issues/issue-0008/evidence/step1-compat-probe.md`。
+2026-10-01 擷取的原始輸出（`1.18.34-free-usage-limit.stderr.txt` 是 2026-10-28 擷取，方法見 `docs/issues/issue-0023/evidence/step1-real-sample.md`），檔名開頭是 opencode 版本。擷取方式與每個樣本的 exit code 見 `docs/issues/issue-0008/evidence/step1-compat-probe.md`。
 
 內容不要手改：測試的期望值來自這些真實輸出。opencode 升版後事件格式有變時，重新擷取並換檔。
 
@@ -17,5 +17,6 @@
 | `1.18.34-upstream-429-retry.stderr.txt`               | 本機假上游                     | 被中止 | 重試中的 stderr，上游訊息含 `rate limit`                              |
 | `1.18.34-upstream-429-retry-status-text.stderr.txt`   | 本機假上游（真實 nvidia body） | 被中止 | 重試中的 stderr，上游訊息是 `Too Many Requests`                       |
 | `1.18.34-upstream-500-retry.stderr.txt`               | 本機假上游                     | 被中止 | 重試中的 stderr，500                                                  |
+| `1.18.34-free-usage-limit.stderr.txt`                 | 真實免費層（額度用完）         | 被中止 | 主代理 `Free usage limit reached` 一行、標題代理一行；stdout 是空的   |
 
 429 與 500 的樣本裡，模型名是 `s429`、`n429`、`s500`。這是假上游用來決定回哪個狀態碼的名稱，判定樣式不該因為模型名裡的數字而命中。
