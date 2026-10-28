@@ -79,10 +79,11 @@ Telegram 釘選狀態訊息有一行 `Recent errors (24h): N`（`src/services/pi
    - 完成判準：「事件觸發的更新包含新的一筆」與 AC-2 都有紅燈與綠燈紀錄；以突變確認拿掉順序處理或定期更新時測試轉紅。
    - 相依：步驟 1。
    - 完成證據：[evidence/step2-wiring-and-refresh.md](evidence/step2-wiring-and-refresh.md)。照搬舊接線的空殼上紅燈 3/9；綠燈 9/9；4 個突變都轉紅；全套 `# tests 587`、`# pass 587`。`main.ts` 的兩處接線沒有單元測試，限制見該檔。
-3. ⏳ **交付檢查**
+3. ✅ **交付檢查**
    - 驗證方式：更新 `ARCHITECTURE.md`、`CLAUDE.md`、`docs/configuration-reference.md`；執行 `npm run build`、`npm run test`（核對 `# tests` 數與測試檔數相稱）、`npm run lint`。
    - 完成判準：全部通過。
    - 相依：步驟 1、2。
+   - 完成證據：[evidence/step3-delivery.md](evidence/step3-delivery.md)。build、lint 通過；`# tests 587`、`# pass 587`。
 
 ## Gate 豁免紀錄
 

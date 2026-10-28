@@ -18,7 +18,7 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 - `src/main.ts`
   - 啟動 Telegram connector、MemoryManager、Scheduler、MemoriaSyncBridge、Web server
   - 建立聊天 prompt builder，決定 chat / scheduler 是否改走 runner
-  - 啟動 `PinnedStatusManager` 並訂閱 event-bus 更新釘選訊息
+  - 以 `startPinnedStatus()` 啟動釘選訊息：訂閱 event-bus 更新，並在 context 快照計時器每輪檢查 24 小時錯誤數
 - `src/core/message-pipeline.ts`
   - 一般聊天主流程
   - 處理 queue、thinking placeholder、附件合併、prompt 準備、AI 回覆正規化、記憶落盤
@@ -132,6 +132,9 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 - `src/services/pinned-status-manager.ts`
   - 訂閱 event-bus，維護一則釘選狀態訊息（model、排程數、異常數、記憶庫大小）
   - 節流 5s 避免 flood；`PINNED_STATUS_ENABLED=false` 可停用
+- `src/services/pinned-status.ts`
+  - `countRecentErrors()`：`runtime_issues` 最近 24 小時的列數，與 `error-summary.md`「Past 24h by Scope (persisted)」同一個查詢；讀不到時回傳 null，釘選訊息顯示 `unknown`
+  - `startPinnedStatus()`：事件更新延到 microtask 才計算，才算得到剛寫入的 runtime issue；`refresh()` 只在錯誤數改變時更新，閒置時錯誤過期也會往下掉
 
 ## 主要資料流
 

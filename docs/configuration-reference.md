@@ -343,5 +343,7 @@ recordRuntimeIssue(scope, err)
 **Pinned 狀態訊息**
 
 - `PINNED_STATUS_ENABLED`（預設 `true`）：啟動時傳送「📌 TeleNexus 狀態」訊息並釘選；設為 `false` 可完全停用
-- 節流間隔固定 5000ms；訂閱 `request_done`、`schedule_fire`、`runtime_issue` 事件觸發更新
+- 節流間隔固定 5000ms；訂閱 `request_done`、`request_error`、`schedule_fire`、`runtime_issue` 事件觸發更新
+- 另外跟著 context 快照的計時器（`CONTEXT_REFRESH_MS`）重算錯誤數，只在數字改變時編輯訊息，所以閒置時錯誤超過 24 小時也會從計數中消失，不會每分鐘多一次 Telegram 請求
 - 顯示欄位：目前模型、活躍排程數、最近 24h 異常筆數、記憶庫大小、最後請求時間
+- `Recent errors (24h)` 是 SQLite `runtime_issues` 最近 24 小時的列數（同一 scope＋訊息 60 秒內只記一列），跨重啟保留，和 `error-summary.md` 的 `Past 24h by Scope (persisted)` 各 scope 加總相同；讀不到資料庫時顯示 `unknown`。v2.33.0 及更早的版本，這裡是記憶體緩衝的條目數（最多 20、不過期、重啟歸零）
