@@ -191,9 +191,14 @@ Feature: opencode 免費額度用完時快速失敗並說清楚原因
 |------|------|--------|
 | 2026-10-28 | 建立；逐題確認 Q1～Q3 與交付方式 | - |
 | 2026-10-28 | SCN-001～007 核准；記錄不開 PR 的 Gate 豁免 | 使用者 |
+| 2026-10-28 | 步驟 1～6 完成：步驟 1 在額度仍用完時擷取真實樣本，步驟 2～5 各有紅燈、綠燈與突變證據，全套 `# tests 618` | - |
+| 2026-10-28 | 本機獨立審查 [review-3246b66.md](review-3246b66.md)：PASS，1 項 SHOULD FIX（S1：非串流額度用完的錯誤訊息仍寫 HTTP 429）與 5 項 NICE TO HAVE | reviewer |
+| 2026-10-28 | 審查後續（[evidence/review-fixes-3246b66.md](evidence/review-fixes-3246b66.md)）：修正 S1、N1、N5；N2～N4 不處理並記錄理由 | - |
+| 2026-10-28 | 本機獨立複審 [review-7f9f3c2.md](review-7f9f3c2.md)：PASS，沒有 MUST FIX 與 SHOULD FIX，4 項 NICE TO HAVE 不處理 | reviewer |
+| 2026-10-28 | 依使用者事先的指示（審查 PASS 而且沒有要修的項目時自動合併）以 `git merge --ff-only` 合併進 `main`（`73d0325`），未推送、未發版 | 使用者 |
 
 ---
 **建立日期**: 2026-10-28  
 **分級**: Medium  
 **風險**: Medium\
-**狀態**: 實作中
+**狀態**: 已完成

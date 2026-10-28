@@ -1,6 +1,6 @@
 # Issue 0023 實作計畫
 
-驗收劇本、風險與首要驗證見 [README.md](README.md)。
+驗收劇本、風險與首要驗證見 [README.md](README.md)。審查後的修正見 [evidence/review-fixes-3246b66.md](evidence/review-fixes-3246b66.md)。
 
 ## 設計方案
 
