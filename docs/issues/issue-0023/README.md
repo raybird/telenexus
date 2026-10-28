@@ -136,7 +136,7 @@ Feature: opencode 免費額度用完時快速失敗並說清楚原因
 ```
 
 ## Gherkin 核准紀錄
-- **核准 commit**: 待提交
+- **核准 commit**: 3bf8690
 - **核准來源**: 使用者於 2026-10-28 對話的逐題確認：
   - Q1「額度用完要怎麼歸類」選「快速失敗沿用限流，文字另寫（建議）」：內部走既有 rate-limit 的快速失敗路徑與 failure kind，斷路器與 runner-audit 行為不變；使用者訊息、runtime issue scope（`opencode:quota-exhausted`）與健康告警改成免費額度已用完、等恢復或訂閱／換 provider（SCN-001～003、SCN-007）。
   - Q2「要認哪些措辭」選「usage limit reached（建議）」：不分大小寫認 `usage limit reached`，仍只比對主代理 `small=false` 那一行的 `error.error` 欄位（SCN-005、SCN-006）。
