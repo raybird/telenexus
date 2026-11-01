@@ -105,7 +105,7 @@ test('shouldSummarize returns false for text just under thresholds', () => {
   assert.equal(shouldSummarize(fewLines), false);
 });
 
-test('buildChatPrompt minimal mode keeps only short session reminder and user message', () => {
+test('buildChatPrompt minimal mode keeps memory reporting hint without historical context or full policies', () => {
   const config = {
     language: '繁體中文',
     roleSystem: '你是 TeleNexus',
@@ -128,7 +128,8 @@ test('buildChatPrompt minimal mode keeps only short session reminder and user me
   assert.doesNotMatch(prompt, /System:/);
   assert.doesNotMatch(prompt, /【Memory Context】/);
   assert.doesNotMatch(prompt, /【SAR 使用規則】/);
-  assert.doesNotMatch(prompt, /【可用能力提示】/);
+  assert.match(prompt, /【可用能力提示】/);
+  assert.match(prompt, /若需要跨 session 歷史，可使用 Memoria 補強。/);
   assert.match(prompt, /延續目前對話 Session/);
   assert.match(prompt, /User Message:\n再講詳細一點？/);
 });

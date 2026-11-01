@@ -106,6 +106,12 @@ docker compose start
 
 ## 指定版本與回滾
 
+### 本機語意記憶改善部署
+
+啟用語意搜尋前，先備份實際 Memoria 掛載（named volume 或 override 指定的 bind mount），並保存 Compose／override。先確認 `MEMORIA_VECTOR_ENABLED=1` 的背景索引覆蓋率，再將聊天設為 `MEMORIA_RECALL_MODE=vector`；HTTP 健康正常不代表向量已齊備。參數與驗證命令見[設定參考](configuration-reference.md#memoria-召回)。
+
+以未發版的本機映像驗證時，使用明確的本機 tag 放在 `docker-compose.override.yml`，不要覆蓋 GHCR 正式版 tag。回復時還原先前 override 並重建服務即可回到原映像；新增的向量庫不影響原 SQLite 記憶。之後安裝正式 release bundle 前，須移除 override 的本機 `image:` 欄位，否則仍會使用本機映像。`.env`、認證及記憶資料保留。
+
 ### 網頁工具切換邊界（2026-10-04）
 
 新映像使用固定 Chrome DevTools MCP／Chrome，公開文件先走 HTTP，JS 正文才按需渲染。agent-browser 套件、下載步驟、`AGENT_BROWSER_ARGS` 及全域 close 已退役；不承諾沿用登入、自動點擊、完整表單或跨回合 browser profile。聊天文字 session、認證與 memory／自訂 MCP 仍保留。

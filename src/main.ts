@@ -19,6 +19,7 @@ import {
   warnIfRetiredMemoryPolicyLines
 } from './config/ai-config.js';
 import { shouldSummarize, buildMemoryContextAsync, buildChatPrompt } from './prompt/builder.js';
+import { buildMemoriaCapabilityHint } from './prompt/memoria-capability.js';
 import { getMemoriaRecallClient } from './core/memoria-recall.js';
 import { recordRuntimeIssue, getRecentIssues } from './utils/errors.js';
 import { writeContextSnapshots, writeSchedulerHealth } from './services/context-snapshots.js';
@@ -249,12 +250,7 @@ async function bootstrap() {
         )
       : '';
     const memoriaStatus = memoriaSync.getStatus();
-    const shouldIncludeMemoriaHint =
-      memoriaStatus.available &&
-      (mode === 'full' || (mode === 'compact' && memoryContext.trim().length > 0));
-    const memoriaCapabilityHint = shouldIncludeMemoriaHint
-      ? '若本次任務需要跨 session 歷史、長期規則或可重用決策，系統目前有額外長期記憶補強可配合；若不需要，仍以前回合 session 與 TeleNexus 已注入內容為主。若本輪出現值得長期保留的規則、決策或可重用技巧，可在回覆最後附上 `[[MEMORY_INTENT:{"level":"rule|decision|skill|long-term-candidate|short-term|none","confidence":"low|medium|high","reason":"...","summary":"..."}]]`；rule/decision/skill 三種會被寫進長期記憶並在日後被召回，`summary` 請寫成日後單獨讀也看得懂的一句話（那是唯一會被搜尋到的文字），沒有把握就用較低的 level 或 confidence。這個區塊只用於系統觀測，不要在正文中解釋它。'
-      : '';
+    const memoriaCapabilityHint = buildMemoriaCapabilityHint(memoriaStatus.available);
 
     let systemSummary = '';
     let skillsHint = '';

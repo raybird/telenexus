@@ -88,6 +88,7 @@
 - TeleNexus 本身的 SQLite memory 是主對話流程的一級依賴。
 - Memoria 自 v2.19 起改為**獨立 HTTP 服務**：以 npm `@raybird.chen/memoria` 在 image build 期安裝,資料落在 `memoria_data` named volume,telenexus 為純 client。
 - recall 與 sync **都走 HTTP**(`MEMORIA_ENDPOINT`):recall = `POST /v1/recall`、sync = `POST /v1/remember`。telenexus 容器內**不再有 Memoria 原始碼或 CLI**,也不再共享資料目錄,從根本消除過去 recall/sync 兩條路徑的資料 split-brain。
+- 語意搜尋為 opt-in：Memoria 映像預載官方本地多語模型，啟用後只在 Memoria 容器內讀取記憶並建立向量，內容不送往雲端 embedding 服務。索引與工作狀態寫入 `/data/.memory/`，暫存 payload 寫入 `/tmp` 並清理；根目錄保持唯讀。背景工作每輪成功後才更新專用游標，與 HTTP 保存分離。
 - sync 是背景補強,不可阻塞主聊天;hook-queue 保留為**離線重試緩衝**,memoria 服務短暫不可達時 payload 留存待重灌,不丟記憶。
 - `MEMORIA_SYNC_ENABLED=auto` 時,只要設了 `MEMORIA_ENDPOINT`(compose 內預設指向 memoria 服務)即啟用;不可達不停用,交由 queue 重試。
 - 問題應分開判讀：

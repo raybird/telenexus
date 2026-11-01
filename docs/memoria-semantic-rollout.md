@@ -1,0 +1,62 @@
+# Memoria 語意搜尋與記憶提煉部署紀錄
+
+日期：2026-11-01。範圍：TeleNexus 工作區修改與 RunTelenexus 本機部署，未發布新的公開版本。
+
+## Implementation Plan
+
+1. 確認官方向量模型、HTTP 契約、scope 過濾與持續索引介面。
+2. 增加可選的語意召回模式及序列背景索引，保留字面降級、獨立游標與失敗重試。
+3. 在 full／compact／minimal 聊天模式都要求判斷記憶意圖；保留現有高品質事件閘門，不猜測歷史決策。
+4. 執行測試、隔離實測與獨立審查後，備份正式資料並套用本機改善映像。
+5. 等待歷史索引與新增資料增量完成，驗證覆蓋率、跨語言召回、scope 隔離及新對話保存。
+
+## 方案與邊界
+
+- 官方 `Xenova/multilingual-e5-small` 模型與 helper 依賴在 image build 準備；隔離實測 UID 1000、無網路、唯讀 rootfs 可產生 384 維向量。
+- HTTP 保存原始 SQLite 記憶；背景工作用官方 payload builder → vector ingest → 成功後提交游標。`telenexus-vector` 不共用已退役 MCP 的游標。向量檔遺失／重建失敗以新目標和持久標記全量重試。
+- 索引不阻塞 HTTP 啟動；未就緒或逾時時字面降級會出現在召回 telemetry。初版 2 CPU／batch 8 因持續高負載已停用，低負載版改為 0.25 CPU／4 GiB、每批 2 筆、批次間休息 1 秒。
+- 記憶提示只允許明確偏好、已採納決策與經驗證技巧；無符合事項回報 `none`。模型仍可能不遵循提示，因此實際事件與同步狀態是驗證來源。
+- 新增規則沿用 `DecisionMade` 契約；不自動套用 durable 標記，不回填歷史猜測。
+
+## 驗證證據
+
+- 語意路由紅燈：新增契約測試在原碼得到 `hybrid !== vector`；加入可選模式後與既有注入判準共 28 項測試通過。
+- minimal 提示紅燈：原碼缺少可用能力提示；三模式及 parser／sync 相關 54 項測試通過。
+- 背景索引測試涵蓋成功後才提交、失敗重試、空 payload、不重疊、停止 helper、遺失／部分重建，以及原有 CLI／shell 回復命令。
+- 獨立隔離整合：首次 10 entities、增量 5 entities；英文改述找回中文新決策，`route=vector`，不同 scope 不混入。使用 2 CPU／4 GiB、無網路、唯讀 rootfs。
+- 審查發現啟動器破壞 shell 回復指令；已取得真實紅燈並修正，最新映像 `sh -c`、`memoria --version` 實測與複查通過。
+- 正式新對話：以既有繁體中文／精簡偏好從 Web 入口經真實模型產生 high 信心 rule，新增一筆 `DecisionMade`；Session 由 2,549 增至 2,550。沒有人工直接插入事件。
+
+## 部署與回復
+
+部署目錄：`/home/raybird/Documents/RunTelenexus`。套用前服務無執行中的 runner 工作。
+
+- 原版映像：`ghcr.io/raybird/telenexus:v2.33.2` 與 `ghcr.io/raybird/telenexus-memoria:v2.33.2`，保留不覆寫。
+- 本機映像：`telenexus:memory-20261101`、`telenexus-memoria:semantic-20261101`。應用程式的 `APP_GIT_SHA` 標示 `43b1197-memory-working-tree`，避免冒稱公開版內容。
+- 部署 override 保留既有 auth/config/Memoria bind mounts，另指定本機映像與語意設定；`.env`、`ai-config.yaml` 保留。
+- 套用前備份：`backups/pre-memory-semantic-20261101/state-and-config.tar`，包含 state、data、設定與 context。較早的完整 workspace 備份仍在 `backups/pre-v2.33.2-20261101/`。
+- 回復程式時，還原備份中的 `docker-compose.override.yml` 後重建三服務；不覆蓋新產生的原始記憶。向量庫可保留。需要還原原始資料時，須停止全部服務並另行評估備份後新增資料。
+- 日後安裝正式 release 前，移除 override 的本機 `image:` 欄位，否則會繼續使用本機映像。
+
+## 正式向量完成驗證
+
+首次索引涵蓋 6,321 個實體。因持續佔滿配置的 2 CPU，使用者詢問是否先停服務；已停用背景向量建置並將聊天切回 hybrid，Memoria HTTP 保存繼續運作。停止後 CPU 實測為 0.00%、記憶體約 35 MiB，三服務 healthy。原始資料保留（當時 2,551 sessions、1 DecisionMade）。
+
+向量建置尚未完成，不能宣稱語意搜尋已啟用或提升命中率。官方 ingest 會先嵌入整批實體再寫入向量庫，這次停止前尚未保存向量；後續需加入可恢復的小批次檢查點與較低 CPU 預算，再安排恢復建置。未重新開啟自動索引。
+
+## 低負載調整
+
+使用者要求不吃滿一個 CPU，採容器硬配額 `cpus: 0.25`，等於單一核心約 25%；不是只降低程序優先序。保留 4 GiB 記憶體上限。HTTP 與索引共用此配額，首次索引期間聊天保持 hybrid。
+
+新增 `docker/memoria-vector-ingest.mjs`，沿用官方向量 schema、id、文字截斷及多語模型；模型推論使用單執行緒，每批 2 筆寫入交易後保存進度並休息 1 秒。失敗或中斷後比對已保存 kind／text，跳過相同實體，整輪成功後才由原 worker 提交游標。更換模型需另行重建向量庫。
+
+- 單元紅燈已證明原先整批嵌入缺少 2／2／1 分批與續跑跳過行為；最小實作後 4 項測試全綠。
+- 背景工作契約先出現舊 ingest 路徑的紅燈，改接低負載版後連同 Compose parity 共 9 項全綠。
+- 全部 635 項測試、build、lint、格式檢查通過。完整測試採 concurrency=2，避免先前同步日誌在高並行下的 EAGAIN；未略過測試。
+- 真實隔離測試：無網路、唯讀根目錄、0.25 CPU／1 GiB，首次 5 筆均保存；重跑跳過 5 筆、embedded=0，未重新載入模型。
+
+獨立真實測試：24 筆長中文，第一批 2 筆後中斷，libSQL 確實保留 2 筆；續跑 skipped=2、embedded=22、completed=24，再跑全部 skipped=24。43.89 秒平均使用單核心 19.87%，cgroup `cpu.max=25000 100000`。未發現阻擋部署問題。
+
+正式已套用 `telenexus-memoria:low-cpu-20261101`，只重建 Memoria，聊天保持 hybrid。CPU 配額確認為 `NanoCpus=250000000`，4 GiB、唯讀根目錄；無 OOM、無重啟，三服務 healthy。20.02 秒實測平均使用單核心 16.72%；同期初次進度 completed=46／total=6,327，已完成向量即時保存。原有 2,551 筆 Session／1 筆 DecisionMade 保留。首次索引繼續在低負載下累積，尚未宣告語意搜尋就緒。
+
+套用前備份位於 `backups/pre-low-cpu-20261101/memoria-and-override.tar`，實測紀錄保存在同目錄 `verification.json`。進度檔 `state/memoria/.memory/vector-ingest-progress.json` 可查看已保存數量；不再需要整批計算完才看到成果。

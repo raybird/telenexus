@@ -24,6 +24,7 @@
 - **本地 CLI 執行**：Telegram / Web Console 直接驅動本機 Opencode，保留完整工具權限
 - **長對話記憶**：Summary-Aware Retrieval (SAR) — 核心規則與決策跨 session 保留，不只抓近期訊息
 - **長期記憶服務**：內建 Memoria 服務，每輪對話自動同步，之後的對話可召回相關記憶
+- **可選語意記憶**：本地多語模型、0.25 核心低負載背景索引，分批保存並可中斷續跑；[啟用與驗證方式](docs/configuration-reference.md#memoria-召回)
 - **排程系統**：內建 cron scheduler，定時任務與一般聊天走同一套可觀測模型
 - **Runner 隔離執行**：AI 任務交給獨立的 `agent-runner` 容器，連續失敗時熔斷並自動退回本地執行
 - **即時串流**：工具活動 emoji feed（🔍📖💻✏️🌐）+ MarkdownV2 渲染，對話感更即時

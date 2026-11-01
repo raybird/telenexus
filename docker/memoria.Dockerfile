@@ -9,6 +9,15 @@ FROM node:22-slim
 # better-sqlite3 帶 prebuilt binary,免裝編譯器。
 RUN npm install -g @raybird.chen/memoria@1.35.1
 
+# 模型與依賴在建置時準備，正式容器的唯讀 rootfs 不需要下載或安裝。
+# transformers 是官方 helper 的 devDependency，不能使用 --omit=dev。
+RUN cd /usr/local/lib/node_modules/@raybird.chen/memoria/skills/memoria-vector \
+    && npm ci --include=dev --no-audit --no-fund \
+    && node --input-type=module -e "import { embedTexts } from './embed.mjs'; await embedTexts(['warm up'], 'query');"
+
+COPY memoria-entrypoint.mjs /usr/local/bin/memoria-entrypoint.mjs
+COPY memoria-vector-ingest.mjs /usr/local/bin/memoria-vector-ingest.mjs
+
 ENV HOME=/home/node \
     MEMORIA_HOME=/data \
     MEMORIA_PORT=3917 \
@@ -22,4 +31,5 @@ USER node
 EXPOSE 3917
 
 # serve 啟動時 initDatabase() 會自動建表並向後相容升級既有 DB。
-CMD ["memoria", "serve"]
+ENTRYPOINT ["node", "/usr/local/bin/memoria-entrypoint.mjs"]
+CMD ["serve"]

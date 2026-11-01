@@ -77,6 +77,7 @@
 
 ### 我想理解記憶與長對話能力
 
+- [Memoria 語意搜尋與記憶提煉部署紀錄](./memoria-semantic-rollout.md) — 本機改善方案、測試證據與回復方式。
 - 長對話記憶檢索主規劃（維護者主文件）：`docs/summary-aware-retrieval-plan.md`
 - 核心規則記憶清單（固定規則 seed）：`docs/canonical-sar-anchors.md`
 - SAR 驗收清單：`docs/sar-acceptance-checklist.md`

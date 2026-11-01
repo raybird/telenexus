@@ -83,7 +83,14 @@ export function getMemoriaEndpoint(): string {
 }
 
 function getRecallTimeoutMs(): number {
-  return parsePositiveInt(process.env.MEMORIA_RECALL_TIMEOUT_MS, 1500);
+  return parsePositiveInt(
+    process.env.MEMORIA_RECALL_TIMEOUT_MS,
+    getRecallMode() === 'vector' ? 20000 : 1500
+  );
+}
+
+function getRecallMode(): 'hybrid' | 'vector' {
+  return process.env.MEMORIA_RECALL_MODE?.trim().toLowerCase() === 'vector' ? 'vector' : 'hybrid';
 }
 
 function getRecallTopK(): number {
@@ -136,7 +143,7 @@ export class MemoriaRecallClient {
       project: this.project,
       ...(scope ? { scope } : {}),
       top_k: this.topK,
-      mode: 'hybrid'
+      mode: getRecallMode()
     };
 
     const startedAt = Date.now();

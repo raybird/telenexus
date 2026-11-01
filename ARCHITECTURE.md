@@ -78,7 +78,16 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
   - hook queue 保留為離線重試緩衝;POST 失敗的 payload 留存待重灌
 - `src/core/memoria-recall.ts`、`src/core/memoria-recall-query.ts`
   - 聊天召回：問句先拿掉疑問詞與虛詞再送 `/v1/recall`
+  - `MEMORIA_RECALL_MODE=vector` 可選用多語語意與字面融合；未啟用或失敗時維持可觀測的字面降級
   - 注入判準是 confidence 達 `MEMORIA_RECALL_MIN_CONFIDENCE`，而且第一筆 snippet 含 2 個以上內容 token（issue 0019）
+- `docker/memoria-entrypoint.mjs`
+  - 在啟用向量時監督 HTTP 服務及序列背景索引工作：官方 payload builder → 本機低負載 vector ingest → 成功後提交獨立游標
+  - 歷史索引與新對話增量均保存在既有 Memoria 資料掛載；模型與依賴在映像建置時預載，執行時不下載
+- `docker/memoria-vector-ingest.mjs`
+  - 沿用官方向量格式與多語模型；單執行緒、每批 2 筆交易寫入、批次間休息，已保存的相同內容在重試時跳過
+  - 配合容器 0.25 CPU 配額與不含正文的進度檔，避免整批先計算完才寫入而失去續跑進度
+- `src/prompt/memoria-capability.ts`
+  - Memoria 可用時，在 full／compact／minimal 三種聊天模式都要求判斷是否有合格的規則、決策或技巧；沒有則回報 none
 - `src/services/memory-health.ts`
   - 記憶健康報告（`memory-status.md`、`/api/memory-health`）：運作資料庫 `moltbot.db` 與 Memoria 封存兩個區塊
   - `data/memory.db`、`mcp-memory-libsql` 與記憶回填已退役（issue 0022），見 `docs/configuration-reference.md`

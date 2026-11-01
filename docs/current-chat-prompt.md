@@ -5,6 +5,7 @@
 - `src/main.ts`
 - `src/prompt/builder.ts`
 - `src/core/prompt-build.ts`
+- `src/prompt/memoria-capability.ts`
 - `src/config/ai-config.ts`
 
 ## 1) Prompt 組裝不是固定單一模板
@@ -40,7 +41,7 @@ System: <來自 ai-config.yaml 的 role_system>
 <來自 chat_prompt.workspace_policy_lines 的條列>
 
 【可用能力提示】
-<僅在 Memoria 可用且需要時注入>
+<Memoria 可用時，每輪都要求判斷與回報記憶意圖>
 
 【檔案回傳協議】
 <workspace/temp/ + [[SEND_FILE: ...]] 規則>
@@ -64,6 +65,7 @@ AI Response:
 - 不再重複 YOLO notice、memory policy、workspace policy、檔案回傳協議
 - 會加一段「延續目前對話 Session 的既有規則」
 - 只有在判定使用者問題需要歷史規則、決策、設定時才注入 memory context
+- Memoria 可用時，即使沒有召回歷史，仍帶記憶意圖回報提示
 
 ### `minimal`
 
@@ -71,7 +73,7 @@ AI Response:
 
 - 不放 `System: ...`
 - 不放 memory policy / workspace policy / file return policy
-- 僅保留「延續目前對話 Session 與最近一次系統規則」的短提示
+- 保留「延續目前對話 Session 與最近一次系統規則」的短提示；Memoria 可用時加上記憶意圖回報提示
 
 ## 3) `passthrough` 流程
 
@@ -101,7 +103,10 @@ TeleNexus 不會包裝一般聊天 prompt，而是直接把原始指令送給 pr
   - 核心決策回顧
   - 相關歷史摘要
   - 最近對話
-- 若 Memoria 可用，會額外注入 capability hint，提醒模型可輸出 `[[MEMORY_INTENT:...]]` 給系統觀測
+- Memoria 可用時，`full`／`compact`／`minimal` 每輪都帶記憶意圖提示，與是否召回歷史無關；`passthrough` 不改寫
+- 模型應在回覆末尾輸出 `[[MEMORY_INTENT:...]]`。無新長期記憶也回報有效的 `none`，供觀測分辨「本輪無記憶」與「模型未回報」；有效標記在送出正文與同步對話前會被移除
+- 只有使用者明確表達的穩定偏好／規則、已採納的決策、經驗證的可重用技巧，才分別標為 `rule`／`decision`／`skill`。不能從猜測、尚未採納的建議、驗證假資料或短期雜訊產生長期記憶
+- 同步端仍要求上述三種 level、`medium`／`high` 信心及非空 `summary`，才加入 `DecisionMade`／`SkillLearned` 事件；不自動回填歷史決策
 
 「最近對話」段（`【近期對話】`）的注入條件：
 

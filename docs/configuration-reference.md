@@ -132,14 +132,13 @@ opencode 把每次執行的對話與工具輸出存進 `opencode.db`，自己不
 
 ## Memoria 自動同步
 
-TeleNexus 會在每次成功對話後，背景嘗試呼叫 Memoria CLI 做增量同步。
+TeleNexus 會在每次成功對話後，背景呼叫 Memoria HTTP `POST /v1/remember` 保存對話及合格的記憶意圖。
 
 可調整環境變數：
 
 ```env
 MEMORIA_SYNC_ENABLED=auto
-MEMORIA_HOME=/app/workspace/Memoria
-MEMORIA_CLI_PATH=/app/workspace/Memoria/cli
+MEMORIA_ENDPOINT=http://memoria:3917
 MEMORIA_SYNC_TIMEOUT_MS=20000
 MEMORIA_HOOK_QUEUE_ENABLED=false
 MEMORIA_HOOK_QUEUE_FILE=/app/data/memoria-hook-queue.jsonl
@@ -149,8 +148,8 @@ MEMORIA_HOOK_QUEUE_POLL_MS=5000
 
 說明：
 
-- `MEMORIA_SYNC_ENABLED=auto`：只有在 CLI 存在時才啟用；找不到會自動停用
-- `MEMORIA_SYNC_ENABLED=on`：強制啟用（即使 CLI 缺失也會持續嘗試）
+- `MEMORIA_SYNC_ENABLED=auto`：有設定 HTTP endpoint 時啟用
+- `MEMORIA_SYNC_ENABLED=on`：強制啟用 HTTP 同步
 - `MEMORIA_SYNC_ENABLED=off`：完全停用同步
 - 同步失敗只記錄 warning，不會中斷主對話流程
 - `MEMORIA_HOOK_QUEUE_ENABLED=false`（預設）：走 hook-free 模式，只靠 TeleNexus pipeline 同步
@@ -161,11 +160,23 @@ MEMORIA_HOOK_QUEUE_POLL_MS=5000
 ```env
 MEMORIA_RECALL_ENABLED=auto
 MEMORIA_ENDPOINT=http://memoria:3917
-MEMORIA_RECALL_TIMEOUT_MS=1500
+MEMORIA_RECALL_MODE=hybrid
+MEMORIA_RECALL_TIMEOUT_MS=20000
 MEMORIA_RECALL_TOP_K=5
 MEMORIA_RECALL_MIN_CONFIDENCE=0.2
+MEMORIA_VECTOR_ENABLED=0
+MEMORIA_VECTOR_TIMEOUT_MS=15000
+MEMORIA_VECTOR_SYNC_INTERVAL_MS=60000
+MEMORIA_EMBED_BATCH=2
+MEMORIA_VECTOR_BATCH_PAUSE_MS=1000
 ```
 
+- `MEMORIA_RECALL_MODE=hybrid` 保留樹狀／字面搜尋；設為 `vector` 才會請求多語語意與字面融合。需同時設定 `MEMORIA_VECTOR_ENABLED=1`，否則會退回字面搜尋並記錄降級。直接執行 Node 服務且未設定 timeout 時，hybrid 預設 1,500ms，vector 預設 20,000ms；Compose 預設 20,000ms，大於向量 helper 的 15,000ms，讓 helper 有時間退回字面結果。
+- Memoria 映像包含官方多語模型與依賴，執行時仍維持唯讀根目錄。啟用向量後，索引位於既有資料掛載的 `/data/.memory/vectors.db`；首次背景建置全部歷史記憶，之後每 60 秒增量更新，期間 HTTP 服務持續可用。`MEMORIA_EMBED_BATCH` 預設 2，每批成功交易寫入後休息 `MEMORIA_VECTOR_BATCH_PAUSE_MS`（預設 1,000ms）；模型在同一程序只載入一次，推論使用單執行緒。首次建立大量歷史記憶可能需要數小時，進度持續保存。
+- 背景向量工作使用獨立的 `telenexus-vector` 游標，只有成功嵌入後才推進；失敗會留下狀態並於下一輪重試。狀態檔為 `/data/.memory/vector-worker-status.json`。若本地向量庫遺失，即使原有游標仍在，也會使用全新目標重建完整索引；重建中止時以持久標記要求下次繼續全量重試。
+- Compose 對整個 Memoria 容器設定 0.25 CPU／4 GiB 上限，CPU 配額等於單一核心約 25%，涵蓋 HTTP 與索引程序；不是主機總 CPU 的 25%。這是時間區間內的用量上限，瞬間排程仍可能有短暫波動。
+- `/data/.memory/vector-ingest-progress.json` 記錄當輪總量、已完成與跳過數，不含記憶正文。重啟會核對向量庫中的 kind／text，跳過已成功保存且內容未變的實體；中途失敗不提交整輪游標，重試仍保留各批已完成的向量。更換模型時需重建向量庫，不能沿用文字相同的舊模型向量。
+- 全量／增量索引就緒後，執行 `docker compose exec -e LIBSQL_URL=file:/data/.memory/vectors.db memoria memoria doctor --json`，確認向量覆蓋率 `missing=0`；再用 `mode:vector` 驗證路由為 `vector` 或 `hybrid_vector`。`exec` 不會自動繼承 entrypoint 對子程序補上的環境值，因此需明確傳入向量路徑。健康端點通過只證明 HTTP／SQLite 可用。
 - `MEMORIA_RECALL_MIN_CONFIDENCE`（預設 `0.2`，範圍 0～1，`0` = 停用整個注入判準）：召回結果要同時符合兩個條件才注入 prompt，否則改用本機語意摘要（2026-10-21 起，issue 0019）：
   - `confidence` 不低於此值。
   - 第一筆 snippet 至少含 2 個問句裡的內容 token；純數字的 token 不算。

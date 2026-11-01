@@ -556,6 +556,9 @@ export function buildChatPrompt(
     sections.push(
       `延續目前對話 Session 與最近一次系統規則。請用${config.language}回應，除非使用者明確要求，否則不要重複前文。`
     );
+    if (capabilityHint.trim().length > 0) {
+      sections.push(`【可用能力提示】\n${capabilityHint.trim()}`);
+    }
     sections.push(`User Message:\n${userMessage}`);
 
     if (config.includeAiResponseSuffix) {
