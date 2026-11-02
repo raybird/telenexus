@@ -2,6 +2,21 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.34.1 — 2026-11-02
+
+### 修正
+
+- 記憶標記不再露給使用者，也不再寫進記憶：回覆結尾、文字中段與工具回合的 `[[MEMORY_INTENT:{…}]]` 都會移除，同一行內的殘缺標記與回覆最後一行未收尾的標記也會移除；Web Console 串流、Telegram 串流預覽與思考內容一併過濾。跨行且不是有效 JSON 的內容視為正文保留。
+- 記憶意圖只採用回覆結尾的標記，回覆中段引用的範例不會寫成長期記憶。
+- 回覆只有記憶標記、沒有正文也沒有檔案指令時，顯示明確提示並記錄 `opencode:empty-output:marker_only`；記憶意圖與 session 綁定保留。
+- 召回逾時改由模式決定：Compose 不再替 hybrid 固定 20 秒，未設定時 hybrid 1.5 秒、vector 20 秒。Memoria 卡住時，回覆不會多等 20 秒。
+
+### 升級注意
+
+- `.env` 有設 `MEMORIA_RECALL_TIMEOUT_MS` 的部署會沿用原值；照 v2.34.0 的 `.env.example` 寫了 20000 的部署，請移除這行。
+- 語意召回建議先維持 hybrid：25% CPU 配額下每次向量查詢約 6 秒，索引進行中約 10–11 秒，實測見 `docs/memoria-semantic-rollout.md`。
+- build、671 項測試與 lint 通過。
+
 ## 2.34.0 — 2026-11-01
 
 ### 低負載語意記憶與可靠提煉
