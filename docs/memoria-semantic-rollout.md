@@ -1,6 +1,6 @@
 # Memoria 語意搜尋與記憶提煉部署紀錄
 
-日期：2026-11-01。範圍：TeleNexus 工作區修改與 RunTelenexus 本機部署，未發布新的公開版本。
+日期：2026-11-01。範圍：TeleNexus 工作區修改與 RunTelenexus 部署。以下部署紀錄寫於發版前，內容已隨 v2.34.0（2026-11-01）發布；0.25 CPU 下的查詢延遲見文末（2026-11-02）。
 
 ## Implementation Plan
 
@@ -29,7 +29,7 @@
 
 ## 部署與回復
 
-部署目錄：`/home/raybird/Documents/RunTelenexus`。套用前服務無執行中的 runner 工作。
+部署目錄：部署機上的 `~/Documents/RunTelenexus`。套用前服務無執行中的 runner 工作。
 
 - 原版映像：`ghcr.io/raybird/telenexus:v2.33.2` 與 `ghcr.io/raybird/telenexus-memoria:v2.33.2`，保留不覆寫。
 - 本機映像：`telenexus:memory-20261101`、`telenexus-memoria:semantic-20261101`。應用程式的 `APP_GIT_SHA` 標示 `43b1197-memory-working-tree`，避免冒稱公開版內容。
@@ -60,3 +60,17 @@
 正式已套用 `telenexus-memoria:low-cpu-20261101`，只重建 Memoria，聊天保持 hybrid。CPU 配額確認為 `NanoCpus=250000000`，4 GiB、唯讀根目錄；無 OOM、無重啟，三服務 healthy。20.02 秒實測平均使用單核心 16.72%；同期初次進度 completed=46／total=6,327，已完成向量即時保存。原有 2,551 筆 Session／1 筆 DecisionMade 保留。首次索引繼續在低負載下累積，尚未宣告語意搜尋就緒。
 
 套用前備份位於 `backups/pre-low-cpu-20261101/memoria-and-override.tar`，實測紀錄保存在同目錄 `verification.json`。進度檔 `state/memoria/.memory/vector-ingest-progress.json` 可查看已保存數量；不再需要整批計算完才看到成果。
+
+## 0.25 CPU 下的查詢延遲（2026-11-02）
+
+前面的跨語言召回是在 2 CPU 驗證，0.25 CPU 只驗過索引。Memoria 1.35.1 每次向量查詢都開新 process 載入模型，聊天要等它完成才送出 prompt，所以這段時間會直接加到回覆延遲上。
+
+| 情境                                               | 每次查詢耗時 |
+| -------------------------------------------------- | ------------ |
+| 不限 CPU                                           | 約 0.9 秒    |
+| 25% 配額                                           | 5.9–6.2 秒   |
+| 25% 配額，同一 cgroup 另有單執行緒佔用，模擬索引中 | 10.0–10.7 秒 |
+
+條件：12 核心主機、模型已在 page cache、空向量庫，所以不含向量檢索本身；配額以 `systemd-run --scope -p CPUQuota=25%` 模擬，不是實際容器。較慢的主機可能超過 15 秒的 helper 逾時，退回字面搜尋。
+
+切換聊天到 `vector` 前，要先決定調高配額，或由 Memoria 上游改成常駐的查詢程序；目前維持 `hybrid`。
