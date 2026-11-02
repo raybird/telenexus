@@ -6,6 +6,9 @@ import os from 'node:os';
 import path from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { createMessagePipeline } from '../src/core/message-pipeline.js';
+import { MARKER_ONLY_NOTICE } from '../src/core/message-pipeline-chat.js';
+import { ChatSessionStore } from '../src/services/chat-session-store.js';
+import { getRecentMemoryIntentTraces } from '../src/services/memory-intent-telemetry.js';
 import type { MemoriaSyncTurn } from '../src/core/memoria-sync.js';
 import { MemoryManager } from '../src/core/memory.js';
 import {
@@ -928,6 +931,259 @@ test('message pipeline uses native Telegram drafts for private chats', async () 
         delete process.env.TELEGRAM_STREAM_FINALIZE_NEW_MESSAGE;
       else process.env.TELEGRAM_STREAM_FINALIZE_NEW_MESSAGE = prevFinalizeNewMessage;
     }
+  });
+});
+
+const MARKER = '[[MEMORY_INTENT:{"level":"none","confidence":"high","reason":"無"}]]';
+
+/** 走真實 pipeline 與 Telegram renderer,回傳使用者看到的全部文字與寫進記憶的回覆。 */
+async function runTelegramStream(
+  streamChat: NonNullable<AIAgent['streamChat']>,
+  envOverrides: Record<string, string> = {}
+): Promise<{ shown: string[]; final: string | undefined; stored: string }> {
+  const overrides: Record<string, string> = {
+    TELEGRAM_STREAMING_ENABLED: 'true',
+    TELEGRAM_STREAM_EDIT_THROTTLE_MS: '1',
+    TELEGRAM_STREAM_MIN_DELTA_CHARS: '1',
+    TELEGRAM_STREAM_FORCE_FLUSH_MS: '1',
+    TELEGRAM_STREAM_EARLY_FLUSH_CHARS: '1',
+    TELEGRAM_STREAM_REASONING_MODE: 'false',
+    TELEGRAM_STREAM_FINALIZE_NEW_MESSAGE: 'false',
+    ...envOverrides
+  };
+  const saved = Object.keys(overrides).map((key) => [key, process.env[key]] as const);
+  Object.assign(process.env, overrides);
+
+  try {
+    const { connector, sentMessages, edits } = createConnectorRecorder();
+    const memory = new MemoryManager();
+    const agent = createAgentStub({ streamChat });
+    const pipeline = createMessagePipeline({
+      connector,
+      commandRouter: {
+        async handleMessage() {
+          return false;
+        },
+        isPassthroughCommand() {
+          return false;
+        }
+      } as never,
+      memory,
+      scheduler: { resetSilenceTimer() {} } as never,
+      userAgent: agent,
+      chatRunnerAgent: agent,
+      useRunnerForChat: false,
+      chatRunnerPercent: 0,
+      chatRunnerOnlyUsers: new Set(),
+      shouldSummarize: () => false,
+      buildPrompt: (userMessage) => `PROMPT:${userMessage}`,
+      recordRuntimeIssue() {},
+      writeContextSnapshots() {}
+    });
+
+    await pipeline(
+      createMessage('群組串流', {
+        id: 'telegram-marker-1',
+        chatId: 'group-1',
+        telegram: { updateId: 601, chatType: 'supergroup' }
+      })
+    );
+
+    const history = memory.getRecentMessages('user-a', 10);
+    return {
+      shown: [...edits.map((item) => item.text), ...sentMessages.map((item) => item.text)],
+      final: edits.at(-1)?.text,
+      stored: JSON.stringify(history)
+    };
+  } finally {
+    for (const [key, value] of saved) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}
+
+test('Telegram 串流預覽與最終回覆都不露出結尾標記', async () => {
+  await withTempProject(async () => {
+    const text = `這是正文\n\n${MARKER}`;
+    const { shown } = await runTelegramStream(async (_prompt, _options, onEvent) => {
+      await onEvent({ type: 'start', provider: 'opencode' });
+      await onEvent({ type: 'delta', text: '這是正文' });
+      await onEvent({ type: 'delta', text: `\n\n${MARKER}`.slice(0, 5) });
+      await onEvent({ type: 'delta', text: `\n\n${MARKER}`.slice(5) });
+      await onEvent({ type: 'done', text });
+      return { provider: 'opencode', text };
+    });
+
+    assert.ok(shown.some((item) => item.includes('這是正文')));
+    assert.ok(!shown.some((item) => item.includes('[[')), shown.join('\n---\n'));
+  });
+});
+
+test('標記之後的正文會出現在最終回覆，標記不進記憶', async () => {
+  await withTempProject(async () => {
+    const text = `我先查${MARKER}\n\n最終結果`;
+    const { shown, final, stored } = await runTelegramStream(async (_prompt, _options, onEvent) => {
+      await onEvent({ type: 'start', provider: 'opencode' });
+      await onEvent({ type: 'delta', text: `我先查${MARKER}` });
+      await onEvent({ type: 'delta', text: '\n\n最終結果' });
+      await onEvent({ type: 'done', text });
+      return { provider: 'opencode', text };
+    });
+
+    assert.ok(!shown.some((item) => item.includes('[[')), shown.join('\n---\n'));
+    assert.match(final ?? '', /我先查/);
+    assert.match(final ?? '', /最終結果/);
+    assert.match(stored, /最終結果/);
+    assert.doesNotMatch(stored, /MEMORY_INTENT/);
+  });
+});
+
+test('reasoning 文字裡的標記不會顯示在預覽', async () => {
+  await withTempProject(async () => {
+    const { shown } = await runTelegramStream(async (_prompt, _options, onEvent) => {
+      await onEvent({ type: 'start', provider: 'opencode' });
+      await onEvent({ type: 'reasoning', text: `思考內容 ${MARKER.slice(0, 8)}` });
+      await onEvent({ type: 'reasoning', text: MARKER.slice(8) });
+      await onEvent({ type: 'delta', text: '正文' });
+      await onEvent({ type: 'done', text: '正文' });
+      return { provider: 'opencode', text: '正文' };
+    });
+
+    assert.ok(shown.some((item) => item.includes('思考內容')));
+    assert.ok(!shown.some((item) => item.includes('[[')), shown.join('\n---\n'));
+  });
+});
+
+test('重新開始的回合不受前一次的標記狀態影響', async () => {
+  await withTempProject(async () => {
+    const { shown } = await runTelegramStream(async (_prompt, _options, onEvent) => {
+      await onEvent({ type: 'start', provider: 'opencode' });
+      await onEvent({ type: 'delta', text: `第一次${MARKER}` });
+      await onEvent({ type: 'start', provider: 'opencode' });
+      await onEvent({ type: 'delta', text: '重跑的預覽' });
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await onEvent({ type: 'delta', text: '還在繼續' });
+      await onEvent({ type: 'done', text: '重跑的預覽還在繼續' });
+      return { provider: 'opencode', text: '重跑的預覽還在繼續' };
+    });
+
+    const previews = shown.slice(0, -1);
+    assert.ok(
+      previews.some((item) => item.includes('重跑的預覽')),
+      previews.join('\n---\n')
+    );
+  });
+});
+
+test('回覆只有標記時提示使用者，intent 與 session 綁定都保留', async () => {
+  await withTempProject(async (projectDir) => {
+    const rule = '[[MEMORY_INTENT:{"level":"rule","confidence":"high","reason":"穩定偏好"}]]';
+    const issues: string[] = [];
+    const { connector, sentMessages } = createConnectorRecorder();
+    const sessionStore = new ChatSessionStore(path.join(projectDir, 'session-state.json'));
+    const agent = createAgentStub({
+      async chatStructured() {
+        return { provider: 'opencode', text: `[Opencode] ${rule}`, sessionId: 'ses_marker' };
+      }
+    });
+
+    const pipeline = createMessagePipeline({
+      connector,
+      commandRouter: {
+        async handleMessage() {
+          return false;
+        },
+        isPassthroughCommand() {
+          return false;
+        }
+      } as never,
+      memory: new MemoryManager(),
+      scheduler: { resetSilenceTimer() {} } as never,
+      userAgent: agent,
+      chatRunnerAgent: agent,
+      useRunnerForChat: false,
+      chatRunnerPercent: 0,
+      chatRunnerOnlyUsers: new Set(),
+      shouldSummarize: () => false,
+      buildPrompt: (userMessage) => `PROMPT:${userMessage}`,
+      recordRuntimeIssue(scope) {
+        issues.push(scope);
+      },
+      writeContextSnapshots() {},
+      chatSessionStore: sessionStore
+    } as never);
+
+    await pipeline(createMessage('只回標記'));
+
+    assert.equal(sentMessages.at(-1)?.text, MARKER_ONLY_NOTICE);
+    assert.equal(sessionStore.get('user-a'), 'ses_marker');
+    assert.deepEqual(issues, ['opencode:empty-output:marker_only']);
+    assert.ok(getRecentMemoryIntentTraces(1).some((item) => item.intent.level === 'rule'));
+  });
+});
+
+test('回覆只有檔案指令時不算只有標記', async () => {
+  await withTempProject(async () => {
+    const replies = [
+      `[Opencode] [[SEND_FILE: workspace/temp/a.txt]]\n${MARKER}`,
+      '[Opencode] [[SEND_FILE: workspace/temp/a.txt]]'
+    ];
+    for (const text of replies) {
+      const issues: string[] = [];
+      const { connector, sentMessages } = createConnectorRecorder();
+      const agent = createAgentStub({
+        async chatStructured() {
+          return { provider: 'opencode', text };
+        }
+      });
+      const pipeline = createMessagePipeline({
+        connector,
+        commandRouter: {
+          async handleMessage() {
+            return false;
+          },
+          isPassthroughCommand() {
+            return false;
+          }
+        } as never,
+        memory: new MemoryManager(),
+        scheduler: { resetSilenceTimer() {} } as never,
+        userAgent: agent,
+        chatRunnerAgent: agent,
+        useRunnerForChat: false,
+        chatRunnerPercent: 0,
+        chatRunnerOnlyUsers: new Set(),
+        shouldSummarize: () => false,
+        buildPrompt: (userMessage) => `PROMPT:${userMessage}`,
+        recordRuntimeIssue(scope) {
+          issues.push(scope);
+        },
+        writeContextSnapshots() {}
+      });
+
+      await pipeline(createMessage('傳檔案'));
+
+      assert.ok(!sentMessages.some((item) => item.text === MARKER_ONLY_NOTICE), text);
+      assert.ok(!issues.includes('opencode:empty-output:marker_only'), text);
+    }
+  });
+});
+
+test('Telegram 串流回覆只有標記時顯示提示，不露出標記', async () => {
+  await withTempProject(async () => {
+    const { shown } = await runTelegramStream(async (_prompt, _options, onEvent) => {
+      await onEvent({ type: 'start', provider: 'opencode' });
+      await onEvent({ type: 'delta', text: MARKER });
+      await onEvent({ type: 'done', text: MARKER });
+      return { provider: 'opencode', text: `[Opencode] ${MARKER}` };
+    });
+
+    assert.ok(!shown.some((item) => item.includes('[[')), shown.join('\n---\n'));
+    assert.ok(
+      shown.some((item) => item.includes(MARKER_ONLY_NOTICE)),
+      shown.join('\n---\n')
+    );
   });
 });
 

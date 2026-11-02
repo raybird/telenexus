@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { startWebServer } from '../src/web/server.js';
+import { MARKER_ONLY_NOTICE } from '../src/core/message-pipeline-chat.js';
 import { MemoryManager } from '../src/core/memory.js';
 import type { AIAgent, AIAgentOptions } from '../src/core/agent.js';
 import type { AgentEvent, AgentStructuredResult } from '../src/core/agent-result.js';
@@ -25,6 +26,8 @@ function withTempDb<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 class StreamingAgentStub implements AIAgent {
+  constructor(private readonly deltas: string[] = ['Hello', ' world']) {}
+
   async chat(): Promise<string> {
     return 'fallback chat';
   }
@@ -39,13 +42,15 @@ class StreamingAgentStub implements AIAgent {
     onEvent: (event: AgentEvent) => Promise<void> | void
   ): Promise<AgentStructuredResult> {
     await onEvent({ type: 'start', provider: 'opencode' });
-    await onEvent({ type: 'delta', text: 'Hello' });
-    await onEvent({ type: 'delta', text: ' world' });
+    for (const text of this.deltas) {
+      await onEvent({ type: 'delta', text });
+    }
+    const fullText = this.deltas.join('');
     await onEvent({ type: 'usage', stats: { total_tokens: 12 } });
-    await onEvent({ type: 'done', text: 'Hello world' });
+    await onEvent({ type: 'done', text: fullText });
     return {
       provider: 'opencode',
-      text: 'Hello world',
+      text: fullText,
       stats: { total_tokens: 12 }
     };
   }
@@ -91,45 +96,47 @@ async function readSseEvents(response: Response): Promise<Array<{ event: string;
   return events;
 }
 
-test('web chat stream emits chunks before done and keeps final reply aligned', async () => {
-  await withTempDb(async () => {
-    const memory = new MemoryManager();
-    const agent = new StreamingAgentStub();
-    const port = 39231;
-    const server = startWebServer({
-      enabled: true,
-      host: '127.0.0.1',
-      port,
-      trustPrivateNetwork: true,
-      alertErrorThreshold: 10,
-      alertRunnerSuccessWarnThreshold: 90,
-      defaultUserId: 'web-user',
-      commandRouter: {
-        async handleMessage() {
-          return false;
-        },
-        isPassthroughCommand() {
-          return false;
-        }
-      } as never,
-      memory,
-      scheduler: {
-        resetSilenceTimer() {}
-      } as never,
-      userAgent: agent,
-      chatRunnerAgent: agent,
-      useRunnerForChat: false,
-      chatRunnerPercent: 0,
-      chatRunnerOnlyUsers: new Set<string>(),
-      shouldSummarize() {
+function startStubServer(agent: AIAgent, port: number) {
+  return startWebServer({
+    enabled: true,
+    host: '127.0.0.1',
+    port,
+    trustPrivateNetwork: true,
+    alertErrorThreshold: 10,
+    alertRunnerSuccessWarnThreshold: 90,
+    defaultUserId: 'web-user',
+    commandRouter: {
+      async handleMessage() {
         return false;
       },
-      buildPrompt(userMessage) {
-        return `PROMPT:${userMessage}`;
-      },
-      recordRuntimeIssue() {},
-      writeContextSnapshots() {}
-    });
+      isPassthroughCommand() {
+        return false;
+      }
+    } as never,
+    memory: new MemoryManager(),
+    scheduler: {
+      resetSilenceTimer() {}
+    } as never,
+    userAgent: agent,
+    chatRunnerAgent: agent,
+    useRunnerForChat: false,
+    chatRunnerPercent: 0,
+    chatRunnerOnlyUsers: new Set<string>(),
+    shouldSummarize() {
+      return false;
+    },
+    buildPrompt(userMessage) {
+      return `PROMPT:${userMessage}`;
+    },
+    recordRuntimeIssue() {},
+    writeContextSnapshots() {}
+  });
+}
+
+test('web chat stream emits chunks before done and keeps final reply aligned', async () => {
+  await withTempDb(async () => {
+    const port = 39231;
+    const server = startStubServer(new StreamingAgentStub(), port);
 
     try {
       const response = await fetch(`http://127.0.0.1:${port}/api/chat/stream`, {
@@ -154,6 +161,80 @@ test('web chat stream emits chunks before done and keeps final reply aligned', a
       assert.deepEqual(usageEvent?.payload, { stats: { total_tokens: 12 } });
       assert.equal(doneEvent?.payload.reply, 'Hello world');
       assert.ok(eventNames.indexOf('chunk') < eventNames.indexOf('done'));
+    } finally {
+      await server.close();
+    }
+  });
+});
+
+test('web chat stream 的片段與最終回覆都不含記憶標記', async () => {
+  await withTempDb(async () => {
+    const port = 39232;
+    const server = startStubServer(
+      new StreamingAgentStub([
+        '這是正文',
+        '\n\n[[MEMO',
+        'RY_INTENT:{"level":"none","confidence":"high","reason":"無"}]]'
+      ]),
+      port
+    );
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/api/chat/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'test marker' })
+      });
+
+      const events = await readSseEvents(response);
+      const chunks = events
+        .filter((item) => item.event === 'chunk')
+        .map((item) => item.payload.text);
+      assert.equal(chunks.join('').trimEnd(), '這是正文');
+      assert.equal(events.find((item) => item.event === 'done')?.payload.reply, '這是正文');
+    } finally {
+      await server.close();
+    }
+  });
+});
+
+test('web chat stream 保留標記之後的正文', async () => {
+  await withTempDb(async () => {
+    const port = 39233;
+    const marker = '[[MEMORY_INTENT:{"level":"none","confidence":"high","reason":"無"}]]';
+    const server = startStubServer(new StreamingAgentStub([`我先查${marker}`, '\n\n結果']), port);
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/api/chat/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'test marker body' })
+      });
+
+      const events = await readSseEvents(response);
+      const reply = events.find((item) => item.event === 'done')?.payload.reply;
+      assert.equal(reply, '我先查\n\n結果');
+    } finally {
+      await server.close();
+    }
+  });
+});
+
+test('web chat stream 回覆只有標記時回傳提示', async () => {
+  await withTempDb(async () => {
+    const port = 39234;
+    const marker = '[[MEMORY_INTENT:{"level":"none","confidence":"high","reason":"無"}]]';
+    const server = startStubServer(new StreamingAgentStub([marker]), port);
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/api/chat/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'test marker only' })
+      });
+
+      const events = await readSseEvents(response);
+      assert.equal(events.find((item) => item.event === 'done')?.payload.reply, MARKER_ONLY_NOTICE);
     } finally {
       await server.close();
     }

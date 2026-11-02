@@ -5,6 +5,8 @@ import type { CommandRouter } from './command-router.js';
 import { executionQueue } from './execution-queue.js';
 import {
   maybeSendSummaryFollowup,
+  hasVisibleText,
+  MARKER_ONLY_NOTICE,
   normalizeAgentResponse,
   persistModelResponse,
   persistUserMessage,
@@ -33,7 +35,7 @@ import { randomUUID } from 'crypto';
 import type { BuildPromptFn } from './prompt-build.js';
 import { recordPromptSessionTrace } from '../services/prompt-session-telemetry.js';
 import type { PromptTelemetry } from './message-pipeline-chat.js';
-import { parseMemoryIntent } from './memory-intent.js';
+import { createVisibleEventFilter, parseMemoryIntent } from './memory-intent.js';
 import { recordMemoryIntentTrace } from '../services/memory-intent-telemetry.js';
 import { emitEvent } from '../services/event-bus.js';
 import { buildReuseOutcome, reportRecallOutcome } from './memoria-recall.js';
@@ -246,7 +248,12 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         'chat',
         'high',
         async ({ signal }) => {
-          const eventHandler = async (event: AgentEvent): Promise<void> => {
+          const toVisibleEvent = createVisibleEventFilter();
+          const eventHandler = async (rawEvent: AgentEvent): Promise<void> => {
+            const event = toVisibleEvent(rawEvent);
+            if (!event) {
+              return;
+            }
             if (streamResponse) {
               await streamResponse(event);
             }
@@ -309,7 +316,18 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       );
 
       const { response, directives } = normalizeAgentResponse(rawResponse);
-      const { cleanedResponse, intent: memoryIntent } = parseMemoryIntent(response);
+      const { cleanedResponse: parsedResponse, intent: memoryIntent } = parseMemoryIntent(response);
+      // 只有標記的回覆仍保留 session 綁定與 intent,使用者則需要知道這回合沒有答案。
+      const markerOnly =
+        directives.length === 0 && parsedResponse !== response && !hasVisibleText(parsedResponse);
+      const cleanedResponse = markerOnly ? MARKER_ONLY_NOTICE : parsedResponse;
+      if (markerOnly) {
+        options.recordRuntimeIssue(
+          'opencode:empty-output:marker_only',
+          new Error('model replied with only a memory intent marker')
+        );
+        await streamResponse?.({ type: 'done', text: MARKER_ONLY_NOTICE });
+      }
 
       log.info('response.received', {
         userId: context.userId,

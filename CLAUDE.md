@@ -90,6 +90,7 @@ Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per
 | `src/core/memoria-recall-query.ts`           | Recall criterion (issue 0019): strips question/function words before `/v1/recall`; injects only when confidence ≥ `MEMORIA_RECALL_MIN_CONFIDENCE` and the top snippet has ≥2 non-digit query tokens                     |
 | `src/core/memoria-sync.ts`                   | Background sync bridge — POSTs each turn to the Memoria HTTP service (`/v1/remember` at `MEMORIA_ENDPOINT`); hook-queue retained as offline retry buffer. No local CLI spawn.                                           |
 | `src/prompt/memoria-capability.ts`           | Memory-intent reporting across full, compact and minimal chat modes; only explicit preferences, adopted decisions and verified techniques qualify. |
+| `src/core/memory-intent.ts`                  | `[[MEMORY_INTENT:` is reserved: `parseMemoryIntent()` removes it anywhere in the final text and takes the intent only from the trailing block, because a mid-text block may be a quoted example. Text it cannot identify as a marker stays: exposing a marker beats silently losing the reply. `createVisibleEventFilter()` filters events in the pipeline's `eventHandler`, the one place every stream consumer shares. |
 | `docker/memoria-entrypoint.mjs`, `docker/memoria-vector-ingest.mjs` | Optional local semantic indexing: independent cursor, resumable batch transactions, single-thread inference and pauses under the container's 0.25 CPU quota. |
 | `src/core/opencode.ts`                       | Wraps `opencode run` subprocess calls; fail-fast on upstream 429 via stderr abort pattern; turns upstream `error` events into `upstream-error` failures                                                                 |
 | `src/core/opencode-event-parser.ts`          | Shared Opencode JSON event schema — `interpretEvent()` used by both stream and non-stream paths; `findUpstreamError()` shared with the model health probe                                                               |
@@ -122,7 +123,7 @@ Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per
 
 - **full** — periodic full prompt + memory context injection; also injects live system summary (active schedules, recent error count, memory size) and skills index into the prompt so Opencode sees them without needing to read files
 - **compact** — lightweight follow-up prompt; memory context only injected when the message clearly needs prior rules/decisions/settings
-- **minimal** — short follow-ups, no extra context bloat
+- **minimal** — short follow-ups; adds only the memory-intent hint to the user message
 - **passthrough** — slash command forwarded verbatim to the underlying CLI, no TeleNexus wrapping
 
 Long-term context comes from two sources: the SQLite memory store (with SAR — Summary-Aware Retrieval) and the optional Memoria HTTP service (installed via npm `@raybird.chen/memoria`, data in the `memoria_data` volume; recall + sync both over `MEMORIA_ENDPOINT`).

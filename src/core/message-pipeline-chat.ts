@@ -95,6 +95,13 @@ type FollowupSummaryOptions = {
 
 const log = createLogger('message-pipeline.chat');
 
+export const MARKER_ONLY_NOTICE = '模型這回合沒有產生文字回覆，請再問一次。';
+
+/** agent 會在回覆前加上 `[Opencode]`,判斷有沒有文字時不能把它算進去。 */
+export function hasVisibleText(text: string): boolean {
+  return text.replace(/^\[Opencode\]/, '').trim().length > 0;
+}
+
 export function normalizeAgentResponse(rawResponse: string): {
   rawResponse: string;
   response: string;
