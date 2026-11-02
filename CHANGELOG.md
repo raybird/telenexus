@@ -2,6 +2,25 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.35.0 — 2026-11-02
+
+### 語意召回預設啟用
+
+- Compose 與 `.env.example` 預設 `MEMORIA_RECALL_MODE=vector`、`MEMORIA_VECTOR_ENABLED=1`，Memoria 容器配額由 0.25 調高為 0.5 CPU。
+- 首次全量索引完成前，聊天走字面搜尋，不載入模型、不加延遲，完成後自動切換，不必重啟。索引失敗時會記成降級並進告警。
+- 語意結果超過距離上限（`MEMORIA_VECTOR_MAX_DISTANCE`，預設 0.145）就不採用，無關問句不會因為字面沒有命中而被注入記憶。
+- 語意查詢改用單執行緒並擴大候選，0.5 CPU 下每次約 3 秒。
+- 向量庫讀寫改為等鎖，查詢撞上索引寫入時不再失敗。
+- vector 模式的召回逾時下限為 20 秒：比語意查詢短的值會連字面結果都丟掉。
+
+### 升級注意
+
+- 升級後 Memoria 會在背景建立歷史索引，每千筆約 11 分鐘，期間容器最多使用半個核心。
+- 索引完成後，需要記憶的回合約多等 3 秒。不想要這段延遲，請設 `MEMORIA_RECALL_MODE=hybrid`。要完全關閉語意搜尋，再加上 `MEMORIA_VECTOR_ENABLED=0`。
+- `.env` 明確寫了 `MEMORIA_RECALL_MODE=hybrid` 或 `MEMORIA_VECTOR_ENABLED=0` 的部署會維持原設定；要啟用請移除這兩行。
+- 語意查詢需要新版 Memoria 映像內的守門腳本，telenexus 與 memoria 兩個映像要一起升級。
+- build、682 項測試與 lint 通過。
+
 ## 2.34.1 — 2026-11-02
 
 ### 修正
@@ -75,6 +94,7 @@
 ### 退役 `data/memory.db` 這條路（#22）
 
 `mcp-memory-libsql` 與記憶回填都退役了，長期記憶由 Memoria 負責。退役的根據：
+
 - 正式部署保留期內的 opencode session 裡，agent 沒有任何一次 `mcp-memory-libsql` 工具呼叫；
 - 回填從未寫入正式部署。
 
