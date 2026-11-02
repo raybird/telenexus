@@ -13,6 +13,7 @@
    npm run docker:dev
    ```
    不經容器、直接在主機執行：`npm run dev`。
+   Linux 上可選擇啟動本機記憶 UI。先依[安裝指南](docs/installation.md#memoria-本機記憶-ui)備份並初始化資料、確認主記憶服務健康，再執行 `docker compose --profile memory-ui up -d --build --wait --no-deps memoria-ui`，網址為 `http://127.0.0.1:3918/ui/`。請沿用相同 Compose 專案與記憶資料掛載；啟停、埠號及安全限制亦見安裝指南。
 3. 確認型別與品質
    ```bash
    npm run build

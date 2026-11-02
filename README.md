@@ -24,6 +24,7 @@
 - **本地 CLI 執行**：Telegram / Web Console 直接驅動本機 Opencode，保留完整工具權限
 - **長對話記憶**：Summary-Aware Retrieval (SAR) — 核心規則與決策跨 session 保留，不只抓近期訊息
 - **長期記憶服務**：內建 Memoria 服務，每輪對話自動同步，之後的對話可召回相關記憶
+- **本機記憶工作台（原始碼版新增）**：Linux 上選擇啟用 Memoria 唯讀瀏覽 UI，查看決策、技能與 Session；[啟停方式與限制](docs/installation.md#memoria-本機記憶-ui)
 - **語意記憶（預設啟用）**：本地多語模型、0.5 核心上限的背景索引，分批保存並可中斷續跑，索引完成前先用字面搜尋；[設定與驗證方式](docs/configuration-reference.md#memoria-召回)
 - **排程系統**：內建 cron scheduler，定時任務與一般聊天走同一套可觀測模型
 - **Runner 隔離執行**：AI 任務交給獨立的 `agent-runner` 容器，連續失敗時熔斷並自動退回本地執行
@@ -180,6 +181,8 @@ docker compose exec agent-runner node scripts/probe-models.mjs --all  # 探測�
 ```bash
 npm run docker:dev   # 以 dev stage 啟動 telenexus、agent-runner、memoria（tsx watch）
 ```
+
+Linux 上需要瀏覽這份開發資料的記憶時，先依[安裝指南](docs/installation.md#memoria-本機記憶-ui)備份並初始化同一份記憶資料，再於相同目錄與 Compose 專案執行 `docker compose --profile memory-ui up -d --build --wait --no-deps memoria-ui`，開啟 `http://127.0.0.1:3918/ui/`。此選用服務使用 host network；埠號、依賴服務與停用方式亦見安裝指南。
 
 同一台機器上已有另一份部署在跑時，開發用的 `.env` 要換成**另一個 bot** 的 `TELEGRAM_TOKEN`，`WEB_PORT` 也要錯開（例如 `3031`）。同一個 token 兩邊同時 poll，Telegram 會回 409，兩邊都收不到訊息。
 

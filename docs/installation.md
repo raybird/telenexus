@@ -43,6 +43,58 @@ docker compose exec telenexus opencode auth login
 curl -sf http://localhost:3030/api/health
 ```
 
+## Memoria 本機記憶 UI
+
+本節設定核對日期：2026-11-02。此功能目前在原始碼與 release Compose 範本中；既有已發布 bundle 不一定包含 `memoria-ui`，請先以 `docker compose --profile memory-ui config --services` 確認。
+
+UI 是 Linux Docker Engine 上選擇啟用的本機記憶工作台，預設不隨三個核心服務啟動。它使用 host network，僅監聽 `127.0.0.1`。在既有部署目錄、沿用相同 Compose 專案名稱及 override 執行，才能共用原本的 `memoria_data`。若曾自訂 `memoria` 的資料掛載，也要讓 `memoria-ui` 掛載同一份資料；換目錄或專案名稱可能會建立另一個空資料卷。
+
+首次啟用 UI 前，先備份既有 Memoria 資料，並確認資料根目錄已完整初始化。`memoria init` 可重複執行，會補齊目錄與資料庫 schema，不會清空記憶；它仍可能升級 schema，因此備份不可省略。HTTP 健康正常只代表記憶服務可回應，不代表 UI 所需的目錄已齊備。
+
+```bash
+# 含 memoria-ui 的預建映像部署；已健康運行的 memoria 可略過這行
+docker compose up -d --wait memoria
+# 從原始碼首次建置時，上行改用 docker compose up -d --build --wait memoria
+
+# 在同一份資料卷補齊初始化，再啟動 UI
+docker compose exec -T memoria memoria init --json
+docker compose --profile memory-ui up -d --wait --no-deps memoria-ui
+# 從原始碼建置 UI 時，上行加上 --build
+
+# 查看狀態與啟動記錄
+docker compose --profile memory-ui ps memoria-ui
+docker compose --profile memory-ui logs --tail=100 memoria-ui
+curl -fsS http://127.0.0.1:3918/ui/ > /dev/null
+```
+
+確認 `memoria` 已健康且初始化成功後，使用上面的 `--no-deps` 可避免重新建立既有依賴服務。一般 `docker compose --profile memory-ui up -d memoria-ui` 則會處理 `memoria` 依賴並等待它健康，適用於已完成初始化的環境；它不會代替 `memoria init`。
+
+在執行 Docker 的同一台主機上開啟 **http://127.0.0.1:3918/ui/**。請精確使用 `127.0.0.1`，不要改成 `localhost`；UI 會檢查 Host／Origin。若埠已占用，在 `.env` 設 `MEMORIA_UI_PORT=3919`，重新執行上述 `up`，網址也改成 `http://127.0.0.1:3919/ui/`。此模式不提供遠端存取，請勿放到反向代理或對外公開。
+
+UI 可瀏覽決策、技能、Session 與記憶摘要。介面 API 是唯讀，UI 啟動要求資料根目錄已初始化；容器的 `read_only: true` 只保護根檔案系統，與主 `memoria` 共用的 `/data` 資料卷仍可寫。UI 關閉向量背景工作，不改動主 `memoria` 的語意索引設定。詳細參數與邊界見[設定參考](configuration-reference.md#memoria-本機記憶-ui)及[安全邊界](runtime-boundary-and-security.md#5-memoria-與長期記憶邊界)。
+
+若 UI log 出現 `Memory is not initialized. Run memoria init with the intended MEMORIA_HOME first.`，先確認 `memoria` 與 `memoria-ui` 的資料掛載一致、備份資料，再執行上面的 `docker compose exec -T memoria memoria init --json` 及 UI `up`。既有健康的主記憶服務不需重啟。
+
+只關閉 UI、保留記憶服務與資料：
+
+```bash
+docker compose --profile memory-ui stop memoria-ui
+# 需要移除已停止的 UI 容器時
+docker compose --profile memory-ui rm -f memoria-ui
+```
+
+不需要執行 `down -v`；它會刪除整個專案的 named volumes。
+
+### 隔離實測紀錄
+
+2026-11-02：使用 `ghcr.io/raybird/telenexus-memoria:v2.35.1`（digest `sha256:1b1c220bad1ba4ef87288ddfbe9eb7ebc491324562ae77960122039cfd6a9885`），從原 Compose 抽取 `memoria` 與 `memoria-ui` 兩個服務，以獨立專案、新資料卷、UI 埠 `43918` 並關閉向量工作測試；未啟動 bot／runner，也未使用正式記憶資料。
+
+- 新空資料卷的主記憶 HTTP 健康，但 UI 因未初始化退出；執行 `memoria init --json` 後，兩容器均達 healthy。
+- 由主服務 HTTP remember 寫入測試 Session，UI 列表可見；HTML、JS、CSS 與關鍵字搜尋均回傳 200。
+- UI 的 POST remember 回傳 405；錯誤 Host、Origin 與跨站請求回傳 403。由容器 `/proc/net/tcp` 確認 UI 僅監聽 `127.0.0.1`。
+
+以上為容器與 HTTP／API 實測，未進行瀏覽器視覺驗證，也不代表正式記憶資料已驗收。測試容器、網路與資料卷已清除，測試映像保留。
+
 ## 升級
 
 ```bash

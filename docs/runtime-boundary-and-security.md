@@ -85,6 +85,14 @@
 
 ## 5) Memoria 與長期記憶邊界
 
+### 選用本機 UI
+
+本節設定核對日期：2026-11-02。`memoria-ui` 由 `memory-ui` profile 明確啟用，使用 Linux host network，Memoria UI 僅綁定 `127.0.0.1` 並檢查 Host／Origin；請精確以 `http://127.0.0.1:3918/ui/` 存取，不透過 `localhost`、遠端網址或反向代理公開。此模式沒有對外登入或分享機制，本機使用者可閱讀同一份記憶內容。
+
+UI API 唯讀，啟動要求資料根目錄已初始化；容器根檔案系統設為唯讀、`/tmp` 使用 tmpfs，並以非 root 使用者執行、移除 capabilities、禁止取得新權限。但它與 `memoria` 共用可寫的 `/data` 資料卷，不能把 `read_only: true` 解讀為資料完全不會寫入。首次使用前應備份並由主 `memoria` 執行可重複的 `memoria init`，補齊目錄與資料庫 schema；一般 HTTP 健康檢查不涵蓋 UI 初始化。UI 固定關閉向量背景工作；主服務的 HTTP 同步與召回繼續由原 `memoria` 負責。[啟停與資料卷注意事項](installation.md#memoria-本機記憶-ui)。
+
+### 主記憶服務
+
 - TeleNexus 本身的 SQLite memory 是主對話流程的一級依賴。
 - Memoria 自 v2.19 起改為**獨立 HTTP 服務**：以 npm `@raybird.chen/memoria` 在 image build 期安裝,資料落在 `memoria_data` named volume,telenexus 為純 client。
 - recall 與 sync **都走 HTTP**(`MEMORIA_ENDPOINT`):recall = `POST /v1/recall`、sync = `POST /v1/remember`。telenexus 容器內**不再有 Memoria 原始碼或 CLI**,也不再共享資料目錄,從根本消除過去 recall/sync 兩條路徑的資料 split-brain。

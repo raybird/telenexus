@@ -155,6 +155,19 @@ MEMORIA_HOOK_QUEUE_POLL_MS=5000
 - `MEMORIA_HOOK_QUEUE_ENABLED=false`（預設）：走 hook-free 模式，只靠 TeleNexus pipeline 同步
 - 設為 `true` 才會啟用 hook queue 輪詢，通常只在需要相容舊流程時使用
 
+## Memoria 本機記憶 UI
+
+本節設定核對日期：2026-11-02。
+
+| 設定 | 預設 | 說明 |
+|---|---|---|
+| Compose profile | `memory-ui`（未啟用） | 明確啟用後才啟動 `memoria-ui`；操作方式見[安裝指南](installation.md#memoria-本機記憶-ui) |
+| `MEMORIA_UI_PORT` | `3918` | UI 在 Linux 主機 `127.0.0.1` 上的監聽埠；修改後需重新執行 `up` 套用 |
+
+`MEMORIA_UI_PORT` 由 Compose 傳入 UI 容器的 `MEMORIA_PORT`，不更動主記憶服務的 `3917` 或 TeleNexus 的 `MEMORIA_ENDPOINT`。UI 使用 host network，沒有 Docker `ports` 映射，網址必須精確使用 `http://127.0.0.1:<埠>/ui/`，不支援 `localhost`、遠端主機名稱或反向代理。
+
+同一 Compose 專案內，UI 與 `memoria` 共用 `memoria_data:/data`；有自訂掛載時應同步調整。首次使用 UI 前需備份資料並執行 `docker compose exec -T memoria memoria init --json`；HTTP 健康不代表 UI 所需目錄已初始化。UI 固定 `MEMORIA_VECTOR_ENABLED=0`，不啟動另一份向量索引工作。介面 API 唯讀，但共用資料卷並非唯讀掛載。CPU 上限為 `0.25` 核、記憶體上限 `512m`。
+
 ## Memoria 召回
 
 ```env
