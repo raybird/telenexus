@@ -17,6 +17,7 @@ RUN cd /usr/local/lib/node_modules/@raybird.chen/memoria/skills/memoria-vector \
 
 COPY memoria-entrypoint.mjs /usr/local/bin/memoria-entrypoint.mjs
 COPY memoria-vector-ingest.mjs /usr/local/bin/memoria-vector-ingest.mjs
+COPY memoria-vector-recall.mjs /usr/local/bin/memoria-vector-recall.mjs
 
 ENV HOME=/home/node \
     MEMORIA_HOME=/data \

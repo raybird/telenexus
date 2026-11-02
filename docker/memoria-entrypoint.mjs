@@ -192,8 +192,10 @@ export async function main() {
     }
   }
   if (args.length === 0 && command === 'memoria') args.push('serve');
+  // 守門腳本一律掛上:關閉語意搜尋或索引未就緒時它直接回空,Memoria 走字面搜尋且不記成降級。
+  process.env.LIBSQL_URL ||= `file:${path.join(home, '.memory/vectors.db')}`;
+  process.env.MEMORIA_VECTOR_RECALL_CMD ||= '/usr/local/bin/memoria-vector-recall.mjs';
   if (enabled) {
-    process.env.LIBSQL_URL ||= `file:${path.join(home, '.memory/vectors.db')}`;
     process.env.MEMORIA_EMBED_PROVIDER ||= 'local';
   }
   const runner = createChildRunner();

@@ -196,3 +196,21 @@ test('entrypoint preserves prefixed and unprefixed CLI arguments without startin
     await rm(home, { recursive: true, force: true });
   }
 });
+
+test('entrypoint attaches the recall gate even when semantic search is off', async () => {
+  const home = await mkdtemp(path.join(tmpdir(), 'memoria-gate-env-'));
+  try {
+    const entrypoint = path.resolve(import.meta.dirname, '../../docker/memoria-entrypoint.mjs');
+    const { stdout } = await promisify(execFile)(
+      process.execPath,
+      [entrypoint, 'sh', '-c', 'printf "%s|%s" "$MEMORIA_VECTOR_RECALL_CMD" "$LIBSQL_URL"'],
+      { env: { PATH: process.env.PATH, MEMORIA_HOME: home, MEMORIA_VECTOR_ENABLED: '0' } }
+    );
+    assert.equal(
+      stdout,
+      `/usr/local/bin/memoria-vector-recall.mjs|file:${path.join(home, '.memory/vectors.db')}`
+    );
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+});

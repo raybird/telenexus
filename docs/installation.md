@@ -106,9 +106,11 @@ docker compose start
 
 ## 指定版本與回滾
 
-### 本機語意記憶改善部署
+### 語意記憶
 
-啟用語意搜尋前，先備份實際 Memoria 掛載（named volume 或 override 指定的 bind mount），並保存 Compose／override。先確認 `MEMORIA_VECTOR_ENABLED=1` 的背景索引覆蓋率，再將聊天設為 `MEMORIA_RECALL_MODE=vector`；HTTP 健康正常不代表向量已齊備。參數與驗證命令見[設定參考](configuration-reference.md#memoria-召回)。
+Compose 預設啟用語意搜尋。升級後 Memoria 會在背景建立歷史索引，0.5 CPU 下每千筆約 11 分鐘；這段期間聊天先用字面搜尋，回覆不會變慢，索引完成後自動切換。升級前先備份實際 Memoria 掛載（named volume 或 override 指定的 bind mount），並保存 Compose／override。
+
+`.env` 明確寫了 `MEMORIA_RECALL_MODE=hybrid` 或 `MEMORIA_VECTOR_ENABLED=0` 的部署會維持原設定，要啟用就移除這兩行。要完全關閉語意搜尋，在 `.env` 同時設 `MEMORIA_VECTOR_ENABLED=0` 與 `MEMORIA_RECALL_MODE=hybrid`。HTTP 健康正常不代表向量已齊備，參數與驗證命令見[設定參考](configuration-reference.md#memoria-召回)。
 
 以未發版的本機映像驗證時，使用明確的本機 tag 放在 `docker-compose.override.yml`，不要覆蓋 GHCR 正式版 tag。回復時還原先前 override 並重建服務即可回到原映像；新增的向量庫不影響原 SQLite 記憶。之後安裝正式 release bundle 前，須移除 override 的本機 `image:` 欄位，否則仍會使用本機映像。`.env`、認證及記憶資料保留。
 

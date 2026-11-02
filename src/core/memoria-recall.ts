@@ -82,13 +82,22 @@ export function getMemoriaEndpoint(): string {
   return getRecallEndpoint();
 }
 
+/**
+ * Memoria 的語意查詢最多等 15 秒才退回字面搜尋。TeleNexus 先放棄的話連字面結果都拿不到,
+ * v2.33 以前的 .env 留著 1500 時會每回合失去全部召回,所以 vector 模式不接受更低的值。
+ */
+const MIN_VECTOR_RECALL_TIMEOUT_MS = 20000;
+
 function getRecallTimeoutMs(): number {
-  return parsePositiveInt(
+  const vector = getRecallMode() === 'vector';
+  const configured = parsePositiveInt(
     process.env.MEMORIA_RECALL_TIMEOUT_MS,
-    getRecallMode() === 'vector' ? 20000 : 1500
+    vector ? MIN_VECTOR_RECALL_TIMEOUT_MS : 1500
   );
+  return vector ? Math.max(configured, MIN_VECTOR_RECALL_TIMEOUT_MS) : configured;
 }
 
+/** Compose 預設傳 vector。這裡維持 hybrid:索引守門只在 Memoria 映像內,其他部署方式不一定有。 */
 function getRecallMode(): 'hybrid' | 'vector' {
   return process.env.MEMORIA_RECALL_MODE?.trim().toLowerCase() === 'vector' ? 'vector' : 'hybrid';
 }

@@ -76,6 +76,12 @@ test('未設定 timeout 時依召回模式決定，空字串視同未設定', ()
     assert.equal(timeoutOf(), 1500);
     process.env.MEMORIA_RECALL_MODE = 'vector';
     assert.equal(timeoutOf(), 20000);
+    // v2.33 以前的 .env 留著 1500:比語意查詢短,連字面結果都會丟掉
+    process.env.MEMORIA_RECALL_TIMEOUT_MS = '1500';
+    assert.equal(timeoutOf(), 20000);
+    process.env.MEMORIA_RECALL_TIMEOUT_MS = '30000';
+    assert.equal(timeoutOf(), 30000);
+    process.env.MEMORIA_RECALL_MODE = 'hybrid';
     process.env.MEMORIA_RECALL_TIMEOUT_MS = '2500';
     assert.equal(timeoutOf(), 2500);
   } finally {
@@ -92,4 +98,15 @@ test('Compose 與範例設定不替 hybrid 寫死向量用的逾時', () => {
     assert.match(compose, /MEMORIA_RECALL_TIMEOUT_MS: \$\{MEMORIA_RECALL_TIMEOUT_MS:-\}/, file);
   }
   assert.doesNotMatch(fs.readFileSync('.env.example', 'utf8'), /^MEMORIA_RECALL_TIMEOUT_MS=/m);
+});
+
+test('Compose deployments default to semantic recall with its index running', () => {
+  for (const name of ['docker-compose.yml', 'docker-compose.release.yml']) {
+    const compose = fs.readFileSync(path.resolve(import.meta.dirname, '..', name), 'utf8');
+    assert.match(compose, /MEMORIA_RECALL_MODE: \$\{MEMORIA_RECALL_MODE:-vector\}/);
+    assert.match(compose, /MEMORIA_VECTOR_ENABLED: \$\{MEMORIA_VECTOR_ENABLED:-1\}/);
+  }
+  const example = fs.readFileSync(path.resolve(import.meta.dirname, '../.env.example'), 'utf8');
+  // 範例不寫死:預設由 Compose 決定,主機直跑時才會用程式預設的 hybrid
+  assert.doesNotMatch(example, /^MEMORIA_(RECALL_MODE|VECTOR_ENABLED)=/m);
 });

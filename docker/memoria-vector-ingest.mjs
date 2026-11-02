@@ -7,6 +7,9 @@ const PACKAGE_ROOT = '/usr/local/lib/node_modules/@raybird.chen/memoria';
 const DIM = 384;
 const EMBEDDABLE_TYPES = new Set(['session', 'decision', 'skill', 'memory_node']);
 
+// 向量庫是 rollback journal,預設不等鎖:查詢撞到寫入提交會立刻 SQLITE_BUSY,反過來寫入批次也會失敗。
+export const BUSY_TIMEOUT_SQL = 'PRAGMA busy_timeout = 5000';
+
 function integerOption(raw, fallback, minimum) {
   if (raw === undefined || raw === '') return fallback;
   const value = Number(raw);
@@ -85,8 +88,11 @@ export async function ingestEntities({
   }
 }
 
-/** Reuse the official dependency/model cache with one native ONNX thread per session. */
-export async function createEmbedder(packageRoot = PACKAGE_ROOT) {
+/**
+ * Reuse the official dependency/model cache with one native ONNX thread per session.
+ * ONNX sizes its pool from the host, so under a CPU quota more threads make every step slower.
+ */
+export async function createEmbedder(packageRoot = PACKAGE_ROOT, kind = 'passage') {
   const helper = path.join(packageRoot, 'skills/memoria-vector');
   const { importDep, depsLocation } = await import(
     pathToFileURL(path.join(helper, 'deps.mjs')).href
@@ -95,7 +101,7 @@ export async function createEmbedder(packageRoot = PACKAGE_ROOT) {
   return async (texts) => {
     if ((process.env.MEMORIA_EMBED_PROVIDER || 'local') === 'stub') {
       const { embedTexts } = await import(pathToFileURL(path.join(helper, 'embed.mjs')).href);
-      return embedTexts(texts, 'passage');
+      return embedTexts(texts, kind);
     }
     if (process.env.MEMORIA_EMBED_PROVIDER && process.env.MEMORIA_EMBED_PROVIDER !== 'local') {
       throw new Error('Unsupported embedding provider');
@@ -114,7 +120,7 @@ export async function createEmbedder(packageRoot = PACKAGE_ROOT) {
       );
     }
     const output = await pipeline(
-      texts.map((text) => `passage: ${text}`),
+      texts.map((text) => `${kind}: ${text}`),
       { pooling: 'mean', normalize: true }
     );
     if (output.dims[0] !== texts.length || output.dims[1] !== DIM) {
@@ -131,6 +137,7 @@ export async function createVectorStore(url, packageRoot = PACKAGE_ROOT) {
   const { createClient } = await importDep('@libsql/client');
   const db = createClient({ url, authToken: process.env.LIBSQL_AUTH_TOKEN });
   try {
+    await db.execute(BUSY_TIMEOUT_SQL);
     await db.execute(
       `CREATE TABLE IF NOT EXISTS memoria_vectors (name TEXT PRIMARY KEY, kind TEXT, text TEXT, updated_at TEXT, v F32_BLOB(${DIM}))`
     );
