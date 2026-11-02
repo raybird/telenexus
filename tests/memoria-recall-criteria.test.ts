@@ -136,7 +136,7 @@ test('清單與套用順序和量測用的 function-words.mjs(第二版)相同',
   assert.equal(stripFunctionWords('是不是'), '');
 });
 
-test('tokenizeQuery 與 Memoria 1.28.1 相同:英數字整段、中文切成 2 字窗格', () => {
+test('tokenizeQuery 與 Memoria 1.36.1 相同:英數字整段、中文切成 2 字窗格', () => {
   assert.deepEqual(tokenizeQuery('Docker 映像 改版'), ['docker', '映像', '改版']);
   assert.deepEqual(tokenizeQuery('殭屍程序 處理'), ['殭屍', '屍程', '程序', '處理']);
   assert.deepEqual(tokenizeQuery('17 乘以 23'), ['17', '乘以', '23']);
@@ -144,10 +144,21 @@ test('tokenizeQuery 與 Memoria 1.28.1 相同:英數字整段、中文切成 2 �
   assert.deepEqual(tokenizeQuery('3 公尺 秒'), ['公尺']);
 });
 
+test('tokenizeQuery 依 Memoria 1.36 切韓文與片假名,平假名仍是分隔符', () => {
+  assert.deepEqual(tokenizeQuery('절차가'), ['절차', '차가']);
+  assert.deepEqual(tokenizeQuery('デプロイ手順', 3), ['デプロ', 'プロイ', 'ロイ手', 'イ手順']);
+  assert.deepEqual(tokenizeQuery('保存していますか'), ['保存']);
+  assert.deepEqual(tokenizeQuery('Docker배포'), ['docker', '배포']);
+});
+
 test('countMatchedContentTokens 只算不是純數字、而且出現在 snippet 裡的 token', () => {
   assert.equal(countMatchedContentTokens('殭屍程序 處理', SNIPPET), 3);
   assert.equal(countMatchedContentTokens('15 分鐘', SNIPPET), 1);
   assert.equal(countMatchedContentTokens('PROC 統計', SNIPPET), 2);
+});
+
+test('韓文問句命中時算得到內容 token,不會被注入判準擋掉', () => {
+  assert.equal(countMatchedContentTokens('배포 절차', '서버 배포 절차 정리'), 2);
 });
 
 test('AC-3:送給 Memoria 的是拿掉疑問詞與虛詞後的問句', async () => {

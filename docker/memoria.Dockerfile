@@ -7,7 +7,7 @@ FROM node:22-slim
 # 釘死確切版本:浮動 range 會讓同一個 TeleNexus tag 在不同時間建出不同的 Memoria
 # (v2.22.0 映像實測是 1.20.0,不是當時的 latest),升級一律改這行。
 # better-sqlite3 帶 prebuilt binary,免裝編譯器。
-RUN npm install -g @raybird.chen/memoria@1.35.1
+RUN npm install -g @raybird.chen/memoria@1.36.1
 
 # 模型與依賴在建置時準備，正式容器的唯讀 rootfs 不需要下載或安裝。
 # transformers 是官方 helper 的 devDependency，不能使用 --omit=dev。

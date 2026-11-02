@@ -108,13 +108,14 @@ export function stripFunctionWords(query: string): string {
   return out.replace(/\s+/g, ' ').trim();
 }
 
-// 以下複製自 Memoria 1.28.1 的 tokenizeQuery(src/core/utils.ts)。Memoria 改了切法時要跟著改,
+// 以下複製自 Memoria 1.36.1 的 tokenizeQuery(src/core/utils.ts)。Memoria 改了切法時要跟著改,
 // 否則這裡算的 token 與 confidence 背後的 token 對不上。
-const TOKEN_SPLIT_PATTERN = /[^a-z0-9一-鿿]+/;
-const CJK_RUN_PATTERN = /[一-鿿]+/g;
+// 片假名、漢字(含擴充 A)與韓文音節算詞;平假名是分隔符,否則語尾會蓋過內容詞。
+const CJK_WORD_RANGE = '\\u30a0-\\u30ff\\u3400-\\u9fff\\uac00-\\ud7a3';
+export const TOKEN_SPLIT_PATTERN = new RegExp(`[^a-z0-9${CJK_WORD_RANGE}]+`);
+const CJK_RUN_PATTERN = new RegExp(`[${CJK_WORD_RANGE}]+`, 'g');
 
 function expandCjkRuns(token: string, n: number): string[] {
-  if (!/[一-鿿]/.test(token)) return [token];
   const out: string[] = [];
   let cursor = 0;
   for (const match of token.matchAll(CJK_RUN_PATTERN)) {

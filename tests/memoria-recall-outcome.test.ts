@@ -160,6 +160,7 @@ test('tokenCoverage 與 Memoria SDK 語意一致(CJK 連續字串為單一 token
   assert.equal(tokenCoverage('deploy telenexus', 'we deploy something else'), 0.5);
   assert.equal(tokenCoverage('排程規則', '已依排程規則更新完成'), 1);
   assert.equal(tokenCoverage('排程規則', '完全無關的內容'), 0);
+  assert.equal(tokenCoverage('배포 절차', '배포 절차를 확인했습니다'), 1);
   // 長度 < 2 的 token 會被過濾,無有效 token 時回 0
   assert.equal(tokenCoverage('a b', 'a b c'), 0);
 });

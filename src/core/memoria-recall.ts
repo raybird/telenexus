@@ -7,6 +7,7 @@ import { isDegradedRoute, recordMemoriaRecallTrace } from '../services/memoria-r
 import { createLogger } from './logger.js';
 import {
   MIN_MATCHED_TOKENS,
+  TOKEN_SPLIT_PATTERN,
   countMatchedContentTokens,
   stripFunctionWords
 } from './memoria-recall-query.js';
@@ -340,7 +341,6 @@ export async function rememberViaHttp(
 
 // 與 Memoria SDK(dist 內 tokenizeQuery/tokenCoverage)相同的斷詞與覆蓋率計算,
 // 確保回報的 utility_score 與官方 adapter 語意一致:CJK 連續字串視為單一 token。
-const TOKEN_SPLIT_PATTERN = /[^a-z0-9一-鿿]+/;
 
 /** 計算 snippet 的 token 有多少比例出現在 text 中(0~1)。 */
 export function tokenCoverage(snippet: string, text: string): number {
