@@ -146,6 +146,41 @@ services:
       retries: 3
       start_period: 20s
 
+  # Linux host network preserves Memoria UI's built-in 127.0.0.1-only binding.
+  memoria-ui:
+    profiles: [ 'memory-ui' ]
+    build:
+      context: ./docker
+      dockerfile: memoria.Dockerfile
+    network_mode: host
+    command: [ 'memoria', 'serve', '--ui' ]
+    environment:
+      MEMORIA_HOME: /data
+      MEMORIA_PORT: ${MEMORIA_UI_PORT:-3918}
+      MEMORIA_VECTOR_ENABLED: '0'
+    volumes:
+      - memoria_data:/data
+    depends_on:
+      memoria:
+        condition: service_healthy
+    init: true
+    cpus: 0.25
+    mem_limit: 512m
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+    healthcheck:
+      test: [ 'CMD', 'node', '-e', "fetch('http://127.0.0.1:'+process.env.MEMORIA_PORT+'/ui/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
 volumes:
   opencode_auth:
   opencode_config:
