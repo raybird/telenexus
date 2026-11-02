@@ -58,3 +58,38 @@ test('vector recall preserves scope and accepts a paraphrase without lexical ove
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('未設定 timeout 時依召回模式決定，空字串視同未設定', () => {
+  const saved = {
+    mode: process.env.MEMORIA_RECALL_MODE,
+    timeout: process.env.MEMORIA_RECALL_TIMEOUT_MS
+  };
+  const timeoutOf = () =>
+    (
+      new MemoriaRecallClient({ endpoint: 'http://127.0.0.1:1' }) as unknown as {
+        timeoutMs: number;
+      }
+    ).timeoutMs;
+  try {
+    process.env.MEMORIA_RECALL_TIMEOUT_MS = '';
+    process.env.MEMORIA_RECALL_MODE = 'hybrid';
+    assert.equal(timeoutOf(), 1500);
+    process.env.MEMORIA_RECALL_MODE = 'vector';
+    assert.equal(timeoutOf(), 20000);
+    process.env.MEMORIA_RECALL_TIMEOUT_MS = '2500';
+    assert.equal(timeoutOf(), 2500);
+  } finally {
+    if (saved.mode === undefined) delete process.env.MEMORIA_RECALL_MODE;
+    else process.env.MEMORIA_RECALL_MODE = saved.mode;
+    if (saved.timeout === undefined) delete process.env.MEMORIA_RECALL_TIMEOUT_MS;
+    else process.env.MEMORIA_RECALL_TIMEOUT_MS = saved.timeout;
+  }
+});
+
+test('Compose 與範例設定不替 hybrid 寫死向量用的逾時', () => {
+  for (const file of ['docker-compose.yml', 'docker-compose.release.yml']) {
+    const compose = fs.readFileSync(file, 'utf8');
+    assert.match(compose, /MEMORIA_RECALL_TIMEOUT_MS: \$\{MEMORIA_RECALL_TIMEOUT_MS:-\}/, file);
+  }
+  assert.doesNotMatch(fs.readFileSync('.env.example', 'utf8'), /^MEMORIA_RECALL_TIMEOUT_MS=/m);
+});

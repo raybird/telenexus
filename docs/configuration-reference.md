@@ -161,7 +161,7 @@ MEMORIA_HOOK_QUEUE_POLL_MS=5000
 MEMORIA_RECALL_ENABLED=auto
 MEMORIA_ENDPOINT=http://memoria:3917
 MEMORIA_RECALL_MODE=hybrid
-MEMORIA_RECALL_TIMEOUT_MS=20000
+# MEMORIA_RECALL_TIMEOUT_MS=
 MEMORIA_RECALL_TOP_K=5
 MEMORIA_RECALL_MIN_CONFIDENCE=0.2
 MEMORIA_VECTOR_ENABLED=0
@@ -171,7 +171,8 @@ MEMORIA_EMBED_BATCH=2
 MEMORIA_VECTOR_BATCH_PAUSE_MS=1000
 ```
 
-- `MEMORIA_RECALL_MODE=hybrid` 保留樹狀／字面搜尋；設為 `vector` 才會請求多語語意與字面融合。需同時設定 `MEMORIA_VECTOR_ENABLED=1`，否則會退回字面搜尋並記錄降級。直接執行 Node 服務且未設定 timeout 時，hybrid 預設 1,500ms，vector 預設 20,000ms；Compose 預設 20,000ms，大於向量 helper 的 15,000ms，讓 helper 有時間退回字面結果。
+- `MEMORIA_RECALL_MODE=hybrid` 保留樹狀／字面搜尋；設為 `vector` 才會請求多語語意與字面融合。需同時設定 `MEMORIA_VECTOR_ENABLED=1`，否則會退回字面搜尋並記錄降級。未設定 `MEMORIA_RECALL_TIMEOUT_MS` 時，hybrid 預設 1,500ms，vector 預設 20,000ms，後者大於向量 helper 的 15,000ms，讓 helper 有時間退回字面結果。Compose 未設定時傳空值，規則相同；召回是在送出模型前等待的，這個值就是每回合最多多等的時間。
+- `vector` 模式的每次召回都會開新 process 載入模型，回覆前要等它完成。2026-11-02 在 25% CPU 配額下實測，每次約 6 秒，索引進行中約 10–11 秒，切換前先看[實測紀錄](memoria-semantic-rollout.md#025-cpu-下的查詢延遲2026-11-02)。
 - Memoria 映像包含官方多語模型與依賴，執行時仍維持唯讀根目錄。啟用向量後，索引位於既有資料掛載的 `/data/.memory/vectors.db`；首次背景建置全部歷史記憶，之後每 60 秒增量更新，期間 HTTP 服務持續可用。`MEMORIA_EMBED_BATCH` 預設 2，每批成功交易寫入後休息 `MEMORIA_VECTOR_BATCH_PAUSE_MS`（預設 1,000ms）；模型在同一程序只載入一次，推論使用單執行緒。首次建立大量歷史記憶可能需要數小時，進度持續保存。
 - 背景向量工作使用獨立的 `telenexus-vector` 游標，只有成功嵌入後才推進；失敗會留下狀態並於下一輪重試。狀態檔為 `/data/.memory/vector-worker-status.json`。若本地向量庫遺失，即使原有游標仍在，也會使用全新目標重建完整索引；重建中止時以持久標記要求下次繼續全量重試。
 - Compose 對整個 Memoria 容器設定 0.25 CPU／4 GiB 上限，CPU 配額等於單一核心約 25%，涵蓋 HTTP 與索引程序；不是主機總 CPU 的 25%。這是時間區間內的用量上限，瞬間排程仍可能有短暫波動。
