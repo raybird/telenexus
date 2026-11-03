@@ -6,7 +6,8 @@ import { BUSY_TIMEOUT_SQL, createEmbedder } from './memoria-vector-ingest.mjs';
 
 const PACKAGE_ROOT = '/usr/local/lib/node_modules/@raybird.chen/memoria';
 
-// 官方 helper 的上限。Memoria 用 topK×3 取候選後才濾 scope,排程記憶佔多數時聊天記憶會被擠掉。
+// 官方 helper 的上限。Memoria 用 topK×3 取候選後才濾 scope;排程記憶已不建向量,
+// 留著寬一點的候選給其他 user scope 共用同一個向量庫的情況。
 const CANDIDATE_POOL = 100;
 
 // Memoria 的向量結果沒有信心值,TeleNexus 擋不掉無關結果,只能在這裡依距離過濾。
@@ -42,7 +43,10 @@ export async function recallHits({ query, embed, search, maxDistance }) {
   return rows.filter((row) => row.distance <= maxDistance);
 }
 
-/** 與官方 vector-recall.mjs 相同的查詢。官方 helper 不能指定執行緒數,所以不直接呼叫它。 */
+/**
+ * 精確掃描。官方 vector-recall.mjs 走 DiskANN 索引,但這個向量庫不建索引(見 memoria-vector-ingest.mjs);
+ * 官方 helper 也不能指定執行緒數,所以不直接呼叫它。
+ */
 async function searchVectors(url, vector, limit) {
   const helper = path.join(PACKAGE_ROOT, 'skills/memoria-vector/deps.mjs');
   const { importDep } = await import(pathToFileURL(helper).href);
@@ -51,21 +55,11 @@ async function searchVectors(url, vector, limit) {
   const target = JSON.stringify(vector);
   try {
     await db.execute(BUSY_TIMEOUT_SQL);
-    const result = await db
-      .execute({
-        sql: `SELECT mv.name, mv.kind, vector_distance_cos(mv.v, vector32(?)) AS distance
-              FROM vector_top_k('memoria_vectors_idx', vector32(?), ?) AS tk
-              JOIN memoria_vectors mv ON mv.rowid = tk.id
-              ORDER BY distance`,
-        args: [target, target, limit]
-      })
-      .catch(() =>
-        db.execute({
-          sql: `SELECT name, kind, vector_distance_cos(v, vector32(?)) AS distance
-                FROM memoria_vectors ORDER BY distance LIMIT ?`,
-          args: [target, limit]
-        })
-      );
+    const result = await db.execute({
+      sql: `SELECT name, kind, vector_distance_cos(v, vector32(?)) AS distance
+            FROM memoria_vectors ORDER BY distance LIMIT ?`,
+      args: [target, limit]
+    });
     return result.rows.map((row) => ({
       name: String(row.name),
       kind: String(row.kind ?? ''),

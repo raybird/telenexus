@@ -130,6 +130,82 @@ test('unchanged corpus does not load model and unrelated entity kinds are ignore
   assert.equal(state.embedded, 0);
 });
 
+test('excluded memories are never embedded and their old vectors are removed', async () => {
+  const { ingestEntities } = await import(moduleUrl);
+  const db = new Map<string, Stored>([
+    ['session:sched-old', { id: 'session:sched-old', kind: 'session', text: 'x', vector: [] }],
+    ['session:chat-old', { id: 'session:chat-old', kind: 'session', text: 'y', vector: [] }]
+  ]);
+  const removed: string[][] = [];
+  const embedded: string[] = [];
+  const state = await ingestEntities({
+    entities: [
+      { id: 'session:sched-new', type: 'session', text: 'report' },
+      { id: 'mem_node:sched-node', type: 'memory_node', text: 'report node' },
+      { id: 'session:chat-new', type: 'session', text: 'chat' }
+    ],
+    excluded: new Set(['session:sched-old', 'session:sched-new', 'mem_node:sched-node']),
+    store: {
+      existing: async () => db,
+      write: async (rows: Stored[]) => {
+        for (const row of rows) db.set(row.id, row);
+      },
+      remove: async (names: string[]) => {
+        removed.push(names);
+        for (const name of names) db.delete(name);
+      }
+    },
+    embed: async (texts: string[]) => {
+      embedded.push(...texts);
+      return texts.map(() => Array(384).fill(0));
+    },
+    sleep: async () => {},
+    report: async () => {}
+  });
+  assert.deepEqual(removed, [['session:sched-old']]);
+  assert.deepEqual(embedded, ['chat']);
+  assert.equal(state.removed, 1);
+  assert.equal(state.total, 1);
+  assert.deepEqual([...db.keys()].sort(), ['session:chat-new', 'session:chat-old']);
+});
+
+test('excluded names cover scheduler sessions, their memory nodes and decisions only', async () => {
+  const { excludedVectorNames } = await import(moduleUrl);
+  const { default: Database } = await import('better-sqlite3');
+  const db = new Database(':memory:');
+  try {
+    db.exec(`
+      CREATE TABLE sessions (id TEXT PRIMARY KEY, scope TEXT);
+      CREATE TABLE memory_nodes (id TEXT PRIMARY KEY, scope TEXT);
+      CREATE TABLE events (id TEXT PRIMARY KEY, session_id TEXT, event_type TEXT);
+      INSERT INTO sessions VALUES ('s1', 'scheduler:42'), ('s2', 'user:42'), ('s3', NULL);
+      INSERT INTO memory_nodes VALUES ('n1', 'scheduler:42'), ('n2', 'user:42'), ('n3', 'project:x');
+      INSERT INTO events VALUES ('e1', 's1', 'DecisionMade'), ('e2', 's1', 'UserMessage'),
+                                ('e3', 's2', 'DecisionMade');
+    `);
+    assert.deepEqual([...excludedVectorNames(db)].sort(), [
+      'decision:e1',
+      'mem_node:n1',
+      'session:s1'
+    ]);
+  } finally {
+    db.close();
+  }
+});
+
+test('a failed compaction never fails an ingest whose vectors are already written', async () => {
+  const { compactQuietly } = await import(moduleUrl);
+  assert.equal(
+    await compactQuietly({
+      compact: async () => {
+        throw new Error('SQLITE_BUSY');
+      }
+    }),
+    'failed'
+  );
+  assert.equal(await compactQuietly({ compact: async () => true }), true);
+});
+
 test('invalid embeddings cannot become resumable checkpoints', async () => {
   const { ingestEntities } = await import(moduleUrl);
   let writes = 0;

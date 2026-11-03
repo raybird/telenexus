@@ -96,12 +96,29 @@ test('failed embedding never commits a cursor, cleans payload and retries next t
   }
 });
 
-test('empty incremental payload never loads the embedding model', async () => {
+test('empty payloads run ingest once after start for cleanup, then only build payloads', async () => {
   const f = await fixture({ empty: true });
   try {
     await f.worker.tick();
-    assert.deepEqual(f.calls, ['build-mcp-bridge-payload.mjs']);
+    await f.worker.tick();
+    assert.deepEqual(f.calls, [
+      'build-mcp-bridge-payload.mjs',
+      'memoria-vector-ingest.mjs',
+      'build-mcp-bridge-payload.mjs'
+    ]);
     await assert.rejects(access(f.payload()));
+  } finally {
+    await rm(f.home, { recursive: true, force: true });
+  }
+});
+
+test('a failed cleanup pass is retried on the next empty tick', async () => {
+  const f = await fixture({ empty: true, failIngest: true });
+  try {
+    await f.worker.tick();
+    await f.worker.tick();
+    assert.equal(f.calls.filter((c) => c === 'memoria-vector-ingest.mjs').length, 2);
+    assert.equal(f.calls.filter((c) => c === 'update-mcp-sync-state.mjs').length, 0);
   } finally {
     await rm(f.home, { recursive: true, force: true });
   }

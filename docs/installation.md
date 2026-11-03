@@ -160,7 +160,7 @@ docker compose start
 
 ### 語意記憶
 
-Compose 預設啟用語意搜尋。升級後 Memoria 會在背景建立歷史索引，0.5 CPU 下每千筆約 11 分鐘；這段期間聊天先用字面搜尋，回覆不會變慢，索引完成後自動切換。升級前先備份實際 Memoria 掛載（named volume 或 override 指定的 bind mount），並保存 Compose／override。
+Compose 預設啟用語意搜尋。第一次啟用時 Memoria 會在背景為歷史聊天記憶建立索引，0.5 CPU 下每千筆約 11 分鐘，排程報告不建索引；這段期間聊天先用字面搜尋，回覆不會變慢，索引完成後自動切換。從 2.37.0 之前的版本升級時，第一輪背景工作會移除舊的排程向量與索引，2026-11-03 實測正式資料副本約 1 秒，向量庫由 375 MB 降到 0.2 MB。升級前先備份實際 Memoria 掛載（named volume 或 override 指定的 bind mount），並保存 Compose／override。
 
 `.env` 明確寫了 `MEMORIA_RECALL_MODE=hybrid` 或 `MEMORIA_VECTOR_ENABLED=0` 的部署會維持原設定，要啟用就移除這兩行。要完全關閉語意搜尋，在 `.env` 同時設 `MEMORIA_VECTOR_ENABLED=0` 與 `MEMORIA_RECALL_MODE=hybrid`。HTTP 健康正常不代表向量已齊備，參數與驗證命令見[設定參考](configuration-reference.md#memoria-召回)。
 

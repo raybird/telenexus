@@ -1,4 +1,5 @@
 import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -6,9 +7,44 @@ import { setTimeout as sleep } from 'node:timers/promises';
 const PACKAGE_ROOT = '/usr/local/lib/node_modules/@raybird.chen/memoria';
 const DIM = 384;
 const EMBEDDABLE_TYPES = new Set(['session', 'decision', 'skill', 'memory_node']);
+const DELETE_CHUNK = 500;
 
 // 向量庫是 rollback journal,預設不等鎖:查詢撞到寫入提交會立刻 SQLITE_BUSY,反過來寫入批次也會失敗。
 export const BUSY_TIMEOUT_SQL = 'PRAGMA busy_timeout = 5000';
+
+// 聊天召回只查 user: scope,排程報告從來不會被召回,卻佔了九成八的記憶。
+// 不建它們的向量,原始內容仍留在 Memoria 與 moltbot.db。
+const SCHEDULER_SCOPE = 'scheduler:%';
+const EXCLUDED_NAMES_SQL = `
+  SELECT 'session:' || id AS name FROM sessions WHERE scope LIKE @scope
+  UNION ALL
+  SELECT 'mem_node:' || id FROM memory_nodes WHERE scope LIKE @scope
+  UNION ALL
+  SELECT 'decision:' || e.id FROM events e JOIN sessions s ON s.id = e.session_id
+   WHERE e.event_type = 'DecisionMade' AND s.scope LIKE @scope`;
+
+/** 向量庫中不該出現的名稱:排程 session、它們的記憶節點與決策。db 是 better-sqlite3。 */
+export function excludedVectorNames(db) {
+  return new Set(
+    db
+      .prepare(EXCLUDED_NAMES_SQL)
+      .all({ scope: SCHEDULER_SCOPE })
+      .map((row) => String(row.name))
+  );
+}
+
+function loadExcludedNames(home, packageRoot = PACKAGE_ROOT) {
+  const Database = createRequire(path.join(packageRoot, 'package.json'))('better-sqlite3');
+  const db = new Database(path.join(home, '.memory/sessions.db'), {
+    readonly: true,
+    fileMustExist: true
+  });
+  try {
+    return excludedVectorNames(db);
+  } finally {
+    db.close();
+  }
+}
 
 function integerOption(raw, fallback, minimum) {
   if (raw === undefined || raw === '') return fallback;
@@ -22,6 +58,7 @@ export async function ingestEntities({
   entities,
   store,
   embed,
+  excluded = new Set(),
   batchSize = 2,
   pauseMs = 1000,
   sleep: rest = sleep,
@@ -31,13 +68,22 @@ export async function ingestEntities({
     throw new Error('Invalid ingest configuration');
   }
   const rows = (Array.isArray(entities) ? entities : [])
-    .filter((e) => e && typeof e.id === 'string' && EMBEDDABLE_TYPES.has(String(e.type ?? '')))
+    .filter(
+      (e) =>
+        e &&
+        typeof e.id === 'string' &&
+        EMBEDDABLE_TYPES.has(String(e.type ?? '')) &&
+        !excluded.has(e.id)
+    )
     .map((e) => ({
       id: e.id,
       kind: String(e.type),
       text: [e.name, e.text].filter(Boolean).join('\n').slice(0, 2000) || String(e.id)
     }));
   const existing = await store.existing();
+  // 排除名單以 Memoria 目前的資料為準,所以也會清掉這個版本之前建好的排程向量。
+  const stale = [...existing.keys()].filter((name) => excluded.has(name));
+  if (stale.length > 0) await store.remove(stale);
   const pending = rows.filter((row) => {
     const saved = existing.get(row.id);
     return !saved || saved.kind !== row.kind || saved.text !== row.text;
@@ -48,6 +94,7 @@ export async function ingestEntities({
     completed: rows.length - pending.length,
     skipped: rows.length - pending.length,
     embedded: 0,
+    removed: stale.length,
     batchSize,
     pauseMs
   };
@@ -130,7 +177,12 @@ export async function createEmbedder(packageRoot = PACKAGE_ROOT, kind = 'passage
   };
 }
 
-/** Use the same schema and vector32 representation consumed by Memoria recall. */
+/**
+ * Use the same schema and vector32 representation consumed by Memoria recall.
+ *
+ * 不建 libSQL 的 DiskANN 索引:它每筆約 82 KB(正式資料 4,379 筆佔 358 MB,向量本身只有 6.7 MB),
+ * 前 15 名又只有 88% 與精確掃描相同;只索引聊天記憶後,精確掃描只要幾毫秒。舊版建過的索引在這裡移除。
+ */
 export async function createVectorStore(url, packageRoot = PACKAGE_ROOT) {
   const helper = path.join(packageRoot, 'skills/memoria-vector/deps.mjs');
   const { importDep } = await import(pathToFileURL(helper).href);
@@ -141,9 +193,7 @@ export async function createVectorStore(url, packageRoot = PACKAGE_ROOT) {
     await db.execute(
       `CREATE TABLE IF NOT EXISTS memoria_vectors (name TEXT PRIMARY KEY, kind TEXT, text TEXT, updated_at TEXT, v F32_BLOB(${DIM}))`
     );
-    await db.execute(
-      'CREATE INDEX IF NOT EXISTS memoria_vectors_idx ON memoria_vectors (libsql_vector_idx(v))'
-    );
+    await db.execute('DROP INDEX IF EXISTS memoria_vectors_idx');
   } catch (error) {
     db.close();
     throw error;
@@ -166,8 +216,40 @@ export async function createVectorStore(url, packageRoot = PACKAGE_ROOT) {
         'write'
       );
     },
+    async remove(names) {
+      const statements = [];
+      for (let i = 0; i < names.length; i += DELETE_CHUNK) {
+        const chunk = names.slice(i, i + DELETE_CHUNK);
+        statements.push({
+          sql: `DELETE FROM memoria_vectors WHERE name IN (${chunk.map(() => '?').join(', ')})`,
+          args: chunk
+        });
+      }
+      await db.batch(statements, 'write');
+    },
+    /** 空頁超過四分之一時重寫檔案;拿掉索引與排程向量後,舊庫的空間要靠這步才會還給磁碟。 */
+    async compact() {
+      if (!url.startsWith('file:')) return false;
+      const pages = Number((await db.execute('PRAGMA page_count')).rows[0][0]);
+      const free = Number((await db.execute('PRAGMA freelist_count')).rows[0][0]);
+      if (free < 256 || free * 4 < pages) return false;
+      await db.execute('VACUUM');
+      return true;
+    },
     close: () => db.close()
   };
+}
+
+/**
+ * 壓縮只是回收空間。向量已經寫入,壓縮失敗(查詢持鎖超過 busy_timeout、磁碟滿)若讓 ingest 失敗,
+ * worker 就不提交游標,全量重建還會一直停在未就緒;下一輪 ingest 會再試。
+ */
+export async function compactQuietly(store) {
+  try {
+    return await store.compact();
+  } catch {
+    return 'failed';
+  }
 }
 
 export async function main() {
@@ -180,12 +262,14 @@ export async function main() {
     path.join(process.env.MEMORIA_HOME || '/data', '.memory/vector-ingest-progress.json');
   const batchSize = integerOption(process.env.MEMORIA_EMBED_BATCH, 2, 1);
   const pauseMs = integerOption(process.env.MEMORIA_VECTOR_BATCH_PAUSE_MS, 1000, 0);
+  const excluded = loadExcludedNames(process.env.MEMORIA_HOME || '/data');
   const store = await createVectorStore(url);
   try {
     const result = await ingestEntities({
       entities: payload.entities,
       store,
       embed: await createEmbedder(),
+      excluded,
       batchSize,
       pauseMs,
       async report(state) {
@@ -198,11 +282,14 @@ export async function main() {
         await rename(`${progressFile}.tmp`, progressFile);
       }
     });
+    const compacted = await compactQuietly(store);
     console.log(
       JSON.stringify({
         ok: true,
         embedded: result.embedded,
         skipped: result.skipped,
+        removed: result.removed,
+        compacted,
         total: result.total
       })
     );

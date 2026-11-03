@@ -85,9 +85,10 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
   - 歷史索引與新對話增量均保存在既有 Memoria 資料掛載；模型與依賴在映像建置時預載，執行時不下載
 - `docker/memoria-vector-ingest.mjs`
   - 沿用官方向量格式與多語模型；單執行緒、每批 2 筆交易寫入、批次間休息，已保存的相同內容在重試時跳過
+  - 只索引聊天記憶：`scheduler:` scope 的 session、記憶節點與決策不建向量（聊天召回只查 `user:`）；不建 DiskANN 索引，啟動後第一輪移除舊索引與排程向量並 `VACUUM`
   - 配合容器 0.5 CPU 配額與不含正文的進度檔，避免整批先計算完才寫入而失去續跑進度
 - `docker/memoria-vector-recall.mjs`
-  - Memoria 的 `MEMORIA_VECTOR_RECALL_CMD`：首次全量索引完成前不載入模型，直接回空；之後擴大候選並濾掉距離過遠的結果
+  - Memoria 的 `MEMORIA_VECTOR_RECALL_CMD`：首次全量索引完成前不載入模型，直接回空；之後以精確掃描取最近的 100 筆，濾掉距離過遠的結果
 - `src/prompt/memoria-capability.ts`
   - Memoria 可用時，在 full／compact／minimal 三種聊天模式都要求判斷是否有合格的規則、決策或技巧；沒有則回報 none
 - `src/services/memory-health.ts`

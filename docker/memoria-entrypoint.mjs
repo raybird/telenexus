@@ -71,6 +71,7 @@ export function createVectorWorker({
   };
   let busy = false;
   let stopped = false;
+  let maintained = false;
   let timer;
 
   async function save(phase) {
@@ -123,10 +124,15 @@ export function createVectorWorker({
       status.entities = (payload.entities || []).filter((entity) =>
         EMBEDDABLE_TYPES.has(entity.type)
       ).length;
-      if (status.entities > 0 && !stopped) {
+      // 啟動後第一輪即使沒有新記憶也跑 ingest:舊索引與排程向量的清理在那裡,不該等到下一筆記憶。
+      // ingest 只在有內容要嵌入時才載入模型。
+      if ((status.entities > 0 || !maintained) && !stopped) {
         await save('embedding');
         await run(process.execPath, [ingest, payloadPath]);
         if (stopped) return;
+        maintained = true;
+      }
+      if (status.entities > 0 && !stopped) {
         await save('committing');
         await run(process.execPath, [
           path.join(scripts, 'update-mcp-sync-state.mjs'),
