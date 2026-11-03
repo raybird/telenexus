@@ -2,6 +2,20 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.36.0 — 2026-11-03
+
+### 本機記憶 UI（選用）
+
+- 新增 `memoria-ui` 服務：在 Linux 主機以瀏覽器唯讀查看 Memoria 的決策、技能、Session 與記憶摘要，網址 `http://127.0.0.1:3918/ui/`，埠號可用 `MEMORIA_UI_PORT` 調整。
+- 預設不啟動，要加 `--profile memory-ui` 才會跑；升級不會自動啟動它，三個核心服務不受影響。
+- 只監聽 `127.0.0.1` 並檢查 Host／Origin，用 `localhost`、區網位址或反向代理都連不到；UI 不接受寫入，也不啟動另一份語意索引。上限 0.25 CPU、512 MB。
+
+### 啟用注意
+
+- UI 與主 `memoria` 共用同一份記憶資料卷，該資料卷可寫。第一次啟用前先備份，再執行 `docker compose exec -T memoria memoria init --json`，步驟見安裝指南。
+- 在 v2.35.1 映像的隔離專案驗證：初始化後兩個容器 healthy，`127.0.0.1` 回 200，`localhost` Host 回 403，區網位址連不上，寫入回 405。尚未在瀏覽器做畫面驗收。
+- build、685 項測試與 lint 通過。
+
 ## 2.35.1 — 2026-11-02
 
 ### Memoria 升級至 1.36.1

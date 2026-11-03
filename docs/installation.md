@@ -45,7 +45,7 @@ curl -sf http://localhost:3030/api/health
 
 ## Memoria 本機記憶 UI
 
-本節設定核對日期：2026-11-02。此功能目前在原始碼與 release Compose 範本中；既有已發布 bundle 不一定包含 `memoria-ui`，請先以 `docker compose --profile memory-ui config --services` 確認。
+本節設定核對日期：2026-11-03。v2.36.0 起的 bundle 包含 `memoria-ui`；更早的部署要先升級，可用 `docker compose --profile memory-ui config --services` 確認。
 
 UI 是 Linux Docker Engine 上選擇啟用的本機記憶工作台，預設不隨三個核心服務啟動。它使用 host network，僅監聽 `127.0.0.1`。在既有部署目錄、沿用相同 Compose 專案名稱及 override 執行，才能共用原本的 `memoria_data`。若曾自訂 `memoria` 的資料掛載，也要讓 `memoria-ui` 掛載同一份資料；換目錄或專案名稱可能會建立另一個空資料卷。
 

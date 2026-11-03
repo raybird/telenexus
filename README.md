@@ -24,7 +24,7 @@
 - **本地 CLI 執行**：Telegram / Web Console 直接驅動本機 Opencode，保留完整工具權限
 - **長對話記憶**：Summary-Aware Retrieval (SAR) — 核心規則與決策跨 session 保留，不只抓近期訊息
 - **長期記憶服務**：內建 Memoria 服務，每輪對話自動同步，之後的對話可召回相關記憶
-- **本機記憶工作台（原始碼版新增）**：Linux 上選擇啟用 Memoria 唯讀瀏覽 UI，查看決策、技能與 Session；[啟停方式與限制](docs/installation.md#memoria-本機記憶-ui)
+- **本機記憶工作台（v2.36.0 起）**：Linux 上選擇啟用 Memoria 唯讀瀏覽 UI，查看決策、技能與 Session；[啟停方式與限制](docs/installation.md#memoria-本機記憶-ui)
 - **語意記憶（預設啟用）**：本地多語模型、0.5 核心上限的背景索引，分批保存並可中斷續跑，索引完成前先用字面搜尋；[設定與驗證方式](docs/configuration-reference.md#memoria-召回)
 - **排程系統**：內建 cron scheduler，定時任務與一般聊天走同一套可觀測模型
 - **Runner 隔離執行**：AI 任務交給獨立的 `agent-runner` 容器，連續失敗時熔斷並自動退回本地執行
