@@ -40,8 +40,17 @@ System: <來自 ai-config.yaml 的 role_system>
 【工作目錄限制 - 重要】
 <來自 chat_prompt.workspace_policy_lines 的條列>
 
+【系統狀態】
+<活躍排程數、最近 15 分鐘異常數、記憶庫訊息數>
+
+【可用技能索引】
+<workspace/context/skills-summary.md，一個技能一行>
+
 【可用能力提示】
 <Memoria 可用時，每輪都要求判斷與回報記憶意圖>
+
+【網頁讀取】
+<webfetch → telenexus-moli-fetch → telenexus_browser 的順序，讀到所需正文就停>
 
 【檔案回傳協議】
 <workspace/temp/ + [[SEND_FILE: ...]] 規則>
@@ -66,6 +75,7 @@ AI Response:
 - 會加一段「延續目前對話 Session 的既有規則」
 - 只有在判定使用者問題需要歷史規則、決策、設定時才注入 memory context
 - Memoria 可用時，即使沒有召回歷史，仍帶記憶意圖回報提示
+- 保留【網頁讀取】
 
 ### `minimal`
 
@@ -74,6 +84,9 @@ AI Response:
 - 不放 `System: ...`
 - 不放 memory policy / workspace policy / file return policy
 - 保留「延續目前對話 Session 與最近一次系統規則」的短提示；Memoria 可用時加上記憶意圖回報提示
+- 在 `User Message:` 之前保留【網頁讀取】
+
+2026-11-12（issue 0024）：【網頁讀取】在三種模式都會送出，因為模型常常沒有載入 `web-reading` 技能就直接讀網頁。issue 0024 的真模型實測中，20 回合有 9 回合沒載入，而那些回合都沒用到 Moli。這一段只寫讀取順序，細節仍在技能裡。`passthrough` 與排程任務的提示詞不帶這一段。
 
 ## 3) `passthrough` 流程
 

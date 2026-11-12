@@ -188,7 +188,10 @@ function syncBuiltinSkills() {
       upgradeBuiltinWebReading(targetDir);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.warn(`[SkillSync] web-reading 未升級，保留原本的版本（${targetDir}）：${message}`);
+      // 改名備份之後才失敗時，舊版已不在原處（2026-11-12 重新審查 N-A）。
+      const kept = fs.existsSync(path.join(targetDir, 'web-reading'));
+      const state = kept ? '保留原本的版本' : `舊版已備份到 ${path.join(path.dirname(targetDir), 'retired-skills')}，新版沒有裝上`;
+      console.warn(`[SkillSync] web-reading 未升級，${state}（${targetDir}）：${message}`);
     }
   });
   if (!fs.existsSync(sourceDir)) {
