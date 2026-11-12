@@ -1,0 +1,32 @@
+# 2026-11-12 步驟 1 靜態規則紅燈。命令：npx tsx --test tests/docker/dockerignore-workspace.test.ts。被測：760775b 的 .dockerignore，加上未提交的測試。
+TAP version 13
+# Subtest: SCN-010 .dockerignore 排除整個 workspace/，只放行 git 追蹤的骨架檔
+not ok 1 - SCN-010 .dockerignore 排除整個 workspace/，只放行 git 追蹤的骨架檔
+  ---
+  duration_ms: 1.529627
+  type: 'test'
+  location: '<repo>/tests/docker/dockerignore-workspace.test.ts:1:297'
+  failureType: 'testCodeFailure'
+  error: '要有 workspace/** 排除規則'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/docker/dockerignore-workspace.test.ts:16:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 207.279671
+exit=1

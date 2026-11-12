@@ -35,5 +35,11 @@ Dockerfile
 *.log
 npm-debug.log*
 .DS_Store
-workspace/workspace/temp/
-workspace/temp/
+
+# workspace/ 是 bind mount 的執行期狀態，只帶 git 追蹤的骨架檔（issue 0025）。
+# 新增追蹤檔時這裡也要放行，tests/docker/dockerignore-workspace.test.ts 會比對。
+workspace/**
+!workspace/.gitignore
+!workspace/.opencode/opencode.json
+!workspace/.opencode/skills/.gitkeep
+!workspace/projects/.gitkeep
