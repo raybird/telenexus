@@ -1,0 +1,5 @@
+M1 minimal 不加: not ok 3 - SCN-009 minimal 模式的聊天提示詞含網頁讀取順序 # pass 2 # fail 1 
+M2 full／compact 不加: not ok 1 - SCN-009 full 模式的聊天提示詞含網頁讀取順序 not ok 2 - SCN-009 compact 模式的聊天提示詞含網頁讀取順序 # pass 1 # fail 2 
+M3 Moli 與 Chrome 對調: not ok 1 - SCN-009 full 模式的聊天提示詞含網頁讀取順序 not ok 2 - SCN-009 compact 模式的聊天提示詞含網頁讀取順序 not ok 3 - SCN-009 minimal 模式的聊天提示詞含網頁讀取順序 # pass 0 # fail 3 
+M4 拿掉「讀到正文就停」: not ok 1 - SCN-009 full 模式的聊天提示詞含網頁讀取順序 not ok 2 - SCN-009 compact 模式的聊天提示詞含網頁讀取順序 not ok 3 - SCN-009 minimal 模式的聊天提示詞含網頁讀取順序 # pass 0 # fail 3 
+restored

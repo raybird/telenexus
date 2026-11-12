@@ -7,13 +7,15 @@ description: 讀取或整理公開網頁內容時使用；一般頁面先用 HTT
 
 最後驗證日期：2026-11-12。
 
-依序走下面三層。哪一層取得所需正文，就以那份實際內容回答並附來源網址，閱讀到此完成。
+從第 1 層開始。一層取得所需正文，就以那份實際內容回答並附來源網址，閱讀到此完成；該層讀不到所需正文，才進到下一層。
+
+`webfetch` 與 `telenexus-moli-fetch` 輸出的 Markdown 會把 `_` 等符號跳脫成 `\_`，比對與引用時還原。
 
 ## 1. 一般頁面：webfetch
 
 已知網址先用 `webfetch` 取得正文。找網址時可使用目前環境確實提供的搜尋工具。
 
-HTTP 只取得頁面殼層，所需正文要執行 JavaScript 才會出現時，進到第 2 層。
+回傳內容含有所需正文時，用它回答。HTTP 只取得頁面殼層，所需正文要執行 JavaScript 才會出現時，進到第 2 層。
 
 ## 2. JavaScript 正文：telenexus-moli-fetch
 
@@ -23,7 +25,7 @@ HTTP 只取得頁面殼層，所需正文要執行 JavaScript 才會出現時，
 telenexus-moli-fetch 'https://example.com/page'
 ```
 
-它只接受一個 http 或 https 網址，最多 30 秒，輸出 JavaScript 執行後的 Markdown。Markdown 會把 `_` 等符號跳脫成 `\_`，引用時還原。
+它只接受一個 http 或 https 網址，最多 30 秒，輸出 JavaScript 執行後的 Markdown。
 
 - 結束碼 0、輸出含有所需正文：用它回答。
 - 結束碼非 0（stderr 寫明原因，例如逾時、沒有正文、網址不被接受），或輸出只有殼層、缺少所需內容：進到第 3 層。

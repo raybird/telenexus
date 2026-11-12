@@ -1,0 +1,288 @@
+TAP version 13
+# Subtest: loadChatPromptConfig default prompt text uses current TeleNexus wording
+ok 1 - loadChatPromptConfig default prompt text uses current TeleNexus wording
+  ---
+  duration_ms: 1.486527
+  type: 'test'
+  ...
+# Subtest: issue 0022 SCN-011 memory_policy_lines 和舊範例的三行完全相同時用預設條列，warn
+ok 2 - issue 0022 SCN-011 memory_policy_lines 和舊範例的三行完全相同時用預設條列，warn
+  ---
+  duration_ms: 2.946778
+  type: 'test'
+  ...
+# Subtest: issue 0022 SCN-011 memory_policy_lines 和舊範例相同、只差頭尾空白時用預設條列，warn
+ok 3 - issue 0022 SCN-011 memory_policy_lines 和舊範例相同、只差頭尾空白時用預設條列，warn
+  ---
+  duration_ms: 0.52856
+  type: 'test'
+  ...
+# Subtest: issue 0022 SCN-011 memory_policy_lines 使用者改過一個字時用使用者的條列，不warn
+ok 4 - issue 0022 SCN-011 memory_policy_lines 使用者改過一個字時用使用者的條列，不warn
+  ---
+  duration_ms: 1.605305
+  type: 'test'
+  ...
+# Subtest: issue 0022 SCN-011 memory_policy_lines 只留舊範例的前兩行時用使用者的條列，不warn
+ok 5 - issue 0022 SCN-011 memory_policy_lines 只留舊範例的前兩行時用使用者的條列，不warn
+  ---
+  duration_ms: 0.693911
+  type: 'test'
+  ...
+# Subtest: issue 0022 SCN-011 memory_policy_lines 使用者自己的條列時用使用者的條列，不warn
+ok 6 - issue 0022 SCN-011 memory_policy_lines 使用者自己的條列時用使用者的條列，不warn
+  ---
+  duration_ms: 0.808904
+  type: 'test'
+  ...
+# Subtest: issue 0022 SCN-011 memory_policy_lines 未設定時用預設條列，不warn
+ok 7 - issue 0022 SCN-011 memory_policy_lines 未設定時用預設條列，不warn
+  ---
+  duration_ms: 0.52057
+  type: 'test'
+  ...
+# Subtest: issue 0022 SCN-010／SCN-011 舊範例設定組出的 full prompt 不再提 MCP Memory 工具
+ok 8 - issue 0022 SCN-010／SCN-011 舊範例設定組出的 full prompt 不再提 MCP Memory 工具
+  ---
+  duration_ms: 0.622394
+  type: 'test'
+  ...
+# Subtest: issue 0022 SCN-010 使用者自訂條列時，知識管理段落照用但標題不提 MCP Memory
+ok 9 - issue 0022 SCN-010 使用者自訂條列時，知識管理段落照用但標題不提 MCP Memory
+  ---
+  duration_ms: 0.240834
+  type: 'test'
+  ...
+# Subtest: issue 0022 SCN-010 出貨的 ai-config.example.yaml 不點名 MCP Memory 工具，條列和預設相同
+ok 10 - issue 0022 SCN-010 出貨的 ai-config.example.yaml 不點名 MCP Memory 工具，條列和預設相同
+  ---
+  duration_ms: 0.730587
+  type: 'test'
+  ...
+# Subtest: memory reporting is absent when Memoria is disabled
+ok 11 - memory reporting is absent when Memoria is disabled
+  ---
+  duration_ms: 1.329864
+  type: 'test'
+  ...
+# Subtest: full asks for memory reporting even without recalled history
+ok 12 - full asks for memory reporting even without recalled history
+  ---
+  duration_ms: 1.585157
+  type: 'test'
+  ...
+# Subtest: compact asks for memory reporting even without recalled history
+ok 13 - compact asks for memory reporting even without recalled history
+  ---
+  duration_ms: 0.278473
+  type: 'test'
+  ...
+# Subtest: minimal asks for memory reporting even without recalled history
+ok 14 - minimal asks for memory reporting even without recalled history
+  ---
+  duration_ms: 0.15101
+  type: 'test'
+  ...
+# [memory] DEBUG summary-search.completed userId=user-a query=release limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=1 summaryCandidates=1 results=1
+# [memory] DEBUG summary-search.completed userId=user-a query=sop limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=sop limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=是什麼 limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=是什麼 limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=之前 limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=之前 limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=opencode limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=1 summaryFtsCandidates=1 summaryCandidates=1 results=1
+# [memory] DEBUG summary-search.completed userId=user-a query=常出錯是怎麼處理的 limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=常出錯是怎麼處理的 limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=release limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=1 summaryFtsCandidates=1 summaryCandidates=1 results=1
+# [memory] DEBUG summary-search.completed userId=user-a query=rollback limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=rollback limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=8 summaryCandidates=8 results=3
+# Subtest: shouldSummarize returns true for text longer than 200 chars
+ok 15 - shouldSummarize returns true for text longer than 200 chars
+  ---
+  duration_ms: 1.267952
+  type: 'test'
+  ...
+# Subtest: shouldSummarize returns true for text containing code fences
+ok 16 - shouldSummarize returns true for text containing code fences
+  ---
+  duration_ms: 0.249517
+  type: 'test'
+  ...
+# Subtest: shouldSummarize returns true for text containing tool_result
+ok 17 - shouldSummarize returns true for text containing tool_result
+  ---
+  duration_ms: 0.136911
+  type: 'test'
+  ...
+# Subtest: shouldSummarize returns true for text with 6 or more newlines
+ok 18 - shouldSummarize returns true for text with 6 or more newlines
+  ---
+  duration_ms: 0.130329
+  type: 'test'
+  ...
+# Subtest: shouldSummarize returns false for short simple text
+ok 19 - shouldSummarize returns false for short simple text
+  ---
+  duration_ms: 0.133547
+  type: 'test'
+  ...
+# Subtest: shouldSummarize returns false for text just under thresholds
+ok 20 - shouldSummarize returns false for text just under thresholds
+  ---
+  duration_ms: 0.137115
+  type: 'test'
+  ...
+# Subtest: buildChatPrompt minimal mode keeps memory reporting hint without historical context or full policies
+ok 21 - buildChatPrompt minimal mode keeps memory reporting hint without historical context or full policies
+  ---
+  duration_ms: 0.528038
+  type: 'test'
+  ...
+# Subtest: buildChatPrompt includes capability hint for non-minimal modes when provided
+ok 22 - buildChatPrompt includes capability hint for non-minimal modes when provided
+  ---
+  duration_ms: 0.213496
+  type: 'test'
+  ...
+# Subtest: buildMemoryContext keeps older canonical anchor available for matching query
+ok 23 - buildMemoryContext keeps older canonical anchor available for matching query
+  ---
+  duration_ms: 17.866252
+  type: 'test'
+  ...
+# Subtest: buildMemoryContext keeps high-signal release anchor ahead of newer weak release note
+ok 24 - buildMemoryContext keeps high-signal release anchor ahead of newer weak release note
+  ---
+  duration_ms: 4.76906
+  type: 'test'
+  ...
+# Subtest: buildMemoryContext does not duplicate anchor into semantic section
+ok 25 - buildMemoryContext does not duplicate anchor into semantic section
+  ---
+  duration_ms: 3.905525
+  type: 'test'
+  ...
+# Subtest: buildMemoryContext keeps anchor and minimum recent lines under heavy budget pressure
+ok 26 - buildMemoryContext keeps anchor and minimum recent lines under heavy budget pressure
+  ---
+  duration_ms: 4.419411
+  type: 'test'
+  ...
+# Subtest: buildMemoryContext keeps at least one semantic item under heavy budget pressure
+ok 27 - buildMemoryContext keeps at least one semantic item under heavy budget pressure
+  ---
+  duration_ms: 5.136786
+  type: 'test'
+  ...
+# Subtest: buildMemoryContext includes SAR wrapper and core section for opencode regression case
+ok 28 - buildMemoryContext includes SAR wrapper and core section for opencode regression case
+  ---
+  duration_ms: 2.932295
+  type: 'test'
+  ...
+# Subtest: buildMemoryContext resolves web chat history canonical rule
+ok 29 - buildMemoryContext resolves web chat history canonical rule
+  ---
+  duration_ms: 2.692778
+  type: 'test'
+  ...
+# Subtest: buildMemoryContext resolves scheduler CLI canonical rule
+ok 30 - buildMemoryContext resolves scheduler CLI canonical rule
+  ---
+  duration_ms: 2.614384
+  type: 'test'
+  ...
+# Subtest: buildMemoryContext resolves alias query normalization for release workflow
+ok 31 - buildMemoryContext resolves alias query normalization for release workflow
+  ---
+  duration_ms: 2.935576
+  type: 'test'
+  ...
+# Subtest: buildMemoryContext resolves alias query normalization for opencode compress recovery
+ok 32 - buildMemoryContext resolves alias query normalization for opencode compress recovery
+  ---
+  duration_ms: 2.686204
+  type: 'test'
+  ...
+# [memory] DEBUG summary-search.completed userId=user-a query=幫我看一下排程設定 limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=幫我看一下排程設定 limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# Subtest: 中文原句原樣送出,呼叫端不切詞
+ok 33 - 中文原句原樣送出,呼叫端不切詞
+  ---
+  duration_ms: 12.155012
+  type: 'test'
+  ...
+# [memory] DEBUG summary-search.completed userId=user-a query=docker limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=docker limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=升級之後 limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=升級之後 limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=bot limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=bot limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=沒回應怎麼辦 limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=user-a query=沒回應怎麼辦 limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# Subtest: 中英數混排也原樣送出,不做關鍵字抽取替換
+ok 34 - 中英數混排也原樣送出,不做關鍵字抽取替換
+  ---
+  duration_ms: 12.015666
+  type: 'test'
+  ...
+# Subtest: 極短輸入同樣原樣送出
+ok 35 - 極短輸入同樣原樣送出
+  ---
+  duration_ms: 3.335357
+  type: 'test'
+  ...
+# [memory] DEBUG summary-search.completed userId=u query=release limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=u query=release limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=u query=怎麼做 limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=u query=怎麼做 limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=u query=release limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=u query=release limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=u query=怎麼做 limit=3 minImpactLevel=2 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# [memory] DEBUG summary-search.completed userId=u query=怎麼做 limit=3 minImpactLevel=1 tokenCount=1 ftsCandidates=0 summaryFtsCandidates=0 summaryCandidates=0 results=0
+# Subtest: SCN-006: 開新 session 時(預設)含「近期對話」段
+ok 36 - SCN-006: 開新 session 時(預設)含「近期對話」段
+  ---
+  duration_ms: 20.490299
+  type: 'test'
+  ...
+# Subtest: SCN-006: 接續綁定的 session 時不含「近期對話」段(本機 SAR 路徑)
+ok 37 - SCN-006: 接續綁定的 session 時不含「近期對話」段(本機 SAR 路徑)
+  ---
+  duration_ms: 5.225408
+  type: 'test'
+  ...
+# Subtest: SCN-006: 接續綁定的 session 時不含「近期對話」段,Memoria 召回照常保留
+ok 38 - SCN-006: 接續綁定的 session 時不含「近期對話」段,Memoria 召回照常保留
+  ---
+  duration_ms: 4.871385
+  type: 'test'
+  ...
+# Subtest: SCN-009 full 模式的聊天提示詞含網頁讀取順序
+ok 39 - SCN-009 full 模式的聊天提示詞含網頁讀取順序
+  ---
+  duration_ms: 0.785887
+  type: 'test'
+  ...
+# Subtest: SCN-009 compact 模式的聊天提示詞含網頁讀取順序
+ok 40 - SCN-009 compact 模式的聊天提示詞含網頁讀取順序
+  ---
+  duration_ms: 0.112574
+  type: 'test'
+  ...
+# Subtest: SCN-009 minimal 模式的聊天提示詞含網頁讀取順序
+ok 41 - SCN-009 minimal 模式的聊天提示詞含網頁讀取順序
+  ---
+  duration_ms: 0.078841
+  type: 'test'
+  ...
+1..41
+# tests 41
+# suites 0
+# pass 41
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 451.118904
+exit=0

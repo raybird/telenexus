@@ -538,6 +538,11 @@ function buildLocalSemanticLines(
   return formatSummaryItems(semantics.slice(0, SAR_PROMPT_POLICY.semanticLimit));
 }
 
+// 2026-11-12 issue 0024 SCN-009：模型不一定載入 web-reading 技能（步驟 6 實測 20 次有 9 次沒載入），
+// 沒載入就不知道有 Moli 這一層，所以讀取順序放在每種模式都會送出的提示詞裡。細節仍在技能。
+const WEB_READING_ROUTE_HINT =
+  "【網頁讀取】\n先用 webfetch，讀到所需正文就以它回答。只取得頁面殼層時，以 bash 執行 telenexus-moli-fetch '<網址>'；仍讀不到才用 telenexus_browser 工具。細節見 web-reading 技能。";
+
 export function buildChatPrompt(
   config: ChatPromptConfig,
   userMessage: string,
@@ -559,6 +564,7 @@ export function buildChatPrompt(
     if (capabilityHint.trim().length > 0) {
       sections.push(`【可用能力提示】\n${capabilityHint.trim()}`);
     }
+    sections.push(WEB_READING_ROUTE_HINT);
     sections.push(`User Message:\n${userMessage}`);
 
     if (config.includeAiResponseSuffix) {
@@ -603,6 +609,8 @@ export function buildChatPrompt(
   if (capabilityHint.trim().length > 0) {
     sections.push(`【可用能力提示】\n${capabilityHint.trim()}`);
   }
+
+  sections.push(WEB_READING_ROUTE_HINT);
 
   if (!isCompact) {
     sections.push(
