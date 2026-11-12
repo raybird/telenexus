@@ -1,0 +1,17 @@
+# 2026-11-12 第三次審查（review-aacbacc.md）S-C 修正後的交付檢查。被測：fecc5d3（git status 乾淨）。
+## npm run build
+
+[copy-web-assets] copied <repo>/src/web/public -> <repo>/dist/web/public
+exit=0
+## npm run test
+exit=0
+# tests 727
+# pass 727
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+測試檔數：87
+## npm run lint
+
+exit=0
