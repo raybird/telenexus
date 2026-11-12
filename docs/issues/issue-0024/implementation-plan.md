@@ -1,6 +1,6 @@
 # Issue 0024 實作計畫
 
-驗收劇本、風險與首要驗證、涉及檔案都在 [README.md](README.md)。本檔是實作步驟的唯一來源。SCN-001～008 已於 2026-11-12 核准。
+驗收劇本、風險與首要驗證、涉及檔案都在 [README.md](README.md)。本檔是實作步驟的唯一來源。SCN-001～008 已於 2026-11-12 核准，SCN-009 於同日依 Q13 新增並核准。
 
 ## 設計方案
 
@@ -97,7 +97,7 @@ telenexus-moli-fetch <url>
 7. ✅ **常青文件與交付檢查**
    - 做法：更新 `docs/runtime-boundary-and-security.md`（Moli 的執行邊界、內網封鎖只套用在 Moli、Chrome 照舊）、`docs/configuration-reference.md` 第 7 行附近的網頁閱讀說明、`docs/installation.md` 的技能同步段落（雜湊相符才換新）、`CLAUDE.md` 的 Configuration 段落、`ARCHITECTURE.md` 第 47 行。執行 `npm run build`、`npm run test`（核對 `# tests` 與測試檔數，[L-01](../../agents/landmines.md)）、`npm run lint`。
    - 完成判準：三個指令都 exit 0；證據檔已去敏（[L-10](../../agents/landmines.md)）。
-   - 2026-11-12 結果：[evidence/step7-gates.log](evidence/step7-gates.log)，build、lint exit 0，test 725/725（87 個測試檔），這是審查 S1、S4 修正之後的結果。
+   - 2026-11-12 結果：[evidence/step7-gates.log](evidence/step7-gates.log)，build、lint exit 0，test 725/725（87 個測試檔），這是審查 S1、S4 修正之後的結果。S1 的紅燈、綠燈與突變見 evidence/review1-s1-red.log、review1-s1-green.log、review1-s1-mutations.log。重新審查（review-c71e203.md）後補了 S-A（`docs/current-chat-prompt.md`）、N-A（升級失敗的警告依實際狀態措辭；在非 root 下找不到穩定讓複製失敗的注入方式，只以程式閱讀確認），最後的檢查見 evidence/step7-gates-2.log。
    - 相依：步驟 1～6。
 
 ## 測試策略
@@ -119,7 +119,7 @@ telenexus-moli-fetch <url>
 
 ## 檢查清單
 
-- [x] SCN-001～008 已核准（2026-11-12）
+- [x] SCN-001～009 已核准（2026-11-12）
 - [x] 步驟 1 證據齊全，TBD-1 已解決，TBD-2 留給步驟 3、6
 - [x] 步驟 2～6 各有紅燈→綠燈或實測證據
 - [x] 常青文件已更新

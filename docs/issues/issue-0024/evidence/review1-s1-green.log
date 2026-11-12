@@ -1,3 +1,4 @@
+# 2026-11-12 審查 S1 綠燈。命令：npx tsx --test tests/skill-web-reading-upgrade.test.ts tests/skill-browser-migration.test.ts。被測：未提交的工作樹，內容後來提交為 672b86d。
 TAP version 13
 # Subtest: SCN-006 新安裝兩目標不再同步 agent-browser，重跑冪等
 ok 1 - SCN-006 新安裝兩目標不再同步 agent-browser，重跑冪等

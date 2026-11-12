@@ -1,3 +1,4 @@
+# 2026-11-12 審查 S1 紅燈。命令：npx tsx --test tests/skill-web-reading-upgrade.test.ts。被測：fd7d78e 的 scripts/sync-skills.mjs，加上未提交的 S1 測試（後來提交為 672b86d）。
 TAP version 13
 # Subtest: SCN-008 沒有 web-reading：複製新版，重跑不變
 ok 1 - SCN-008 沒有 web-reading：複製新版，重跑不變

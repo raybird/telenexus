@@ -1,4 +1,4 @@
-# 2026-11-12 步驟 7 交付檢查（審查 S1、S4 修正之後）
+# 2026-11-12 步驟 7 交付檢查（審查 S1、S4 修正之後）。被測：未提交的工作樹，程式與測試內容後來提交為 672b86d，文件為 c71e203。重新審查後的檢查見 step7-gates-2.log。
 ## npm run build
 > tsc && node scripts/copy-web-assets.mjs
 
