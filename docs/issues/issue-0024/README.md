@@ -33,8 +33,9 @@ issue 0010 之後，`web-reading` 技能分兩層：一般頁面用 `webfetch`�
 | 外部狀態 | 查證命令 | 上次結果 | 查證日期 |
 |---|---|---|---|
 | GitHub issue #24 | `gh issue view 24 --repo raybird/telenexus --json state -q .state` | OPEN | 2026-11-12 |
-| 分支推送到 origin | `git ls-remote --heads origin feat/issue-0024-moli-web-reading` | 沒有輸出（未推送） | 2026-11-12 |
-| 併入 main | `git branch --list main --contains feat/issue-0024-moli-web-reading` | 沒有輸出（未併入） | 2026-11-12 |
+| 分支推送到 origin | `git ls-remote --heads origin feat/issue-0024-moli-web-reading` | 沒有輸出：分支不推送，改以快轉併入 main 後推送 main | 2026-11-12 |
+| origin 的 main 含本 issue | `git merge-base --is-ancestor 2fc98ee origin/main && echo yes` | yes | 2026-11-12 |
+| 併入 main | `git branch --list main --contains feat/issue-0024-moli-web-reading` | main（2026-11-12 快轉到 2fc98ee） | 2026-11-12 |
 
 ## 快速導覽
 
@@ -250,6 +251,7 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
 | 2026-11-12 | 第三次審查 review-aacbacc.md 判定 PASS，有 1 項 SHOULD FIX（S-C）；使用者選方案 1：修 S-C 並處理 N-E、N-F、N-G 後再審一次 | 使用者 |
 | 2026-11-12 | 第四次審查 review-b38af46.md 判定 PASS，有 1 項 SHOULD FIX（S-D）；使用者選方案 1：S-D、N-H 記為殘餘風險（TBD-5），之後另開 issue | 使用者 |
 | 2026-11-12 | 開 GitHub issue #26 追蹤 TBD-5；本機建置打包 workspace 的問題併入新功能 issue #25 | 使用者 |
+| 2026-11-12 | 分支快轉併入 main（2fc98ee）並推送 origin main；尚未關閉 #24、發版與升級正式部署 | 使用者 |
 
 ---
 **建立日期**: 2026-11-11  
