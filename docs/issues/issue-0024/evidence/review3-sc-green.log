@@ -1,0 +1,168 @@
+# 2026-11-12 第三次審查 S-C 綠燈。命令：npx tsx --test tests/skill-web-reading-upgrade.test.ts tests/skill-browser-migration.test.ts。被測：未提交的工作樹（S-C 修正）。
+TAP version 13
+# Subtest: SCN-006 新安裝兩目標不再同步 agent-browser，重跑冪等
+ok 1 - SCN-006 新安裝兩目標不再同步 agent-browser，重跑冪等
+  ---
+  duration_ms: 57.304576
+  type: 'test'
+  ...
+# Subtest: SCN-006 完全相符舊內建技能兩目標改名備份，索引退役且不覆寫
+ok 2 - SCN-006 完全相符舊內建技能兩目標改名備份，索引退役且不覆寫
+  ---
+  duration_ms: 56.666019
+  type: 'test'
+  ...
+# Subtest: SCN-006 custom-content 兩目標保留原地、警告且重跑不覆寫
+ok 3 - SCN-006 custom-content 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 56.058347
+  type: 'test'
+  ...
+# Subtest: SCN-006 extra-file 兩目標保留原地、警告且重跑不覆寫
+ok 4 - SCN-006 extra-file 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 55.9841
+  type: 'test'
+  ...
+# Subtest: SCN-006 prototype-file 兩目標保留原地、警告且重跑不覆寫
+ok 5 - SCN-006 prototype-file 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 56.498281
+  type: 'test'
+  ...
+# Subtest: SCN-006 extra-dir 兩目標保留原地、警告且重跑不覆寫
+ok 6 - SCN-006 extra-dir 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 55.291073
+  type: 'test'
+  ...
+# Subtest: SCN-006 symlink 兩目標保留原地、警告且重跑不覆寫
+ok 7 - SCN-006 symlink 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 76.667651
+  type: 'test'
+  ...
+# Subtest: SCN-006 root-symlink 兩目標保留原地、警告且重跑不覆寫
+ok 8 - SCN-006 root-symlink 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 54.187849
+  type: 'test'
+  ...
+# Subtest: SCN-006 backup-collision 兩目標保留原地、警告且重跑不覆寫
+ok 9 - SCN-006 backup-collision 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 58.264268
+  type: 'test'
+  ...
+# Subtest: SCN-006 target-ancestor-symlink 保留兩目標並警告
+ok 10 - SCN-006 target-ancestor-symlink 保留兩目標並警告
+  ---
+  duration_ms: 53.294159
+  type: 'test'
+  ...
+# Subtest: SCN-006 backup-ancestor-symlink 保留兩目標並警告
+ok 11 - SCN-006 backup-ancestor-symlink 保留兩目標並警告
+  ---
+  duration_ms: 55.298871
+  type: 'test'
+  ...
+# Subtest: SCN-006 local／runner 同時同步只保留一份完整備份，不殘留 builtin
+ok 12 - SCN-006 local／runner 同時同步只保留一份完整備份，不殘留 builtin
+  ---
+  duration_ms: 56.802117
+  type: 'test'
+  ...
+# Subtest: SCN-008 沒有 web-reading：複製新版，重跑不變
+ok 13 - SCN-008 沒有 web-reading：複製新版，重跑不變
+  ---
+  duration_ms: 55.592707
+  type: 'test'
+  ...
+# Subtest: SCN-008 與已出貨舊版雜湊相同：換成新版，舊版備份到 retired-skills，重跑不變
+ok 14 - SCN-008 與已出貨舊版雜湊相同：換成新版，舊版備份到 retired-skills，重跑不變
+  ---
+  duration_ms: 53.402401
+  type: 'test'
+  ...
+# Subtest: SCN-008 有客製內容（SKILL.md 被改過）：原地保留並警告，重跑不變
+ok 15 - SCN-008 有客製內容（SKILL.md 被改過）：原地保留並警告，重跑不變
+  ---
+  duration_ms: 50.332456
+  type: 'test'
+  ...
+# Subtest: SCN-008 有客製內容（多了檔案）：原地保留並警告，重跑不變
+ok 16 - SCN-008 有客製內容（多了檔案）：原地保留並警告，重跑不變
+  ---
+  duration_ms: 54.54048
+  type: 'test'
+  ...
+# Subtest: SCN-008 有客製內容（多了目錄）：原地保留並警告，重跑不變
+ok 17 - SCN-008 有客製內容（多了目錄）：原地保留並警告，重跑不變
+  ---
+  duration_ms: 51.385074
+  type: 'test'
+  ...
+# Subtest: SCN-008 web-reading 是指向舊版的 symlink：不跟著連結改動，原地保留並警告
+ok 18 - SCN-008 web-reading 是指向舊版的 symlink：不跟著連結改動，原地保留並警告
+  ---
+  duration_ms: 25.486553
+  type: 'test'
+  ...
+# Subtest: SCN-008 備份已存在而 workspace 仍是舊版：不覆寫備份，保留並警告
+ok 19 - SCN-008 備份已存在而 workspace 仍是舊版：不覆寫備份，保留並警告
+  ---
+  duration_ms: 26.839649
+  type: 'test'
+  ...
+# Subtest: SCN-008 已經是新版：不變，不建立備份
+ok 20 - SCN-008 已經是新版：不變，不建立備份
+  ---
+  duration_ms: 26.223521
+  type: 'test'
+  ...
+# Subtest: SCN-008 telenexus 與 agent-runner 同時同步：只有一份備份、結果是新版
+ok 21 - SCN-008 telenexus 與 agent-runner 同時同步：只有一份備份、結果是新版
+  ---
+  duration_ms: 161.561568
+  type: 'test'
+  ...
+# Subtest: S1 來源沒有 web-reading：其他技能照常同步，不中止
+ok 22 - S1 來源沒有 web-reading：其他技能照常同步，不中止
+  ---
+  duration_ms: 24.679041
+  type: 'test'
+  ...
+# Subtest: S1 內建技能來源目錄不存在：照舊只說明找不到來源，不中止
+ok 23 - S1 內建技能來源目錄不存在：照舊只說明找不到來源，不中止
+  ---
+  duration_ms: 23.606459
+  type: 'test'
+  ...
+# Subtest: S1 升級時備份失敗：警告並保留舊版，其他技能照常同步
+ok 24 - S1 升級時備份失敗：警告並保留舊版，其他技能照常同步
+  ---
+  duration_ms: 26.326078
+  type: 'test'
+  ...
+# Subtest: S-C 新版寫到一半失敗：舊版回到原處、不留暫存，下次啟動照常升級
+ok 25 - S-C 新版寫到一半失敗：舊版回到原處、不留暫存，下次啟動照常升級
+  ---
+  duration_ms: 54.290774
+  type: 'test'
+  ...
+# Subtest: S-C 舊版已備份、換上新版時失敗：舊版移回原處，不留暫存
+ok 26 - S-C 舊版已備份、換上新版時失敗：舊版移回原處，不留暫存
+  ---
+  duration_ms: 29.371414
+  type: 'test'
+  ...
+1..26
+# tests 26
+# suites 0
+# pass 26
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 861.963834
+exit=0

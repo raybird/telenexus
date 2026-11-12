@@ -3,6 +3,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 
 // issue 0024 SCN-008：現有部署的 workspace 已經有 web-reading，sync-skills 只補缺少的目錄，
@@ -198,8 +199,65 @@ test('S1 升級時備份失敗：警告並保留舊版，其他技能照常同�
     writeFileSync(join(target, '..', 'retired-skills'), 'not a directory');
     const result = f.run();
     assert.doesNotMatch(result.stdout + result.stderr, /\[SkillSync\] Failed/);
-    assert.match(result.stdout + result.stderr, /web-reading/);
+    assert.match(result.stdout + result.stderr, /web-reading 未升級，保留原本的版本/);
     assert.deepEqual(snapshot(join(target, 'web-reading')), snapshot(legacySource), '舊版原地保留');
     for (const t of f.targets) assert.ok(existsSync(join(t, 'scheduler', 'SKILL.md')), `${t} 要有 scheduler`);
+  } finally { f.close(); }
+});
+
+// 2026-11-12 第三次審查 S-C：新版複製失敗時，舊版要回到原處，下次啟動仍能升級。
+// 新版要大於 ulimit 允許的 2048 bytes，複製才會寫到一半失敗。
+const BIG_SKILL = `${NEW_SKILL}${'網頁閱讀指引。'.repeat(400)}\n`;
+
+function legacyFixture() {
+  const f = fixture();
+  writeFileSync(join(f.source, 'web-reading', 'SKILL.md'), BIG_SKILL);
+  const target = f.targets[0]!;
+  cpSync(legacySource, join(target, 'web-reading'), { recursive: true });
+  const env = { ...process.env, BUILTIN_SKILLS_DIR: f.source, OPENCODE_SKILLS_DIRS: target, APP_PROJECT_DIR: f.root };
+  const spawnWith = (command: string, args: string[]) => {
+    const result = spawnSync(command, args, { env, encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout + result.stderr;
+  };
+  const retired = join(target, '..', 'retired-skills');
+  const leftovers = () => (existsSync(retired) ? readdirSync(retired).filter((name) => name !== backupName) : []);
+  return { ...f, target, spawnWith, retired, leftovers };
+}
+
+test('S-C 新版寫到一半失敗：舊版回到原處、不留暫存，下次啟動照常升級', () => {
+  const f = legacyFixture();
+  try {
+    const output = f.spawnWith('bash', ['-c', 'ulimit -f 2; exec "$0" "$1"', process.execPath, syncScript]);
+    assert.match(output, /web-reading 未升級，保留原本的版本/);
+    assert.deepEqual(snapshot(join(f.target, 'web-reading')), snapshot(legacySource), '舊版完整回到原處');
+    assert.equal(existsSync(f.backup(f.target)), false, '沒有留下備份，下次才能重新升級');
+    assert.deepEqual(f.leftovers(), [], '沒有留下暫存目錄');
+    f.spawnWith(process.execPath, [syncScript]);
+    assert.deepEqual(snapshot(join(f.target, 'web-reading')), { 'SKILL.md': BIG_SKILL });
+    assert.deepEqual(snapshot(f.backup(f.target)), snapshot(legacySource));
+  } finally { f.close(); }
+});
+
+test('S-C 舊版已備份、換上新版時失敗：舊版移回原處，不留暫存', () => {
+  const f = legacyFixture();
+  try {
+    // 新版換到原處的那次改名失敗；其他改名照常。
+    const hook = join(f.root, 'fail-install-rename.mjs');
+    writeFileSync(hook, [
+      "import fs from 'node:fs';",
+      'const rename = fs.renameSync;',
+      "fs.renameSync = (from, to) => {",
+      "  if (String(to).endsWith('/skills/web-reading') && !String(from).endsWith('web-reading-718cc8b')) {",
+      "    throw Object.assign(new Error('EIO: injected install failure'), { code: 'EIO' });",
+      '  }',
+      '  return rename(from, to);',
+      '};',
+    ].join('\n'));
+    const output = f.spawnWith(process.execPath, ['--import', pathToFileURL(hook).href, syncScript]);
+    assert.match(output, /web-reading 未升級，保留原本的版本.*EIO/);
+    assert.deepEqual(snapshot(join(f.target, 'web-reading')), snapshot(legacySource), '舊版回到原處');
+    assert.equal(existsSync(f.backup(f.target)), false);
+    assert.deepEqual(f.leftovers(), [], '沒有留下暫存目錄');
   } finally { f.close(); }
 });

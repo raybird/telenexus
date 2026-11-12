@@ -126,13 +126,19 @@ function isMissing(error) {
   return error.code === 'ENOENT';
 }
 
+function retiredSkillsDir(targetDir) {
+  return path.join(path.dirname(targetDir), 'retired-skills');
+}
+
 // 只補缺少目錄的同步策略不會更新既有部署的 web-reading。workspace 的副本與已出貨的舊版
-// 完全相同（沒被改過）時，先改名備份再複製新版；有客製內容、symlink 或備份已存在時原地保留並警告。
+// 完全相同（沒被改過）時換成新版並備份舊版；有客製內容、symlink 或備份已存在時原地保留並警告。
+// 新版先完整複製到 retired-skills 底下的暫存目錄，再以兩次改名換上；任一步失敗都把舊版移回原處，
+// 原處不會留下寫到一半的技能（2026-11-12 第三次審查 S-C）。
 // telenexus 與 agent-runner 會同時執行本腳本，改名是兩者之間唯一的競爭點。
 function upgradeBuiltinWebReading(targetDir) {
   const source = path.join(sourceDir, 'web-reading');
   const candidate = path.join(targetDir, 'web-reading');
-  const backup = path.join(path.dirname(targetDir), 'retired-skills', `web-reading-${legacyWebReading.id}`);
+  const backup = path.join(retiredSkillsDir(targetDir), `web-reading-${legacyWebReading.id}`);
   // 來源沒有 web-reading（例如維護者移除了它）時沒有新版可換，交給下面的一般同步處理。
   if (!fs.existsSync(source)) return;
   const current = scanDirectory(source);
@@ -168,14 +174,27 @@ function upgradeBuiltinWebReading(targetDir) {
     return;
   }
   ensureDir(path.dirname(backup));
+  const staging = fs.mkdtempSync(path.join(path.dirname(backup), '.web-reading-new-'));
   try {
-    fs.renameSync(candidate, backup);
-  } catch (error) {
-    // ENOENT：另一個 worker 已改名；ENOTEMPTY／EEXIST：另一個 worker 已完成備份。
-    if (isMissing(error) || error.code === 'ENOTEMPTY' || error.code === 'EEXIST') return;
-    throw error;
+    fs.cpSync(source, staging, { recursive: true });
+    try {
+      fs.renameSync(candidate, backup);
+    } catch (error) {
+      // ENOENT：另一個 worker 已改名；ENOTEMPTY／EEXIST：另一個 worker 已完成備份。
+      if (isMissing(error) || error.code === 'ENOTEMPTY' || error.code === 'EEXIST') return;
+      throw error;
+    }
+    try {
+      fs.renameSync(staging, candidate);
+    } catch (error) {
+      // 另一個 worker 的一般同步已在原處補上新版。
+      if (error.code === 'ENOTEMPTY' || error.code === 'EEXIST') return;
+      fs.renameSync(backup, candidate);
+      throw error;
+    }
+  } finally {
+    fs.rmSync(staging, { recursive: true, force: true });
   }
-  fs.cpSync(source, candidate, { recursive: true, force: false });
   console.log(`[SkillSync] Upgraded builtin web-reading; previous version: ${backup}`);
 }
 
@@ -188,9 +207,9 @@ function syncBuiltinSkills() {
       upgradeBuiltinWebReading(targetDir);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      // 改名備份之後才失敗時，舊版已不在原處（2026-11-12 重新審查 N-A）。
+      // 舊版移回原處也失敗時，原處是空的，接下來的一般同步會補上新版（2026-11-12 重新審查 N-A）。
       const kept = fs.existsSync(path.join(targetDir, 'web-reading'));
-      const state = kept ? '保留原本的版本' : `舊版已備份到 ${path.join(path.dirname(targetDir), 'retired-skills')}，新版沒有裝上`;
+      const state = kept ? '保留原本的版本' : `舊版在 ${retiredSkillsDir(targetDir)}，原處由接下來的同步補上新版`;
       console.warn(`[SkillSync] web-reading 未升級，${state}（${targetDir}）：${message}`);
     }
   });

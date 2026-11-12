@@ -1,0 +1,7 @@
+# 2026-11-12 第三次審查 S-C 突變。一次改 scripts/sync-skills.mjs 一處，再跑 npx tsx --test tests/skill-web-reading-upgrade.test.ts，跑完以 cmp 確認還原。被測：未提交的工作樹（S-C 修正）。
+M1 不經暫存，改名後直接複製到原處: not ok 14 - S-C 舊版已備份、換上新版時失敗：舊版移回原處，不留暫存 # pass 13 # fail 1 
+M2 換上新版失敗時不把舊版移回: not ok 14 - S-C 舊版已備份、換上新版時失敗：舊版移回原處，不留暫存 # pass 13 # fail 1 
+M3 不刪暫存目錄: not ok 9 - SCN-008 telenexus 與 agent-runner 同時同步：只有一份備份、結果是新版 not ok 13 - S-C 新版寫到一半失敗：舊版回到原處、不留暫存，下次啟動照常升級 not ok 14 - S-C 舊版已備份、換上新版時失敗：舊版移回原處，不留暫存 # pass 11 # fail 3 
+M4 兩種警告訊息對調: not ok 12 - S1 升級時備份失敗：警告並保留舊版，其他技能照常同步 not ok 13 - S-C 新版寫到一半失敗：舊版回到原處、不留暫存，下次啟動照常升級 not ok 14 - S-C 舊版已備份、換上新版時失敗：舊版移回原處，不留暫存 # pass 11 # fail 3 
+M5 先改名備份、再複製到暫存（還原成舊順序）: not ok 13 - S-C 新版寫到一半失敗：舊版回到原處、不留暫存，下次啟動照常升級 # pass 13 # fail 1 
+還原：cmp 相同

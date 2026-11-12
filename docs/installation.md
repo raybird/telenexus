@@ -174,7 +174,7 @@ Compose 預設啟用語意搜尋。第一次啟用時 Memoria 會在背景為歷
 
 技能同步啟動時會比對舊內建 `agent-browser` 的完整 10 檔 SHA-256 與目錄集合；完全相同且無 symlink 者，從各 `OPENCODE_SKILLS_DIRS` 移至其父目錄的 `retired-skills/agent-browser-04f5f2d`，保留完整備份但退出預設技能探索。重跑不新增備份，也不從升級解壓殘留的唯讀 source 重新同步舊技能。
 
-有客製內容、額外檔案／目錄、symlink 或既有備份碰撞時，原地保留並警告「無法自動遷移／備份已存在，舊後端不可用」；客製舊技能仍可能被載入，維護者應自行評估改寫，不把保留等同新後端可執行。其他位置的副本與自訂 OpenCode skill paths 不會被自動掃描或刪除。2026-11-12（issue 0024）：`web-reading` 有新版（加入 Moli 一層）。各 `OPENCODE_SKILLS_DIRS` 裡的 `web-reading` 與已出貨的舊版（`718cc8b`，`SKILL.md` 的 SHA-256 `03821d8d…`）完全相同、沒有 symlink 時，移到 `retired-skills/web-reading-718cc8b` 再複製新版；已經是新版就不動。有客製內容、額外檔案／目錄、symlink 或備份已存在時，原地保留並警告「新版網頁閱讀指引未套用」，維護者需自行比對 `/app/skills/web-reading/SKILL.md`。
+有客製內容、額外檔案／目錄、symlink 或既有備份碰撞時，原地保留並警告「無法自動遷移／備份已存在，舊後端不可用」；客製舊技能仍可能被載入，維護者應自行評估改寫，不把保留等同新後端可執行。其他位置的副本與自訂 OpenCode skill paths 不會被自動掃描或刪除。2026-11-12（issue 0024）：`web-reading` 有新版（加入 Moli 一層）。各 `OPENCODE_SKILLS_DIRS` 裡的 `web-reading` 與已出貨的舊版（`718cc8b`，`SKILL.md` 的 SHA-256 `03821d8d…`）完全相同、沒有 symlink 時，移到 `retired-skills/web-reading-718cc8b` 並換上新版；已經是新版就不動。有客製內容、額外檔案／目錄、symlink 或備份已存在時，原地保留並警告「新版網頁閱讀指引未套用」，維護者需自行比對 `/app/skills/web-reading/SKILL.md`。換新途中失敗（例如磁碟寫滿）時警告「web-reading 未升級，保留原本的版本」：舊版留在原處、不留下寫到一半的檔案，其他技能照常同步，下次啟動會再試。
 
 1. 排空聊天與排程工作，記錄原映像／Compose 配置及程序基線。
 2. 備份部署設定、workspace 技能與 OpenCode volumes；保留認證、文字 session、排程及 Memoria 資料。
