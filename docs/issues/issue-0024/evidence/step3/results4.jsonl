@@ -1,0 +1,18 @@
+{"name":"public-js","url":"http://45.67.89.10:8080/js","exit":0,"ms":387,"hasToken":true,"stdoutHead":"ISSUE24\\_JS\\_BODY\\_20261112","stderrHead":""}
+{"name":"public-js-async","url":"http://45.67.89.10:8080/js-async","exit":0,"ms":1185,"hasToken":true,"stdoutHead":"ISSUE24\\_JS\\_ASYNC\\_BODY\\_20261112","stderrHead":""}
+{"name":"public-slow-api","url":"http://45.67.89.10:8080/js-slow-api","exit":0,"ms":4391,"hasToken":true,"stdoutHead":"ISSUE24SLOWAPIBODY","stderrHead":""}
+{"name":"public-ticker","url":"http://45.67.89.10:8080/ticker","exit":0,"ms":10013,"hasToken":true,"stdoutHead":"ISSUE24TICKERBODY 99","stderrHead":""}
+{"name":"public-empty","url":"http://45.67.89.10:8080/empty","exit":3,"ms":375,"hasToken":null,"stdoutHead":"","stderrHead":"telenexus-moli-fetch: 沒有正文：http://45.67.89.10:8080/empty\n"}
+{"name":"public-404","url":"http://45.67.89.10:8080/nope","exit":22,"ms":374,"hasToken":null,"stdoutHead":"","stderrHead":"Error: failed to fetch `http://45.67.89.10:8080/nope`\nReason: final main document returned HTTP status 404 at `http://45.67.89.10:8080/nope`\n"}
+{"name":"public-shell","url":"http://45.67.89.10:8080/shell","exit":0,"ms":380,"hasToken":true,"stdoutHead":"WAITING","stderrHead":""}
+{"name":"public-hang","url":"http://45.67.89.10:8080/hang","exit":1,"ms":10011,"hasToken":null,"stdoutHead":"","stderrHead":"Error: failed to fetch `http://45.67.89.10:8080/hang`\nReason: fetch readiness timed out after 10000 ms while streaming main body\n"}
+{"name":"loopback","url":"http://127.0.0.1:8081/js","exit":1,"ms":15,"hasToken":null,"stdoutHead":"","stderrHead":"Error: failed to fetch `http://127.0.0.1:8081/js`\nReason: failed to configure curl request for http://127.0.0.1:8081/js: blocked private network address `127.0.0.1` for `http://127.0.0.1:8081/js`\n"}
+{"name":"localhost","url":"http://localhost:8081/js","exit":1,"ms":15,"hasToken":null,"stdoutHead":"","stderrHead":"Error: failed to fetch `http://localhost:8081/js`\nReason: blocked private network address `::1` for `http://localhost:8081/js`\n"}
+{"name":"rfc1918","url":"http://172.21.0.2:8080/js","exit":1,"ms":13,"hasToken":null,"stdoutHead":"","stderrHead":"Error: failed to fetch `http://172.21.0.2:8080/js`\nReason: failed to configure curl request for http://172.21.0.2:8080/js: blocked private network address `172.21.0.2` for `http://172.21.0.2:8080/js`\n"}
+{"name":"service-name","url":"http://memoria:8080/js","exit":1,"ms":14,"hasToken":null,"stdoutHead":"","stderrHead":"Error: failed to fetch `http://memoria:8080/js`\nReason: blocked private network address `172.21.0.2` for `http://memoria:8080/js`\n"}
+{"name":"metadata","url":"http://169.254.169.254/","exit":1,"ms":15,"hasToken":null,"stdoutHead":"","stderrHead":"Error: failed to fetch `http://169.254.169.254/`\nReason: failed to configure curl request for http://169.254.169.254/: blocked private network address `169.254.169.254` for `http://169.254.169.254/`\n"}
+{"name":"data-url","url":"data:text/html,<p>ISSUE24_DATA</p>","exit":2,"ms":1,"hasToken":null,"stdoutHead":"","stderrHead":"telenexus-moli-fetch: 只接受 http 或 https 網址：data:text/html,<p>ISSUE24_DATA</p>\n"}
+{"name":"env-override-loopback","url":"http://127.0.0.1:8081/js","exit":1,"ms":13,"hasToken":null,"stdoutHead":"","stderrHead":"Error: failed to fetch `http://127.0.0.1:8081/js`\nReason: failed to configure curl request for http://127.0.0.1:8081/js: blocked private network address `127.0.0.1` for `http://127.0.0.1:8081/js`\n"}
+{"name":"tmp-leftovers","entries":0}
+{"name":"moli-procs","n":0}
+{"name":"done"}

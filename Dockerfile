@@ -66,6 +66,15 @@ RUN curl -fL --retry 2 -o /tmp/telenexus-chrome.zip \
   && unzip -q /tmp/telenexus-chrome.zip -d /opt/telenexus/chrome \
   && rm /tmp/telenexus-chrome.zip
 COPY scripts/browser-mcp-launcher.mjs /usr/local/lib/telenexus/browser-mcp-launcher.mjs
+# 2026-11-12：JS 正文先用 Moli 讀取，讀不到才開 Chrome（issue 0024）。
+# 只經由 telenexus-moli-fetch 呼叫，不放進 PATH；映像已有它需要的函式庫。
+RUN curl -fL --retry 2 -o /tmp/moli.tar.gz \
+      https://github.com/lexmount/moli/releases/download/v1.1.23/moli-x86_64-unknown-linux-gnu.tar.gz \
+  && printf '%s  %s\n' df360c04e567ce2e56a8391a03dc677d794465848b5821f944d2de10f3f1f430 /tmp/moli.tar.gz | sha256sum -c - \
+  && mkdir -p /opt/telenexus/moli \
+  && tar -xzf /tmp/moli.tar.gz -C /opt/telenexus/moli \
+  && rm /tmp/moli.tar.gz
+COPY scripts/moli-fetch.sh /usr/local/bin/telenexus-moli-fetch
 
 # ==========================================
 # 非 root 執行：以 root 啟動 entrypoint，runtime 依 PUID/PGID 對齊 node 使用者後

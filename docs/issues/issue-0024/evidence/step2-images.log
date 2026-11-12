@@ -1,0 +1,16 @@
+== telenexus:issue24-dev (sha256:a805cbd141a4)
+moli 1.1.23
+exit=0
+root:root 755 111579728 /opt/telenexus/moli/moli-v1.1.23-x86_64-unknown-linux-gnu/moli
+moli 不在 PATH
+== telenexus:issue24 (sha256:9d724ce41f8b)
+moli 1.1.23
+exit=0
+root:root 755 111579728 /opt/telenexus/moli/moli-v1.1.23-x86_64-unknown-linux-gnu/moli
+moli 不在 PATH
+== build log 摘錄
+build-dev.log:1112:#14 [base 10/12] RUN curl -fL --retry 2 -o /tmp/moli.tar.gz       https://github.com/lexmount/moli/releases/download/v1.1.23/moli-x86_64-unknown-linux-gnu.tar.gz   && printf '%s  %s\n' df360c04e567ce2e56a8391a03dc677d794465848b5821f944d2de10f3f1f430 /tmp/moli.tar.gz | sha256sum -c -   && mkdir -p /opt/telenexus/moli   && tar -xzf /tmp/moli.tar.gz -C /opt/telenexus/moli   && rm /tmp/moli.tar.gz
+build-dev.log:1117:#14 3.564 /tmp/moli.tar.gz: OK
+build-dev.log:1155:dev exit=0
+build-prod.log:27:#8 [base 10/12] RUN curl -fL --retry 2 -o /tmp/moli.tar.gz       https://github.com/lexmount/moli/releases/download/v1.1.23/moli-x86_64-unknown-linux-gnu.tar.gz   && printf '%s  %s\n' df360c04e567ce2e56a8391a03dc677d794465848b5821f944d2de10f3f1f430 /tmp/moli.tar.gz | sha256sum -c -   && mkdir -p /opt/telenexus/moli   && tar -xzf /tmp/moli.tar.gz -C /opt/telenexus/moli   && rm /tmp/moli.tar.gz
+build-prod.log:535:prod exit=0

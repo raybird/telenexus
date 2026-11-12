@@ -1,0 +1,11 @@
+M1 拿掉 scheme 檢查: not ok 3 - SCN-006 file 網址：exit 2、stdout 沒有內容、不啟動 Moli not ok 4 - SCN-006 data 網址：exit 2、stdout 沒有內容、不啟動 Moli not ok 6 - SCN-006 只有參數：exit 2、stdout 沒有內容、不啟動 Moli not ok 7 - SCN-006 javascript 網址：exit 2、stdout 沒有內容、不啟動 Moli # pass 11 # fail 4 
+M2 拿掉 --block-private-networks: not ok 8 - SCN-006 http/https 網址：以固定參數呼叫 Moli、封鎖內網、不帶 MOLI_ 環境變數 # pass 14 # fail 1 
+M3 拿掉 timeout: not ok 1 - SCN-005 超過 30 秒：exit 124，Moli 被終止，暫存檔清掉 not ok 2 - SCN-005 Moli 不理會 SIGTERM：35 秒時被 SIGKILL，exit 124，暫存檔清掉 not ok 5 - SCN-005 只有 wrapper 被 SIGKILL：啟動後 45 秒內 Moli 結束、暫存檔清掉 not ok 11 - SCN-005 收尾 # pass 12 # fail 0 
+M4 拿掉獨立 session 的清理程序: not ok 4 - SCN-005 整個 process group 被 SIGKILL：背景清理程序仍會刪掉暫存檔 not ok 5 - SCN-005 只有 wrapper 被 SIGKILL：啟動後 45 秒內 Moli 結束、暫存檔清掉 not ok 11 - SCN-005 收尾 # pass 13 # fail 2 
+M5 拿掉 timeout 的 --foreground: not ok 4 - SCN-005 整個 process group 被 SIGKILL：背景清理程序仍會刪掉暫存檔 not ok 11 - SCN-005 收尾 # pass 14 # fail 0 
+M6 清理程序持有 stdout／stderr: # pass 15 # fail 0 
+M7 拿掉空輸出判斷: not ok 9 - SCN-003 Moli 輸出只有空白：exit 3 並說明沒有正文 # pass 14 # fail 1 
+M8 不清掉 MOLI_ 環境變數: not ok 8 - SCN-006 http/https 網址：以固定參數呼叫 Moli、封鎖內網、不帶 MOLI_ 環境變數 # pass 14 # fail 1 
+M9 拿掉 SIGTERM 的 trap: not ok 3 - SCN-005 wrapper 收到 SIGTERM：Moli 一起結束，暫存檔清掉 not ok 11 - SCN-005 收尾 # pass 14 # fail 0 
+M10 不加 --fail: not ok 8 - SCN-006 http/https 網址：以固定參數呼叫 Moli、封鎖內網、不帶 MOLI_ 環境變數 # pass 14 # fail 1 
+restored

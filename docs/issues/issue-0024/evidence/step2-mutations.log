@@ -1,0 +1,6 @@
+M1 改成 releases/latest: # pass 0 # fail 2 
+M2 拿掉 sha256sum -c: # pass 1 # fail 1 
+M3 改錯雜湊: # pass 1 # fail 1 
+M4 先解開再驗雜湊: # pass 1 # fail 1 
+M5 另加 curl | sh 安裝: # pass 0 # fail 2 
+M6 移到 dev stage: # pass 1 # fail 1 

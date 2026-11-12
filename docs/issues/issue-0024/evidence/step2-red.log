@@ -1,0 +1,41 @@
+TAP version 13
+# Subtest: SCN-007 base stage 以固定版本的 release tarball 安裝 Moli，並在同一條 RUN 驗 sha256
+not ok 1 - SCN-007 base stage 以固定版本的 release tarball 安裝 Moli，並在同一條 RUN 驗 sha256
+  ---
+  duration_ms: 2.032084
+  type: 'test'
+  location: '<repo>/tests/docker/moli-install.test.ts:1:804'
+  failureType: 'testCodeFailure'
+  error: |-
+    安裝 Moli 的 RUN 只能有一條
+    
+    0 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/docker/moli-install.test.ts:25:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: SCN-007 Moli 不用 latest 或 curl | sh 安裝
+ok 2 - SCN-007 Moli 不用 latest 或 curl | sh 安裝
+  ---
+  duration_ms: 0.320786
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 166.194629
+exit=1

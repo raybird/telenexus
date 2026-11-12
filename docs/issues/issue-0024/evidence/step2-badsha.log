@@ -1,0 +1,10 @@
+雜湊最後一碼由 0 改成 1 後以 --target base 建置：exit=1
+21:#6 [base  8/12] RUN curl -fL --retry 2 -o /tmp/telenexus-chrome.zip       https://storage.googleapis.com/chrome-for-testing-public/154.0.8037.92/linux64/chrome-linux64.zip   && printf '%s  %s\n' ff43322f335e436b2f4dcdfeeec5db032299e335a7e8c1c618b326e100ce8732 /tmp/telenexus-chrome.zip | sha256sum -c -   && mkdir -p /opt/telenexus/chrome   && unzip -q /tmp/telenexus-chrome.zip -d /opt/telenexus/chrome   && rm /tmp/telenexus-chrome.zip
+45:#14 [base 10/12] RUN curl -fL --retry 2 -o /tmp/moli.tar.gz       https://github.com/lexmount/moli/releases/download/v1.1.23/moli-x86_64-unknown-linux-gnu.tar.gz   && printf '%s  %s\n' df360c04e567ce2e56a8391a03dc677d794465848b5821f944d2de10f3f1f431 /tmp/moli.tar.gz | sha256sum -c -   && mkdir -p /opt/telenexus/moli   && tar -xzf /tmp/moli.tar.gz -C /opt/telenexus/moli   && rm /tmp/moli.tar.gz
+50:#14 2.880 sha256sum: WARNING: 1 computed checksum did NOT match
+51:#14 2.880 /tmp/moli.tar.gz: FAILED
+52:#14 ERROR: process "/bin/sh -c curl -fL --retry 2 -o /tmp/moli.tar.gz       https://github.com/lexmount/moli/releases/download/v1.1.23/moli-x86_64-unknown-linux-gnu.tar.gz   && printf '%s  %s\\n' df360c04e567ce2e56a8391a03dc677d794465848b5821f944d2de10f3f1f431 /tmp/moli.tar.gz | sha256sum -c -   && mkdir -p /opt/telenexus/moli   && tar -xzf /tmp/moli.tar.gz -C /opt/telenexus/moli   && rm /tmp/moli.tar.gz" did not complete successfully: exit code: 1
+54: > [base 10/12] RUN curl -fL --retry 2 -o /tmp/moli.tar.gz       https://github.com/lexmount/moli/releases/download/v1.1.23/moli-x86_64-unknown-linux-gnu.tar.gz   && printf '%s  %s\n' df360c04e567ce2e56a8391a03dc677d794465848b5821f944d2de10f3f1f431 /tmp/moli.tar.gz | sha256sum -c -   && mkdir -p /opt/telenexus/moli   && tar -xzf /tmp/moli.tar.gz -C /opt/telenexus/moli   && rm /tmp/moli.tar.gz:
+58:2.880 sha256sum: WARNING: 1 computed checksum did NOT match
+59:2.880 /tmp/moli.tar.gz: FAILED
+沒有產生 telenexus:issue24-badsha 映像
