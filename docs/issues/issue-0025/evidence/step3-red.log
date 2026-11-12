@@ -1,0 +1,528 @@
+# 2026-11-12 步驟 3 紅燈。命令：npx tsx --test tests/harvest-skills.test.ts。被測：未提交的工作樹，scripts/harvest-skills.mjs 只有列出與分類（--promote 會被接受但不做事），加上 promote 測試。
+TAP version 13
+# Subtest: SCN-001 列出新技能，附檔案數；結束碼 0，repo 沒有變動
+ok 1 - SCN-001 列出新技能，附檔案數；結束碼 0，repo 沒有變動
+  ---
+  duration_ms: 104.545952
+  type: 'test'
+  ...
+# Subtest: SCN-002 被改過的內建技能附差異
+ok 2 - SCN-002 被改過的內建技能附差異
+  ---
+  duration_ms: 90.742536
+  type: 'test'
+  ...
+# Subtest: SCN-003 舊版內建技能列在略過，標出相符的版本
+ok 3 - SCN-003 舊版內建技能列在略過，標出相符的版本
+  ---
+  duration_ms: 88.233278
+  type: 'test'
+  ...
+# Subtest: SCN-004 linked 列在略過，原因是「symlink」
+ok 4 - SCN-004 linked 列在略過，原因是「symlink」
+  ---
+  duration_ms: 92.052406
+  type: 'test'
+  ...
+# Subtest: SCN-004 same 列在略過，原因是「與內建相同」
+ok 5 - SCN-004 same 列在略過，原因是「與內建相同」
+  ---
+  duration_ms: 95.705559
+  type: 'test'
+  ...
+# Subtest: SCN-004 old-tool 列在略過，原因是「已退役內建」
+ok 6 - SCN-004 old-tool 列在略過，原因是「已退役內建」
+  ---
+  duration_ms: 96.67578
+  type: 'test'
+  ...
+# Subtest: SCN-005 --from 掃描另一個 workspace，比對基準仍是本 repo
+ok 7 - SCN-005 --from 掃描另一個 workspace，比對基準仍是本 repo
+  ---
+  duration_ms: 68.475319
+  type: 'test'
+  ...
+# Subtest: SCN-005 --from 指向沒有 .opencode/skills 的路徑：非 0 並說明找不到
+ok 8 - SCN-005 --from 指向沒有 .opencode/skills 的路徑：非 0 並說明找不到
+  ---
+  duration_ms: 46.594106
+  type: 'test'
+  ...
+# Subtest: 不在 git checkout 裡執行：非 0 並說明
+ok 9 - 不在 git checkout 裡執行：非 0 並說明
+  ---
+  duration_ms: 52.739911
+  type: 'test'
+  ...
+# Subtest: SCN-006 promote 新技能：內容相同、提醒先檢查，不 commit、不動 skills/ 以外的檔案
+not ok 10 - SCN-006 promote 新技能：內容相同、提醒先檢查，不 commit、不動 skills/ 以外的檔案
+  ---
+  duration_ms: 96.962899
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:7:3098'
+  failureType: 'testCodeFailure'
+  error: "ENOENT: no such file or directory, scandir '<tmp>/repo/skills/newskill'"
+  code: 'ENOENT'
+  stack: |-
+    read (node:fs:1488:35)
+    readdirSyncRecursive (node:fs:1506:5)
+    readdirSync (node:fs:1580:12)
+    snapshot (<repo>/tests/harvest-skills.test.ts:31:23)
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:167:22)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+  ...
+# Subtest: SCN-007 promote 拒絕：skills/ 已有同名技能；非 0、skills/ 不變
+not ok 11 - SCN-007 promote 拒絕：skills/ 已有同名技能；非 0、skills/ 不變
+  ---
+  duration_ms: 101.136796
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:7:4462'
+  failureType: 'testCodeFailure'
+  error: |-
+    [harvest] 掃描 <tmp>/repo/workspace/.opencode/skills，比對 <tmp>/repo/skills 與它的 git 歷史
+    
+    新技能（1）
+      newskill  2 個檔案
+    
+    被改過的內建技能（1）
+      edited
+        diff --git a<tmp>/repo/skills/edited/SKILL.md b<tmp>/repo/workspace/.opencode/skills/edited/SKILL.md
+        index 2d85518..198ba1b 100644
+        --- a<tmp>/repo/skills/edited/SKILL.md
+        +++ b<tmp>/repo/workspace/.opencode/skills/edited/SKILL.md
+        @@ -2,4 +2,4 @@
+         name: edited
+         description: edited 測試技能
+         ---
+        -原本的說明
+        +agent 改過的說明
+    
+    略過（4）
+      linked    symlink
+      old-tool  已退役內建
+      same      與內建相同
+      sched     舊版內建，未被修改（與 310e959 相同）
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 0
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:191:14)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-007 promote 拒絕：目錄裡沒有 SKILL.md；非 0、skills/ 不變
+not ok 12 - SCN-007 promote 拒絕：目錄裡沒有 SKILL.md；非 0、skills/ 不變
+  ---
+  duration_ms: 101.537178
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:7:4462'
+  failureType: 'testCodeFailure'
+  error: |-
+    [harvest] 掃描 <tmp>/repo/workspace/.opencode/skills，比對 <tmp>/repo/skills 與它的 git 歷史
+    
+    新技能（2）
+      newskill  2 個檔案
+      nodoc     1 個檔案
+    
+    被改過的內建技能（1）
+      edited
+        diff --git a<tmp>/repo/skills/edited/SKILL.md b<tmp>/repo/workspace/.opencode/skills/edited/SKILL.md
+        index 2d85518..198ba1b 100644
+        --- a<tmp>/repo/skills/edited/SKILL.md
+        +++ b<tmp>/repo/workspace/.opencode/skills/edited/SKILL.md
+        @@ -2,4 +2,4 @@
+         name: edited
+         description: edited 測試技能
+         ---
+        -原本的說明
+        +agent 改過的說明
+    
+    略過（4）
+      linked    symlink
+      old-tool  已退役內建
+      same      與內建相同
+      sched     舊版內建，未被修改（與 2473b3b 相同）
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 0
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:191:14)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-007 promote 拒絕：目錄裡含 symlink；非 0、skills/ 不變
+not ok 13 - SCN-007 promote 拒絕：目錄裡含 symlink；非 0、skills/ 不變
+  ---
+  duration_ms: 92.663339
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:7:4462'
+  failureType: 'testCodeFailure'
+  error: |-
+    [harvest] 掃描 <tmp>/repo/workspace/.opencode/skills，比對 <tmp>/repo/skills 與它的 git 歷史
+    
+    新技能（1）
+      newskill  2 個檔案
+    
+    被改過的內建技能（1）
+      edited
+        diff --git a<tmp>/repo/skills/edited/SKILL.md b<tmp>/repo/workspace/.opencode/skills/edited/SKILL.md
+        index 2d85518..198ba1b 100644
+        --- a<tmp>/repo/skills/edited/SKILL.md
+        +++ b<tmp>/repo/workspace/.opencode/skills/edited/SKILL.md
+        @@ -2,4 +2,4 @@
+         name: edited
+         description: edited 測試技能
+         ---
+        -原本的說明
+        +agent 改過的說明
+    
+    略過（5）
+      linked    symlink
+      old-tool  已退役內建
+      same      與內建相同
+      sched     舊版內建，未被修改（與 2473b3b 相同）
+      withlink  目錄裡含 symlink
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 0
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:191:14)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-007 promote 拒絕：技能本身是 symlink；非 0、skills/ 不變
+not ok 14 - SCN-007 promote 拒絕：技能本身是 symlink；非 0、skills/ 不變
+  ---
+  duration_ms: 87.45789
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:7:4462'
+  failureType: 'testCodeFailure'
+  error: |-
+    [harvest] 掃描 <tmp>/repo/workspace/.opencode/skills，比對 <tmp>/repo/skills 與它的 git 歷史
+    
+    新技能（1）
+      newskill  2 個檔案
+    
+    被改過的內建技能（1）
+      edited
+        diff --git a<tmp>/repo/skills/edited/SKILL.md b<tmp>/repo/workspace/.opencode/skills/edited/SKILL.md
+        index 2d85518..198ba1b 100644
+        --- a<tmp>/repo/skills/edited/SKILL.md
+        +++ b<tmp>/repo/workspace/.opencode/skills/edited/SKILL.md
+        @@ -2,4 +2,4 @@
+         name: edited
+         description: edited 測試技能
+         ---
+        -原本的說明
+        +agent 改過的說明
+    
+    略過（4）
+      linked    symlink
+      old-tool  已退役內建
+      same      與內建相同
+      sched     舊版內建，未被修改（與 2473b3b 相同）
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 0
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:191:14)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-007 promote 拒絕：workspace 沒有這個名稱；非 0、skills/ 不變
+not ok 15 - SCN-007 promote 拒絕：workspace 沒有這個名稱；非 0、skills/ 不變
+  ---
+  duration_ms: 90.192236
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:7:4462'
+  failureType: 'testCodeFailure'
+  error: |-
+    [harvest] 掃描 <tmp>/repo/workspace/.opencode/skills，比對 <tmp>/repo/skills 與它的 git 歷史
+    
+    新技能（1）
+      newskill  2 個檔案
+    
+    被改過的內建技能（1）
+      edited
+        diff --git a<tmp>/repo/skills/edited/SKILL.md b<tmp>/repo/workspace/.opencode/skills/edited/SKILL.md
+        index 2d85518..198ba1b 100644
+        --- a<tmp>/repo/skills/edited/SKILL.md
+        +++ b<tmp>/repo/workspace/.opencode/skills/edited/SKILL.md
+        @@ -2,4 +2,4 @@
+         name: edited
+         description: edited 測試技能
+         ---
+        -原本的說明
+        +agent 改過的說明
+    
+    略過（4）
+      linked    symlink
+      old-tool  已退役內建
+      same      與內建相同
+      sched     舊版內建，未被修改（與 2473b3b 相同）
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 0
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:191:14)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-007 promote 拒絕：名稱含路徑分隔符號；非 0、skills/ 不變
+not ok 16 - SCN-007 promote 拒絕：名稱含路徑分隔符號；非 0、skills/ 不變
+  ---
+  duration_ms: 94.055046
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:7:4462'
+  failureType: 'testCodeFailure'
+  error: |-
+    [harvest] 掃描 <tmp>/repo/workspace/.opencode/skills，比對 <tmp>/repo/skills 與它的 git 歷史
+    
+    新技能（1）
+      newskill  2 個檔案
+    
+    被改過的內建技能（1）
+      edited
+        diff --git a<tmp>/repo/skills/edited/SKILL.md b<tmp>/repo/workspace/.opencode/skills/edited/SKILL.md
+        index 2d85518..198ba1b 100644
+        --- a<tmp>/repo/skills/edited/SKILL.md
+        +++ b<tmp>/repo/workspace/.opencode/skills/edited/SKILL.md
+        @@ -2,4 +2,4 @@
+         name: edited
+         description: edited 測試技能
+         ---
+        -原本的說明
+        +agent 改過的說明
+    
+    略過（4）
+      linked    symlink
+      old-tool  已退役內建
+      same      與內建相同
+      sched     舊版內建，未被修改（與 2473b3b 相同）
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 0
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:191:14)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-007 promote 拒絕：名稱是 ..；非 0、skills/ 不變
+not ok 17 - SCN-007 promote 拒絕：名稱是 ..；非 0、skills/ 不變
+  ---
+  duration_ms: 91.221046
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:7:4462'
+  failureType: 'testCodeFailure'
+  error: |-
+    [harvest] 掃描 <tmp>/repo/workspace/.opencode/skills，比對 <tmp>/repo/skills 與它的 git 歷史
+    
+    新技能（1）
+      newskill  2 個檔案
+    
+    被改過的內建技能（1）
+      edited
+        diff --git a<tmp>/repo/skills/edited/SKILL.md b<tmp>/repo/workspace/.opencode/skills/edited/SKILL.md
+        index 2d85518..198ba1b 100644
+        --- a<tmp>/repo/skills/edited/SKILL.md
+        +++ b<tmp>/repo/workspace/.opencode/skills/edited/SKILL.md
+        @@ -2,4 +2,4 @@
+         name: edited
+         description: edited 測試技能
+         ---
+        -原本的說明
+        +agent 改過的說明
+    
+    略過（4）
+      linked    symlink
+      old-tool  已退役內建
+      same      與內建相同
+      sched     舊版內建，未被修改（與 2473b3b 相同）
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 0
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:191:14)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-008 --force 覆寫同名內建技能：與 workspace 完全相同，少掉的檔案也移除
+not ok 18 - SCN-008 --force 覆寫同名內建技能：與 workspace 完全相同，少掉的檔案也移除
+  ---
+  duration_ms: 108.70017
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:7:4911'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+    +   'SKILL.md': '---\nname: edited\ndescription: edited 測試技能\n---\n原本的說明\n',
+    +   'notes.md': '附註\n'
+    -   'SKILL.md': '---\nname: edited\ndescription: edited 測試技能\n---\nagent 改過的說明\n'
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    SKILL.md: |-
+      ---
+      name: edited
+      description: edited 測試技能
+      ---
+      agent 改過的說明
+      
+  actual:
+    SKILL.md: |-
+      ---
+      name: edited
+      description: edited 測試技能
+      ---
+      原本的說明
+      
+    notes.md: |-
+      附註
+      
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:205:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-009 promote 照樣複製但警告：name 與目錄名不同
+not ok 19 - SCN-009 promote 照樣複製但警告：name 與目錄名不同
+  ---
+  duration_ms: 103.04699
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:9:225'
+  failureType: 'testCodeFailure'
+  error: "ENOENT: no such file or directory, scandir '<tmp>/repo/skills/renamed'"
+  code: 'ENOENT'
+  stack: |-
+    read (node:fs:1488:35)
+    readdirSyncRecursive (node:fs:1506:5)
+    readdirSync (node:fs:1580:12)
+    snapshot (<repo>/tests/harvest-skills.test.ts:31:23)
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:224:24)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+  ...
+# Subtest: SCN-009 promote 照樣複製但警告：疑似 token
+not ok 20 - SCN-009 promote 照樣複製但警告：疑似 token
+  ---
+  duration_ms: 97.605588
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:9:225'
+  failureType: 'testCodeFailure'
+  error: "ENOENT: no such file or directory, scandir '<tmp>/repo/skills/tokeny'"
+  code: 'ENOENT'
+  stack: |-
+    read (node:fs:1488:35)
+    readdirSyncRecursive (node:fs:1506:5)
+    readdirSync (node:fs:1580:12)
+    snapshot (<repo>/tests/harvest-skills.test.ts:31:23)
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:224:24)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+  ...
+# Subtest: SCN-009 promote 照樣複製但警告：本機絕對路徑
+not ok 21 - SCN-009 promote 照樣複製但警告：本機絕對路徑
+  ---
+  duration_ms: 115.883081
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:9:225'
+  failureType: 'testCodeFailure'
+  error: "ENOENT: no such file or directory, scandir '<tmp>/repo/skills/pathy'"
+  code: 'ENOENT'
+  stack: |-
+    read (node:fs:1488:35)
+    readdirSyncRecursive (node:fs:1506:5)
+    readdirSync (node:fs:1580:12)
+    snapshot (<repo>/tests/harvest-skills.test.ts:31:23)
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:224:24)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+  ...
+# Subtest: SCN-009 沒有可疑內容時不警告
+ok 22 - SCN-009 沒有可疑內容時不警告
+  ---
+  duration_ms: 89.444134
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 10
+# fail 12
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2201.590205
+exit=1

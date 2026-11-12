@@ -23,6 +23,7 @@
     "report:compare:24h": "node scripts/report-execution-compare.mjs --hours 24",
     "models:probe": "node scripts/probe-models.mjs",
     "models:probe:all": "node scripts/probe-models.mjs --all --rounds 2",
+    "skills:harvest": "node scripts/harvest-skills.mjs",
     "memory:backfill-summary-metadata": "tsx scripts/backfill-summary-metadata.ts",
     "memory:health": "node dist/tools/memory-health-cli.js",
     "memoria:migrate-legacy-scope": "node dist/tools/memoria-legacy-scope-cli.js",

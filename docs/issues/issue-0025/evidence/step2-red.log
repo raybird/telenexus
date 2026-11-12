@@ -1,0 +1,229 @@
+# 2026-11-12 步驟 2 紅燈。命令：npx tsx --test tests/harvest-skills.test.ts。被測：760775b 加上未提交的 stub scripts/harvest-skills.mjs（只 exit 0）與測試。
+TAP version 13
+# Subtest: SCN-001 列出新技能，附檔案數；結束碼 0，repo 沒有變動
+not ok 1 - SCN-001 列出新技能，附檔案數；結束碼 0，repo 沒有變動
+  ---
+  duration_ms: 49.776879
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:7:113'
+  failureType: 'testCodeFailure'
+  error: |-
+    輸出要有「新技能」：
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    section (<repo>/tests/harvest-skills.test.ts:76:10)
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:87:18)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: SCN-002 被改過的內建技能附差異
+not ok 2 - SCN-002 被改過的內建技能附差異
+  ---
+  duration_ms: 38.279729
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:7:468'
+  failureType: 'testCodeFailure'
+  error: |-
+    輸出要有「被改過的內建技能」：
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    section (<repo>/tests/harvest-skills.test.ts:76:10)
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:96:22)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: SCN-003 舊版內建技能列在略過，標出相符的版本
+not ok 3 - SCN-003 舊版內建技能列在略過，標出相符的版本
+  ---
+  duration_ms: 36.200063
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:7:864'
+  failureType: 'testCodeFailure'
+  error: |-
+    輸出要有「略過」：
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    section (<repo>/tests/harvest-skills.test.ts:76:10)
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:108:18)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-004 linked 列在略過，原因是「symlink」
+not ok 4 - SCN-004 linked 列在略過，原因是「symlink」
+  ---
+  duration_ms: 38.679886
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:7:1444'
+  failureType: 'testCodeFailure'
+  error: |-
+    輸出要有「略過」：
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    section (<repo>/tests/harvest-skills.test.ts:76:10)
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:118:20)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-004 same 列在略過，原因是「與內建相同」
+not ok 5 - SCN-004 same 列在略過，原因是「與內建相同」
+  ---
+  duration_ms: 40.608181
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:7:1444'
+  failureType: 'testCodeFailure'
+  error: |-
+    輸出要有「略過」：
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    section (<repo>/tests/harvest-skills.test.ts:76:10)
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:118:20)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-004 old-tool 列在略過，原因是「已退役內建」
+not ok 6 - SCN-004 old-tool 列在略過，原因是「已退役內建」
+  ---
+  duration_ms: 37.629523
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:7:1444'
+  failureType: 'testCodeFailure'
+  error: |-
+    輸出要有「略過」：
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    section (<repo>/tests/harvest-skills.test.ts:76:10)
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:118:20)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-005 --from 掃描另一個 workspace，比對基準仍是本 repo
+not ok 7 - SCN-005 --from 掃描另一個 workspace，比對基準仍是本 repo
+  ---
+  duration_ms: 46.108238
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:7:1765'
+  failureType: 'testCodeFailure'
+  error: |-
+    輸出要有「新技能」：
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    section (<repo>/tests/harvest-skills.test.ts:76:10)
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:131:18)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-005 --from 指向沒有 .opencode/skills 的路徑：非 0 並說明找不到
+not ok 8 - SCN-005 --from 指向沒有 .opencode/skills 的路徑：非 0 並說明找不到
+  ---
+  duration_ms: 38.620944
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:7:2500'
+  failureType: 'testCodeFailure'
+  error: 'Expected "actual" to be strictly unequal to: 0'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 0
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:143:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: 不在 git checkout 裡執行：非 0 並說明
+not ok 9 - 不在 git checkout 裡執行：非 0 並說明
+  ---
+  duration_ms: 36.04572
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:7:2888'
+  failureType: 'testCodeFailure'
+  error: 'Expected "actual" to be strictly unequal to: 0'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 0
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:153:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 0
+# fail 9
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 556.951525
+exit=1

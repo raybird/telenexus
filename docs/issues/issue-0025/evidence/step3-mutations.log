@@ -1,0 +1,16 @@
+# 2026-11-12 步驟 2～3 突變。一次改 scripts/harvest-skills.mjs 一處，再跑 npx tsx --test tests/harvest-skills.test.ts，跑完以 cmp 確認還原。被測：未提交的工作樹（步驟 3 綠燈的版本）。
+M1 promote 拿掉目錄內 symlink 檢查: not ok 13 - 目錄裡含 symlink；非 0、skills/ 不變 # pass 21 # fail 1 
+M2 promote 拿掉同名檢查: not ok 11 - skills/ 已有同名技能；非 0、skills/ 不變 # pass 21 # fail 1 
+M3 警告印出整行內容（含 token）: not ok 20 - 疑似 token # pass 21 # fail 1 
+M4 分類不比對歷史版本: not ok 3 - SCN-003 舊版內建技能列在略過，標出相符的版本 not ok 7 - SCN-005 --from 掃描另一個 workspace，比對基準仍是本 repo # pass 20 # fail 2 
+M5 不刪暫存目錄: # pass 22 # fail 0 
+M6 --force 不移走舊目錄，直接複製覆蓋: not ok 18 - 與 workspace 完全相同，少掉的檔案也移除 # pass 21 # fail 1 
+M7 已退役判斷拿掉: not ok 6 - SCN-004 old-tool 列在略過，原因是「已退役內建」 # pass 21 # fail 1 
+M8 名稱檢查拿掉: # pass 22 # fail 0 
+--- 補測試後（名稱以 .. 指向 workspace 外、注入複製失敗），以同一個命令重跑沒擋下的突變並新增 M9：
+M5 不刪暫存目錄: not ok 24 - 非 0，skills/ 不變、不留暫存 not ok 25 - 非 0，skills/ 不變、不留暫存 # pass 23 # fail 2 
+M8 名稱檢查拿掉: # pass 25 # fail 0 
+M9 --force 複製失敗時不把舊版移回: # pass 25 # fail 0 
+--- 再補「換上新版時改名失敗」的測試後重跑 M9；M8 仍未轉紅，原因：名稱含 / 時暫存目錄路徑不存在，mkdtemp 先失敗而拒絕，名稱檢查保留為明確防線：
+M9 --force 換上失敗時不把舊版移回: not ok 26 - 舊版移回原處，skills/ 不變 # pass 25 # fail 1 
+還原：cmp 相同
