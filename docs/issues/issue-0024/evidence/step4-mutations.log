@@ -1,0 +1,6 @@
+M1 不比對舊版雜湊，存在就換新: not ok 3 - SCN-008 有客製內容（SKILL.md 被改過）：原地保留並警告，重跑不變 not ok 4 - SCN-008 有客製內容（多了檔案）：原地保留並警告，重跑不變 not ok 5 - SCN-008 有客製內容（多了目錄）：原地保留並警告，重跑不變 not ok 6 - SCN-008 web-reading 是指向舊版的 symlink：不跟著連結改動，原地保留並警告 # pass 5 # fail 4 
+M3 拿掉「已經是新版」的判斷: not ok 8 - SCN-008 已經是新版：不變，不建立備份 # pass 8 # fail 1 
+M5 不呼叫升級: not ok 2 - SCN-008 與已出貨舊版雜湊相同：換成新版，舊版備份到 retired-skills，重跑不變 not ok 3 - SCN-008 有客製內容（SKILL.md 被改過）：原地保留並警告，重跑不變 not ok 4 - SCN-008 有客製內容（多了檔案）：原地保留並警告，重跑不變 not ok 5 - SCN-008 有客製內容（多了目錄）：原地保留並警告，重跑不變 not ok 6 - SCN-008 web-reading 是指向舊版的 symlink：不跟著連結改動，原地保留並警告 not ok 7 - SCN-008 備份已存在而 workspace 仍是舊版：不覆寫備份，保留並警告 not ok 9 - SCN-008 telenexus 與 agent-runner 同時同步：只有一份備份、結果是新版 # pass 2 # fail 7 
+M2 不備份，直接刪除舊版: not ok 2 - SCN-008 與已出貨舊版雜湊相同：換成新版，舊版備份到 retired-skills，重跑不變 not ok 9 - SCN-008 telenexus 與 agent-runner 同時同步：只有一份備份、結果是新版 # pass 7 # fail 2 
+M4 不檢查備份是否已存在: not ok 7 - SCN-008 備份已存在而 workspace 仍是舊版：不覆寫備份，保留並警告 # pass 8 # fail 1 
+M6 改名衝突不忽略: # pass 9 # fail 0 

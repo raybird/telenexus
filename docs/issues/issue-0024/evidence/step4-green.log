@@ -1,0 +1,137 @@
+TAP version 13
+# Subtest: SCN-006 新安裝兩目標不再同步 agent-browser，重跑冪等
+ok 1 - SCN-006 新安裝兩目標不再同步 agent-browser，重跑冪等
+  ---
+  duration_ms: 57.101944
+  type: 'test'
+  ...
+# Subtest: SCN-006 完全相符舊內建技能兩目標改名備份，索引退役且不覆寫
+ok 2 - SCN-006 完全相符舊內建技能兩目標改名備份，索引退役且不覆寫
+  ---
+  duration_ms: 63.752884
+  type: 'test'
+  ...
+# Subtest: SCN-006 custom-content 兩目標保留原地、警告且重跑不覆寫
+ok 3 - SCN-006 custom-content 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 57.473178
+  type: 'test'
+  ...
+# Subtest: SCN-006 extra-file 兩目標保留原地、警告且重跑不覆寫
+ok 4 - SCN-006 extra-file 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 57.424159
+  type: 'test'
+  ...
+# Subtest: SCN-006 prototype-file 兩目標保留原地、警告且重跑不覆寫
+ok 5 - SCN-006 prototype-file 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 56.139369
+  type: 'test'
+  ...
+# Subtest: SCN-006 extra-dir 兩目標保留原地、警告且重跑不覆寫
+ok 6 - SCN-006 extra-dir 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 56.811926
+  type: 'test'
+  ...
+# Subtest: SCN-006 symlink 兩目標保留原地、警告且重跑不覆寫
+ok 7 - SCN-006 symlink 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 55.160209
+  type: 'test'
+  ...
+# Subtest: SCN-006 root-symlink 兩目標保留原地、警告且重跑不覆寫
+ok 8 - SCN-006 root-symlink 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 65.58483
+  type: 'test'
+  ...
+# Subtest: SCN-006 backup-collision 兩目標保留原地、警告且重跑不覆寫
+ok 9 - SCN-006 backup-collision 兩目標保留原地、警告且重跑不覆寫
+  ---
+  duration_ms: 55.880664
+  type: 'test'
+  ...
+# Subtest: SCN-006 target-ancestor-symlink 保留兩目標並警告
+ok 10 - SCN-006 target-ancestor-symlink 保留兩目標並警告
+  ---
+  duration_ms: 53.096769
+  type: 'test'
+  ...
+# Subtest: SCN-006 backup-ancestor-symlink 保留兩目標並警告
+ok 11 - SCN-006 backup-ancestor-symlink 保留兩目標並警告
+  ---
+  duration_ms: 54.225753
+  type: 'test'
+  ...
+# Subtest: SCN-006 local／runner 同時同步只保留一份完整備份，不殘留 builtin
+ok 12 - SCN-006 local／runner 同時同步只保留一份完整備份，不殘留 builtin
+  ---
+  duration_ms: 54.462904
+  type: 'test'
+  ...
+# Subtest: SCN-008 沒有 web-reading：複製新版，重跑不變
+ok 13 - SCN-008 沒有 web-reading：複製新版，重跑不變
+  ---
+  duration_ms: 54.848274
+  type: 'test'
+  ...
+# Subtest: SCN-008 與已出貨舊版雜湊相同：換成新版，舊版備份到 retired-skills，重跑不變
+ok 14 - SCN-008 與已出貨舊版雜湊相同：換成新版，舊版備份到 retired-skills，重跑不變
+  ---
+  duration_ms: 57.68286
+  type: 'test'
+  ...
+# Subtest: SCN-008 有客製內容（SKILL.md 被改過）：原地保留並警告，重跑不變
+ok 15 - SCN-008 有客製內容（SKILL.md 被改過）：原地保留並警告，重跑不變
+  ---
+  duration_ms: 52.825793
+  type: 'test'
+  ...
+# Subtest: SCN-008 有客製內容（多了檔案）：原地保留並警告，重跑不變
+ok 16 - SCN-008 有客製內容（多了檔案）：原地保留並警告，重跑不變
+  ---
+  duration_ms: 52.165897
+  type: 'test'
+  ...
+# Subtest: SCN-008 有客製內容（多了目錄）：原地保留並警告，重跑不變
+ok 17 - SCN-008 有客製內容（多了目錄）：原地保留並警告，重跑不變
+  ---
+  duration_ms: 50.251291
+  type: 'test'
+  ...
+# Subtest: SCN-008 web-reading 是指向舊版的 symlink：不跟著連結改動，原地保留並警告
+ok 18 - SCN-008 web-reading 是指向舊版的 symlink：不跟著連結改動，原地保留並警告
+  ---
+  duration_ms: 25.267754
+  type: 'test'
+  ...
+# Subtest: SCN-008 備份已存在而 workspace 仍是舊版：不覆寫備份，保留並警告
+ok 19 - SCN-008 備份已存在而 workspace 仍是舊版：不覆寫備份，保留並警告
+  ---
+  duration_ms: 27.017058
+  type: 'test'
+  ...
+# Subtest: SCN-008 已經是新版：不變，不建立備份
+ok 20 - SCN-008 已經是新版：不變，不建立備份
+  ---
+  duration_ms: 26.836606
+  type: 'test'
+  ...
+# Subtest: SCN-008 telenexus 與 agent-runner 同時同步：只有一份備份、結果是新版
+ok 21 - SCN-008 telenexus 與 agent-runner 同時同步：只有一份備份、結果是新版
+  ---
+  duration_ms: 146.443398
+  type: 'test'
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 21
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 848.500014
+exit=0

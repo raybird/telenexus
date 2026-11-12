@@ -3,6 +3,8 @@ import path from 'path';
 import { createHash } from 'crypto';
 
 const retiredBrowser = JSON.parse(fs.readFileSync(new URL('./retired-agent-browser.json', import.meta.url), 'utf8'));
+// 2026-11-12（issue 0024）：已出貨的舊版 web-reading，雜湊完全相同時才換成新版。
+const legacyWebReading = JSON.parse(fs.readFileSync(new URL('./retired-web-reading.json', import.meta.url), 'utf8'));
 
 const sourceDir = process.env.BUILTIN_SKILLS_DIR || '/app/skills';
 // 支援多個同步目標：OPENCODE_SKILLS_DIRS (逗號分隔) 優先，
@@ -36,8 +38,9 @@ function pathHasSymlink(candidate) {
   }
 }
 
-function matchesRetiredBrowser(candidate) {
-  if (pathHasSymlink(candidate)) return false;
+/** 目錄的檔案雜湊與子目錄清單；含 symlink 或其他特殊檔案時回傳 null。 */
+function scanDirectory(candidate) {
+  if (pathHasSymlink(candidate)) return null;
   const files = Object.create(null);
   const directories = [];
   function scan(dir, prefix = '') {
@@ -54,11 +57,22 @@ function matchesRetiredBrowser(candidate) {
     }
     return true;
   }
-  if (!scan(candidate)) return false;
-  const expectedFiles = Object.keys(retiredBrowser.files).sort();
-  return JSON.stringify(Object.keys(files).sort()) === JSON.stringify(expectedFiles) &&
-    expectedFiles.every((name) => files[name] === retiredBrowser.files[name]) &&
-    JSON.stringify(directories.sort()) === JSON.stringify([...retiredBrowser.directories].sort());
+  if (!scan(candidate)) return null;
+  return { files, directories };
+}
+
+/** candidate 的內容是否與 manifest（files: 相對路徑→sha256、directories）完全相同。 */
+function matchesManifest(candidate, manifest) {
+  const scanned = scanDirectory(candidate);
+  if (!scanned) return false;
+  const expectedFiles = Object.keys(manifest.files).sort();
+  return JSON.stringify(Object.keys(scanned.files).sort()) === JSON.stringify(expectedFiles) &&
+    expectedFiles.every((name) => scanned.files[name] === manifest.files[name]) &&
+    JSON.stringify(scanned.directories.sort()) === JSON.stringify([...manifest.directories].sort());
+}
+
+function matchesRetiredBrowser(candidate) {
+  return matchesManifest(candidate, retiredBrowser);
 }
 
 function retireBuiltinBrowser(targetDir) {
@@ -108,9 +122,65 @@ function retireBuiltinBrowser(targetDir) {
   }
 }
 
+function isMissing(error) {
+  return error.code === 'ENOENT';
+}
+
+// 只補缺少目錄的同步策略不會更新既有部署的 web-reading。workspace 的副本與已出貨的舊版
+// 完全相同（沒被改過）時，先改名備份再複製新版；有客製內容、symlink 或備份已存在時原地保留並警告。
+// telenexus 與 agent-runner 會同時執行本腳本，改名是兩者之間唯一的競爭點。
+function upgradeBuiltinWebReading(targetDir) {
+  const source = path.join(sourceDir, 'web-reading');
+  const candidate = path.join(targetDir, 'web-reading');
+  const backup = path.join(path.dirname(targetDir), 'retired-skills', `web-reading-${legacyWebReading.id}`);
+  const current = scanDirectory(source);
+  if (!current) return;
+  try {
+    fs.lstatSync(candidate);
+  } catch (error) {
+    if (isMissing(error)) return;
+    throw error;
+  }
+  let matchesLegacy = false;
+  try {
+    if (matchesManifest(candidate, current)) return;
+    matchesLegacy = matchesManifest(candidate, legacyWebReading);
+  } catch (error) {
+    // 另一個 worker 剛把它改名；之後的同步流程會補上新版。
+    if (isMissing(error)) return;
+    throw error;
+  }
+  if (!matchesLegacy) {
+    console.warn(`[SkillSync] web-reading 有自訂內容，已保留 ${candidate}；新版網頁閱讀指引未套用，請人工比對 ${source}。`);
+    return;
+  }
+  try {
+    fs.lstatSync(backup);
+    console.warn(`[SkillSync] web-reading 備份已存在，保留 ${candidate} 與 ${backup}；新版網頁閱讀指引未套用。`);
+    return;
+  } catch (error) {
+    if (!isMissing(error)) throw error;
+  }
+  if (pathHasSymlink(path.dirname(backup))) {
+    console.warn(`[SkillSync] web-reading 的備份位置含 symlink，已保留 ${candidate}；新版網頁閱讀指引未套用。`);
+    return;
+  }
+  ensureDir(path.dirname(backup));
+  try {
+    fs.renameSync(candidate, backup);
+  } catch (error) {
+    // ENOENT：另一個 worker 已改名；ENOTEMPTY／EEXIST：另一個 worker 已完成備份。
+    if (isMissing(error) || error.code === 'ENOTEMPTY' || error.code === 'EEXIST') return;
+    throw error;
+  }
+  fs.cpSync(source, candidate, { recursive: true, force: false });
+  console.log(`[SkillSync] Upgraded builtin web-reading; previous version: ${backup}`);
+}
+
 function syncBuiltinSkills() {
   targetDirs.forEach(ensureDir);
   targetDirs.forEach(retireBuiltinBrowser);
+  targetDirs.forEach(upgradeBuiltinWebReading);
   if (!fs.existsSync(sourceDir)) {
     console.log(`[SkillSync] Builtin skills source not found: ${sourceDir}`);
     return;
