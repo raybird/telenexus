@@ -149,6 +149,17 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
       | 有 web-reading，內容和已出貨的舊版雜湊完全相同 | 換成新版，舊版備份到 retired-skills |
       | 有 web-reading，內容被改過或多了檔案 | 原地保留並輸出警告，不覆寫 |
       | 已經是新版 web-reading | 不變 |
+
+  @SCN-009
+  Scenario Outline: 聊天提示詞帶著網頁讀取順序
+    When TeleNexus 以 <模式> 組出聊天提示詞
+    Then 提示詞在使用者訊息之前寫明：先用 webfetch，讀到所需正文就以它回答；只取得殼層時以 bash 執行 telenexus-moli-fetch；仍讀不到才用 telenexus_browser
+
+    Examples:
+      | 模式 |
+      | full |
+      | compact |
+      | minimal |
 ```
 
 ## Gherkin 核准紀錄
@@ -163,6 +174,7 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
   - Q7「雜湊相符才自動換新」（SCN-008）。
   - Q8「只收 http/https」（SCN-006）。
   - 2026-11-12 使用者以「照寫核准」確認推導出的行為（TBD-3）：收尾窗口「wrapper 啟動後 45 秒內」（30 秒硬逾時加 issue 0010 的 15 秒收尾標準）、Markdown 輸出是空的也算 Moli 失敗、SCN-007 的映像釘版規則。
+  - 2026-11-12 步驟 6 實測後的逐題確認：Q9 選「只用真模型」；Q11 選「改指引措辭後，用正式提示詞重測」；Q12 選「改成擬真頁面後重跑」；Q13 選「加常駐規則，額度恢復後重測」，該選項寫明在 full／compact／minimal 都加一行網頁讀取順序，新增 SCN-009。
 
 | Scenario | 核准日期 | 狀態 |
 |----------|---------|------|
@@ -174,6 +186,7 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
 | SCN-006 | 2026-11-12 | 已核准 |
 | SCN-007 | 2026-11-12 | 已核准 |
 | SCN-008 | 2026-11-12 | 已核准 |
+| SCN-009 | 2026-11-12 | 已核准 |
 
 ## 重構步驟概要
 
@@ -184,7 +197,7 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
 3. ✅ **步驟 3** - Moli wrapper（SCN-005、SCN-006）
 4. ✅ **步驟 4** - 技能同步升級（SCN-008）
 5. ✅ **步驟 5** - web-reading 指引（SCN-001～004）
-6. 📝 **步驟 6** - 實際 OpenCode 工具路徑整合（SCN-001～005）
+6. 🔄 **步驟 6** - 實際 OpenCode 工具路徑整合（SCN-001～005、SCN-009）：三輪實測完成，常駐規則（SCN-009）已實作，等免費額度恢復後重測
 7. 📝 **步驟 7** - 常青文件與交付檢查
 
 ## 風險與首要驗證
@@ -200,7 +213,7 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
 | 編號 | 事項 | 狀態 | 影響 |
 |------|------|------|------|
 | TBD-1 | `--block-private-networks` 會擋 loopback，JS fixture 要放在哪裡，SCN-002 才能在不關掉封鎖的情況下驗證（例如拋棄式容器網路內的非保留位址、受控的公開頁面）；wrapper 不為測試開放關閉封鎖的參數 | 已解決（2026-11-12）：封鎖不擋非保留網段，fixture 放在拋棄式 Docker 網路的 `45.67.89.0/24`；內網的例子用同一個 fixture 的 RFC1918 位址與服務名稱（[步驟 1](evidence/step1-moli-probe.md#對-tbd-的結論)） | SCN-002、SCN-003、SCN-005 的驗證方式 |
-| TBD-2 | 使用者取消時，opencode 的 bash 工具另開 session，wrapper 和 Moli 可能不會收到訊號，只能靠 30 秒硬逾時結束。另外 wrapper 本身被 SIGKILL 時，清理暫存目錄的 trap 不會執行 | 待確認。2026-11-12 步驟 1 確認：Moli 只寫 `TMPDIR/moli-storage-*`，被 SIGTERM 或 SIGKILL 中斷時會留下。wrapper 改為另起獨立 session 的清理程序，由步驟 3 驗證；實際取消的訊號由步驟 6 實測 | SCN-005 |
+| TBD-2 | 使用者取消時，opencode 的 bash 工具另開 session，wrapper 和 Moli 可能不會收到訊號，只能靠 30 秒硬逾時結束。另外 wrapper 本身被 SIGKILL 時，清理暫存目錄的 trap 不會執行 | 已解決（2026-11-12）：步驟 6 實測，取消時 runner 只終止 opencode，wrapper 被收養到 pid 1 繼續執行，Moli 自己的 10 秒逾時到了才結束並清掉暫存目錄（最壞情況靠 30 秒硬逾時），仍在 45 秒窗口內（[步驟 6](evidence/step6-opencode-path.md#收尾scn-005)）。取消訊號不會傳到 wrapper，維持現行設計 | SCN-005 |
 | TBD-3 | 推導出的行為等待確認：收尾窗口「wrapper 啟動後 45 秒內」、Markdown 輸出是空的也算失敗、SCN-007 的釘版規則 | 已解決（2026-11-12）：使用者回「照寫核准」，三項照寫 | SCN-001～008 |
 
 ## Gate 豁免紀錄
@@ -215,6 +228,7 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
 |------|------|--------|
 | 2026-11-11 | 建立 GitHub issue #24 與本文件；逐題確認 Q1～Q8；SCN-001～008 待核准（TBD-3） | - |
 | 2026-11-12 | 使用者回「照寫核准」：SCN-001～008 核准，TBD-3 解決 | 使用者 |
+| 2026-11-12 | 步驟 2～5 完成並提交到分支；步驟 6 三輪真模型實測，TBD-2 解決；Q13 新增 SCN-009 並實作 | - |
 
 ---
 **建立日期**: 2026-11-11  

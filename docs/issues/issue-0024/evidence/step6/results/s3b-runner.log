@@ -1,0 +1,9 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[opencode-retention] INFO scheduled retentionDays=30 intervalMs=3600000
+[Runner] INFO listening port=8787
+[Runner] INFO run_start req=45b0d9ec-7ba7-40aa-8216-91d81112be4f task=chat stream=false lane=interactive
+[Opencode] INFO execute model=opencode/big-pickle
+[Opencode] INFO start cmd=opencode run --format json --model opencode/big-pickle --print-logs --log-level ERROR <prompt> cwd=/app/workspace
+[Opencode] INFO done outputLen=12940
+[Opencode] INFO reply len=134
+[Runner] INFO run_done req=45b0d9ec-7ba7-40aa-8216-91d81112be4f durationMs=24599 provider=opencode lane=interactive

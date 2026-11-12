@@ -1,0 +1,8 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 👥 sync secrets across teammates & machines: https://dotenvx.com/ops
+[opencode-retention] INFO scheduled retentionDays=30 intervalMs=3600000
+[Runner] INFO listening port=8787
+[Runner] INFO run_start req=7918482c-5868-4c58-966d-fa5ed0aebf12 task=chat stream=false lane=interactive
+[Opencode] INFO execute model=opencode/big-pickle
+[Opencode] INFO start cmd=opencode run --format json --model opencode/big-pickle --print-logs --log-level ERROR <prompt> cwd=/app/workspace
+[Opencode] ERROR execution_failed err=Process aborted by signal code=EABORTED stdout={"type":"step_start","timestamp":1794452282634,"sessionID":"ses_e324f2e9bffe5jodb7JZHyXrp5","part":{"id":"prt_1cdb0dce1001aflNCdr42NzAyD","messageID":"msg_1cdb0d4360014iEGCqj2tSe30U","sessionID":"ses_e324f2e9bffe5jodb7JZHyXrp5","type":"step-start"}} {"type":"tool_use","timestamp":1794452283136,"sessionID":"ses_e324f2e9bffe5jodb7JZHyXrp5","part":{"type":"tool","tool":"skill","callID":"call_00_xvt3agonusv54jxfgn7izuaa","state":{"status":"completed","input":{"name":"web-reading"},"output":"<skill_c
+[Runner] WARN run_error req=7918482c-5868-4c58-966d-fa5ed0aebf12 durationMs=12980 error=This operation was aborted

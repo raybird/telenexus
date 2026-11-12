@@ -1,0 +1,10 @@
+{"step":"idle","exit":0,"kinds":[],"tmp":[],"fixtureClients":[]}
+{"step":"wrapper","exit":0,"kinds":["wrapper","moli"],"tmp":["tnm-yPCFZB"],"fixtureClients":["moli"]}
+{"step":"tmp-leftover","exit":0,"kinds":["wrapper","moli"],"tmp":["tnm-yPCFZB","tnm-control"],"fixtureClients":[]}
+{"step":"tmp-removed","exit":0,"kinds":[],"tmp":["tnm-control"],"fixtureClients":[]}
+{"step":"zombie","exit":0,"kinds":["zombie"],"tmp":["tnm-control"],"fixtureClients":[]}
+{"step":"chrome","exit":124,"kinds":["zombie","chrome"],"tmp":["tnb-control"],"fixtureClients":["chrome"]}
+{"step":"chrome-profile-removed","exit":0,"kinds":["chrome"],"tmp":["tnb-control"],"fixtureClients":[]}
+{"step":"curl","exit":0,"kinds":["chrome"],"tmp":["tnb-control"],"fixtureClients":["other"]}
+{"step":"idle-end","exit":0,"kinds":["chrome"],"tmp":["tnb-control"],"fixtureClients":[]}
+{"step":"final-row","final":true,"procs":[],"tmp":[]}

@@ -1,0 +1,9 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+[opencode-retention] INFO scheduled retentionDays=30 intervalMs=3600000
+[Runner] INFO listening port=8787
+[Runner] INFO run_start req=a94767a2-bbf7-4d94-b7a2-a8f8bbb0b7b7 task=chat stream=false lane=interactive
+[Opencode] INFO execute model=opencode/big-pickle
+[Opencode] INFO start cmd=opencode run --format json --model opencode/big-pickle --print-logs --log-level ERROR <prompt> cwd=/app/workspace
+[Opencode] ERROR execution_failed err=Opencode upstream rate-limited (HTTP 429); aborted before internal backoff retries. code=ERATELIMIT stderr=timestamp=2026-11-12T06:37:01.091Z level=ERROR run=229dae70 message="stream error" providerID=opencode modelID=big-pickle session.id=ses_e3186ae7cffe5bHRjTpls7ijVD small=false agent=build mode=primary error.error="AI_APICallError: Free usage limit reached. Free models work in OpenCode (https://opencode.ai); subscribe to OpenCode Go to keep going: https://opencode.ai/go"
+[Opencode] WARN quota_exhausted
+[Runner] INFO run_done req=a94767a2-bbf7-4d94-b7a2-a8f8bbb0b7b7 durationMs=2516 provider=opencode lane=interactive degraded=rate-limit

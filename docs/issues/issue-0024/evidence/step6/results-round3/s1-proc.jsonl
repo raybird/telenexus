@@ -1,0 +1,9 @@
+{"t":1794465067122,"final":false,"procs":[],"tmp":[]}
+{"t":1794465070128,"final":false,"procs":[{"pid":125,"ppid":7,"kind":"zombie","state":"Z","comm":"opencode"},{"pid":142,"ppid":110,"kind":"mcp","state":"S","comm":"node"},{"pid":149,"ppid":142,"kind":"mcp","state":"R","comm":"node"}],"tmp":["tnb-HXHroX"]}
+{"t":1794465070228,"final":false,"procs":[{"pid":142,"ppid":110,"kind":"mcp","state":"S","comm":"node"},{"pid":149,"ppid":142,"kind":"mcp","state":"R","comm":"chrome-devtools"}],"tmp":["tnb-HXHroX"]}
+{"t":1794465070629,"final":false,"procs":[{"pid":142,"ppid":110,"kind":"mcp","state":"S","comm":"node"},{"pid":149,"ppid":142,"kind":"mcp","state":"S","comm":"chrome-devtools"},{"pid":161,"ppid":149,"kind":"mcp","state":"S","comm":"node"}],"tmp":["tnb-HXHroX"]}
+{"t":1794465070729,"final":false,"procs":[{"pid":142,"ppid":110,"kind":"mcp","state":"S","comm":"node"},{"pid":149,"ppid":142,"kind":"mcp","state":"S","comm":"chrome-devtools"},{"pid":161,"ppid":149,"kind":"mcp","state":"R","comm":"node"}],"tmp":["tnb-HXHroX"]}
+{"t":1794465070829,"final":false,"procs":[{"pid":142,"ppid":110,"kind":"mcp","state":"S","comm":"node"},{"pid":149,"ppid":142,"kind":"mcp","state":"S","comm":"chrome-devtools"}],"tmp":["tnb-HXHroX"]}
+{"t":1794465078044,"final":false,"procs":[{"pid":110,"ppid":7,"kind":"zombie","state":"Z","comm":"opencode"},{"pid":142,"ppid":1,"kind":"mcp","state":"S","comm":"node"},{"pid":149,"ppid":142,"kind":"mcp","state":"S","comm":"chrome-devtools"}],"tmp":["tnb-HXHroX"]}
+{"t":1794465078144,"final":false,"procs":[],"tmp":[]}
+{"t":1794465123096,"final":true,"procs":[],"tmp":[]}

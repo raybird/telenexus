@@ -1,0 +1,9 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[opencode-retention] INFO scheduled retentionDays=30 intervalMs=3600000
+[Runner] INFO listening port=8787
+[Runner] INFO run_start req=9399a0e3-9fa9-4f2e-b132-f04df657dfdd task=chat stream=false lane=interactive
+[Opencode] INFO execute model=opencode/big-pickle
+[Opencode] INFO start cmd=opencode run --format json --model opencode/big-pickle --print-logs --log-level ERROR <prompt> cwd=/app/workspace
+[Opencode] INFO done outputLen=2636
+[Opencode] INFO reply len=320
+[Runner] INFO run_done req=9399a0e3-9fa9-4f2e-b132-f04df657dfdd durationMs=9842 provider=opencode lane=interactive

@@ -1,0 +1,9 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[opencode-retention] INFO scheduled retentionDays=30 intervalMs=3600000
+[Runner] INFO listening port=8787
+[Runner] INFO run_start req=79cc7606-69b2-4c63-87d6-a41221fa4b09 task=chat stream=false lane=interactive
+[Opencode] INFO execute model=opencode/big-pickle
+[Opencode] INFO start cmd=opencode run --format json --model opencode/big-pickle --print-logs --log-level ERROR <prompt> cwd=/app/workspace
+[Opencode] INFO done outputLen=10330
+[Opencode] INFO reply len=937
+[Runner] INFO run_done req=79cc7606-69b2-4c63-87d6-a41221fa4b09 durationMs=35534 provider=opencode lane=interactive

@@ -1,0 +1,559 @@
+{
+ "case": "s1",
+ "ok": true,
+ "structuredFailure": null,
+ "error": null,
+ "durationS": 20,
+ "replyHasToken": true,
+ "replyHasUrl": true,
+ "reply": "網頁正文只有一行： `ISSUE24_S1_HTTP_BODY_20261112` （頁面標題為 `s1`，正文再無其他內容。） 網址：http://45.67.89.10:8080/s1/page",
+ "tools": [
+  {
+   "tool": "skill",
+   "status": "completed",
+   "input": "web-reading",
+   "output": "<skill_content name=\"web-reading\"> # Skill: web-reading # 公開網頁閱讀 最後驗證日期：2026-11-12。 依序走下面三層。哪一層取得所需正文，就以那份實際內容回答並附來源網址，閱讀到此完成。 ## 1. 一般頁面：webfetch 已知網址先用 `webfetch` 取得正文。找網址時可使用目前環境確實提供的搜尋工具。 HTTP 只取得"
+  },
+  {
+   "tool": "webfetch",
+   "status": "completed",
+   "input": "http://45.67.89.10:8080/s1/page",
+   "output": "s1 ISSUE24\\_S1\\_HTTP\\_BODY\\_20261112"
+  },
+  {
+   "tool": "bash",
+   "status": "completed",
+   "input": "telenexus-moli-fetch 'http://45.67.89.10:8080/s1/page'; echo \"EXIT:$?\"",
+   "output": "ISSUE24\\_S1\\_HTTP\\_BODY\\_20261112EXIT:0 "
+  },
+  {
+   "tool": "telenexus_browser_navigate",
+   "status": "completed",
+   "input": "http://45.67.89.10:8080/s1/page",
+   "output": "Navigated to http://45.67.89.10:8080/s1/page."
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"JSON.stringify({ url: location.href, title: document.title, text: document.body.innerText })\"}",
+   "output": "\"{\\\"url\\\":\\\"http://45.67.89.10:8080/s1/page\\\",\\\"title\\\":\\\"s1\\\",\\\"text\\\":\\\"ISSUE24_S1_HTTP_BODY_20261112\\\"}\""
+  }
+ ],
+ "fixtureOrder": [
+  "other:page",
+  "moli:page",
+  "chrome:page"
+ ],
+ "otherUAs": [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+ ],
+ "wrapperSeen": 11,
+ "chromeSeen": 14,
+ "cancel": null,
+ "clearedAfterWrapperS": 8.5,
+ "atCheckpoint": {
+  "procs": [],
+  "tmp": []
+ },
+ "finalRow": {
+  "procs": [],
+  "tmp": []
+ }
+}
+{
+ "case": "s2",
+ "ok": true,
+ "structuredFailure": null,
+ "error": null,
+ "durationS": 16,
+ "replyHasToken": true,
+ "replyHasUrl": true,
+ "reply": "網址：http://45.67.89.10:8080/s2/page 正文內容：`ISSUE24_S2_JS_BODY_20261112` （頁面本身是空白 HTML，正文由頁面腳本呼叫 `/s2/api` 動態填入；該 API 回傳的 `text` 就是上面這串字。）",
+ "tools": [
+  {
+   "tool": "webfetch",
+   "status": "completed",
+   "input": "http://45.67.89.10:8080/s2/page",
+   "output": "s2 WAITING"
+  },
+  {
+   "tool": "telenexus_browser_navigate",
+   "status": "completed",
+   "input": "http://45.67.89.10:8080/s2/page",
+   "output": "Navigated to http://45.67.89.10:8080/s2/page."
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"document.body.innerText\"}",
+   "output": "\"ISSUE24_S2_JS_BODY_20261112\""
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"JSON.stringify({title:document.title, ready:document.readyState, htmlLen:document.documentElement.outerHTML.length, text:document.body.innerText, htm",
+   "output": "\"{\\\"title\\\":\\\"s2\\\",\\\"ready\\\":\\\"complete\\\",\\\"htmlLen\\\":241,\\\"text\\\":\\\"ISSUE24_S2_JS_BODY_20261112\\\",\\\"html\\\":\\\"<html><head><title>s2</title></head><body><main id=\\\\\\\"b\\\\\\\">ISSUE24_S2_JS_BODY_20261112</"
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"fetch(\\\"/s2/api\\\",{headers:{\\\"x-issue24\\\":\\\"1\\\"}}).then(r=>r.json()).then(j=>JSON.stringify(j))\"}",
+   "output": "\"{\\\"text\\\":\\\"ISSUE24_S2_JS_BODY_20261112\\\"}\""
+  }
+ ],
+ "fixtureOrder": [
+  "other:page",
+  "chrome:page",
+  "chrome:api"
+ ],
+ "otherUAs": [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+ ],
+ "wrapperSeen": null,
+ "chromeSeen": 6,
+ "cancel": null,
+ "clearedAfterWrapperS": null,
+ "atCheckpoint": {
+  "procs": [],
+  "tmp": []
+ },
+ "finalRow": {
+  "procs": [],
+  "tmp": []
+ }
+}
+{
+ "case": "s3a",
+ "ok": true,
+ "structuredFailure": null,
+ "error": null,
+ "durationS": 26,
+ "replyHasToken": true,
+ "replyHasUrl": true,
+ "reply": "正文內容：`ISSUE24_S3A_JS_BODY_20261112` 網址：http://45.67.89.10:8080/s3a/page （頁面需執行 JavaScript 才會顯示正文；HTTP 直取僅有「WAITING」殼層。）",
+ "tools": [
+  {
+   "tool": "skill",
+   "status": "completed",
+   "input": "web-reading",
+   "output": "<skill_content name=\"web-reading\"> # Skill: web-reading # 公開網頁閱讀 最後驗證日期：2026-11-12。 依序走下面三層。哪一層取得所需正文，就以那份實際內容回答並附來源網址，閱讀到此完成。 ## 1. 一般頁面：webfetch 已知網址先用 `webfetch` 取得正文。找網址時可使用目前環境確實提供的搜尋工具。 HTTP 只取得"
+  },
+  {
+   "tool": "webfetch",
+   "status": "completed",
+   "input": "http://45.67.89.10:8080/s3a/page",
+   "output": "s3a WAITING"
+  },
+  {
+   "tool": "bash",
+   "status": "completed",
+   "input": "telenexus-moli-fetch 'http://45.67.89.10:8080/s3a/page'",
+   "output": "Error: failed to fetch `http://45.67.89.10:8080/s3a/page` Reason: fetch readiness timed out after 10000 ms while streaming main body "
+  },
+  {
+   "tool": "telenexus_browser_navigate",
+   "status": "completed",
+   "input": "http://45.67.89.10:8080/s3a/page",
+   "output": "Navigated to http://45.67.89.10:8080/s3a/page."
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"JSON.stringify({ url: location.href, title: document.title, text: document.body.innerText })\"}",
+   "output": "\"{\\\"url\\\":\\\"http://45.67.89.10:8080/s3a/page\\\",\\\"title\\\":\\\"s3a\\\",\\\"text\\\":\\\"ISSUE24_S3A_JS_BODY_20261112\\\"}\""
+  }
+ ],
+ "fixtureOrder": [
+  "other:page",
+  "moli:page",
+  "chrome:page",
+  "chrome:api"
+ ],
+ "otherUAs": [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+ ],
+ "wrapperSeen": 9,
+ "chromeSeen": 22,
+ "cancel": null,
+ "clearedAfterWrapperS": 16.5,
+ "atCheckpoint": {
+  "procs": [],
+  "tmp": []
+ },
+ "finalRow": {
+  "procs": [],
+  "tmp": []
+ }
+}
+{
+ "case": "s3b",
+ "ok": true,
+ "structuredFailure": null,
+ "error": null,
+ "durationS": 25,
+ "replyHasToken": true,
+ "replyHasUrl": true,
+ "reply": "網址：http://45.67.89.10:8080/s3b/page 正文只有一行：`ISSUE24_S3B_JS_BODY_20261112` 頁面標題是「s3b」，正文由 JavaScript 從 `/s3b/api` 取得，除了上述這串文字外沒有其他內容。",
+ "tools": [
+  {
+   "tool": "skill",
+   "status": "completed",
+   "input": "web-reading",
+   "output": "<skill_content name=\"web-reading\"> # Skill: web-reading # 公開網頁閱讀 最後驗證日期：2026-11-12。 依序走下面三層。哪一層取得所需正文，就以那份實際內容回答並附來源網址，閱讀到此完成。 ## 1. 一般頁面：webfetch 已知網址先用 `webfetch` 取得正文。找網址時可使用目前環境確實提供的搜尋工具。 HTTP 只取得"
+  },
+  {
+   "tool": "webfetch",
+   "status": "completed",
+   "input": "http://45.67.89.10:8080/s3b/page",
+   "output": "s3b WAITING"
+  },
+  {
+   "tool": "bash",
+   "status": "completed",
+   "input": "telenexus-moli-fetch 'http://45.67.89.10:8080/s3b/page'",
+   "output": "Error: failed to fetch `http://45.67.89.10:8080/s3b/page` Reason: final main document returned HTTP status 500 at `http://45.67.89.10:8080/s3b/page` "
+  },
+  {
+   "tool": "telenexus_browser_navigate",
+   "status": "completed",
+   "input": "http://45.67.89.10:8080/s3b/page",
+   "output": "Navigated to http://45.67.89.10:8080/s3b/page."
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"JSON.stringify({ url: location.href, title: document.title, text: document.body.innerText })\"}",
+   "output": "\"{\\\"url\\\":\\\"http://45.67.89.10:8080/s3b/page\\\",\\\"title\\\":\\\"s3b\\\",\\\"text\\\":\\\"ISSUE24_S3B_JS_BODY_20261112\\\"}\""
+  },
+  {
+   "tool": "bash",
+   "status": "completed",
+   "input": "sleep 5",
+   "output": "(no output)"
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"JSON.stringify({ url: location.href, title: document.title, text: document.body.innerText, html: document.body.innerHTML.slice(0,2000) })\"}",
+   "output": "\"{\\\"url\\\":\\\"http://45.67.89.10:8080/s3b/page\\\",\\\"title\\\":\\\"s3b\\\",\\\"text\\\":\\\"ISSUE24_S3B_JS_BODY_20261112\\\",\\\"html\\\":\\\"<main id=\\\\\\\"b\\\\\\\">ISSUE24_S3B_JS_BODY_20261112</main><script>fetch(\\\\\\\"/s3b/api\\\\"
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"fetch('/s3b/api',{headers:{'x-issue24':'1'}}).then(r=>r.text().then(t=>JSON.stringify({status:r.status,body:t}))).catch(e=>'ERR '+e)\"}",
+   "output": "\"{\\\"status\\\":200,\\\"body\\\":\\\"{\\\\\\\"text\\\\\\\":\\\\\\\"ISSUE24_S3B_JS_BODY_20261112\\\\\\\"}\\\"}\""
+  }
+ ],
+ "fixtureOrder": [
+  "other:page",
+  "moli:page",
+  "chrome:page",
+  "chrome:api"
+ ],
+ "otherUAs": [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+ ],
+ "wrapperSeen": 8,
+ "chromeSeen": 10,
+ "cancel": null,
+ "clearedAfterWrapperS": 16.3,
+ "atCheckpoint": {
+  "procs": [],
+  "tmp": []
+ },
+ "finalRow": {
+  "procs": [],
+  "tmp": []
+ }
+}
+{
+ "case": "s3c",
+ "ok": true,
+ "structuredFailure": null,
+ "error": null,
+ "durationS": 15,
+ "replyHasToken": true,
+ "replyHasUrl": true,
+ "reply": "正文只有一行： `ISSUE24_S3C_JS_BODY_20261112` 網址：http://45.67.89.10:8080/s3c/page 頁面由 JavaScript 從 `/s3c/api` 取得這段文字後顯示，沒有其他內容。",
+ "tools": [
+  {
+   "tool": "webfetch",
+   "status": "completed",
+   "input": "http://45.67.89.10:8080/s3c/page",
+   "output": "s3c WAITING"
+  },
+  {
+   "tool": "telenexus_browser_navigate",
+   "status": "completed",
+   "input": "http://45.67.89.10:8080/s3c/page",
+   "output": "Navigated to http://45.67.89.10:8080/s3c/page."
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"document.body.innerText\"}",
+   "output": "\"ISSUE24_S3C_JS_BODY_20261112\""
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"document.documentElement.outerHTML\"}",
+   "output": "\"<html><head><title>s3c</title></head><body><main id=\\\"b\\\">ISSUE24_S3C_JS_BODY_20261112</main><script>fetch(\\\"/s3c/api\\\",{headers:{\\\"x-issue24\\\":\\\"1\\\"}}).then(r=>r.json()).then(j=>{document.querySelec"
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"fetch(\\\"/s3c/api\\\",{headers:{\\\"x-issue24\\\":\\\"1\\\"}}).then(r=>r.json().then(j=>({status:r.status,body:j})))\"}",
+   "output": "{\"status\":200,\"body\":{\"text\":\"ISSUE24_S3C_JS_BODY_20261112\"}}"
+  }
+ ],
+ "fixtureOrder": [
+  "other:page",
+  "chrome:page",
+  "chrome:api"
+ ],
+ "otherUAs": [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+ ],
+ "wrapperSeen": null,
+ "chromeSeen": 7,
+ "cancel": null,
+ "clearedAfterWrapperS": null,
+ "atCheckpoint": {
+  "procs": [],
+  "tmp": []
+ },
+ "finalRow": {
+  "procs": [],
+  "tmp": []
+ }
+}
+{
+ "case": "s3d",
+ "ok": true,
+ "structuredFailure": null,
+ "error": null,
+ "durationS": 33,
+ "replyHasToken": true,
+ "replyHasUrl": true,
+ "reply": "正文內容為：`ISSUE24_S3D_JS_BODY_20261112` （頁面由 JavaScript 從 `/s3d/api` 載入這段文字，渲染後正文即為此字串。） 網址：http://172.21.0.2:8080/s3d/page",
+ "tools": [
+  {
+   "tool": "skill",
+   "status": "completed",
+   "input": "web-reading",
+   "output": "<skill_content name=\"web-reading\"> # Skill: web-reading # 公開網頁閱讀 最後驗證日期：2026-11-12。 依序走下面三層。哪一層取得所需正文，就以那份實際內容回答並附來源網址，閱讀到此完成。 ## 1. 一般頁面：webfetch 已知網址先用 `webfetch` 取得正文。找網址時可使用目前環境確實提供的搜尋工具。 HTTP 只取得"
+  },
+  {
+   "tool": "webfetch",
+   "status": "completed",
+   "input": "http://172.21.0.2:8080/s3d/page",
+   "output": "s3d WAITING"
+  },
+  {
+   "tool": "bash",
+   "status": "completed",
+   "input": "telenexus-moli-fetch 'http://172.21.0.2:8080/s3d/page'",
+   "output": "Error: failed to fetch `http://172.21.0.2:8080/s3d/page` Reason: failed to configure curl request for http://172.21.0.2:8080/s3d/page: blocked private network address `172.21.0.2` for `http://172.21.0"
+  },
+  {
+   "tool": "telenexus_browser_navigate",
+   "status": "completed",
+   "input": "http://172.21.0.2:8080/s3d/page",
+   "output": "Navigated to http://172.21.0.2:8080/s3d/page."
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"JSON.stringify({ url: location.href, title: document.title, text: document.body.innerText })\"}",
+   "output": "\"{\\\"url\\\":\\\"http://172.21.0.2:8080/s3d/page\\\",\\\"title\\\":\\\"s3d\\\",\\\"text\\\":\\\"ISSUE24_S3D_JS_BODY_20261112\\\"}\""
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"JSON.stringify({ url: location.href, title: document.title, text: document.body.innerText, html: document.body.innerHTML })\"}",
+   "output": "\"{\\\"url\\\":\\\"http://172.21.0.2:8080/s3d/page\\\",\\\"title\\\":\\\"s3d\\\",\\\"text\\\":\\\"ISSUE24_S3D_JS_BODY_20261112\\\",\\\"html\\\":\\\"<main id=\\\\\\\"b\\\\\\\">ISSUE24_S3D_JS_BODY_20261112</main><script>fetch(\\\\\\\"/s3d/api\\\\\\"
+  },
+  {
+   "tool": "bash",
+   "status": "completed",
+   "input": "sleep 3; echo done",
+   "output": "done "
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"JSON.stringify({ url: location.href, title: document.title, text: document.body.innerText })\"}",
+   "output": "\"{\\\"url\\\":\\\"http://172.21.0.2:8080/s3d/page\\\",\\\"title\\\":\\\"s3d\\\",\\\"text\\\":\\\"ISSUE24_S3D_JS_BODY_20261112\\\"}\""
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"await fetch('/s3d/api',{headers:{'x-issue24':'1'}}).then(r=>r.json()).then(j=>JSON.stringify(j))\"}",
+   "output": "await is only valid in async functions and the top level bodies of modules"
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"fetch('/s3d/api',{headers:{'x-issue24':'1'}}).then(r=>r.json()).then(j=>{window.__api=j;document.title='x'}); JSON.stringify({url:location.href})\"}",
+   "output": "\"{\\\"url\\\":\\\"http://172.21.0.2:8080/s3d/page\\\"}\""
+  },
+  {
+   "tool": "bash",
+   "status": "completed",
+   "input": "sleep 1; echo ok",
+   "output": "ok "
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"JSON.stringify({api: window.__api, text: document.body.innerText})\"}",
+   "output": "\"{\\\"api\\\":{\\\"text\\\":\\\"ISSUE24_S3D_JS_BODY_20261112\\\"},\\\"text\\\":\\\"ISSUE24_S3D_JS_BODY_20261112\\\"}\""
+  }
+ ],
+ "fixtureOrder": [
+  "other:page",
+  "chrome:page",
+  "chrome:api"
+ ],
+ "otherUAs": [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+ ],
+ "wrapperSeen": null,
+ "chromeSeen": 11,
+ "cancel": null,
+ "clearedAfterWrapperS": null,
+ "atCheckpoint": {
+  "procs": [],
+  "tmp": []
+ },
+ "finalRow": {
+  "procs": [],
+  "tmp": []
+ }
+}
+{
+ "case": "s4",
+ "ok": true,
+ "structuredFailure": null,
+ "error": null,
+ "durationS": 33,
+ "replyHasToken": null,
+ "replyHasUrl": true,
+ "reply": "讀取失敗，沒有可讀的正文。 三種方式（HTTP、JS 渲染抓取、實際瀏覽器）都只得到 `WAITING`。頁面原始碼為： ```html <main id=\"b\">WAITING</main> <script>throw new Error(\"boom\")</script> ``` 頁面載入時的腳本直接拋出錯誤 `boom`，因此正文從未產生，只停留在 `WAITING` 狀態。 網址：http://45.67.89.10:8080/s4/page",
+ "tools": [
+  {
+   "tool": "skill",
+   "status": "completed",
+   "input": "web-reading",
+   "output": "<skill_content name=\"web-reading\"> # Skill: web-reading # 公開網頁閱讀 最後驗證日期：2026-11-12。 依序走下面三層。哪一層取得所需正文，就以那份實際內容回答並附來源網址，閱讀到此完成。 ## 1. 一般頁面：webfetch 已知網址先用 `webfetch` 取得正文。找網址時可使用目前環境確實提供的搜尋工具。 HTTP 只取得"
+  },
+  {
+   "tool": "webfetch",
+   "status": "completed",
+   "input": "http://45.67.89.10:8080/s4/page",
+   "output": "s4 WAITING"
+  },
+  {
+   "tool": "bash",
+   "status": "completed",
+   "input": "telenexus-moli-fetch 'http://45.67.89.10:8080/s4/page'",
+   "output": "WAITING"
+  },
+  {
+   "tool": "telenexus_browser_navigate",
+   "status": "completed",
+   "input": "http://45.67.89.10:8080/s4/page",
+   "output": "Navigated to http://45.67.89.10:8080/s4/page."
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"JSON.stringify({ url: location.href, title: document.title, text: document.body.innerText })\"}",
+   "output": "\"{\\\"url\\\":\\\"http://45.67.89.10:8080/s4/page\\\",\\\"title\\\":\\\"s4\\\",\\\"text\\\":\\\"WAITING\\\"}\""
+  },
+  {
+   "tool": "bash",
+   "status": "completed",
+   "input": "sleep 8",
+   "output": "(no output)"
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"JSON.stringify({ url: location.href, title: document.title, text: document.body.innerText, html: document.documentElement.outerHTML.slice(0,3000) })\"",
+   "output": "\"{\\\"url\\\":\\\"http://45.67.89.10:8080/s4/page\\\",\\\"title\\\":\\\"s4\\\",\\\"text\\\":\\\"WAITING\\\",\\\"html\\\":\\\"<html><head><title>s4</title></head><body><main id=\\\\\\\"b\\\\\\\">WAITING</main><script>throw new Error(\\\\\\\"bo"
+  }
+ ],
+ "fixtureOrder": [
+  "other:page",
+  "moli:page",
+  "chrome:page"
+ ],
+ "otherUAs": [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+ ],
+ "wrapperSeen": 11,
+ "chromeSeen": 15,
+ "cancel": null,
+ "clearedAfterWrapperS": 21.7,
+ "atCheckpoint": {
+  "procs": [],
+  "tmp": []
+ },
+ "finalRow": {
+  "procs": [],
+  "tmp": []
+ }
+}
+{
+ "case": "s5",
+ "structuredFailure": null,
+ "error": "AbortError",
+ "durationS": 13,
+ "replyHasToken": false,
+ "replyHasUrl": false,
+ "reply": "",
+ "tools": [
+  {
+   "tool": "skill",
+   "status": "completed",
+   "input": "web-reading",
+   "output": "<skill_content name=\"web-reading\"> # Skill: web-reading # 公開網頁閱讀 最後驗證日期：2026-11-12。 依序走下面三層。哪一層取得所需正文，就以那份實際內容回答並附來源網址，閱讀到此完成。 ## 1. 一般頁面：webfetch 已知網址先用 `webfetch` 取得正文。找網址時可使用目前環境確實提供的搜尋工具。 HTTP 只取得"
+  },
+  {
+   "tool": "webfetch",
+   "status": "completed",
+   "input": "http://45.67.89.10:8080/s5/page",
+   "output": "s5 WAITING"
+  },
+  {
+   "tool": "bash",
+   "status": "running",
+   "input": "telenexus-moli-fetch 'http://45.67.89.10:8080/s5/page'",
+   "output": ""
+  }
+ ],
+ "fixtureOrder": [
+  "other:page",
+  "moli:page"
+ ],
+ "otherUAs": [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+ ],
+ "wrapperSeen": 10,
+ "chromeSeen": null,
+ "cancel": {
+  "wrapperSeenAt": 10,
+  "abortedAt": 13
+ },
+ "clearedAfterWrapperS": 10,
+ "atCheckpoint": {
+  "procs": [],
+  "tmp": []
+ },
+ "finalRow": {
+  "procs": [],
+  "tmp": []
+ }
+}

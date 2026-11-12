@@ -1,0 +1,285 @@
+{
+ "case": "s1",
+ "ok": true,
+ "structuredFailure": null,
+ "error": null,
+ "durationS": 10,
+ "replyHasToken": true,
+ "replyHasUrl": true,
+ "reply": "網頁正文（http://45.67.89.10:8080/s1/page）： **市立圖書館週末延長開放** 市立圖書館宣布，自下個月起週六、週日開放時間延長至晚上九點，方便上班族與學生利用。館方表示，延長時段將開放閱覽室與自修區，借還書服務照常提供；兒童室則維持原本的開放時間。本次調整的公告編號為 ISSUE24_S1_HTTP_BODY_20261112，詳細時段以館內公告為準。 來源網址：http://45.67.89.10:8080/s1/page [[MEMORY_INTENT:{\"level\":\"none\",\"confidence\":\"high\",\"reason\":\"僅為單次網頁內容讀取，無長期偏好或決策\"}]]",
+ "tools": [
+  {
+   "tool": "webfetch",
+   "status": "completed",
+   "input": "http://45.67.89.10:8080/s1/page",
+   "output": "市立圖書館週末延長開放｜市政新聞市政新聞市立圖書館週末延長開放市立圖書館宣布，自下個月起週六、週日開放時間延長至晚上九點，方便上班族與學生利用。館方表示，延長時段將開放閱覽室與自修區，借還書服務照常提供；兒童室則維持原本的開放時間。本次調整的公告編號為 ISSUE24_S1_HTTP_BODY_20261112，詳細時段以館內公告為準。市政新聞網"
+  }
+ ],
+ "fixtureOrder": [
+  "other:page"
+ ],
+ "otherUAs": [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+ ],
+ "wrapperSeen": null,
+ "chromeSeen": null,
+ "cancel": null,
+ "clearedAfterWrapperS": null,
+ "atCheckpoint": {
+  "procs": [],
+  "tmp": []
+ },
+ "finalRow": {
+  "procs": [],
+  "tmp": []
+ }
+}
+{
+ "case": "s2",
+ "ok": true,
+ "structuredFailure": null,
+ "error": null,
+ "durationS": 15,
+ "replyHasToken": true,
+ "replyHasUrl": true,
+ "reply": "正文內容如下（來源：http://45.67.89.10:8080/s2/page）： **河濱自行車道分段整修** 工務局將在下週一起分三段整修河濱自行車道，每段施工約兩週。 施工期間會設置改道指示，建議民眾改走堤頂步道，並留意現場人員引導。 本案的公告編號為 ISSUE24_S2_JS_BODY_20261112，各段施工日期將另行公布。 （此頁正文由 JavaScript 動態載入，初始 HTML 僅顯示「載入中…」，需以瀏覽器渲染後才取得上述內容。） [[MEMORY_INTENT:{\"level\":\"none\",\"confidence\":\"high\",\"reason\":\"本輪僅為單次網頁內容擷取，無長期偏好、決策或可重用技巧\"}]]",
+ "tools": [
+  {
+   "tool": "webfetch",
+   "status": "completed",
+   "input": "http://45.67.89.10:8080/s2/page",
+   "output": "河濱自行車道分段整修｜市政新聞 [市政新聞](/) # 河濱自行車道分段整修 載入中… 市政新聞網"
+  },
+  {
+   "tool": "telenexus_browser_navigate",
+   "status": "completed",
+   "input": "http://45.67.89.10:8080/s2/page",
+   "output": "Navigated to http://45.67.89.10:8080/s2/page."
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"return document.body.innerText;\"}",
+   "output": "Illegal return statement"
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"document.body.innerText\"}",
+   "output": "\"市政新聞\\n河濱自行車道分段整修\\n\\n工務局將在下週一起分三段整修河濱自行車道，每段施工約兩週。\\n\\n施工期間會設置改道指示，建議民眾改走堤頂步道，並留意現場人員引導。\\n\\n本案的公告編號為 ISSUE24_S2_JS_BODY_20261112，各段施工日期將另行公布。\\n\\n市政新聞網\""
+  }
+ ],
+ "fixtureOrder": [
+  "other:page",
+  "chrome:page",
+  "chrome:api"
+ ],
+ "otherUAs": [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+ ],
+ "wrapperSeen": null,
+ "chromeSeen": 7,
+ "cancel": null,
+ "clearedAfterWrapperS": null,
+ "atCheckpoint": {
+  "procs": [],
+  "tmp": []
+ },
+ "finalRow": {
+  "procs": [],
+  "tmp": []
+ }
+}
+{
+ "case": "s3a",
+ "ok": true,
+ "structuredFailure": null,
+ "error": null,
+ "durationS": 15,
+ "replyHasToken": true,
+ "replyHasUrl": true,
+ "reply": "網頁正文（經 JavaScript 渲染後）如下： --- **公車路線調整說明會** 交通局將於本週六上午在區民活動中心舉辦公車路線調整說明會。 說明會將介紹新路線的站位與班距，並開放現場提問。 活動公告編號為 ISSUE24_S3A_JS_BODY_20261112，不需事先報名。 市政新聞網 --- 網址：http://45.67.89.10:8080/s3a/page （註：此頁為動態載入，純 HTTP 抓取只會得到「載入中…」，需用瀏覽器渲染才看得到正文。） [[MEMORY_INTENT:{\"level\":\"none\",\"confidence\":\"high\",\"reason\":\"本輪僅為單次網頁內容讀取，無長期有效的偏好、決策或技巧\"}]]",
+ "tools": [
+  {
+   "tool": "webfetch",
+   "status": "completed",
+   "input": "http://45.67.89.10:8080/s3a/page",
+   "output": "公車路線調整說明會｜市政新聞 [市政新聞](/) # 公車路線調整說明會 載入中… 市政新聞網"
+  },
+  {
+   "tool": "telenexus_browser_navigate",
+   "status": "completed",
+   "input": "http://45.67.89.10:8080/s3a/page",
+   "output": "Navigated to http://45.67.89.10:8080/s3a/page."
+  },
+  {
+   "tool": "telenexus_browser_evaluate",
+   "status": "completed",
+   "input": "{\"script\":\"(() => { return { title: document.title, text: document.body.innerText }; })()\"}",
+   "output": "{\"title\":\"公車路線調整說明會｜市政新聞\",\"text\":\"市政新聞\\n公車路線調整說明會\\n\\n交通局將於本週六上午在區民活動中心舉辦公車路線調整說明會。\\n\\n說明會將介紹新路線的站位與班距，並開放現場提問。\\n\\n活動公告編號為 ISSUE24_S3A_JS_BODY_20261112，不需事先報名。\\n\\n市政新聞網\"}"
+  }
+ ],
+ "fixtureOrder": [
+  "other:page",
+  "chrome:page",
+  "chrome:api"
+ ],
+ "otherUAs": [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+ ],
+ "wrapperSeen": null,
+ "chromeSeen": 10,
+ "cancel": null,
+ "clearedAfterWrapperS": null,
+ "atCheckpoint": {
+  "procs": [],
+  "tmp": []
+ },
+ "finalRow": {
+  "procs": [],
+  "tmp": []
+ }
+}
+{
+ "case": "s3b",
+ "ok": true,
+ "structuredFailure": {
+  "kind": "rate-limit",
+  "message": "Opencode upstream free usage quota exhausted; aborted before internal backoff retries."
+ },
+ "error": null,
+ "durationS": 3,
+ "replyHasToken": false,
+ "replyHasUrl": false,
+ "reply": "⛔ Opencode 免費額度已用完，本次任務已快速中止。額度恢復前，同一個帳號的其他免費模型也會被擋。可以等額度恢復、訂閱 OpenCode Go，或在 ai-config.yaml 換成其他 provider 的模型。",
+ "tools": [],
+ "fixtureOrder": [],
+ "otherUAs": [],
+ "wrapperSeen": null,
+ "chromeSeen": null,
+ "cancel": null,
+ "clearedAfterWrapperS": null,
+ "atCheckpoint": {
+  "procs": [],
+  "tmp": []
+ },
+ "finalRow": {
+  "procs": [],
+  "tmp": []
+ }
+}
+{
+ "case": "s3c",
+ "ok": true,
+ "structuredFailure": {
+  "kind": "rate-limit",
+  "message": "Opencode upstream free usage quota exhausted; aborted before internal backoff retries."
+ },
+ "error": null,
+ "durationS": 3,
+ "replyHasToken": false,
+ "replyHasUrl": false,
+ "reply": "⛔ Opencode 免費額度已用完，本次任務已快速中止。額度恢復前，同一個帳號的其他免費模型也會被擋。可以等額度恢復、訂閱 OpenCode Go，或在 ai-config.yaml 換成其他 provider 的模型。",
+ "tools": [],
+ "fixtureOrder": [],
+ "otherUAs": [],
+ "wrapperSeen": null,
+ "chromeSeen": null,
+ "cancel": null,
+ "clearedAfterWrapperS": null,
+ "atCheckpoint": {
+  "procs": [],
+  "tmp": []
+ },
+ "finalRow": {
+  "procs": [],
+  "tmp": []
+ }
+}
+{
+ "case": "s3d",
+ "ok": true,
+ "structuredFailure": {
+  "kind": "rate-limit",
+  "message": "Opencode upstream free usage quota exhausted; aborted before internal backoff retries."
+ },
+ "error": null,
+ "durationS": 3,
+ "replyHasToken": false,
+ "replyHasUrl": false,
+ "reply": "⛔ Opencode 免費額度已用完，本次任務已快速中止。額度恢復前，同一個帳號的其他免費模型也會被擋。可以等額度恢復、訂閱 OpenCode Go，或在 ai-config.yaml 換成其他 provider 的模型。",
+ "tools": [],
+ "fixtureOrder": [],
+ "otherUAs": [],
+ "wrapperSeen": null,
+ "chromeSeen": null,
+ "cancel": null,
+ "clearedAfterWrapperS": null,
+ "atCheckpoint": {
+  "procs": [],
+  "tmp": []
+ },
+ "finalRow": {
+  "procs": [],
+  "tmp": []
+ }
+}
+{
+ "case": "s4",
+ "ok": true,
+ "structuredFailure": {
+  "kind": "rate-limit",
+  "message": "Opencode upstream free usage quota exhausted; aborted before internal backoff retries."
+ },
+ "error": null,
+ "durationS": 3,
+ "replyHasToken": null,
+ "replyHasUrl": false,
+ "reply": "⛔ Opencode 免費額度已用完，本次任務已快速中止。額度恢復前，同一個帳號的其他免費模型也會被擋。可以等額度恢復、訂閱 OpenCode Go，或在 ai-config.yaml 換成其他 provider 的模型。",
+ "tools": [],
+ "fixtureOrder": [],
+ "otherUAs": [],
+ "wrapperSeen": null,
+ "chromeSeen": null,
+ "cancel": null,
+ "clearedAfterWrapperS": null,
+ "atCheckpoint": {
+  "procs": [],
+  "tmp": []
+ },
+ "finalRow": {
+  "procs": [],
+  "tmp": []
+ }
+}
+{
+ "case": "s5",
+ "ok": true,
+ "structuredFailure": {
+  "kind": "rate-limit",
+  "message": "Opencode upstream free usage quota exhausted; aborted before internal backoff retries."
+ },
+ "error": null,
+ "durationS": 3,
+ "replyHasToken": false,
+ "replyHasUrl": false,
+ "reply": "⛔ Opencode 免費額度已用完，本次任務已快速中止。額度恢復前，同一個帳號的其他免費模型也會被擋。可以等額度恢復、訂閱 OpenCode Go，或在 ai-config.yaml 換成其他 provider 的模型。",
+ "tools": [],
+ "fixtureOrder": [],
+ "otherUAs": [],
+ "wrapperSeen": null,
+ "chromeSeen": null,
+ "cancel": {
+  "wrapperSeenAt": null,
+  "abortedAt": null
+ },
+ "clearedAfterWrapperS": null,
+ "atCheckpoint": {
+  "procs": [],
+  "tmp": []
+ },
+ "finalRow": {
+  "procs": [],
+  "tmp": []
+ }
+}

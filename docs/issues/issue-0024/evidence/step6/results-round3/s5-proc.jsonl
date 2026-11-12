@@ -1,0 +1,7 @@
+{"t":1794465469320,"final":false,"procs":[],"tmp":[]}
+{"t":1794465472225,"final":false,"procs":[{"pid":114,"ppid":79,"kind":"mcp","state":"S","comm":"node"},{"pid":121,"ppid":114,"kind":"mcp","state":"R","comm":"chrome-devtools"}],"tmp":["tnb-dtB6hR"]}
+{"t":1794465472725,"final":false,"procs":[{"pid":114,"ppid":79,"kind":"mcp","state":"S","comm":"node"},{"pid":121,"ppid":114,"kind":"mcp","state":"S","comm":"chrome-devtools"},{"pid":133,"ppid":121,"kind":"mcp","state":"S","comm":"node"}],"tmp":["tnb-dtB6hR"]}
+{"t":1794465472927,"final":false,"procs":[{"pid":114,"ppid":79,"kind":"mcp","state":"S","comm":"node"},{"pid":121,"ppid":114,"kind":"mcp","state":"S","comm":"chrome-devtools"}],"tmp":["tnb-dtB6hR"]}
+{"t":1794465473430,"final":false,"procs":[{"pid":79,"ppid":7,"kind":"zombie","state":"Z","comm":"opencode"},{"pid":114,"ppid":1,"kind":"mcp","state":"S","comm":"node"},{"pid":121,"ppid":114,"kind":"mcp","state":"S","comm":"chrome-devtools"}],"tmp":["tnb-dtB6hR"]}
+{"t":1794465473530,"final":false,"procs":[],"tmp":[]}
+{"t":1794465518474,"final":true,"procs":[],"tmp":[]}

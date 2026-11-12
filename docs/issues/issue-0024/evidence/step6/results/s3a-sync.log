@@ -1,0 +1,4 @@
+[SkillSync] Upgraded builtin web-reading; previous version: /app/workspace/.opencode/retired-skills/web-reading-718cc8b
+[SkillSync] Synced skills: copied=13, skipped=1, targets=/app/workspace/.opencode/skills, /home/node/.config/opencode/skills
+[SkillSync] Generated .opencode/AGENTS.md with 7 skills: /app/workspace/.opencode/AGENTS.md
+[SkillSync] Generated skills-summary.md with 7 skills: /app/workspace/context/skills-summary.md

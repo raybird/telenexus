@@ -1,0 +1,12 @@
+{"t":1794452277225,"final":false,"procs":[],"tmp":[]}
+{"t":1794452279631,"final":false,"procs":[{"pid":35,"ppid":7,"kind":"zombie","state":"Z","comm":"opencode"}],"tmp":[]}
+{"t":1794452279732,"final":false,"procs":[],"tmp":[]}
+{"t":1794452280432,"final":false,"procs":[{"pid":139,"ppid":106,"kind":"mcp","state":"S","comm":"node"},{"pid":146,"ppid":139,"kind":"mcp","state":"R","comm":"node"}],"tmp":["tnb-TeEwqk"]}
+{"t":1794452280533,"final":false,"procs":[{"pid":139,"ppid":106,"kind":"mcp","state":"S","comm":"node"},{"pid":146,"ppid":139,"kind":"mcp","state":"R","comm":"chrome-devtools"}],"tmp":["tnb-TeEwqk"]}
+{"t":1794452280933,"final":false,"procs":[{"pid":139,"ppid":106,"kind":"mcp","state":"S","comm":"node"},{"pid":146,"ppid":139,"kind":"mcp","state":"S","comm":"chrome-devtools"},{"pid":159,"ppid":146,"kind":"mcp","state":"S","comm":"node"}],"tmp":["tnb-TeEwqk"]}
+{"t":1794452281134,"final":false,"procs":[{"pid":139,"ppid":106,"kind":"mcp","state":"S","comm":"node"},{"pid":146,"ppid":139,"kind":"mcp","state":"S","comm":"chrome-devtools"}],"tmp":["tnb-TeEwqk"]}
+{"t":1794452288245,"final":false,"procs":[{"pid":139,"ppid":106,"kind":"mcp","state":"S","comm":"node"},{"pid":146,"ppid":139,"kind":"mcp","state":"S","comm":"chrome-devtools"},{"pid":225,"ppid":106,"kind":"wrapper","state":"S","comm":"bash"},{"pid":230,"ppid":225,"kind":"moli","state":"S","comm":"timeout"},{"pid":232,"ppid":230,"kind":"moli","state":"S","comm":"moli"}],"tmp":["tnb-TeEwqk","tnm-f4HuH5"]}
+{"t":1794452291353,"final":false,"procs":[{"pid":139,"ppid":1,"kind":"mcp","state":"S","comm":"node"},{"pid":146,"ppid":139,"kind":"zombie","state":"Z","comm":"chrome-devtools"},{"pid":225,"ppid":1,"kind":"wrapper","state":"S","comm":"bash"},{"pid":230,"ppid":225,"kind":"moli","state":"S","comm":"timeout"},{"pid":232,"ppid":230,"kind":"moli","state":"S","comm":"moli"}],"tmp":["tnb-TeEwqk","tnm-f4HuH5"]}
+{"t":1794452291453,"final":false,"procs":[{"pid":225,"ppid":1,"kind":"wrapper","state":"S","comm":"bash"},{"pid":230,"ppid":225,"kind":"moli","state":"S","comm":"timeout"},{"pid":232,"ppid":230,"kind":"moli","state":"S","comm":"moli"}],"tmp":["tnm-f4HuH5"]}
+{"t":1794452298268,"final":false,"procs":[],"tmp":[]}
+{"t":1794452336344,"final":true,"procs":[],"tmp":[]}

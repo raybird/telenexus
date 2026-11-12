@@ -1,0 +1,9 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 👥 sync secrets across teammates & machines: https://dotenvx.com/ops
+[opencode-retention] INFO scheduled retentionDays=30 intervalMs=3600000
+[Runner] INFO listening port=8787
+[Runner] INFO run_start req=f5b15cb4-ee5f-4318-a3d2-87cf541c0947 task=chat stream=false lane=interactive
+[Opencode] INFO execute model=opencode/big-pickle
+[Opencode] INFO start cmd=opencode run --format json --model opencode/big-pickle --print-logs --log-level ERROR <prompt> cwd=/app/workspace
+[Opencode] INFO done outputLen=6171
+[Opencode] INFO reply len=331
+[Runner] INFO run_done req=f5b15cb4-ee5f-4318-a3d2-87cf541c0947 durationMs=15182 provider=opencode lane=interactive
