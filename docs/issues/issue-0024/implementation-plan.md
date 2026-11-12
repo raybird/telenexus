@@ -11,15 +11,14 @@
 ```dockerfile
 # 2026-11-11：JS 正文先用 Moli 讀取，失敗才開 Chrome（issue 0024）。
 RUN curl -fL --retry 2 -o /tmp/moli.tar.gz \
-      https://github.com/lexmount/moli/releases/download/v<版本>/moli-x86_64-unknown-linux-gnu.tar.gz \
-  && printf '%s  %s\n' <sha256> /tmp/moli.tar.gz | sha256sum -c - \
+      https://github.com/lexmount/moli/releases/download/v1.1.23/moli-x86_64-unknown-linux-gnu.tar.gz \
+  && printf '%s  %s\n' df360c04e567ce2e56a8391a03dc677d794465848b5821f944d2de10f3f1f430 /tmp/moli.tar.gz | sha256sum -c - \
   && mkdir -p /opt/telenexus/moli && tar -xzf /tmp/moli.tar.gz -C /opt/telenexus/moli \
   && rm /tmp/moli.tar.gz
 COPY scripts/moli-fetch.sh /usr/local/bin/telenexus-moli-fetch
 ```
 
-- 版本與雜湊由步驟 1 決定（預設是 v1.1.23）。tarball 裡的目錄結構與執行檔路徑也以步驟 1 為準。
-- 缺少執行期函式庫時，加進既有的 `apt-get install` 清單，不另開一層。
+- 版本、雜湊與執行檔路徑（`/opt/telenexus/moli/moli-v1.1.23-x86_64-unknown-linux-gnu/moli`）來自步驟 1 的實測。映像已經有它需要的函式庫，不必新增 apt 套件（[evidence/step1-moli-probe.md](evidence/step1-moli-probe.md)）。
 - dev 與正式 stage 都繼承 `base`，所以兩者都有 Moli。正式 stage 仍然放在最後（CLAUDE.md）。
 
 ### Wrapper（SCN-005、SCN-006）
@@ -30,16 +29,19 @@ COPY scripts/moli-fetch.sh /usr/local/bin/telenexus-moli-fetch
 telenexus-moli-fetch <url>
   參數不是剛好一個，或不是 http:// / https:// 開頭 → stderr 說明原因，exit 2，不啟動 Moli
   root = mktemp -d /tmp/tnm-XXXXXX；trap 在 EXIT 時刪除 root
-  HOME、TMPDIR、XDG_CONFIG_HOME、XDG_CACHE_HOME、XDG_DATA_HOME 都指到 root 底下
-  timeout --kill-after=5 30 <moli> fetch --dump markdown --wait-until done --block-private-networks -- <url>
+  HOME、TMPDIR 指到 root 底下；清掉 MOLI_* 環境變數
+  以 setsid 起獨立 session 的清理程序：等 Moli 與 wrapper 都結束（最多 40 秒）後刪除 root
+  timeout --kill-after=5 30 <moli> fetch --dump markdown --wait domstable --timeout 10000 \
+      --fail --block-private-networks -- <url>
   timeout 結束碼 124／137 → stderr「逾時」，exit 124
-  Moli 結束碼非 0 → 原樣傳回
+  Moli 結束碼非 0 → 原樣傳回（被內網封鎖與一般錯誤都是 1，HTTP ≥ 400 是 22）
   stdout 去掉空白後是空的 → stderr「沒有正文」，exit 3
 ```
 
-- 30 秒寫死（Q6）。`--kill-after` 讓不理會 SIGTERM 的 Moli 在 35 秒時被 SIGKILL，加上收尾，落在 SCN-005 的 45 秒窗口內。
-- 參數順序、`--` 是否被 Moli 接受、內網封鎖的結束碼，以步驟 1 的實測為準。
-- Moli 若完全不寫磁碟（步驟 1／TBD-2），就拿掉 `mktemp` 與 trap，wrapper 被 SIGKILL 時也不會留下暫存目錄。
+- 30 秒寫死（Q6）。`--kill-after` 讓不理會 SIGTERM 的 Moli 在 35 秒時被 SIGKILL，加上收尾，落在 SCN-005 的 45 秒窗口內。Moli 自己的就緒期限設成 10 秒，正常情況會比外層逾時先到。
+- 參數依步驟 1 實測：等待參數是 `--wait`（不是 `--wait-until`）、`--` 可以用、被封鎖時 exit 1。`domstable` 涵蓋的 JS 頁面最多，但一直變動的頁面要等到就緒期限才回傳，所以把期限縮成 10 秒。`--fail` 讓 404 這類錯誤頁走非 0 的路徑，不被當成正文。
+- `data:` 網址 Moli 自己會接受，`file:` 會拒絕；兩者都由 wrapper 先擋（Q8）。
+- 暫存目錄：Moli 只寫 `TMPDIR/moli-storage-*`。正常結束會清掉，被 SIGTERM 或 SIGKILL 中斷時會留下（步驟 1）。trap 處理 wrapper 正常結束與被 SIGTERM 的情況；獨立 session 的清理程序處理 wrapper 與 Moli 一起被 SIGKILL 的情況（README TBD-2）。
 
 ### 技能同步（SCN-008）
 
@@ -66,18 +68,18 @@ telenexus-moli-fetch <url>
 
 ## 實作步驟
 
-1. 📝 **在拋棄式容器實測釘版 Moli**（首要驗證；SCN-002、SCN-005、SCN-006、SCN-007；TBD-1、TBD-2）
+1. ✅ **在拋棄式容器實測釘版 Moli**（首要驗證；SCN-002、SCN-005、SCN-006、SCN-007；TBD-1、TBD-2）——證據：[evidence/step1-moli-probe.md](evidence/step1-moli-probe.md)。v1.1.23 在現行映像以 node 身分可執行、不缺函式庫；JS fixture 讀得到正文；內網封鎖對 loopback、RFC1918、服務名稱、metadata 都是 exit 1，非保留網段不擋；Moli 被訊號中斷時會在 `TMPDIR` 留下 `moli-storage-*`
    - 做法：用現行映像起一個拋棄式容器（不發佈 port、不帶 Telegram token、不掛 named volume），把 release tarball 下載到容器內並記錄 sha256，以 node 使用者執行。issue 0010 的 HTTP／JS fixture 放在容器內供測試。依序記錄：`moli --version`、`ldd`、HTTP 與 JS fixture 的輸出與結束碼、`--block-private-networks` 對 `127.0.0.1`／`10.x`／容器服務名稱／公開位址的結束碼與 stderr、`timeout 30` 對一個永不完成的頁面的結果與之後的 `/proc` 採樣，以及執行前後 `HOME`、`/tmp`、`XDG_*` 的差異。
    - 產出：`evidence/step1-moli-probe.md`，以及探測腳本（放在 `evidence/`）。
    - 完成判準：README「完成證據」列的每一項都有實際輸出；TBD-1 寫明 fixture 的放置方式與理由，TBD-2 寫明 Moli 寫不寫磁碟。若 Moli 在本環境跑不起來或讀不到 JS fixture，停下來回報使用者，不繼續後面的步驟。
-   - 相依：無。不改產品程式，可在 SCN 核准前執行。
+   - 相依：無。不改產品程式。
 2. 📝 **映像釘版安裝**（SCN-007）
    - 做法：先在 `tests/docker/browser-install.test.ts` 加測試（版本、sha256、`sha256sum -c`、wrapper COPY、沒有 `latest` 或 `| sh`），確認紅燈，再改 Dockerfile。另外建出 dev 與正式映像，各跑一次 `moli --version`；把雜湊改錯一次，確認建置失敗。
    - 完成判準：靜態測試紅燈→綠燈；兩個映像的版本輸出；雜湊錯誤時建置失敗的輸出。
    - 相依：步驟 1；SCN-007 已核准。
 3. 📝 **Moli wrapper**（SCN-005、SCN-006）
-   - 做法：新增 `tests/moli-fetch-wrapper.test.ts`，用假的 `moli`（以環境變數或 PATH 指向測試用執行檔）驅動 wrapper，覆蓋 SCN-006 每一列、逾時（假 moli 不結束）、非 0 結束、空輸出，以及結束後沒有殘留程序與暫存目錄。之後在步驟 2 的映像裡用真的 Moli 跑一次 SCN-006 的內網兩列。
-   - 完成判準：紅燈→綠燈；突變「拿掉 scheme 檢查」「拿掉 `--block-private-networks`」「拿掉 timeout」都會讓測試轉紅。
+   - 做法：新增 `tests/moli-fetch-wrapper.test.ts`，用假的 `moli`（以環境變數或 PATH 指向測試用執行檔）驅動 wrapper，覆蓋 SCN-006 每一列、逾時（假 moli 不結束也不理會 SIGTERM）、非 0 結束、空輸出、假 moli 在 `TMPDIR` 建檔後被中斷，以及對整個 process group 送 SIGKILL，確認之後沒有殘留程序與暫存目錄。之後在步驟 2 的映像裡用真的 Moli 跑一次 SCN-006 的內網兩列。
+   - 完成判準：紅燈→綠燈；突變「拿掉 scheme 檢查」「拿掉 `--block-private-networks`」「拿掉 timeout」「拿掉獨立 session 的清理程序」都會讓測試轉紅。
    - 相依：步驟 1；SCN-005、SCN-006 已核准。真 Moli 那一輪依賴步驟 2。
 4. 📝 **技能同步升級**（SCN-008）
    - 做法：在 `tests/skill-browser-migration.test.ts` 旁新增測試，用暫存目錄的 fixture 覆蓋 SCN-008 的四列，加上備份已存在、symlink、多出檔案三種情況，每種都同步兩次。
@@ -115,7 +117,7 @@ telenexus-moli-fetch <url>
 ## 檢查清單
 
 - [x] SCN-001～008 已核准（2026-11-12）
-- [ ] 步驟 1 證據齊全，TBD-1、TBD-2 已有結論
+- [x] 步驟 1 證據齊全，TBD-1 已解決，TBD-2 留給步驟 3、6
 - [ ] 步驟 2～6 各有紅燈→綠燈或實測證據
 - [ ] 常青文件已更新
 - [ ] build、test、lint 都 exit 0

@@ -152,7 +152,7 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
 ```
 
 ## Gherkin 核准紀錄
-- **核准 commit**: 待提交
+- **核准 commit**: d7edd4e
 - **核准來源**: 使用者於 2026-11-11 對話要求「先以 a 方案開 github issue」，並在逐題確認中全部選建議答案：
   - Q1「Moli 失敗才退回 Chrome」：順序是 webfetch → Moli → Chrome，技能仍只做公開唯讀閱讀（SCN-001～004）。
   - Q2「包一支固定參數的腳本」：模型只傳網址（SCN-005、SCN-006）。
@@ -179,7 +179,7 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
 
 步驟、產出與完成判準的唯一來源是 [implementation-plan.md](./implementation-plan.md) 的「實作步驟」。
 
-1. 📝 **步驟 1** - 在拋棄式容器實測釘版 Moli（首要驗證）
+1. ✅ **步驟 1** - 在拋棄式容器實測釘版 Moli（首要驗證）
 2. 📝 **步驟 2** - 映像釘版安裝（SCN-007）
 3. 📝 **步驟 3** - Moli wrapper（SCN-005、SCN-006）
 4. 📝 **步驟 4** - 技能同步升級（SCN-008）
@@ -199,8 +199,8 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
 
 | 編號 | 事項 | 狀態 | 影響 |
 |------|------|------|------|
-| TBD-1 | `--block-private-networks` 會擋 loopback，JS fixture 要放在哪裡，SCN-002 才能在不關掉封鎖的情況下驗證（例如拋棄式容器網路內的非保留位址、受控的公開頁面）；wrapper 不為測試開放關閉封鎖的參數 | 待確認 | 步驟 1 給出結論；SCN-002、SCN-003、SCN-005 的驗證方式 |
-| TBD-2 | 使用者取消時，opencode 的 bash 工具另開 session，wrapper 和 Moli 可能不會收到訊號，只能靠 30 秒硬逾時結束。另外 wrapper 本身被 SIGKILL 時，清理暫存目錄的 trap 不會執行 | 待確認 | 步驟 1 確認 Moli 寫不寫磁碟、步驟 6 實測取消；SCN-005 |
+| TBD-1 | `--block-private-networks` 會擋 loopback，JS fixture 要放在哪裡，SCN-002 才能在不關掉封鎖的情況下驗證（例如拋棄式容器網路內的非保留位址、受控的公開頁面）；wrapper 不為測試開放關閉封鎖的參數 | 已解決（2026-11-12）：封鎖不擋非保留網段，fixture 放在拋棄式 Docker 網路的 `45.67.89.0/24`；內網的例子用同一個 fixture 的 RFC1918 位址與服務名稱（[步驟 1](evidence/step1-moli-probe.md#對-tbd-的結論)） | SCN-002、SCN-003、SCN-005 的驗證方式 |
+| TBD-2 | 使用者取消時，opencode 的 bash 工具另開 session，wrapper 和 Moli 可能不會收到訊號，只能靠 30 秒硬逾時結束。另外 wrapper 本身被 SIGKILL 時，清理暫存目錄的 trap 不會執行 | 待確認。2026-11-12 步驟 1 確認：Moli 只寫 `TMPDIR/moli-storage-*`，被 SIGTERM 或 SIGKILL 中斷時會留下。wrapper 改為另起獨立 session 的清理程序，由步驟 3 驗證；實際取消的訊號由步驟 6 實測 | SCN-005 |
 | TBD-3 | 推導出的行為等待確認：收尾窗口「wrapper 啟動後 45 秒內」、Markdown 輸出是空的也算失敗、SCN-007 的釘版規則 | 已解決（2026-11-12）：使用者回「照寫核准」，三項照寫 | SCN-001～008 |
 
 ## Gate 豁免紀錄
@@ -220,4 +220,4 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
 **建立日期**: 2026-11-11  
 **分級**: Medium  
 **風險**: Medium\
-**狀態**: 待實作
+**狀態**: 實作中
