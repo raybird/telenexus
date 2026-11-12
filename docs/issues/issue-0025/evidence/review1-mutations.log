@@ -1,0 +1,7 @@
+# 2026-11-12 審查（review-a716fc7.md）修正後的突變。一次改 scripts/harvest-skills.mjs 一處，再跑 npx tsx --test tests/harvest-skills.test.ts，跑完以 cmp 確認還原。被測：未提交的工作樹（修正後）。
+R1 ls-tree 拿掉 -z（改回預設輸出）: not ok 28 - 內容相同就是與內建相同 not ok 29 - 與內建相同，不列成新技能 not ok 30 - 找得到相符的歷史版本 # pass 27 # fail 3 
+R2 Telegram token 前面改回 \b: not ok 23 - Telegram bot token 寫在 API 網址裡 # pass 29 # fail 1 
+M8 名稱檢查拿掉: not ok 16 - 名稱含路徑分隔符號；非 0、skills/ 不變 not ok 17 - 名稱以 .. 指向 workspace 外的技能；非 0、skills/ 不變 not ok 18 - 名稱是 ..；非 0、skills/ 不變 # pass 27 # fail 3 
+M2 promote 拿掉同名檢查: not ok 11 - skills/ 已有同名技能；非 0、skills/ 不變 # pass 29 # fail 1 
+M1 promote 拿掉目錄內 symlink 檢查: not ok 13 - 目錄裡含 symlink；非 0、skills/ 不變 # pass 29 # fail 1 
+還原：cmp 相同

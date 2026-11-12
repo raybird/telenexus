@@ -68,8 +68,9 @@ function blobMap(repo, dir, files) {
 function treeAt(repo, commit, name) {
   const prefix = `skills/${name}/`;
   const map = new Map();
-  for (const line of git(repo, ['ls-tree', '-r', commit, '--', prefix]).split('\n')) {
-    const match = /^\d+ blob ([0-9a-f]+)\t(.+)$/.exec(line);
+  // -z：不加引號、不跳脫。預設輸出會替含中文或 " 的路徑加引號，那些檔案就比對不到（2026-11-12 審查 MUST FIX）。
+  for (const line of git(repo, ['ls-tree', '-r', '-z', commit, '--', prefix]).split('\0')) {
+    const match = /^\d+ blob ([0-9a-f]+)\t(.+)$/s.exec(line);
     if (match?.[2]?.startsWith(prefix)) map.set(match[2].slice(prefix.length), match[1]);
   }
   return map;
@@ -150,7 +151,8 @@ function report(repo, skillsDir, groups) {
 }
 
 // 只用來提醒的格式：常見的雲端與聊天服務 token、Telegram bot token。
-const TOKEN_PATTERN = /\b(?:ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|sk-[A-Za-z0-9_-]{20,}|nvapi-[A-Za-z0-9_-]{20,}|xox[bp]-[A-Za-z0-9-]{10,}|\d{8,10}:[A-Za-z0-9_-]{35})\b/;
+// Telegram token 常接在 /bot 後面（api.telegram.org/bot<token>），前面不能用 \b（2026-11-12 審查 S1）。
+const TOKEN_PATTERN = /\b(?:ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|sk-[A-Za-z0-9_-]{20,}|nvapi-[A-Za-z0-9_-]{20,}|xox[bp]-[A-Za-z0-9-]{10,})\b|(?<!\d)\d{8,10}:[A-Za-z0-9_-]{35}(?![A-Za-z0-9_-])/;
 const LOCAL_PATH_PATTERN = /\/home\/[^/\s]+/;
 
 /** 收進 skills/ 前要提醒的內容；只回報位置，不回傳疑似 token 本身。 */

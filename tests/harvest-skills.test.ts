@@ -173,18 +173,18 @@ test('SCN-006 promote 新技能：內容相同、提醒先檢查，不 commit、
   } finally { f.close(); }
 });
 
-const refusals: Array<[string, (f: ReturnType<typeof fixture>) => string]> = [
-  ['skills/ 已有同名技能', () => 'edited'],
-  ['目錄裡沒有 SKILL.md', (f) => { write(f.ws, { 'nodoc/README.md': '沒有 SKILL.md\n' }); return 'nodoc'; }],
-  ['目錄裡含 symlink', (f) => { write(f.ws, { 'withlink/SKILL.md': skill('withlink', 'x') }); symlinkSync(join(f.root, 'elsewhere'), join(f.ws, 'withlink/data')); return 'withlink'; }],
-  ['技能本身是 symlink', () => 'linked'],
-  ['workspace 沒有這個名稱', () => 'ghost'],
-  ['名稱含路徑分隔符號', () => 'newskill/scripts'],
+const refusals: Array<[string, (f: ReturnType<typeof fixture>) => string, RegExp]> = [
+  ['skills/ 已有同名技能', () => 'edited', /已存在.*--force/],
+  ['目錄裡沒有 SKILL.md', (f) => { write(f.ws, { 'nodoc/README.md': '沒有 SKILL.md\n' }); return 'nodoc'; }, /沒有 SKILL\.md/],
+  ['目錄裡含 symlink', (f) => { write(f.ws, { 'withlink/SKILL.md': skill('withlink', 'x') }); symlinkSync(join(f.root, 'elsewhere'), join(f.ws, 'withlink/data')); return 'withlink'; }, /目錄裡含 symlink/],
+  ['技能本身是 symlink', () => 'linked', /是 symlink/],
+  ['workspace 沒有這個名稱', () => 'ghost', /沒有這個技能/],
+  ['名稱含路徑分隔符號', () => 'newskill/scripts', /不能含路徑/],
   // 名稱檢查是唯一的防線：workspace 外的 outside 是合法技能，沒擋下就會寫到 repo 的 skills/ 之外。
-  ['名稱以 .. 指向 workspace 外的技能', (f) => { write(join(f.ws, '..'), { 'outside/SKILL.md': skill('outside', 'x') }); return '../outside'; }],
-  ['名稱是 ..', () => '..'],
+  ['名稱以 .. 指向 workspace 外的技能', (f) => { write(join(f.ws, '..'), { 'outside/SKILL.md': skill('outside', 'x') }); return '../outside'; }, /不能含路徑/],
+  ['名稱是 ..', () => '..', /不能含路徑/],
 ];
-for (const [label, prepare] of refusals) {
+for (const [label, prepare, reason] of refusals) {
   test(`SCN-007 promote 拒絕：${label}；非 0、skills/ 不變`, () => {
     const f = fixture();
     try {
@@ -193,6 +193,7 @@ for (const [label, prepare] of refusals) {
       const r = f.run(['--promote', name]);
       assert.notEqual(r.code, 0, r.out);
       assert.match(r.out, /\[harvest\] /);
+      assert.match(r.out, reason, '要說明拒絕的原因');
       assert.deepEqual(snapshot(join(f.repo, 'skills')), before);
       assert.deepEqual(readdirSync(join(f.repo, 'skills')).sort(), ['edited', 'same', 'sched']);
       assert.equal(existsSync(join(f.repo, 'outside')), false, '不能寫到 skills/ 之外');
@@ -213,10 +214,12 @@ test('SCN-008 --force 覆寫同名內建技能：與 workspace 完全相同，�
 
 // 假 token：只用來觸發警告的格式，不是真的憑證。
 const FAKE_TOKEN = `ghp_${'A1b2C3d4E5'.repeat(4)}`;
+const FAKE_TG_TOKEN = `123456789:${'AbCdEfGhIj'.repeat(3)}AbCdE`;
 const warnings: Array<[string, string, string, RegExp]> = [
   ['name 與目錄名不同', 'renamed', skill('other-name', 'x'), /renamed.*other-name|other-name.*renamed/],
   ['疑似 token', 'tokeny', skill('tokeny', `設定\n\nexport GH=${FAKE_TOKEN}`), /SKILL\.md:7/],
   ['本機絕對路徑', 'pathy', skill('pathy', '資料在 /home/someone/data 底下'), /SKILL\.md:5/],
+  ['Telegram bot token 寫在 API 網址裡', 'tg', skill('tg', `curl https://api.telegram.org/bot${FAKE_TG_TOKEN}/sendMessage`), /SKILL\.md:5 疑似含 token/],
 ];
 for (const [label, name, content, expected] of warnings) {
   test(`SCN-009 promote 照樣複製但警告：${label}`, () => {
@@ -228,7 +231,7 @@ for (const [label, name, content, expected] of warnings) {
       assert.deepEqual(snapshot(join(f.repo, 'skills', name)), { 'SKILL.md': content });
       const warning = r.out.split('\n').filter((line) => line.includes('警告')).join('\n');
       assert.match(warning, expected);
-      assert.ok(!r.out.includes(FAKE_TOKEN), '輸出不能印出疑似 token 本身');
+      assert.ok(!r.out.includes(FAKE_TOKEN) && !r.out.includes(FAKE_TG_TOKEN), '輸出不能印出疑似 token 本身');
     } finally { f.close(); }
   });
 }
@@ -281,5 +284,44 @@ test('SCN-007 promote --force 換上新版時失敗：舊版移回原處，skill
     assert.match(result.stdout + result.stderr, /EIO/);
     assert.deepEqual(snapshot(join(f.repo, 'skills')), before, '舊版回到原處');
     assert.deepEqual(readdirSync(join(f.repo, 'skills')).sort(), ['edited', 'same', 'sched'], '沒有留下暫存目錄');
+  } finally { f.close(); }
+});
+
+// 2026-11-12 審查 MUST FIX：git 預設會替含中文或 " 的路徑加引號，比對不能因此漏掉檔案。
+function nonAsciiFixture() {
+  const f = fixture();
+  write(f.repo, { 'skills/股票/SKILL.md': skill('股票', '台股分析'), 'skills/same/說明.md': '附註\n', 'skills/same/say "hi".md': '引號\n' });
+  git(f.repo, 'add', '-A');
+  git(f.repo, 'commit', '-q', '-m', 'v3');
+  const v3 = git(f.repo, 'rev-parse', '--short', 'HEAD').trim();
+  write(f.ws, { '股票/SKILL.md': skill('股票', '台股分析'), 'same/說明.md': '附註\n', 'same/say "hi".md': '引號\n' });
+  return { ...f, v3 };
+}
+
+test('含中文或引號的檔名：內容相同就是與內建相同', () => {
+  const f = nonAsciiFixture();
+  try {
+    const r = f.run();
+    assert.match(section(r.out, '略過'), /same\s+與內建相同/);
+    assert.doesNotMatch(section(r.out, '被改過的內建技能'), /same/);
+  } finally { f.close(); }
+});
+
+test('中文技能名：與內建相同，不列成新技能', () => {
+  const f = nonAsciiFixture();
+  try {
+    const r = f.run();
+    assert.match(section(r.out, '略過'), /股票\s+與內建相同/);
+    assert.doesNotMatch(section(r.out, '新技能'), /股票/);
+  } finally { f.close(); }
+});
+
+test('含中文檔名的舊版內建：找得到相符的歷史版本', () => {
+  const f = nonAsciiFixture();
+  try {
+    write(f.repo, { 'skills/same/說明.md': '新的附註\n' });
+    git(f.repo, 'commit', '-q', '-am', 'v4');
+    const r = f.run();
+    assert.match(section(r.out, '略過'), new RegExp(`same\\s+舊版內建，未被修改（與 ${f.v3} 相同）`));
   } finally { f.close(); }
 });
