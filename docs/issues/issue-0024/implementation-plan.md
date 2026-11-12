@@ -73,19 +73,19 @@ telenexus-moli-fetch <url>
    - 產出：`evidence/step1-moli-probe.md`，以及探測腳本（放在 `evidence/`）。
    - 完成判準：README「完成證據」列的每一項都有實際輸出；TBD-1 寫明 fixture 的放置方式與理由，TBD-2 寫明 Moli 寫不寫磁碟。若 Moli 在本環境跑不起來或讀不到 JS fixture，停下來回報使用者，不繼續後面的步驟。
    - 相依：無。不改產品程式。
-2. 📝 **映像釘版安裝**（SCN-007）
-   - 做法：先在 `tests/docker/browser-install.test.ts` 加測試（版本、sha256、`sha256sum -c`、wrapper COPY、沒有 `latest` 或 `| sh`），確認紅燈，再改 Dockerfile。另外建出 dev 與正式映像，各跑一次 `moli --version`；把雜湊改錯一次，確認建置失敗。
+2. ✅ **映像釘版安裝**（SCN-007）——證據：[evidence/step2-image-install.md](evidence/step2-image-install.md)。紅燈 1/2；綠燈 9/9；6 個突變都轉紅；dev 與正式映像的 `moli --version` 都是 1.1.23；雜湊錯誤時建置失敗。wrapper 的 COPY 移到步驟 3
+   - 做法：先新增 `tests/docker/moli-install.test.ts`（版本、sha256、`sha256sum -c`、沒有 `latest` 或 `| sh`），確認紅燈，再改 Dockerfile。wrapper 的 COPY 在步驟 3 才加，因為 wrapper 那時才存在。另外建出 dev 與正式映像，各跑一次 `moli --version`；把雜湊改錯一次，確認建置失敗。
    - 完成判準：靜態測試紅燈→綠燈；兩個映像的版本輸出；雜湊錯誤時建置失敗的輸出。
    - 相依：步驟 1；SCN-007 已核准。
-3. 📝 **Moli wrapper**（SCN-005、SCN-006）
+3. ✅ **Moli wrapper**（SCN-005、SCN-006）——證據：[evidence/step3-wrapper.md](evidence/step3-wrapper.md)。紅燈 12 失敗／2 取消；綠燈 15/15；10 個突變中 9 個轉紅（M6 沒有可觀察差異，已說明）；映像內真 Moli 的內網五種位址都被擋，`data:` 被 wrapper 擋下
    - 做法：新增 `tests/moli-fetch-wrapper.test.ts`，用假的 `moli`（以環境變數或 PATH 指向測試用執行檔）驅動 wrapper，覆蓋 SCN-006 每一列、逾時（假 moli 不結束也不理會 SIGTERM）、非 0 結束、空輸出、假 moli 在 `TMPDIR` 建檔後被中斷，以及對整個 process group 送 SIGKILL，確認之後沒有殘留程序與暫存目錄。之後在步驟 2 的映像裡用真的 Moli 跑一次 SCN-006 的內網兩列。
    - 完成判準：紅燈→綠燈；突變「拿掉 scheme 檢查」「拿掉 `--block-private-networks`」「拿掉 timeout」「拿掉獨立 session 的清理程序」都會讓測試轉紅。
    - 相依：步驟 1；SCN-005、SCN-006 已核准。真 Moli 那一輪依賴步驟 2。
-4. 📝 **技能同步升級**（SCN-008）
+4. ✅ **技能同步升級**（SCN-008）——證據：[evidence/step4-skill-upgrade.md](evidence/step4-skill-upgrade.md)。紅燈 7/9；綠燈 21/21（含 issue 0010 的遷移測試）；6 個突變中 5 個轉紅，M6（改名衝突）沒有測試擋得住，已揭露
    - 做法：在 `tests/skill-browser-migration.test.ts` 旁新增測試，用暫存目錄的 fixture 覆蓋 SCN-008 的四列，加上備份已存在、symlink、多出檔案三種情況，每種都同步兩次。
    - 完成判準：紅燈→綠燈；突變「不比對雜湊就覆寫」會讓「內容被改過」那一列轉紅。
    - 相依：SCN-008 已核准。和步驟 2、3 互不相依。
-5. 📝 **web-reading 指引**（SCN-001～004）
+5. ✅ **web-reading 指引**（SCN-001～004）——證據：[evidence/step5-red.log](evidence/step5-red.log)、[evidence/step5-green.log](evidence/step5-green.log)。`tests/web-reading-skill.test.ts` 對舊版指引 1/3 通過（「明確說明讀取失敗」舊版就有），新版 3/3；改寫時套用 writing-rules。模型是否照著走由步驟 6 驗證
    - 做法：依上方「指引」改寫 `skills/web-reading/SKILL.md`，更新「最後驗證日期」。`tests/skill-browser-migration.test.ts` 若檢查技能內容，同步調整，並把它記為「核准的行為已變更」。
    - 完成判準：文字層的靜態檢查（提到 wrapper、退回 Chrome 的條件、失敗回報）；行為由步驟 6 驗證。
    - 相依：步驟 3（wrapper 的介面已定）、步驟 4（新版要送得到現有部署）。

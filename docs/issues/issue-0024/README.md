@@ -180,10 +180,10 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
 步驟、產出與完成判準的唯一來源是 [implementation-plan.md](./implementation-plan.md) 的「實作步驟」。
 
 1. ✅ **步驟 1** - 在拋棄式容器實測釘版 Moli（首要驗證）
-2. 📝 **步驟 2** - 映像釘版安裝（SCN-007）
-3. 📝 **步驟 3** - Moli wrapper（SCN-005、SCN-006）
-4. 📝 **步驟 4** - 技能同步升級（SCN-008）
-5. 📝 **步驟 5** - web-reading 指引（SCN-001～004）
+2. ✅ **步驟 2** - 映像釘版安裝（SCN-007）
+3. ✅ **步驟 3** - Moli wrapper（SCN-005、SCN-006）
+4. ✅ **步驟 4** - 技能同步升級（SCN-008）
+5. ✅ **步驟 5** - web-reading 指引（SCN-001～004）
 6. 📝 **步驟 6** - 實際 OpenCode 工具路徑整合（SCN-001～005）
 7. 📝 **步驟 7** - 常青文件與交付檢查
 

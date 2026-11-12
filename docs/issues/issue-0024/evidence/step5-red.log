@@ -1,0 +1,6 @@
+== 舊版指引（HEAD 的 skills/web-reading/SKILL.md）
+not ok 1 - SCN-001～003 指引的順序是 webfetch → telenexus-moli-fetch → 本工作瀏覽器
+ok 2 - SCN-004 三層都讀不到時明確說明讀取失敗
+not ok 3 - SCN-008 新版指引與已出貨舊版不同，升級才會發生
+# pass 1
+# fail 2
