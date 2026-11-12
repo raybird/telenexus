@@ -36,6 +36,16 @@ repo 自己的 `workspace/.opencode/skills` 另有 `agent-browser`：它在 `04f
 - 改變啟動時的技能同步策略。
 - 讀取 named volume 裡的全域技能目錄（Q1）。
 
+## 現況
+
+**現行 review**: review-a716fc7.md
+
+| 外部狀態 | 查證命令 | 上次結果 | 查證日期 |
+|---|---|---|---|
+| GitHub issue #25 | `gh issue view 25 --repo raybird/telenexus --json state -q .state` | OPEN | 2026-11-12 |
+| 規格提交推送到 origin | `git merge-base --is-ancestor 760775b origin/main && echo yes` | 沒有輸出（main 上的 6b5392d、760775b 尚未推送） | 2026-11-12 |
+| 併入 main | `git branch --list main --contains feat/issue-0025-skill-harvest` | 沒有輸出（未併入） | 2026-11-12 |
+
 ## 快速導覽
 
 ### 當前流程
