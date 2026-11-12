@@ -28,7 +28,7 @@ issue 0010 之後，`web-reading` 技能分兩層：一般頁面用 `webfetch`�
 
 ## 現況
 
-**現行 review**: review-aacbacc.md
+**現行 review**: review-b38af46.md
 
 | 外部狀態 | 查證命令 | 上次結果 | 查證日期 |
 |---|---|---|---|
