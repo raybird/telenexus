@@ -133,6 +133,8 @@ function upgradeBuiltinWebReading(targetDir) {
   const source = path.join(sourceDir, 'web-reading');
   const candidate = path.join(targetDir, 'web-reading');
   const backup = path.join(path.dirname(targetDir), 'retired-skills', `web-reading-${legacyWebReading.id}`);
+  // 來源沒有 web-reading（例如維護者移除了它）時沒有新版可換，交給下面的一般同步處理。
+  if (!fs.existsSync(source)) return;
   const current = scanDirectory(source);
   if (!current) return;
   try {
@@ -180,7 +182,15 @@ function upgradeBuiltinWebReading(targetDir) {
 function syncBuiltinSkills() {
   targetDirs.forEach(ensureDir);
   targetDirs.forEach(retireBuiltinBrowser);
-  targetDirs.forEach(upgradeBuiltinWebReading);
+  // 升級失敗只影響 web-reading：警告後保留舊版，其他技能照常同步（2026-11-12 審查 S1）。
+  targetDirs.forEach((targetDir) => {
+    try {
+      upgradeBuiltinWebReading(targetDir);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[SkillSync] web-reading 未升級，保留原本的版本（${targetDir}）：${message}`);
+    }
+  });
   if (!fs.existsSync(sourceDir)) {
     console.log(`[SkillSync] Builtin skills source not found: ${sourceDir}`);
     return;

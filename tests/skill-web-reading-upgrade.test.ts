@@ -161,3 +161,45 @@ test('SCN-008 telenexus 與 agent-runner 同時同步：只有一份備份、結
     } finally { f.close(); }
   }
 });
+
+// 2026-11-12 審查 S1：web-reading 的升級不能讓其他技能的同步中止。
+test('S1 來源沒有 web-reading：其他技能照常同步，不中止', () => {
+  const f = fixture();
+  try {
+    rmSync(join(f.source, 'web-reading'), { recursive: true, force: true });
+    mkdirSync(join(f.source, 'scheduler'), { recursive: true });
+    writeFileSync(join(f.source, 'scheduler', 'SKILL.md'), '---\nname: scheduler\ndescription: x\n---\n');
+    const result = f.run();
+    assert.doesNotMatch(result.stdout + result.stderr, /\[SkillSync\] Failed/);
+    assert.doesNotMatch(result.stdout + result.stderr, /web-reading 未升級/, '沒有新版可換不是錯誤');
+    for (const target of f.targets) assert.ok(existsSync(join(target, 'scheduler', 'SKILL.md')), `${target} 要有 scheduler`);
+  } finally { f.close(); }
+});
+
+test('S1 內建技能來源目錄不存在：照舊只說明找不到來源，不中止', () => {
+  const f = fixture();
+  try {
+    rmSync(f.source, { recursive: true, force: true });
+    const result = f.run();
+    assert.doesNotMatch(result.stdout + result.stderr, /\[SkillSync\] Failed/);
+    assert.doesNotMatch(result.stdout + result.stderr, /web-reading 未升級/, '沒有新版可換不是錯誤');
+    assert.match(result.stdout, /Builtin skills source not found/);
+  } finally { f.close(); }
+});
+
+test('S1 升級時備份失敗：警告並保留舊版，其他技能照常同步', () => {
+  const f = fixture();
+  try {
+    mkdirSync(join(f.source, 'scheduler'), { recursive: true });
+    writeFileSync(join(f.source, 'scheduler', 'SKILL.md'), '---\nname: scheduler\ndescription: x\n---\n');
+    const target = f.targets[0]!;
+    cpSync(legacySource, join(target, 'web-reading'), { recursive: true });
+    // retired-skills 是一般檔案，建立備份目錄會失敗。
+    writeFileSync(join(target, '..', 'retired-skills'), 'not a directory');
+    const result = f.run();
+    assert.doesNotMatch(result.stdout + result.stderr, /\[SkillSync\] Failed/);
+    assert.match(result.stdout + result.stderr, /web-reading/);
+    assert.deepEqual(snapshot(join(target, 'web-reading')), snapshot(legacySource), '舊版原地保留');
+    for (const t of f.targets) assert.ok(existsSync(join(t, 'scheduler', 'SKILL.md')), `${t} 要有 scheduler`);
+  } finally { f.close(); }
+});

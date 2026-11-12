@@ -1,0 +1,3 @@
+M1 拿掉來源存在檢查: not ok 10 - S1 來源沒有 web-reading：其他技能照常同步，不中止 not ok 11 - S1 內建技能來源目錄不存在：照舊只說明找不到來源，不中止 # pass 10 # fail 2 
+M2 拿掉 try/catch: not ok 12 - S1 升級時備份失敗：警告並保留舊版，其他技能照常同步 # pass 11 # fail 1 
+restored
