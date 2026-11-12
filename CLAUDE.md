@@ -112,7 +112,7 @@ Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per
 
 ### Configuration
 
-2026-10-04：公開網頁閱讀先用 webfetch，JS 正文使用內建 `telenexus_browser`。`src/core/opencode.ts` 只合併工作 env；`scripts/browser-mcp-launcher.mjs` 管理各工作 MCP／Chrome／profile 收尾，容器 init 回收退出的孤兒。取消沿 HTTP 傳至 runner，使用者取消不觸發 local fallback。設定覆寫與安全限制見 `docs/configuration-reference.md`、`docs/runtime-boundary-and-security.md`。
+2026-10-04：公開網頁閱讀先用 webfetch，JS 正文使用內建 `telenexus_browser`。2026-11-12（issue 0024）：兩者之間多了 `telenexus-moli-fetch`（`scripts/moli-fetch.sh`，呼叫映像內建的 Moli），Moli 結束碼非 0 或讀不到正文時才開 Chrome；`scripts/sync-skills.mjs` 會把雜湊相符的已出貨舊版 `web-reading` 換成新版。`src/core/opencode.ts` 只合併工作 env；`scripts/browser-mcp-launcher.mjs` 管理各工作 MCP／Chrome／profile 收尾，容器 init 回收退出的孤兒。取消沿 HTTP 傳至 runner，使用者取消不觸發 local fallback。設定覆寫與安全限制見 `docs/configuration-reference.md`、`docs/runtime-boundary-and-security.md`。
 
 - **`ai-config.yaml`**: Runtime AI provider selection (opencode), model override, passthrough command whitelist, chat prompt assembly config
 - **`.env`**: Telegram token, allowed user ID, runner settings, web console settings, Memoria sync options, error alerter / schedule timeout knobs (`ERROR_ALERT_THRESHOLD`, `ERROR_ALERT_WINDOW_MS`, `ERROR_ALERT_COOLDOWN_MS`, `SCHEDULE_TASK_TIMEOUT_MS`)
@@ -124,8 +124,10 @@ Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per
 
 - **full** — periodic full prompt + memory context injection; also injects live system summary (active schedules, recent error count, memory size) and skills index into the prompt so Opencode sees them without needing to read files
 - **compact** — lightweight follow-up prompt; memory context only injected when the message clearly needs prior rules/decisions/settings
-- **minimal** — short follow-ups; adds only the memory-intent hint to the user message
+- **minimal** — short follow-ups; adds only the memory-intent hint and the web-reading order to the user message
 - **passthrough** — slash command forwarded verbatim to the underlying CLI, no TeleNexus wrapping
+
+full, compact and minimal all carry a 【網頁讀取】 block (webfetch → `telenexus-moli-fetch` → `telenexus_browser`, stop at the first layer that returns the body). The model often answers without loading the `web-reading` skill (9 of 20 turns in issue 0024's real-model runs), and without the block those turns never used Moli. Scheduled-task prompts do not carry it.
 
 Long-term context comes from two sources: the SQLite memory store (with SAR — Summary-Aware Retrieval) and the optional Memoria HTTP service (installed via npm `@raybird.chen/memoria`, data in the `memoria_data` volume; recall + sync both over `MEMORIA_ENDPOINT`).
 

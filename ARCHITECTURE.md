@@ -1,6 +1,6 @@
 ## 架構概覽
 
-最後驗證日期：2026-10-04。
+最後驗證日期：2026-11-12（網頁閱讀相關條目，issue 0024）。
 
 TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram bot。
 
@@ -44,9 +44,11 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
   - 內建 runner circuit breaker、passthrough command 改寫
 - `src/core/opencode.ts`
   - 封裝 Opencode CLI 呼叫；stream / non-stream 路徑均透過 `opencode-event-parser` 解析事件
-  - 聊天工作 env 合併固定 Chrome DevTools MCP，不覆寫持久設定；公開網頁先 webfetch，JS 才按需使用工作專屬瀏覽器
+  - 聊天工作 env 合併固定 Chrome DevTools MCP，不覆寫持久設定；公開網頁先 webfetch，JS 正文先用 `telenexus-moli-fetch`，讀不到才按需使用工作專屬瀏覽器
 - `scripts/browser-mcp-launcher.mjs`
   - 工作專屬 MCP／Chrome／臨時 profile 所有權與退出收尾；容器 init 回收退出的孤兒，沒有全域 browser close
+- `scripts/moli-fetch.sh`（映像內為 `telenexus-moli-fetch`）
+  - 2026-11-12（issue 0024）：JS 正文的第一選擇。以固定參數呼叫內建 Moli、封鎖內網、30 秒硬逾時、自己的暫存目錄與獨立 session 的清理程序；結束碼非 0 或讀不到所需正文時才改用 Chrome MCP
 - `src/core/opencode-event-parser.ts`
   - 共用 `interpretEvent()` dispatch table；兩條路徑從同一份 schema 取 text / statusText / stats，以及上游 `error` 事件的狀態碼（`upstreamError`）
 - `src/core/cli-agent-base.ts`
@@ -70,6 +72,7 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
   - 建立 full / compact prompt
   - 組 recent history、SAR anchors、semantic summaries
   - Full mode 時額外注入 `systemSummary`（系統狀態）與 `skillsHint`（技能索引）
+  - 2026-11-12（issue 0024）：full／compact／minimal 都帶【網頁讀取】順序（webfetch → `telenexus-moli-fetch` → `telenexus_browser`），模型沒載入 `web-reading` 技能時也看得到
 - `src/core/prompt-build.ts`
   - 決定 full / compact / minimal prompt 模式
   - 控制 compact prompt 是否注入 memory context

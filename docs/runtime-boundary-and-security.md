@@ -4,7 +4,7 @@
 
 2026-02-07
 
-最後驗證日期：2026-10-04。
+最後驗證日期：2026-11-12（Moli 網頁讀取一節，issue 0024）；其餘各節見各自的日期。
 
 ## 1) 設計目標
 
@@ -185,6 +185,16 @@ Chrome 使用 `--no-sandbox`／`--disable-dev-shm-usage`，沒有放寬容器非
 launcher 自身若被 SIGKILL 無法執行清理；PID/starttime 檢查不是 pidfd 的原子保障。清理失敗會嘗試寫入產品 data 目錄的 `browser-lifecycle.jsonl`（0600），包含錯誤碼、臨時 root 及剩餘程序身份，不包含 URL／憑證／完整 argv；寫入失敗另記 stderr，不能宣稱已保存。紀錄沒有自動輪替，依部署保存政策管理；禁止以文字回答成功或僅 init=true 取代資源驗收。
 
 2026-10-05：runner／容器終止與單一工作收尾是不同驗收層。Docker stop 先傳遞 SIGTERM，deadline 後強制終止不能保證 application finally 或 audit 執行；容器 teardown 的程序終態須由宿主 PID/starttime 與 cgroup 查核，不以 docker exec 失敗判零。`init` 回收已退出孤兒，不負責刪除 profile；強制終止可能保留 `/tmp/tnb-*` 於已停止容器的可寫層，停止不等於 unlink。現有 runner Compose 未將 `/tmp` 持久化掛載，重建容器與保留／重啟原容器的檔案語意不同；若自訂掛載 `/tmp`，本期不承諾自動清除持久化 profile，也不刪除使用者 volumes。
+
+### Moli 網頁讀取（issue 0024）
+
+2026-11-12：JS 正文先由 `telenexus-moli-fetch`（`/usr/local/bin`，原始碼 `scripts/moli-fetch.sh`）呼叫映像內建的 Moli 1.1.23（`/opt/telenexus/moli`，release tarball 以 sha256 驗證，不在 PATH）。Moli 是 Rust 寫的獨立瀏覽器核心，執行頁面的 JavaScript，跟 Chrome 一樣沒有原生 sandbox，**不是安全執行任意網站程式碼的保證**。
+
+- 只接受一個 http／https 網址；`file:`、`data:`、其他 scheme 與額外參數由 wrapper 擋下，不啟動 Moli。清掉 `MOLI_*` 環境變數，避免改變固定參數。
+- `--block-private-networks`：loopback、RFC1918、link-local（含 `169.254.169.254`），以及解析到這些位址的服務名稱（例如 `memoria`）都會被拒絕。這只限制 Moli；依 issue 0024 的決定，被擋的網址照常可以由 `telenexus_browser` 讀取，Chrome 那邊沒有這層限制。
+- 沒帶 `--profile-dir` 時，Moli 把 cookie、IndexedDB、OPFS 寫在 `TMPDIR/moli-storage-*`，被訊號中斷時不會清掉。wrapper 把 `HOME`／`TMPDIR` 指到自己的 `/tmp/tnm-*`，結束時刪除；另起一個獨立 session、不持有 stdout／stderr 的清理程序，處理 wrapper 與 Moli 一起被 SIGKILL 的情況。
+- 收尾：30 秒硬逾時（`timeout --foreground`，再 5 秒 SIGKILL），wrapper 啟動後 45 秒內不留下 moli 程序或暫存目錄。Moli 是單一程序。
+- 使用者取消回合時，runner 只終止 opencode；bash 工具裡的 wrapper 收不到訊號，會被收養到 pid 1 繼續執行，由 Moli 自己的 10 秒逾時（最壞是 30 秒硬逾時）結束並清掉暫存目錄。這段時間 Moli 仍在讀那個公開網址，但結果不會送給任何人（issue 0024 步驟 6 實測）。
 
 ### dev/prod 模式說明
 

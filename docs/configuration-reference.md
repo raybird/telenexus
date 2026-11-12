@@ -1,10 +1,12 @@
 # Configuration Reference
 
-最後驗證日期：2026-10-04。
+最後驗證日期：2026-11-12（OpenCode 網頁閱讀一節，issue 0024）；其餘各節見各自的日期。
 
 ## OpenCode 網頁閱讀與工作專屬 MCP
 
 2026-10-04：OpenCode 聊天（串流／非串流、local／runner）沿用 webfetch 讀普通公開網頁；JS 正文才使用內建 `telenexus_browser` MCP。映像固定 Chrome DevTools MCP 1.10.1、Chrome 154.0.8037.92，不在每次工作下載套件。摘要路徑不額外注入此工具。
+
+2026-11-12（issue 0024）：`web-reading` 技能在 webfetch 與 `telenexus_browser` 之間加了一層 `telenexus-moli-fetch`（`scripts/moli-fetch.sh`），用映像內建的 Moli 1.1.23 讀取 JS 渲染後的正文。它不是 MCP，模型以 bash 執行，只接受一個 http／https 網址。參數全部寫死，沒有設定旋鈕：Markdown 輸出、`--wait domstable --timeout 10000`、`--fail`、`--block-private-networks`、30 秒硬逾時。Moli 讀不到時（結束碼非 0 或沒有所需正文）才開 Chrome。內網封鎖只套用在 Moli，被擋的網址照常可以退回 Chrome。模型不一定會載入技能，所以 `src/prompt/builder.ts` 在 full／compact／minimal 三種聊天提示詞都加了一段【網頁讀取】，寫明這個順序；排程任務的提示詞沒有加。
 
 - `OPENCODE_CONFIG_CONTENT` 支援 JSON／JSONC 物件；工作 env 合併 MCP，不改寫持久 OpenCode 設定或認證。既有 memory／自訂 MCP 保留。
 - inline 設定沒有定義 `mcp-memory-libsql` 時，工作 env 一律帶它的停用條目（已退役，見「已退役：mcp-memory-libsql 與記憶回填」）。

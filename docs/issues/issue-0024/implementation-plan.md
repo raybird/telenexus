@@ -94,7 +94,7 @@ telenexus-moli-fetch <url>
    - 完成判準：觀測器先用已知的正／負對照驗過（例如刻意不清理的暫存目錄要被抓到）；每個 Scenario 列都有實際輸出。模型沒有照指引走（例如跳過 Moli 直接開 Chrome）時如實記錄，不重試到成功為止。
    - 相依：步驟 2～5。
    - 2026-11-12 進度：三輪實測見 [evidence/step6-opencode-path.md](evidence/step6-opencode-path.md)。模型 20 次有 9 次沒載入技能，Q13 新增 SCN-009：`src/prompt/builder.ts` 在三種模式的聊天提示詞都加上網頁讀取順序（`tests/web-reading-route-hint.test.ts`，紅燈 3/3 失敗、綠燈 41/41、4 個突變全紅，記錄在 evidence/step6b-*.log）。第四輪改用正式部署的 `nvidia/z-ai/glm-5.3-flash`（Q14），8 個情境全部符合，結論見證據檔。
-7. 📝 **常青文件與交付檢查**
+7. ✅ **常青文件與交付檢查**
    - 做法：更新 `docs/runtime-boundary-and-security.md`（Moli 的執行邊界、內網封鎖只套用在 Moli、Chrome 照舊）、`docs/configuration-reference.md` 第 7 行附近的網頁閱讀說明、`docs/installation.md` 的技能同步段落（雜湊相符才換新）、`CLAUDE.md` 的 Configuration 段落、`ARCHITECTURE.md` 第 47 行。執行 `npm run build`、`npm run test`（核對 `# tests` 與測試檔數，[L-01](../../agents/landmines.md)）、`npm run lint`。
    - 完成判準：三個指令都 exit 0；證據檔已去敏（[L-10](../../agents/landmines.md)）。
    - 相依：步驟 1～6。

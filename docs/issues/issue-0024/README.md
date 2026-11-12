@@ -26,6 +26,14 @@ issue 0010 之後，`web-reading` 技能分兩層：一般頁面用 `webfetch`�
 - 登入、表單、跨回合瀏覽器狀態（沿用 issue 0010 的範圍）。
 - arm64 映像。
 
+## 現況
+
+| 外部狀態 | 查證命令 | 上次結果 | 查證日期 |
+|---|---|---|---|
+| GitHub issue #24 | `gh issue view 24 --repo raybird/telenexus --json state -q .state` | OPEN | 2026-11-12 |
+| 分支推送到 origin | `git ls-remote --heads origin feat/issue-0024-moli-web-reading` | 沒有輸出（未推送） | 2026-11-12 |
+| 併入 main | `git branch --list main --contains feat/issue-0024-moli-web-reading` | 沒有輸出（未併入） | 2026-11-12 |
+
 ## 快速導覽
 
 ### 當前流程
@@ -198,7 +206,7 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
 4. ✅ **步驟 4** - 技能同步升級（SCN-008）
 5. ✅ **步驟 5** - web-reading 指引（SCN-001～004）
 6. ✅ **步驟 6** - 實際 OpenCode 工具路徑整合（SCN-001～005、SCN-009）
-7. 📝 **步驟 7** - 常青文件與交付檢查
+7. ✅ **步驟 7** - 常青文件與交付檢查
 
 ## 風險與首要驗證
 
@@ -235,4 +243,4 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
 **建立日期**: 2026-11-11  
 **分級**: Medium  
 **風險**: Medium\
-**狀態**: 實作中
+**狀態**: 待審查
