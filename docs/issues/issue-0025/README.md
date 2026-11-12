@@ -181,7 +181,7 @@ Feature: 從 workspace 收成 agent 做出的技能
 1. ✅ **`.dockerignore` 限縮 workspace**（SCN-010，首要驗證）
 2. ✅ **收成命令：列出與分類**（SCN-001～005）
 3. ✅ **收成命令：promote**（SCN-006～009）
-4. 📝 **常青文件與交付檢查**
+4. ✅ **常青文件與交付檢查**
 
 細節見 [implementation-plan.md](implementation-plan.md)。
 
@@ -218,4 +218,4 @@ Feature: 從 workspace 收成 agent 做出的技能
 **建立日期**: 2026-11-12
 **分級**: Medium
 **風險**: Low
-**狀態**: 實作中
+**狀態**: 待審查

@@ -1,0 +1,17 @@
+# 2026-11-12 步驟 4 交付檢查。被測：d04531e（git status 乾淨）。
+## npm run build
+
+[copy-web-assets] copied <repo>/src/web/public -> <repo>/dist/web/public
+exit=0
+## npm run test
+exit=0
+# tests 754
+# pass 754
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+測試檔數：89
+## npm run lint
+
+exit=0

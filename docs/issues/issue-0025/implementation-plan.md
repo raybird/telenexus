@@ -74,7 +74,7 @@ workspace/**
    - 產出：腳本的 promote 部分、測試、`evidence/step3-*.log`。
    - 完成判準：SCN-006～009 每列都有測試，先紅後綠；用突變確認以下三項各有測試擋下：拿掉 symlink 檢查、拿掉同名檢查、警告印出 token 原文。
    - 相依：步驟 2。
-4. 📝 **常青文件與交付檢查**
+4. ✅ **常青文件與交付檢查**——[evidence/step4-gates.log](evidence/step4-gates.log)：build、lint exit 0，test 754/754（89 個測試檔）
    - 做法：`CLAUDE.md` 的 Common Commands 加 `skills:harvest`；`CONTRIBUTING.md` 的開發流程補收成步驟，並說明本機建置現在只帶 workspace 骨架。執行 `npm run build`、`npm run test`（核對 `# tests` 與測試檔數，[L-01](../../agents/landmines.md)）、`npm run lint`。
    - 完成判準：三個指令都 exit 0；證據檔已去敏（[L-10](../../agents/landmines.md)）。
    - 相依：步驟 1～3。
@@ -92,6 +92,6 @@ workspace/**
 
 - [x] SCN-001～010 已核准（2026-11-12）
 - [x] 步驟 1～3 各有紅燈→綠燈證據
-- [ ] 常青文件已更新
-- [ ] build、test、lint 都 exit 0
+- [x] 常青文件已更新
+- [x] build、test、lint 都 exit 0
 - [ ] 本機獨立審查 PASS
