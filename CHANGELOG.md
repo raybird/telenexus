@@ -2,6 +2,22 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.38.0 — 2026-11-12
+
+### 網頁閱讀多一層 Moli（#24）
+
+- 正文要跑 JavaScript 才出現的頁面，先用映像內建的 [Moli](https://github.com/lexmount/moli) 讀取，讀不到才開 Chrome。順序變成 webfetch → `telenexus-moli-fetch` → `telenexus_browser`，哪一層讀到所需正文就停。Moli 抓完程序就結束，不必為了讀一段正文開整個 Chrome。
+- 模型只能呼叫固定參數的 `telenexus-moli-fetch`：輸出 Markdown、10 秒等待上限、30 秒硬逾時、不保留 profile、擋直接指向內網的網址。被擋的網址照常可以由 Chrome 讀取；這層封鎖不是內網安全邊界。
+- 聊天提示詞（full、compact、minimal）每回合都附上讀取順序。真模型實測中，有將近一半的回合沒有載入 `web-reading` 技能，沒載入的回合從未用到 Moli。排程任務的提示詞不帶這一段。
+- Moli 以 v1.1.23 的 release tarball 加 sha256 釘版安裝，映像約大 107 MB。
+
+### 升級注意
+
+- 啟動時，workspace 裡沒被改過的舊版 `web-reading` 會自動換成新版，舊版備份到 `retired-skills/web-reading-718cc8b`。有自訂內容時原地保留並警告「新版網頁閱讀指引未套用」，需要自行比對 `/app/skills/web-reading/SKILL.md`。
+- telenexus 與 agent-runner 第一次同時升級時，可能誤報新版未套用，實際已換上新版（#26 追蹤）。
+- memoria 映像沒有變動。
+- build、727 項測試與 lint 通過；本機獨立審查四輪 PASS。
+
 ## 2.37.0 — 2026-11-03
 
 ### 語意記憶瘦身
