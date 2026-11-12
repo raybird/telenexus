@@ -227,6 +227,7 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
 | TBD-1 | `--block-private-networks` 會擋 loopback，JS fixture 要放在哪裡，SCN-002 才能在不關掉封鎖的情況下驗證（例如拋棄式容器網路內的非保留位址、受控的公開頁面）；wrapper 不為測試開放關閉封鎖的參數 | 已解決（2026-11-12）：封鎖不擋非保留網段，fixture 放在拋棄式 Docker 網路的 `45.67.89.0/24`；內網的例子用同一個 fixture 的 RFC1918 位址與服務名稱（[步驟 1](evidence/step1-moli-probe.md#對-tbd-的結論)） | SCN-002、SCN-003、SCN-005 的驗證方式 |
 | TBD-2 | 使用者取消時，opencode 的 bash 工具另開 session，wrapper 和 Moli 可能不會收到訊號，只能靠 30 秒硬逾時結束。另外 wrapper 本身被 SIGKILL 時，清理暫存目錄的 trap 不會執行 | 已解決（2026-11-12）：步驟 6 實測，取消時 runner 只終止 opencode，wrapper 被收養到 pid 1 繼續執行，Moli 自己的 10 秒逾時到了才結束並清掉暫存目錄（最壞情況靠 30 秒硬逾時），仍在 45 秒窗口內（[步驟 6](evidence/step6-opencode-path.md#收尾scn-005)）。取消訊號不會傳到 wrapper，維持現行設計 | SCN-005 |
 | TBD-3 | 推導出的行為等待確認：收尾窗口「wrapper 啟動後 45 秒內」、Markdown 輸出是空的也算失敗、SCN-007 的釘版規則 | 已解決（2026-11-12）：使用者回「照寫核准」，三項照寫 | SCN-001～008 |
+| TBD-4 | 第三次審查 S-C：web-reading 升級時新版複製到一半失敗，原處會留下截斷的技能，之後一直被判成客製內容 | 已解決（2026-11-12）：使用者選方案 1「修，再審一次」；改成先複製到暫存再換上，失敗時舊版移回原處 | SCN-008 |
 
 ## Gate 豁免紀錄
 
@@ -245,6 +246,7 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
 | 2026-11-12 | 步驟 7 完成；獨立審查 review-778ed0c.md 判定 PASS，有 4 項 SHOULD FIX | - |
 | 2026-11-12 | 使用者選方案 1：修 S1（技能同步不因 web-reading 升級中止）、S4（內網封鎖的文件範圍），補 S3 證據，核准 commit 改為 aae0a8d（S2），之後重新審查 | 使用者 |
 | 2026-11-12 | 重新審查 review-c71e203.md 判定 PASS，有 2 項 SHOULD FIX；使用者選方案 1：補 S-A、S-B、N-A、N-C 後再審一次 | 使用者 |
+| 2026-11-12 | 第三次審查 review-aacbacc.md 判定 PASS，有 1 項 SHOULD FIX（S-C）；使用者選方案 1：修 S-C 並處理 N-E、N-F、N-G 後再審一次 | 使用者 |
 
 ---
 **建立日期**: 2026-11-11  

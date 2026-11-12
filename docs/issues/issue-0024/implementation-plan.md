@@ -50,7 +50,7 @@ telenexus-moli-fetch <url>
 - `scripts/retired-web-reading.json` 記錄已出貨舊版的檔案清單與 sha256（目前只有 `SKILL.md` 一個檔案，`03821d8d…`）。
 - 對每個 target dir：
   - 沒有 `web-reading` → 交給既有的「補缺少的目錄」流程。
-  - 內容與舊版清單完全相同（沒有多出檔案、沒有 symlink）→ 搬到 `retired-skills/web-reading-<id>`，再複製新版。
+  - 內容與舊版清單完全相同（沒有多出檔案、沒有 symlink）→ 搬到 `retired-skills/web-reading-<id>`，換上新版。新版先完整複製到 `retired-skills/` 底下的暫存目錄，再改名換上；任一步失敗都把舊版移回原處、刪掉暫存，下次啟動會再試（2026-11-12 第三次審查 S-C）。
   - 已經和新版相同 → 不動。
   - 其他情況 → 原地保留，輸出警告：無法自動升級，請人工比對新版。
 - 備份目錄已經存在時，不覆寫，原地保留並警告（與 agent-browser 相同）。
@@ -97,7 +97,7 @@ telenexus-moli-fetch <url>
 7. ✅ **常青文件與交付檢查**
    - 做法：更新 `docs/runtime-boundary-and-security.md`（Moli 的執行邊界、內網封鎖只套用在 Moli、Chrome 照舊）、`docs/configuration-reference.md` 第 7 行附近的網頁閱讀說明、`docs/installation.md` 的技能同步段落（雜湊相符才換新）、`CLAUDE.md` 的 Configuration 段落、`ARCHITECTURE.md` 第 47 行。執行 `npm run build`、`npm run test`（核對 `# tests` 與測試檔數，[L-01](../../agents/landmines.md)）、`npm run lint`。
    - 完成判準：三個指令都 exit 0；證據檔已去敏（[L-10](../../agents/landmines.md)）。
-   - 2026-11-12 結果：[evidence/step7-gates.log](evidence/step7-gates.log)，build、lint exit 0，test 725/725（87 個測試檔），這是審查 S1、S4 修正之後的結果。S1 的紅燈、綠燈與突變見 evidence/review1-s1-red.log、review1-s1-green.log、review1-s1-mutations.log。重新審查（review-c71e203.md）後補了 S-A（`docs/current-chat-prompt.md`）、N-A（升級失敗的警告依實際狀態措辭；在非 root 下找不到穩定讓複製失敗的注入方式，只以程式閱讀確認），最後的檢查見 evidence/step7-gates-2.log。
+   - 2026-11-12 結果：[evidence/step7-gates.log](evidence/step7-gates.log)，build、lint exit 0，test 725/725（87 個測試檔），這是審查 S1、S4 修正之後的結果。S1 的紅燈、綠燈與突變見 evidence/review1-s1-red.log、review1-s1-green.log、review1-s1-mutations.log。重新審查（review-c71e203.md）後補了 S-A（`docs/current-chat-prompt.md`）、N-A（升級失敗的警告依實際狀態措辭），檢查見 evidence/step7-gates-2.log。當時寫「非 root 下找不到穩定讓複製失敗的注入方式」並不成立：第三次審查（review-aacbacc.md）用 `ulimit -f 2` 與 `node --import` 都重現了，也發現複製寫到一半失敗時原處會留下截斷的技能（S-C）。S-C 改成先複製到暫存再換上，兩種注入方式都寫成測試：紅燈 2 個失敗、綠燈 26/26、5 個突變全紅，見 evidence/review3-sc-red.log、review3-sc-green.log、review3-sc-mutations.log；最後的檢查見 evidence/step7-gates-3.log。
    - 相依：步驟 1～6。
 
 ## 測試策略
