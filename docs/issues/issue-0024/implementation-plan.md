@@ -97,6 +97,7 @@ telenexus-moli-fetch <url>
 7. ✅ **常青文件與交付檢查**
    - 做法：更新 `docs/runtime-boundary-and-security.md`（Moli 的執行邊界、內網封鎖只套用在 Moli、Chrome 照舊）、`docs/configuration-reference.md` 第 7 行附近的網頁閱讀說明、`docs/installation.md` 的技能同步段落（雜湊相符才換新）、`CLAUDE.md` 的 Configuration 段落、`ARCHITECTURE.md` 第 47 行。執行 `npm run build`、`npm run test`（核對 `# tests` 與測試檔數，[L-01](../../agents/landmines.md)）、`npm run lint`。
    - 完成判準：三個指令都 exit 0；證據檔已去敏（[L-10](../../agents/landmines.md)）。
+   - 2026-11-12 結果：[evidence/step7-gates.log](evidence/step7-gates.log)，build、lint exit 0，test 725/725（87 個測試檔），這是審查 S1、S4 修正之後的結果。
    - 相依：步驟 1～6。
 
 ## 測試策略
@@ -108,6 +109,7 @@ telenexus-moli-fetch <url>
 | SCN-006 | wrapper 子程序測試（步驟 3）＋真 Moli 的內網兩列 | 參數檢查是 wrapper 自己的邏輯；內網封鎖是 Moli 的行為，要用真 binary 驗 |
 | SCN-007 | Dockerfile 靜態測試＋實際建置 | 沿用 `browser-install.test.ts` 的做法；雜湊錯誤時建置失敗只能實際建置驗證 |
 | SCN-008 | 技能同步測試（暫存目錄 fixture） | 純檔案操作，沿用 issue 0010 的遷移測試 |
+| SCN-009 | 提示詞單元測試＋實際 OpenCode 工具路徑（步驟 6 第四輪） | 提示詞內容用單元測試鎖住；有沒有讓模型先用 Moli，只有實測看得到 |
 
 期望值的來源：fixture 的正文是預先寫好的字面值；舊版 `web-reading` 的雜湊來自 `718cc8b` 的實際檔案與正式部署副本；Moli 的結束碼與訊息來自步驟 1 的實測，不是照文件抄。
 
@@ -119,7 +121,7 @@ telenexus-moli-fetch <url>
 
 - [x] SCN-001～008 已核准（2026-11-12）
 - [x] 步驟 1 證據齊全，TBD-1 已解決，TBD-2 留給步驟 3、6
-- [ ] 步驟 2～6 各有紅燈→綠燈或實測證據
-- [ ] 常青文件已更新
-- [ ] build、test、lint 都 exit 0
+- [x] 步驟 2～6 各有紅燈→綠燈或實測證據
+- [x] 常青文件已更新
+- [x] build、test、lint 都 exit 0
 - [ ] 本機獨立審查 PASS

@@ -1,0 +1,20 @@
+# 2026-11-12 步驟 7 交付檢查（審查 S1、S4 修正之後）
+## npm run build
+> tsc && node scripts/copy-web-assets.mjs
+
+[copy-web-assets] copied <repo>/src/web/public -> <repo>/dist/web/public
+exit=0
+## npm run test
+exit=0
+# tests 725
+# suites 1
+# pass 725
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+測試檔數：87
+## npm run lint
+> eslint "src/**/*.ts"
+
+exit=0

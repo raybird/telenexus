@@ -66,6 +66,7 @@ issue 0010 之後，`web-reading` 技能分兩層：一般頁面用 `webfetch`�
 │   └── browser-mcp-launcher.mjs        # 不可觸及：Chrome 收尾維持 issue 0010 的行為
 ├── skills/web-reading/SKILL.md         # 可改：加入 Moli 層與退回規則（改動時用 writing-rules）
 ├── src/core/opencode.ts                # 不可觸及：telenexus_browser 的 MCP 設定不變
+├── src/prompt/builder.ts               # 可改：三種聊天提示詞加上網頁讀取順序（SCN-009，Q13 新增）
 ├── docker-compose*.yml                 # 不可觸及：不新增服務或環境變數
 ├── tests/                              # 新增：wrapper、映像釘版、技能升級的測試
 └── docs/ / CLAUDE.md / ARCHITECTURE.md # 可改：依常青文件責任更新（見 implementation-plan 步驟 7）
@@ -173,7 +174,7 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
 ```
 
 ## Gherkin 核准紀錄
-- **核准 commit**: d7edd4e
+- **核准 commit**: aae0a8d
 - **核准來源**: 使用者於 2026-11-11 對話要求「先以 a 方案開 github issue」，並在逐題確認中全部選建議答案：
   - Q1「Moli 失敗才退回 Chrome」：順序是 webfetch → Moli → Chrome，技能仍只做公開唯讀閱讀（SCN-001～004）。
   - Q2「包一支固定參數的腳本」：模型只傳網址（SCN-005、SCN-006）。
@@ -185,6 +186,7 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
   - Q8「只收 http/https」（SCN-006）。
   - 2026-11-12 使用者以「照寫核准」確認推導出的行為（TBD-3）：收尾窗口「wrapper 啟動後 45 秒內」（30 秒硬逾時加 issue 0010 的 15 秒收尾標準）、Markdown 輸出是空的也算 Moli 失敗、SCN-007 的映像釘版規則。
   - 2026-11-12 步驟 6 實測後的逐題確認：Q9 選「只用真模型」；Q11 選「改指引措辭後，用正式提示詞重測」；Q12 選「改成擬真頁面後重跑」；Q13 選「加常駐規則，額度恢復後重測」，該選項寫明在 full／compact／minimal 都加一行網頁讀取順序，新增 SCN-009。Q14 回「那使用容器內的 nvidia 提供的呢？」：第四輪改用正式部署 override 的 Nvidia 模型。
+  - 核准 commit：SCN-001～008 的規格在 d7edd4e，SCN-009 在 aae0a8d 加入，因此取 aae0a8d（2026-11-12 審查 S2）。
 
 | Scenario | 核准日期 | 狀態 |
 |----------|---------|------|
@@ -240,6 +242,8 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
 | 2026-11-12 | 使用者回「照寫核准」：SCN-001～008 核准，TBD-3 解決 | 使用者 |
 | 2026-11-12 | 步驟 2～5 完成並提交到分支；步驟 6 三輪真模型實測，TBD-2 解決；Q13 新增 SCN-009 並實作 | - |
 | 2026-11-12 | 步驟 6 第四輪（常駐規則、擬真頁面、Nvidia 模型）8 個情境全部符合，步驟 6 完成 | - |
+| 2026-11-12 | 步驟 7 完成；獨立審查 review-778ed0c.md 判定 PASS，有 4 項 SHOULD FIX | - |
+| 2026-11-12 | 使用者選方案 1：修 S1（技能同步不因 web-reading 升級中止）、S4（內網封鎖的文件範圍），補 S3 證據，核准 commit 改為 aae0a8d（S2），之後重新審查 | 使用者 |
 
 ---
 **建立日期**: 2026-11-11  
