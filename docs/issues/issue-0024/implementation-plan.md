@@ -89,11 +89,11 @@ telenexus-moli-fetch <url>
    - 做法：依上方「指引」改寫 `skills/web-reading/SKILL.md`，更新「最後驗證日期」。`tests/skill-browser-migration.test.ts` 若檢查技能內容，同步調整，並把它記為「核准的行為已變更」。
    - 完成判準：文字層的靜態檢查（提到 wrapper、退回 Chrome 的條件、失敗回報）；行為由步驟 6 驗證。
    - 相依：步驟 3（wrapper 的介面已定）、步驟 4（新版要送得到現有部署）。
-6. 🔄 **實際 OpenCode 工具路徑整合**（SCN-001～005、SCN-009）
+6. ✅ **實際 OpenCode 工具路徑整合**（SCN-001～005、SCN-009）
    - 做法：沿用 issue 0010 的拋棄式 runner 做法（`docker run` 隔離啟動 agent-runner，資料指到暫存目錄），用步驟 2 的映像，透過 `/run` 送讀取請求。每個情境記錄回覆、工作期間有沒有執行 wrapper、有沒有 Chrome 程序（`/proc` 採樣），以及結束後 45 秒的 moli／zombie／暫存目錄數。SCN-003 的四種失敗各跑一次，SCN-005 的取消在 Moli 執行中途送出。
    - 完成判準：觀測器先用已知的正／負對照驗過（例如刻意不清理的暫存目錄要被抓到）；每個 Scenario 列都有實際輸出。模型沒有照指引走（例如跳過 Moli 直接開 Chrome）時如實記錄，不重試到成功為止。
    - 相依：步驟 2～5。
-   - 2026-11-12 進度：三輪實測見 [evidence/step6-opencode-path.md](evidence/step6-opencode-path.md)。模型 20 次有 9 次沒載入技能，Q13 新增 SCN-009：`src/prompt/builder.ts` 在三種模式的聊天提示詞都加上網頁讀取順序（`tests/web-reading-route-hint.test.ts`，紅燈 3/3 失敗、綠燈 41/41、4 個突變全紅，記錄在 evidence/step6b-*.log）。免費額度恢復後，用擬真頁面把 8 個情境各重跑一次。
+   - 2026-11-12 進度：三輪實測見 [evidence/step6-opencode-path.md](evidence/step6-opencode-path.md)。模型 20 次有 9 次沒載入技能，Q13 新增 SCN-009：`src/prompt/builder.ts` 在三種模式的聊天提示詞都加上網頁讀取順序（`tests/web-reading-route-hint.test.ts`，紅燈 3/3 失敗、綠燈 41/41、4 個突變全紅，記錄在 evidence/step6b-*.log）。第四輪改用正式部署的 `nvidia/z-ai/glm-5.3-flash`（Q14），8 個情境全部符合，結論見證據檔。
 7. 📝 **常青文件與交付檢查**
    - 做法：更新 `docs/runtime-boundary-and-security.md`（Moli 的執行邊界、內網封鎖只套用在 Moli、Chrome 照舊）、`docs/configuration-reference.md` 第 7 行附近的網頁閱讀說明、`docs/installation.md` 的技能同步段落（雜湊相符才換新）、`CLAUDE.md` 的 Configuration 段落、`ARCHITECTURE.md` 第 47 行。執行 `npm run build`、`npm run test`（核對 `# tests` 與測試檔數，[L-01](../../agents/landmines.md)）、`npm run lint`。
    - 完成判準：三個指令都 exit 0；證據檔已去敏（[L-10](../../agents/landmines.md)）。

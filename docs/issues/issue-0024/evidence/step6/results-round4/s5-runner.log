@@ -1,0 +1,8 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 👥 sync secrets across teammates & machines: https://dotenvx.com/ops
+[opencode-retention] INFO scheduled retentionDays=30 intervalMs=3600000
+[Runner] INFO listening port=8787
+[Runner] INFO run_start req=6d57907a-b51c-4069-8327-3bcc779456d4 task=chat stream=false lane=interactive
+[Opencode] INFO execute model=nvidia/z-ai/glm-5.3-flash
+[Opencode] INFO start cmd=opencode run --format json --model nvidia/z-ai/glm-5.3-flash --print-logs --log-level ERROR <prompt> cwd=/app/workspace
+[Opencode] ERROR execution_failed err=Process aborted by signal code=EABORTED stdout={"type":"step_start","timestamp":1794469063106,"sessionID":"ses_e314fb15effe2SUhbeCFp73W2D","part":{"id":"prt_1ceb0e9bd001PKTy3qw848T6C4","messageID":"msg_1ceb0518d001kcko4ZeLys6ccf","sessionID":"ses_e314fb15effe2SUhbeCFp73W2D","type":"step-start"}} {"type":"tool_use","timestamp":1794469064457,"sessionID":"ses_e314fb15effe2SUhbeCFp73W2D","part":{"type":"tool","tool":"webfetch","callID":"e754b823-912b-4fa7-83b3-f2364ec15346","state":{"status":"completed","input":{"format":"text","url":"http://45.
+[Runner] WARN run_error req=6d57907a-b51c-4069-8327-3bcc779456d4 durationMs=88892 error=This operation was aborted

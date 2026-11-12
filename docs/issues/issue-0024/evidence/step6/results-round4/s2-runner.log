@@ -1,0 +1,9 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[opencode-retention] INFO scheduled retentionDays=30 intervalMs=3600000
+[Runner] INFO listening port=8787
+[Runner] INFO run_start req=131cf341-a648-4657-ba31-07fa7ddc2e17 task=chat stream=false lane=interactive
+[Opencode] INFO execute model=nvidia/z-ai/glm-5.3-flash
+[Opencode] INFO start cmd=opencode run --format json --model nvidia/z-ai/glm-5.3-flash --print-logs --log-level ERROR <prompt> cwd=/app/workspace
+[Opencode] INFO done outputLen=4376
+[Opencode] INFO reply len=302
+[Runner] INFO run_done req=131cf341-a648-4657-ba31-07fa7ddc2e17 durationMs=87522 provider=opencode lane=interactive

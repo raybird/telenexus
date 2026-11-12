@@ -1,0 +1,9 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[opencode-retention] INFO scheduled retentionDays=30 intervalMs=3600000
+[Runner] INFO listening port=8787
+[Runner] INFO run_start req=ca3f4c59-a1d9-495e-9860-dd9bb5be8728 task=chat stream=false lane=interactive
+[Opencode] INFO execute model=nvidia/z-ai/glm-5.3-flash
+[Opencode] INFO start cmd=opencode run --format json --model nvidia/z-ai/glm-5.3-flash --print-logs --log-level ERROR <prompt> cwd=/app/workspace
+[Opencode] INFO done outputLen=2657
+[Opencode] INFO reply len=317
+[Runner] INFO run_done req=ca3f4c59-a1d9-495e-9860-dd9bb5be8728 durationMs=126079 provider=opencode lane=interactive

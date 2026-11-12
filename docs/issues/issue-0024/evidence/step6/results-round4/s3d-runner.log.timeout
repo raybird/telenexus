@@ -1,0 +1,8 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+[opencode-retention] INFO scheduled retentionDays=30 intervalMs=3600000
+[Runner] INFO listening port=8787
+[Runner] INFO run_start req=14733b91-8d42-4ddb-9373-a689acf2c81d task=chat stream=false lane=interactive
+[Opencode] INFO execute model=nvidia/z-ai/glm-5.3-flash
+[Opencode] INFO start cmd=opencode run --format json --model nvidia/z-ai/glm-5.3-flash --print-logs --log-level ERROR <prompt> cwd=/app/workspace
+[Opencode] ERROR execution_failed err=Process aborted by signal code=EABORTED
+[Runner] WARN run_error req=14733b91-8d42-4ddb-9373-a689acf2c81d durationMs=300684 error=This operation was aborted

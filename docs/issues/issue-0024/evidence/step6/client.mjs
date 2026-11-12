@@ -33,14 +33,22 @@ if (mode === 'cancel') {
   }, 100);
 }
 const result = { mode, promptMode, url, input, started };
+// 2026-11-12 第四輪：改用 http.request。全域 fetch 有 300 秒的 headersTimeout，
+// 慢模型的回合超過時 client 斷線，runner 會把它當成取消。
+const http = await import('node:http');
 try {
-  const res = await fetch('http://127.0.0.1:8787/run', {
-    method: 'POST', headers: { 'content-type': 'application/json' }, signal: controller.signal,
-    body: JSON.stringify({ task: 'chat', input, forceNewSession: true, lane: 'interactive' }),
-    // 一則讀取最多約 30 秒 × 數次工具呼叫，再加上模型時間。
+  const { status, text } = await new Promise((resolve, reject) => {
+    const req = http.request('http://127.0.0.1:8787/run', { method: 'POST', headers: { 'content-type': 'application/json' }, signal: controller.signal }, (res) => {
+      let data = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => resolve({ status: res.statusCode, text: data }));
+    });
+    req.on('error', reject);
+    req.end(JSON.stringify({ task: 'chat', input, forceNewSession: true, lane: 'interactive' }));
   });
-  result.httpStatus = res.status;
-  result.body = await res.json();
+  result.httpStatus = status;
+  result.body = JSON.parse(text);
 } catch (err) {
   result.error = String(err?.name || err);
 }

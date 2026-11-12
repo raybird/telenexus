@@ -42,6 +42,10 @@ for (const c of cases) {
   const busy = (r) => r.procs.some((p) => ['wrapper', 'moli', 'zombie'].includes(p.kind)) || r.tmp.some((n) => /^(tnm-|moli-storage-)/.test(n));
   const lastBusyIndex = proc.findLastIndex(busy);
   const clearedAt = lastBusyIndex >= 0 ? proc[lastBusyIndex + 1]?.t ?? null : null;
+  // SCN-005 只看 Moli 這一側（wrapper、moli、tnm-*、moli-storage-*）；Chrome 的 zombie 與 profile 屬於 issue 0010 的收尾。
+  const moliBusy = (r) => r.procs.some((p) => ['wrapper', 'moli'].includes(p.kind)) || r.tmp.some((n) => /^(tnm-|moli-storage-)/.test(n));
+  const moliLastIndex = proc.findLastIndex(moliBusy);
+  const moliClearedAt = moliLastIndex >= 0 ? proc[moliLastIndex + 1]?.t ?? null : null;
   const reqs = fixture.filter((r) => r.path.startsWith(`/${c}/`) && r.t >= client.started && r.t <= end + 45000);
   const order = [];
   for (const r of reqs) { const k = `${r.client}:${r.path.split('/')[2]}`; if (order.at(-1) !== k) order.push(k); }
@@ -58,6 +62,7 @@ for (const c of cases) {
     wrapperSeen: wrapperStart ? Math.round((wrapperStart - client.started) / 1000) : null,
     chromeSeen: seen('chrome') ? Math.round((seen('chrome') - client.started) / 1000) : null,
     cancel: client.mode === 'cancel' ? { wrapperSeenAt: client.wrapperSeenAt && Math.round((client.wrapperSeenAt - client.started) / 1000), abortedAt: client.abortedAt && Math.round((client.abortedAt - client.started) / 1000) } : null,
+    moliClearedAfterWrapperS: wrapperStart && moliClearedAt ? +((moliClearedAt - wrapperStart) / 1000).toFixed(1) : null,
     clearedAfterWrapperS: wrapperStart && clearedAt ? +((clearedAt - wrapperStart) / 1000).toFixed(1) : null,
     atCheckpoint: at ? { procs: at.procs.map((p) => `${p.kind}:${p.state}`), tmp: at.tmp } : null,
     finalRow: proc.at(-1)?.final ? { procs: proc.at(-1).procs.map((p) => `${p.kind}:${p.state}`), tmp: proc.at(-1).tmp } : 'no-final-row',

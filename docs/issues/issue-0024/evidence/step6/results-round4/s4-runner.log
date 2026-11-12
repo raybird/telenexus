@@ -1,0 +1,9 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[opencode-retention] INFO scheduled retentionDays=30 intervalMs=3600000
+[Runner] INFO listening port=8787
+[Runner] INFO run_start req=210b31fe-92ee-47e1-8989-6e93b5b5a270 task=chat stream=false lane=interactive
+[Opencode] INFO execute model=nvidia/z-ai/glm-5.3-flash
+[Opencode] INFO start cmd=opencode run --format json --model nvidia/z-ai/glm-5.3-flash --print-logs --log-level ERROR <prompt> cwd=/app/workspace
+[Opencode] INFO done outputLen=12849
+[Opencode] INFO reply len=561
+[Runner] INFO run_done req=210b31fe-92ee-47e1-8989-6e93b5b5a270 durationMs=251723 provider=opencode lane=interactive

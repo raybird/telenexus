@@ -1,0 +1,11 @@
+{"t":1794467463165,"final":false,"procs":[],"tmp":[]}
+{"t":1794467466068,"final":false,"procs":[{"pid":124,"ppid":106,"kind":"mcp","state":"S","comm":"node"},{"pid":131,"ppid":124,"kind":"mcp","state":"R","comm":"chrome-devtools"}],"tmp":["tnb-WM8X6g"]}
+{"t":1794467466468,"final":false,"procs":[{"pid":124,"ppid":106,"kind":"mcp","state":"S","comm":"node"},{"pid":131,"ppid":124,"kind":"mcp","state":"S","comm":"chrome-devtools"},{"pid":143,"ppid":131,"kind":"mcp","state":"S","comm":"node"}],"tmp":["tnb-WM8X6g"]}
+{"t":1794467466668,"final":false,"procs":[{"pid":124,"ppid":106,"kind":"mcp","state":"S","comm":"node"},{"pid":131,"ppid":124,"kind":"mcp","state":"S","comm":"chrome-devtools"}],"tmp":["tnb-WM8X6g"]}
+{"t":1794467490418,"final":false,"procs":[{"pid":35,"ppid":7,"kind":"zombie","state":"Z","comm":"opencode"},{"pid":124,"ppid":106,"kind":"mcp","state":"S","comm":"node"},{"pid":131,"ppid":124,"kind":"mcp","state":"S","comm":"chrome-devtools"}],"tmp":["tnb-WM8X6g"]}
+{"t":1794467490518,"final":false,"procs":[{"pid":124,"ppid":106,"kind":"mcp","state":"S","comm":"node"},{"pid":131,"ppid":124,"kind":"mcp","state":"S","comm":"chrome-devtools"}],"tmp":["tnb-WM8X6g"]}
+{"t":1794467523965,"final":false,"procs":[{"pid":124,"ppid":106,"kind":"mcp","state":"S","comm":"node"},{"pid":131,"ppid":124,"kind":"mcp","state":"S","comm":"chrome-devtools"},{"pid":227,"ppid":106,"kind":"wrapper","state":"S","comm":"bash"},{"pid":232,"ppid":227,"kind":"moli","state":"S","comm":"timeout"},{"pid":234,"ppid":232,"kind":"moli","state":"D","comm":"moli"}],"tmp":["tnb-WM8X6g","tnm-kcTUN6"]}
+{"t":1794467524065,"final":false,"procs":[{"pid":124,"ppid":106,"kind":"mcp","state":"S","comm":"node"},{"pid":131,"ppid":124,"kind":"mcp","state":"S","comm":"chrome-devtools"},{"pid":227,"ppid":106,"kind":"wrapper","state":"S","comm":"bash"},{"pid":232,"ppid":227,"kind":"moli","state":"S","comm":"timeout"},{"pid":234,"ppid":232,"kind":"moli","state":"S","comm":"moli"}],"tmp":["tnb-WM8X6g","tnm-kcTUN6"]}
+{"t":1794467524466,"final":false,"procs":[{"pid":124,"ppid":106,"kind":"mcp","state":"S","comm":"node"},{"pid":131,"ppid":124,"kind":"mcp","state":"S","comm":"chrome-devtools"}],"tmp":["tnb-WM8X6g"]}
+{"t":1794467551816,"final":false,"procs":[],"tmp":[]}
+{"t":1794467596808,"final":true,"procs":[],"tmp":[]}

@@ -16,8 +16,10 @@ cleanup() {
 }
 trap cleanup EXIT
 cleanup
-# 模型用正式部署 ai-config.yaml 的預設值（免費層、不需憑證）；其餘設定照範例檔。
-{ cat "$REPO/ai-config.example.yaml"; echo 'model: opencode/big-pickle'; } > "$OUT/ai-config.yaml"
+# 預設模型是正式部署 ai-config.yaml 的預設值（免費層、不需憑證）；其餘設定照範例檔。
+# 第四輪起可用 MODEL 換模型，AUTH_FILE 指向只含該 provider 一筆的 auth.json，以唯讀掛進容器。
+{ cat "$REPO/ai-config.example.yaml"; echo "model: ${MODEL:-opencode/big-pickle}"; } > "$OUT/ai-config.yaml"
+AUTH_MOUNT=(); [ -n "${AUTH_FILE:-}" ] && AUTH_MOUNT=(-v "$AUTH_FILE":/home/node/.local/share/opencode/auth.json:ro)
 docker network create --subnet 45.67.89.0/24 tn24s6-pub >/dev/null
 docker network create tn24s6-priv >/dev/null
 docker run -d --name tn24s6-fixture --network tn24s6-pub --ip "$PUB" --user 1000:1000 \
@@ -43,7 +45,7 @@ for c in "$@"; do
     -e MEMORIA_SYNC_ENABLED=false -e MEMORIA_HOOK_QUEUE_ENABLED=false \
     -e OPENCODE_YOLO=1 -e OPENCODE_SKILLS_DIRS=/app/workspace/.opencode/skills,/home/node/.config/opencode/skills \
     -v "$OUT/ai-config.yaml":/app/ai-config.yaml:ro -v "$REPO/skills":/app/skills:ro \
-    -v "$ws":/app/workspace -v "$REPO/AGENTS.md":/app/workspace/AGENTS.md:ro -v "$DIR":/probe:ro -v "$OUT":/out \
+    -v "$ws":/app/workspace -v "$REPO/AGENTS.md":/app/workspace/AGENTS.md:ro -v "$DIR":/probe:ro -v "$OUT":/out "${AUTH_MOUNT[@]}" \
     --entrypoint bash "$IMAGE" -c "node scripts/sync-skills.mjs > /out/$c-sync.log 2>&1 && exec node dist/runner.js > /out/$c-runner.log 2>&1" >/dev/null
   docker network connect tn24s6-priv "$name"
   for _ in $(seq 60); do
