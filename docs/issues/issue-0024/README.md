@@ -28,6 +28,8 @@ issue 0010 之後，`web-reading` 技能分兩層：一般頁面用 `webfetch`�
 
 ## 現況
 
+**現行 review**: review-778ed0c.md
+
 | 外部狀態 | 查證命令 | 上次結果 | 查證日期 |
 |---|---|---|---|
 | GitHub issue #24 | `gh issue view 24 --repo raybird/telenexus --json state -q .state` | OPEN | 2026-11-12 |
