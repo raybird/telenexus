@@ -228,7 +228,7 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
 | TBD-2 | 使用者取消時，opencode 的 bash 工具另開 session，wrapper 和 Moli 可能不會收到訊號，只能靠 30 秒硬逾時結束。另外 wrapper 本身被 SIGKILL 時，清理暫存目錄的 trap 不會執行 | 已解決（2026-11-12）：步驟 6 實測，取消時 runner 只終止 opencode，wrapper 被收養到 pid 1 繼續執行，Moli 自己的 10 秒逾時到了才結束並清掉暫存目錄（最壞情況靠 30 秒硬逾時），仍在 45 秒窗口內（[步驟 6](evidence/step6-opencode-path.md#收尾scn-005)）。取消訊號不會傳到 wrapper，維持現行設計 | SCN-005 |
 | TBD-3 | 推導出的行為等待確認：收尾窗口「wrapper 啟動後 45 秒內」、Markdown 輸出是空的也算失敗、SCN-007 的釘版規則 | 已解決（2026-11-12）：使用者回「照寫核准」，三項照寫 | SCN-001～008 |
 | TBD-4 | 第三次審查 S-C：web-reading 升級時新版複製到一半失敗，原處會留下截斷的技能，之後一直被判成客製內容 | 已解決（2026-11-12）：使用者選方案 1「修，再審一次」；改成先複製到暫存再換上，失敗時舊版移回原處 | SCN-008 |
-| TBD-5 | 第四次審查 S-D、N-H：telenexus 與 agent-runner 第一次同時升級 web-reading 時，可能誤報「有自訂內容」或「備份已存在」、說新版未套用，實際已換上新版（200 輪 14 次）；升級在兩次改名之間被殺時，`retired-skills/.web-reading-new-*` 暫存目錄不會被清掉 | 待確認：使用者選方案 1「不修，記為殘餘風險」（2026-11-12）。最終狀態都正確，誤報每個部署最多一次。追蹤用的 GitHub issue 開好後，改為不影響本次交付並填上編號 | SCN-008 |
+| TBD-5 | 第四次審查 S-D、N-H：telenexus 與 agent-runner 第一次同時升級 web-reading 時，可能誤報「有自訂內容」或「備份已存在」、說新版未套用，實際已換上新版（200 輪 14 次）；升級在兩次改名之間被殺時，`retired-skills/.web-reading-new-*` 暫存目錄不會被清掉 | 不影響本次交付（2026-11-12）：使用者選方案 1「不修，記為殘餘風險」；最終狀態都正確，誤報每個部署最多一次。追蹤：https://github.com/raybird/telenexus/issues/26 | SCN-008 |
 
 ## Gate 豁免紀錄
 
@@ -249,6 +249,7 @@ Feature: JS 正文先用 Moli 讀取，失敗才開 Chrome
 | 2026-11-12 | 重新審查 review-c71e203.md 判定 PASS，有 2 項 SHOULD FIX；使用者選方案 1：補 S-A、S-B、N-A、N-C 後再審一次 | 使用者 |
 | 2026-11-12 | 第三次審查 review-aacbacc.md 判定 PASS，有 1 項 SHOULD FIX（S-C）；使用者選方案 1：修 S-C 並處理 N-E、N-F、N-G 後再審一次 | 使用者 |
 | 2026-11-12 | 第四次審查 review-b38af46.md 判定 PASS，有 1 項 SHOULD FIX（S-D）；使用者選方案 1：S-D、N-H 記為殘餘風險（TBD-5），之後另開 issue | 使用者 |
+| 2026-11-12 | 開 GitHub issue #26 追蹤 TBD-5；本機建置打包 workspace 的問題併入新功能 issue #25 | 使用者 |
 
 ---
 **建立日期**: 2026-11-11  
