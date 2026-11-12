@@ -14,7 +14,15 @@
    ```
    不經容器、直接在主機執行：`npm run dev`。
    Linux 上可選擇啟動本機記憶 UI。先依[安裝指南](docs/installation.md#memoria-本機記憶-ui)備份並初始化資料、確認主記憶服務健康，再執行 `docker compose --profile memory-ui up -d --build --wait --no-deps memoria-ui`，網址為 `http://127.0.0.1:3918/ui/`。請沿用相同 Compose 專案與記憶資料掛載；啟停、埠號及安全限制亦見安裝指南。
-3. 確認型別與品質
+3. 收成 agent 做出的技能（選用）。agent 在容器裡寫進 `workspace/.opencode/skills/` 的技能會出現在主機上：
+   ```bash
+   npm run skills:harvest                                  # 列出新技能、被改過的內建技能（附差異）與略過的原因
+   npm run skills:harvest -- --from <部署的 workspace>      # 掃另一個部署
+   npm run skills:harvest -- --promote <名稱>              # 收進 skills/，同名時要加 --force
+   ```
+   和 `skills/` 不同的副本，會比對 `skills/` 的 git 歷史，分成「舊版內建」或「被改過」。promote 不會 commit，`skills/` 會隨公開 repo 與 release bundle 出貨，commit 前請先自己檢查內容。
+   本機 `docker build` 的建置內容只帶 `workspace/` 裡 git 追蹤的骨架檔（`.dockerignore`），和 CI 從乾淨 checkout 建置的結果相同。
+4. 確認型別與品質
    ```bash
    npm run build
    npm test

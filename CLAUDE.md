@@ -45,6 +45,11 @@ npm run models:probe:all         # Probe every chat model `opencode models` list
 npm run models:probe -- --models a,b --rounds 3   # Probe specific models
 docker compose exec agent-runner node scripts/probe-models.mjs --all  # From a release deployment
 
+# Skill harvesting (host-side, run inside this git checkout; issue 0025)
+npm run skills:harvest                                   # List skills in workspace/.opencode/skills: new / modified builtin (with diff) / skipped (reason)
+npm run skills:harvest -- --from ~/Documents/RunTelenexus/workspace   # Scan a deployment's workspace; baseline stays this repo's skills/ + git history
+npm run skills:harvest -- --promote <name> [--force]     # Copy into skills/ (no commit; --force overwrites a same-name skill)
+
 # Reports & release
 npm run report:compare           # Execution-comparison report
 npm run report:compare:24h       # Last 24h window

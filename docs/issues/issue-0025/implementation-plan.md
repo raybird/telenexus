@@ -59,17 +59,17 @@ workspace/**
 
 ## 實作步驟
 
-1. 📝 **`.dockerignore` 限縮 workspace**（SCN-010，首要驗證）
+1. ✅ **`.dockerignore` 限縮 workspace**（SCN-010，首要驗證）——證據：[evidence/step1-dockerignore.md](evidence/step1-dockerignore.md)。改動前 6,587 個檔案、改動後 4 個；拿掉一條放行規則結果跟著變；乾淨 checkout 與正式 Dockerfile 完整建置結果相同
    - 做法：先用最小 Dockerfile（`FROM busybox`、`COPY workspace /w`、`RUN find /w -type f`）在工作目錄建置，記下改動前的檔案清單，作為紅燈；改 `.dockerignore` 後再跑一次，作為綠燈；再拿掉一條放行規則跑一次，確認結果會跟著變。另加 `tests/docker/dockerignore-workspace.test.ts`，靜態檢查這 5 條規則都在。
    - 產出：`.dockerignore`、測試、`evidence/step1-dockerignore.md`。
    - 完成判準：綠燈時建置內容的 `workspace/` 正好是那 4 個檔案；紅燈與拿掉放行規則的結果都和綠燈不同；靜態測試先紅後綠。
    - 相依：SCN-010 已核准。
-2. 📝 **收成命令：列出與分類**（SCN-001～005）
+2. ✅ **收成命令：列出與分類**（SCN-001～005）——紅燈 9/9 失敗（stub 只 exit 0，[evidence/step2-red.log](evidence/step2-red.log)），綠燈 9/9（[evidence/step2-green.log](evidence/step2-green.log)）。以 `--from` 唯讀掃正式部署：新技能 skill-linker、stock-analysis；被改過 scheduler；略過 7 個，其中 rag-skill 為舊版內建（與 `7e60af6` 相同）。這也更正了 README 現況表裡 scheduler 的錯誤判定
    - 做法：`tests/harvest-skills.test.ts` 在暫存目錄建一個 git repo，提交好 `skills/` 的歷史（含一個已退役、一個有舊版的技能），workspace 擺入各種情況，再以 `spawnSync` 從該 repo 執行腳本。先寫測試取紅燈，再實作。
    - 產出：`scripts/harvest-skills.mjs`、`package.json` 的 `skills:harvest`、測試、`evidence/step2-*.log`。
    - 完成判準：SCN-001～005 每個 Scenario 與 Outline 的每一列都有測試，先紅後綠；用 `--from` 對正式部署的 workspace 唯讀跑一次，分類結果和 README 現況表一致；repo 的 `git status` 不變。
    - 相依：SCN-001～005 已核准。和步驟 1 互不相依。
-3. 📝 **收成命令：promote**（SCN-006～009）
+3. ✅ **收成命令：promote**（SCN-006～009）——紅燈 12 個失敗（[evidence/step3-red.log](evidence/step3-red.log)），補測試後綠燈 26/26（[evidence/step3-green.log](evidence/step3-green.log)）。9 個突變中 8 個轉紅（[evidence/step3-mutations.log](evidence/step3-mutations.log)）；M8（拿掉名稱檢查）沒轉紅，因為名稱含 `/` 時暫存目錄的路徑不存在，`mkdtemp` 先失敗而拒絕，名稱檢查仍保留為明確防線
    - 做法：同一份測試 fixture。拒絕的情況要驗證 `skills/` 前後的快照相同；`--force` 的情況要驗證少掉的檔案也被移除；警告的情況要驗證輸出裡沒有疑似 token 的原文。
    - 產出：腳本的 promote 部分、測試、`evidence/step3-*.log`。
    - 完成判準：SCN-006～009 每列都有測試，先紅後綠；用突變確認以下三項各有測試擋下：拿掉 symlink 檢查、拿掉同名檢查、警告印出 token 原文。
@@ -91,7 +91,7 @@ workspace/**
 ## 檢查清單
 
 - [x] SCN-001～010 已核准（2026-11-12）
-- [ ] 步驟 1～3 各有紅燈→綠燈證據
+- [x] 步驟 1～3 各有紅燈→綠燈證據
 - [ ] 常青文件已更新
 - [ ] build、test、lint 都 exit 0
 - [ ] 本機獨立審查 PASS

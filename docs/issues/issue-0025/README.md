@@ -7,7 +7,7 @@ GitHub：[#25](https://github.com/raybird/telenexus/issues/25)
 
 ## 概述
 
-`./workspace` 以 bind mount 掛進容器。agent 在容器裡摸索出可以固定下來的做法，會寫成 skill 放進 `workspace/.opencode/skills/`，維護者在主機上就拿得到，這是刻意的設計。收成時卻得自己判斷哪些是新的，因為這個目錄混著內建技能、agent 做的技能、已退役的技能與 symlink。另外，`scripts/sync-skills.mjs` 只補缺少的目錄，所以和 `skills/` 不同的副本可能只是舊版內建，不代表有人改過。
+`./workspace` 以 bind mount 掛進容器。agent 在容器裡摸索出可以固定下來的做法，會寫成 skill 放進 `workspace/.opencode/skills/`，維護者在主機上就拿得到，這是刻意的設計。收成時卻得自己判斷哪些是新的，因為這個目錄混著內建技能、agent 做的技能、已退役的技能與 symlink。另外，`scripts/sync-skills.mjs` 只補缺少的目錄，所以和 `skills/` 不同的副本可能只是舊版內建，不代表有人改過；下表的 rag-skill 與 scheduler 正好各是一例。
 
 本 issue 做兩件事：
 - 新增主機端的收成命令 `npm run skills:harvest`。它把技能分類列出，並可用 `--promote` 把技能收進 repo 的 `skills/`。
@@ -19,7 +19,7 @@ GitHub：[#25](https://github.com/raybird/telenexus/issues/25)
 |---|---|---|
 | bmad-astrology-expert、memory、skill-creator、tao-of-opencode、web-reading | 相同 | 內建 |
 | rag-skill | 不同（frontmatter `name` 是 `kb-retriever`） | 舊版內建：與 `7e60af6` 的 `skills/rag-skill` 完全相同 |
-| scheduler | 不同 | 舊版內建：`SKILL.md` 與 `0cb3ffe` 的版本相同（git blob `15f041c1`） |
+| scheduler | 不同 | 被改過：`SKILL.md`（git blob `15f041c1`）不在 `skills/scheduler` 的任何歷史版本裡；多了要求排程用 agent-browser 抓即時資料、各排程的 Prompt 範本等段落 |
 | stock-analysis（21 個檔案）、skill-linker | `skills/` 沒有，也從未出現在 `skills/` 的歷史 | agent 做的 |
 | memoria-memory-sync | symlink | 指向 Memoria 的技能 |
 
@@ -178,9 +178,9 @@ Feature: 從 workspace 收成 agent 做出的技能
 | SCN-010 | 2026-11-12 | 已核准 |
 
 ## 重構步驟概要
-1. 📝 **`.dockerignore` 限縮 workspace**（SCN-010，首要驗證）
-2. 📝 **收成命令：列出與分類**（SCN-001～005）
-3. 📝 **收成命令：promote**（SCN-006～009）
+1. ✅ **`.dockerignore` 限縮 workspace**（SCN-010，首要驗證）
+2. ✅ **收成命令：列出與分類**（SCN-001～005）
+3. ✅ **收成命令：promote**（SCN-006～009）
 4. 📝 **常青文件與交付檢查**
 
 細節見 [implementation-plan.md](implementation-plan.md)。
@@ -212,6 +212,7 @@ Feature: 從 workspace 收成 agent 做出的技能
 | 2026-11-12 | 建立 GitHub issue #25 | 使用者 |
 | 2026-11-12 | Q1～Q5 回「照建議」；建立 issue 文件，SCN-001～010 待核准 | 使用者 |
 | 2026-11-12 | SCN-001～010 核准（「照寫核准」）；實作在 `feat/issue-0025-skill-harvest` 分支，本機獨立審查，不開 PR | 使用者 |
+| 2026-11-12 | 更正概述的現況表：scheduler 是被改過，不是舊版內建。當初手動查證時把另一條命令的輸出誤當成 `--find-object` 的結果；步驟 2 的收成命令與重新查證都顯示 blob `15f041c1` 不在歷史裡。Scenario 不受影響 | - |
 
 ---
 **建立日期**: 2026-11-12
