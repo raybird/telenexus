@@ -60,6 +60,12 @@ GitHub：[#27](https://github.com/raybird/telenexus/issues/27)
 - **選擇理由**：行首空白會不會保留只能由 Telegram 本身回答，單元測試答不了；先送樣本，若空白被吃掉，可以在實作前改縮排做法，不必重做。
 - **完成證據**：3 則都回 `ok: true`，使用者在手機上確認看得出縮排。
 
+## 待確認事項
+
+| 編號 | 事項 | 狀態 | 影響 |
+|------|------|------|------|
+| TBD-1 | AC-1 原文「接在符號之後的縮排下」有兩種讀法：第二段起縮排與該項目的符號相同，或比符號再多縮一層。實作採前者，第 1 層的多段項目因此與舊版輸出相同，符合 AC-6；需使用者確認 | 已解決（2026-11-13）：使用者選 (a) 跟符號同一個縮排，AC-1 依此改寫並重新核准，實作不必改 | AC-1、AC-6 |
+
 ## 實作與驗證步驟
 1. ✅ **首要驗證：Telegram 是否保留行首空白** — 驗證方式：見「風險與首要驗證」。token 與聊天 ID 只在環境變數中流動，不印出；證據只記 API 的 `ok` 與錯誤描述。
    - 完成證據：[evidence/step1-telegram-probe.md](evidence/step1-telegram-probe.md)。3 則都回 `ok: true`；使用者在手機上確認縮排、從 3 開始的編號與標題層級都看得出來。AC-1 的縮排做法不必改。
@@ -77,13 +83,6 @@ GitHub：[#27](https://github.com/raybird/telenexus/issues/27)
    - 完成證據：[evidence/step5-telegram-send.md](evidence/step5-telegram-send.md)，10 則都回 `ok: true`（第 10 則第一次送出時連線被重設，重送成功）。使用者在手機上確認：第 8 則以外「都正常」；第 8 則照原文顯示的 HTML 與圖片是 AC-4 的設計，使用者選擇維持。
 6. ✅ **交付檢查與常青文件** — 驗證方式：`npm run build`、`npm run test`（核對 `# tests` 與測試檔數，見地雷 L-01）、`npm run lint`；更新 `CLAUDE.md` 的 Key Modules 表。證據檔提交前依地雷 L-10 去敏。
    - 完成證據：[evidence/gates.log](evidence/gates.log)：build、lint exit 0，test 776/776（89 個測試檔，比 issue 0026 的 764 多 12 個）。`CLAUDE.md` 的 `markdown-v2.ts` 那一列已補上新行為；`CLAUDE.md` 在本 issue 之前就不符合 prettier，只改這一列。
-
-## 待確認事項
-
-| 編號 | 事項 | 狀態 | 影響 |
-|------|------|------|------|
-| TBD-1 | AC-1 原文「接在符號之後的縮排下」有兩種讀法：第二段起縮排與該項目的符號相同，或比符號再多縮一層。實作採前者，第 1 層的多段項目因此與舊版輸出相同，符合 AC-6；需使用者確認 | 已解決（2026-11-13）：使用者選 (a) 跟符號同一個縮排，AC-1 依此改寫並重新核准，實作不必改 | AC-1、AC-6 |
-
 7. ✅ **審查 review-6436089.md 的修正（M1、M2、S1、S3、N1、N4）** — 驗證方式：先補測試取得紅燈，修正後轉綠；突變確認新測試擋得住；重跑實際資料對照、實機送樣本與交付檢查。
    - 完成證據：
      - M1：一、二級標題改成底線在外層（`__*標題*__`），斜體結尾時不再出現三個底線。實機對照：修正前的輸出 Telegram 回 400 `can't parse entities`，修正後回 `ok: true`，見 [evidence/step5-review-send.md](evidence/step5-review-send.md)。
