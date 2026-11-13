@@ -42,9 +42,9 @@ repo 自己的 `workspace/.opencode/skills` 另有 `agent-browser`：它在 `04f
 
 | 外部狀態 | 查證命令 | 上次結果 | 查證日期 |
 |---|---|---|---|
-| GitHub issue #25 | `gh issue view 25 --repo raybird/telenexus --json state -q .state` | OPEN | 2026-11-12 |
-| 規格提交推送到 origin | `git merge-base --is-ancestor 760775b origin/main && echo yes` | 沒有輸出（main 上的 6b5392d、760775b 尚未推送） | 2026-11-12 |
-| 併入 main | `git branch --list main --contains feat/issue-0025-skill-harvest` | 沒有輸出（未併入） | 2026-11-12 |
+| GitHub issue #25 | `gh issue view 25 --repo raybird/telenexus --json state -q .state` | OPEN | 2026-11-13 |
+| origin 的 main 含本 issue | `git merge-base --is-ancestor 90ce534 origin/main && echo yes` | yes | 2026-11-13 |
+| 併入 main | `git branch --list main --contains feat/issue-0025-skill-harvest` | main（2026-11-13 快轉到 90ce534；分支本身不推送） | 2026-11-13 |
 
 ## 快速導覽
 
@@ -229,6 +229,7 @@ Feature: 從 workspace 收成 agent 做出的技能
 | 2026-11-13 | 使用者對 S2 選 (a)：名稱含 `..` 一律拒絕（TBD-2） | 使用者 |
 | 2026-11-13 | 重新審查 review-6b43d9c.md 判定 PASS，有 1 項 SHOULD FIX（技能檔案上萬時 hash-object 參數過長）。保存報告後，kit main（b5b5bec）的 verify-artifact.py 判定 OK；全域安裝的舊版（2026-09-14）不認得流程契約 2.5 的現行 review，判定 INVALID | - |
 | 2026-11-13 | 使用者對重新審查的 SHOULD FIX 選 (a)，記為殘餘風險（TBD-3）；同意快轉併入 main 並推送 | 使用者 |
+| 2026-11-13 | 分支快轉併入 main（90ce534）並推送 origin main；GitHub #25 仍開著，未發版 | 使用者 |
 
 ---
 **建立日期**: 2026-11-12
