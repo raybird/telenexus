@@ -79,6 +79,14 @@ workspace/**
    - 完成判準：三個指令都 exit 0；證據檔已去敏（[L-10](../../agents/landmines.md)）。
    - 相依：步驟 1～3。
 
+### 審查修正（review-a716fc7.md，RETURN TO execute-task）
+
+- MUST FIX：`treeAt()` 改用 `git ls-tree -z`，含中文或 `"` 的檔名、技能名不再從比對集合消失。補 3 個測試：紅燈見 [evidence/review1-red.log](evidence/review1-red.log)，綠燈見 [evidence/review1-green.log](evidence/review1-green.log)。
+- S1：Telegram token 寫在 `api.telegram.org/bot` 網址裡也會警告，補 1 列測試。
+- S3：SCN-007 每列都檢查拒絕原因。上一輪沒轉紅的 M8 現在有 3 個測試失敗，見 [evidence/review1-mutations.log](evidence/review1-mutations.log)。
+- S2（TBD-2，使用者選 a）：名稱含 `..` 一律拒絕。紅燈見 [evidence/review1-s2-red.log](evidence/review1-s2-red.log)，綠燈見 [evidence/review1-s2-green.log](evidence/review1-s2-green.log)。
+- NICE TO HAVE 6 項未處理，留在審查報告。
+
 ## 測試策略
 
 | Scenario | 層級 | 理由 |
