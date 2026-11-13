@@ -1,0 +1,17 @@
+# 2026-11-13 issue 0026 交付檢查。被測：65ce42a（只多了未提交的 README 步驟回寫，程式與測試都已提交）。
+## npm run build
+
+[copy-web-assets] copied <repo>/src/web/public -> <repo>/dist/web/public
+exit=0
+## npm run test
+exit=0
+# tests 764
+# pass 764
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+測試檔數：89
+## npm run lint
+
+exit=0

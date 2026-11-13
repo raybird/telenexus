@@ -42,12 +42,26 @@ issue 0024 的第四次審查（`docs/issues/issue-0024/review-b38af46.md`）留
 **風險**: Low — 只影響第一次升級時的警告文字與過期暫存的清理。清理只刪 `retired-skills/` 底下符合固定名稱格式、而且超過 1 小時的目錄，正常的暫存目錄只存在幾毫秒。
 
 ## 實作與驗證步驟
-1. ⏳ **AC-1、AC-2：只掃描一次，警告前再確認原處** — 驗證方式：先寫兩個定點競爭測試取得紅燈，在現行程式上應該會重現誤報；改完轉綠，既有 SCN-008 測試照樣通過。
-   - 完成證據：待執行時回寫。
-2. ⏳ **AC-3：啟動時清掉過期暫存** — 驗證方式：先寫清理測試取得紅燈，再實作；以突變確認「拿掉時間門檻」與「放寬名稱比對」都會被測試擋下。
-   - 完成證據：待執行時回寫。
-3. ⏳ **AC-4 與交付檢查** — 驗證方式：`npm run build`、`npm run test`（核對 `# tests` 與測試檔數）、`npm run lint`；更新 `docs/installation.md`。
-   - 完成證據：待執行時回寫。
+1. ✅ **AC-1、AC-2：只掃描一次，警告前再確認原處** — 驗證方式：先寫兩個定點競爭測試取得紅燈，在現行程式上應該會重現誤報；改完轉綠，既有 SCN-008 測試照樣通過。
+   - 完成證據：
+     - 定點競爭測試共 3 個，以 `--import` 掛勾在 B 的檔案操作時同步跑完 A：
+       - B 讀到舊版之後、判斷之前；
+       - B 判定是舊版之後、檢查備份之前；
+       - 新版有多個檔案時，B 列完舊版目錄、讀檔之前。這是實作時發現的第三種交錯：只有一個檔案的 fixture 走不到「有自訂內容」那個分支的再確認，所以補上。
+     - 紅燈：[evidence/red.log](evidence/red.log) 裡前兩個測試分別重現「有自訂內容」與「備份已存在」；第三個在舊程式上的紅燈見 [evidence/red-multifile.log](evidence/red-multifile.log)，舊程式以 `git show` 暫時放回，跑完以 `cmp` 還原。
+     - 綠燈：[evidence/green.log](evidence/green.log)，31/31，含 SCN-008 既有測試（AC-2）。
+     - 突變 M1～M3 各有測試擋下，見 [evidence/mutations.log](evidence/mutations.log)。
+     - 200 輪並行壓測：修正前誤報 18 次（有自訂內容 14、備份已存在 4），修正後 0 次，兩邊最終狀態全部正確，見 [evidence/stress.log](evidence/stress.log)。
+2. ✅ **AC-3：啟動時清掉過期暫存** — 驗證方式：先寫清理測試取得紅燈，再實作；以突變確認「拿掉時間門檻」與「放寬名稱比對」都會被測試擋下。
+   - 完成證據：
+     - 紅燈見 [evidence/red.log](evidence/red.log)，綠燈見 [evidence/green.log](evidence/green.log)。
+     - 另加防護測試：`retired-skills` 是 symlink 時不跟著連結刪東西。這個測試在舊程式上本來就通過。
+     - 突變 M4～M8 各有測試擋下：拿掉時間門檻、放寬名稱、不檢查是不是目錄、拿掉 symlink 檢查、不呼叫清理，見 [evidence/mutations.log](evidence/mutations.log)。
+3. ✅ **AC-4 與交付檢查** — 驗證方式：`npm run build`、`npm run test`（核對 `# tests` 與測試檔數）、`npm run lint`；更新 `docs/installation.md`。
+   - 完成證據：
+     - AC-4：[evidence/green.log](evidence/green.log) 含 issue 0024 的 SCN-008、S1、S-C 測試與 issue 0010 的遷移測試，並行同步測試照樣通過。
+     - 交付檢查見 [evidence/gates.log](evidence/gates.log)：build、lint exit 0，test 764/764（89 個測試檔）。
+     - `docs/installation.md` 的技能同步段落已補上並行升級與暫存清理的說明。
 
 ## Gate 豁免紀錄
 
@@ -61,9 +75,11 @@ issue 0024 的第四次審查（`docs/issues/issue-0024/review-b38af46.md`）留
 |------|------|--------|
 | 2026-11-12 | 建立 GitHub issue #26 | 使用者 |
 | 2026-11-13 | 3 題回「照建議」；建立 issue 文件，AC-1～4 核准 | 使用者 |
+| 2026-11-13 | 使用者同意在本分支試用 dev-rules-kit v4.11.0 候選版：967d247 套用 docs/（文件版本 2.10） | 使用者 |
+| 2026-11-13 | 實作 AC-1～4（65ce42a），步驟 1～3 完成 | - |
 
 ---
 **建立日期**: 2026-11-13
 **分級**: Small
 **風險**: Low
-**狀態**: 待實作
+**狀態**: 實作完成，待審查
