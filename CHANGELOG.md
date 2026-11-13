@@ -2,6 +2,35 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.39.0 — 2026-11-13
+
+### 技能收成命令（#25）
+
+- 新增 `npm run skills:harvest`，在主機上的 TeleNexus git checkout 裡執行，列出 agent 在 `workspace/.opencode/skills` 做出或改過的技能，分成三類：
+  - 新技能；
+  - 被改過的內建技能（附 diff）；
+  - 略過：symlink、與內建相同、沒被改過的舊版內建（附相符的提交）、已退役的內建。
+  
+  內建版本的判斷會比對 `skills/` 在 git 歷史裡的每個版本，所以啟動同步留下的舊版不會被當成改過。
+- `--from <workspace>` 可以掃其他部署的 workspace。
+- `--promote <名稱>` 把技能複製進 `skills/`：
+  - 同名技能要加 `--force` 才覆寫；
+  - 沒有 `SKILL.md`、含 symlink、名稱含路徑或 `..` 時拒絕；
+  - 疑似 token（只印檔案與行號）、本機絕對路徑、`name` 與目錄名不同時警告；
+  - 不會自動 commit。
+- 本機 `docker build` 不再把工作中的 `workspace/` 打包進映像，只帶 git 追蹤的 4 個骨架檔。預建的 GHCR 映像本來就是乾淨 checkout 建的，不受影響。
+
+### web-reading 並行升級不再誤報（#26）
+
+- telenexus 與 agent-runner 同時第一次把舊版 `web-reading` 換成新版時，不再誤報「新版網頁閱讀指引未套用」。先換上新版的服務印 `Upgraded builtin web-reading`，另一個安靜結束。
+- 換新途中行程被殺時，`retired-skills/` 底下會留下 `.web-reading-new-` 開頭的暫存目錄。現在啟動時會刪掉超過 1 小時的這類目錄，其他東西都不動。
+
+### 升級注意
+
+- 已經升級到 2.38.0 的部署不需要任何動作。
+- memoria 映像沒有變動。
+- build、764 項測試與 lint 通過；#25 本機獨立審查兩輪、#26 一輪，都是 PASS。
+
 ## 2.38.0 — 2026-11-12
 
 ### 網頁閱讀多一層 Moli（#24）
