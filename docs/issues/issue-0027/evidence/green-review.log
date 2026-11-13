@@ -1,0 +1,174 @@
+# 命令：npx tsx --test tests/telegram/render-markdown-v2.test.ts
+# 被測狀態：review-6436089.md 修正後的轉換器
+TAP version 13
+# Subtest: plain paragraph escapes specials
+ok 1 - plain paragraph escapes specials
+  ---
+  duration_ms: 3.713586
+  type: 'test'
+  ...
+# Subtest: bold via **
+ok 2 - bold via **
+  ---
+  duration_ms: 1.441855
+  type: 'test'
+  ...
+# Subtest: italic via _
+ok 3 - italic via _
+  ---
+  duration_ms: 0.588398
+  type: 'test'
+  ...
+# Subtest: inline code
+ok 4 - inline code
+  ---
+  duration_ms: 0.695165
+  type: 'test'
+  ...
+# Subtest: fenced code with language
+ok 5 - fenced code with language
+  ---
+  duration_ms: 0.865208
+  type: 'test'
+  ...
+# Subtest: heading -> bold + underline for level 1
+ok 6 - heading -> bold + underline for level 1
+  ---
+  duration_ms: 0.485896
+  type: 'test'
+  ...
+# Subtest: bullet list
+ok 7 - bullet list
+  ---
+  duration_ms: 1.230858
+  type: 'test'
+  ...
+# Subtest: link
+ok 8 - link
+  ---
+  duration_ms: 1.351499
+  type: 'test'
+  ...
+# Subtest: blockquote
+ok 9 - blockquote
+  ---
+  duration_ms: 0.592879
+  type: 'test'
+  ...
+# Subtest: falls back to escaped plain text on parse error
+ok 10 - falls back to escaped plain text on parse error
+  ---
+  duration_ms: 0.520923
+  type: 'test'
+  ...
+# Subtest: AC-1: nested lists keep every level with indent and level bullets
+ok 11 - AC-1: nested lists keep every level with indent and level bullets
+  ---
+  duration_ms: 1.06771
+  type: 'test'
+  ...
+# Subtest: AC-1: ordered inside unordered and unordered inside ordered
+ok 12 - AC-1: ordered inside unordered and unordered inside ordered
+  ---
+  duration_ms: 0.865901
+  type: 'test'
+  ...
+# Subtest: AC-1: later paragraphs of an item start a new line at the item indent
+ok 13 - AC-1: later paragraphs of an item start a new line at the item indent
+  ---
+  duration_ms: 0.760099
+  type: 'test'
+  ...
+# Subtest: AC-2: ordered list keeps start number and escapes the dot
+ok 14 - AC-2: ordered list keeps start number and escapes the dot
+  ---
+  duration_ms: 0.609051
+  type: 'test'
+  ...
+# Subtest: AC-3: heading levels 1-2 bold+underline, 3-6 bold, separated by blank lines
+ok 15 - AC-3: heading levels 1-2 bold+underline, 3-6 bold, separated by blank lines
+  ---
+  duration_ms: 0.468135
+  type: 'test'
+  ...
+# Subtest: AC-4: code block inside a list item is kept as a code block
+ok 16 - AC-4: code block inside a list item is kept as a code block
+  ---
+  duration_ms: 0.493824
+  type: 'test'
+  ...
+# Subtest: AC-4: blockquote and heading inside a list item are kept
+ok 17 - AC-4: blockquote and heading inside a list item are kept
+  ---
+  duration_ms: 0.518647
+  type: 'test'
+  ...
+# Subtest: AC-4: list and code inside a blockquote are kept, every line quoted
+ok 18 - AC-4: list and code inside a blockquote are kept, every line quoted
+  ---
+  duration_ms: 1.221677
+  type: 'test'
+  ...
+# Subtest: AC-4: unknown block and inline nodes fall back to escaped source
+ok 19 - AC-4: unknown block and inline nodes fall back to escaped source
+  ---
+  duration_ms: 1.671698
+  type: 'test'
+  ...
+# Subtest: AC-4: think tags are dropped but surrounding text is kept
+ok 20 - AC-4: think tags are dropped but surrounding text is kept
+  ---
+  duration_ms: 0.786278
+  type: 'test'
+  ...
+# Subtest: AC-4: no word of a mixed document is lost
+ok 21 - AC-4: no word of a mixed document is lost
+  ---
+  duration_ms: 2.047194
+  type: 'test'
+  ...
+# Subtest: AC-6: paragraph-only bullet lists and blockquotes render as before
+ok 22 - AC-6: paragraph-only bullet lists and blockquotes render as before
+  ---
+  duration_ms: 0.839697
+  type: 'test'
+  ...
+# Subtest: M1: level 1-2 headings with italics never produce three underscores
+ok 23 - M1: level 1-2 headings with italics never produce three underscores
+  ---
+  duration_ms: 1.310113
+  type: 'test'
+  ...
+# Subtest: M2: nested blockquotes are flattened to one level
+ok 24 - M2: nested blockquotes are flattened to one level
+  ---
+  duration_ms: 1.308936
+  type: 'test'
+  ...
+# Subtest: S1: code nested anywhere inside a blockquote becomes plain text
+ok 25 - S1: code nested anywhere inside a blockquote becomes plain text
+  ---
+  duration_ms: 0.319966
+  type: 'test'
+  ...
+# Subtest: N1: hard-break continuation lines follow the item indent
+ok 26 - N1: hard-break continuation lines follow the item indent
+  ---
+  duration_ms: 0.673758
+  type: 'test'
+  ...
+# Subtest: M2/S1: blocks after a blockquote render normally again
+ok 27 - M2/S1: blocks after a blockquote render normally again
+  ---
+  duration_ms: 0.710286
+  type: 'test'
+  ...
+1..27
+# tests 27
+# suites 0
+# pass 27
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 269.827351

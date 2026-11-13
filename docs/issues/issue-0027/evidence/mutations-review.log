@@ -1,0 +1,6 @@
+# review-6436089.md 修正的突變（2026-11-13）
+M13 標題改回粗體在外層 => heading -> bold + underline for level 1;AC-3: heading levels 1-2 bold+underline, 3-6 bold, separated by blank lines;AC-4: think tags are dropped but surrounding text is kept;M1: level 1-2 headings with italics never produce three underscores
+M14 引言裡的程式碼照樣輸出 fence => AC-4: list and code inside a blockquote are kept, every line quoted;S1: code nested anywhere inside a blockquote becomes plain text
+M15 巢狀引言不攤平 => M2: nested blockquotes are flattened to one level
+M16 硬換行續行不縮排 => N1: hard-break continuation lines follow the item indent
+M17 quoteDepth 不歸零 => （補測試前沒有測試失敗；補上引言之後的區塊測試後）M2/S1: blocks after a blockquote render normally again

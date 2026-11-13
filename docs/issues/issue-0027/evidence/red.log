@@ -1,3 +1,5 @@
+# 命令：npx tsx --test tests/telegram/render-markdown-v2.test.ts
+# 被測狀態：改動前的轉換器（8945e22）加上 issue 0027 的新測試與改過預期值的標題測試
 TAP version 13
 # Subtest: plain paragraph escapes specials
 ok 1 - plain paragraph escapes specials

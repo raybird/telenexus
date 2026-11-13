@@ -1,0 +1,22 @@
+$ npm run build
+> tsc && node scripts/copy-web-assets.mjs
+
+[copy-web-assets] copied ~/Documents/RCodes/moltbot-lite/src/web/public -> ~/Documents/RCodes/moltbot-lite/dist/web/public
+exit=0
+
+$ npm run lint
+> telenexus@2.39.0 lint
+> eslint "src/**/*.ts"
+
+exit=0
+
+$ npm run test
+# tests 781
+# suites 1
+# pass 781
+# fail 0
+# cancelled 0
+# skipped 0
+exit=0
+
+測試檔數：89

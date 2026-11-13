@@ -1,5 +1,5 @@
 // 步驟 5 的樣本：以新轉換器把下列 Markdown 轉成 MarkdownV2，輸出 JSON 陣列供 sendMessage 使用。
-// 用法：npx tsx docs/issues/issue-0027/evidence/step5-samples.ts > samples.json
+// 用法：npx tsx docs/issues/issue-0027/evidence/step5-samples.ts [--review] > samples.json
 import { renderMarkdownV2 } from '../../../../src/telegram/render/markdown-v2.js';
 
 const samples: Array<[string, string]> = [
@@ -18,4 +18,15 @@ const samples: Array<[string, string]> = [
   ['分隔線與特殊字元', '特殊字元：_ * [ ] ( ) ~ ` > # + - = | { } . ! \\\n\n---\n\n10-29~30 的 1/4~1/5 量']
 ];
 
-console.log(JSON.stringify(samples.map(([title, md], i) => `\\[issue 0027 完工樣本 ${i + 1}/${samples.length}：${title.replace(/[-.()]/g, (m) => '\\' + m)}\\]\n\n${renderMarkdownV2(md)}`)));
+// review-6436089.md 修正後重送：審查指出的結構，加上改了寫法的標題（樣本 4、9 重送）。
+const reviewSamples: Array<[string, string]> = [
+  ['標題以斜體結尾（M1）', '# 標題 *強調*\n\n## _全斜體_\n\n# *開頭* 斜體'],
+  ['巢狀引言（M2）', '> 外層\n>\n> > 內層\n> >\n> > > 第三層\n\n> - 引言清單\n>\n>   > 清單裡的引言'],
+  ['引言裡清單的程式碼（S1）', '> - 項目\n>\n>   ```\n>   code (x) *y*\n>   ```\n\n```\n引言之後的程式碼\n```'],
+  ['硬換行續行（N1）', '- 外層\n  - 內層 第一行\\\n    第二行\n  - 內層 B']
+];
+const useReview = process.argv.includes('--review');
+const picked = useReview ? [...reviewSamples, samples[3]!, samples[8]!] : samples;
+const label = useReview ? '審查修正樣本' : '完工樣本';
+
+console.log(JSON.stringify(picked.map(([title, md], i) => `\\[issue 0027 ${label} ${i + 1}/${picked.length}：${title.replace(/[-.()]/g, (m) => '\\' + m)}\\]\n\n${renderMarkdownV2(md)}`)));
