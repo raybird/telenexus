@@ -18,6 +18,15 @@ issue 0024 的第四次審查（`docs/issues/issue-0024/review-b38af46.md`）留
 - `retireBuiltinBrowser()` 的改名錯誤處理（issue 0024 審查 N-B，issue 0010 的既有行為）。
 - `web-reading` 的雜湊比對與備份規則。
 
+## 現況
+
+**現行 review**: review-aadf0a4.md
+
+| 外部狀態 | 查證命令 | 上次結果 | 查證日期 |
+|---|---|---|---|
+| GitHub issue #26 | `gh issue view 26 --repo raybird/telenexus --json state -q .state` | OPEN | 2026-11-13 |
+| 併入 main | `git branch --list main --contains fix/issue-0026-web-reading-race` | 沒有輸出（未併入） | 2026-11-13 |
+
 ## 涉及檔案
 - `scripts/sync-skills.mjs`：`upgradeBuiltinWebReading()` 只掃描一次；警告前再確認原處；啟動時清掉過期暫存。`retireBuiltinBrowser()` 與一般同步不動。
 - `tests/skill-web-reading-upgrade.test.ts`：補定點競爭測試與暫存清理測試。
