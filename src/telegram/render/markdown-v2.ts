@@ -26,21 +26,28 @@ export function renderMarkdownV2(input: string): string {
 }
 
 class Renderer {
+  /** 目前在幾層引言裡；Telegram 的引言不能巢狀，也不能放程式碼區塊。 */
+  private quoteDepth = 0;
+
   constructor(private readonly source: string) {}
 
   block(node: Content): string {
     switch (node.type) {
       case 'heading': {
         const text = this.inlineChildren(node.children);
-        return node.depth <= 2 ? `*__${text}__*` : `*${text}*`;
+        // 底線放在粗體外層：`__` 由左到右貪婪解析，`*__…_斜體___*` 會被 Telegram 拒收。
+        return node.depth <= 2 ? `__*${text}*__` : `*${text}*`;
       }
       case 'paragraph':
         return this.inlineChildren(node.children);
       case 'code':
+        if (this.quoteDepth > 0) return escapeMarkdownV2(node.value);
         return '```' + (node.lang ?? '') + '\n' + escapeMarkdownV2Code(node.value) + '\n```';
       case 'list':
         return this.list(node, 0);
       case 'blockquote':
+        // 引言裡的引言攤平成同一層：外層會替每一行加上 `>`。
+        if (this.quoteDepth > 0) return this.blocks(node.children);
         return this.blockquote(node);
       case 'thematicBreak':
         return '\\-\\-\\-';
@@ -82,9 +89,14 @@ class Renderer {
       // 程式碼區塊與引言的符號必須在行首，不能縮排，也不能接在清單符號後面。
       const needsLineStart = child.type === 'code' || child.type === 'blockquote';
       if (!markerUsed) {
-        lines.push(needsLineStart ? `${indent}${marker}` : `${indent}${marker} ${rendered}`);
         markerUsed = true;
-        if (!needsLineStart) continue;
+        if (!needsLineStart) {
+          // 硬換行之後的續行，縮排與符號相同。
+          const [first, ...rest] = rendered.split('\n');
+          lines.push(`${indent}${marker} ${first}`, ...rest.map((line) => indent + line));
+          continue;
+        }
+        lines.push(`${indent}${marker}`);
       }
       lines.push(needsLineStart ? rendered : indentLines(rendered, indent));
     }
@@ -99,14 +111,26 @@ class Renderer {
         if (child.type === 'paragraph') {
           return '>' + this.inlineChildren(child.children);
         }
-        // Telegram 的引言裡不能放程式碼區塊，改成跳脫後的純文字。
-        const rendered = child.type === 'code' ? escapeMarkdownV2(child.value) : this.block(child);
-        if (!rendered) return '';
-        return rendered
-          .split('\n')
-          .map((line) => '>' + line)
-          .join('\n');
+        this.quoteDepth += 1;
+        try {
+          const rendered = this.block(child);
+          if (!rendered) return '';
+          return rendered
+            .split('\n')
+            .map((line) => '>' + line)
+            .join('\n');
+        } finally {
+          this.quoteDepth -= 1;
+        }
       })
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  /** 引言裡的引言：各區塊直接接起來，由最外層的引言加 `>`。 */
+  private blocks(children: Content[]): string {
+    return children
+      .map((child) => this.block(child))
       .filter(Boolean)
       .join('\n');
   }

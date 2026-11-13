@@ -27,7 +27,7 @@ test('fenced code with language', () => {
 });
 
 test('heading -> bold + underline for level 1', () => {
-  assert.equal(renderMarkdownV2('# Title'), '*__Title__*');
+  assert.equal(renderMarkdownV2('# Title'), '__*Title*__');
 });
 
 test('bullet list', () => {
@@ -125,7 +125,7 @@ test('AC-3: heading levels 1-2 bold+underline, 3-6 bold, separated by blank line
   const md = ['# H1', '## H2', '### H3', '#### H4', '##### H5', '###### H6'].join('\n');
   assert.equal(
     renderMarkdownV2(md),
-    ['*__H1__*', '*__H2__*', '*H3*', '*H4*', '*H5*', '*H6*'].join('\n\n')
+    ['__*H1*__', '__*H2*__', '*H3*', '*H4*', '*H5*', '*H6*'].join('\n\n')
   );
 });
 
@@ -169,7 +169,7 @@ test('AC-4: unknown block and inline nodes fall back to escaped source', () => {
 
 test('AC-4: think tags are dropped but surrounding text is kept', () => {
   assert.equal(renderMarkdownV2('reasoning done.</think>結論在此'), 'reasoning done\\.結論在此');
-  assert.equal(renderMarkdownV2('推理\n\n</think>\n\n# 報告'), '推理\n\n*__報告__*');
+  assert.equal(renderMarkdownV2('推理\n\n</think>\n\n# 報告'), '推理\n\n__*報告*__');
   const out = renderMarkdownV2('</think>\n結論 甲');
   assert.ok(!out.includes('think'), out);
   assert.ok(unescapeV2(out).includes('結論 甲'), out);
@@ -221,4 +221,43 @@ test('AC-4: no word of a mixed document is lost', () => {
 test('AC-6: paragraph-only bullet lists and blockquotes render as before', () => {
   assert.equal(renderMarkdownV2('- 甲\n- 乙\n\n段落'), '• 甲\n• 乙\n\n段落');
   assert.equal(renderMarkdownV2('> 第一行\n>\n> 第二段'), '>第一行\n>第二段');
+});
+
+// ---- issue 0027 審查 review-6436089.md ----
+
+test('M1: level 1-2 headings with italics never produce three underscores', () => {
+  assert.equal(renderMarkdownV2('# 標題 *強調*'), '__*標題 _強調_*__');
+  assert.equal(renderMarkdownV2('## _全斜體_'), '__*_全斜體_*__');
+  for (const md of ['# *開頭* 斜體', '## 中 _間_ 斜體', '# _a_ _b_']) {
+    const out = renderMarkdownV2(md);
+    assert.ok(!out.includes('___'), `${md} => ${out}`);
+  }
+});
+
+test('M2: nested blockquotes are flattened to one level', () => {
+  assert.equal(renderMarkdownV2('> 外\n>\n> > 內'), '>外\n>內');
+  assert.equal(renderMarkdownV2('> - 項\n>\n>   > 內引'), '>• 項\n>內引');
+  const out = renderMarkdownV2('> 一\n>\n> > 二\n> >\n> > > 三');
+  const lines = out.split('\n');
+  assert.ok(
+    lines.every((l) => l.startsWith('>') && !l.startsWith('>>')),
+    out
+  );
+  assert.ok(unescapeV2(out).includes('三'), out);
+});
+
+test('S1: code nested anywhere inside a blockquote becomes plain text', () => {
+  const out = renderMarkdownV2('> - 項\n>\n>   ```\n>   code (x)\n>   ```');
+  assert.ok(!out.includes('```'), out);
+  assert.ok(out.split('\n').includes('>code \\(x\\)'), out);
+});
+
+test('N1: hard-break continuation lines follow the item indent', () => {
+  assert.equal(renderMarkdownV2('- 外\n  - 內 一行\\\n    續行'), '• 外\n  ◦ 內 一行\n  續行');
+});
+
+test('M2/S1: blocks after a blockquote render normally again', () => {
+  const out = renderMarkdownV2('> - 項\n\n```\ncode\n```\n\n> 引\n\n> 再引');
+  assert.ok(out.includes('```\ncode\n```'), out);
+  assert.ok(out.split('\n').includes('>再引'), out);
 });
