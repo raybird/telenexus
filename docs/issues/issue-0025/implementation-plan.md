@@ -86,6 +86,7 @@ workspace/**
 - S3：SCN-007 每列都檢查拒絕原因。上一輪沒轉紅的 M8 現在有 3 個測試失敗，見 [evidence/review1-mutations.log](evidence/review1-mutations.log)。
 - S2（TBD-2，使用者選 a）：名稱含 `..` 一律拒絕。紅燈見 [evidence/review1-s2-red.log](evidence/review1-s2-red.log)，綠燈見 [evidence/review1-s2-green.log](evidence/review1-s2-green.log)。
 - NICE TO HAVE 6 項未處理，留在審查報告。
+- 修正後的交付檢查：[evidence/step4-gates-2.log](evidence/step4-gates-2.log)，build、lint exit 0，test 759/759（89 個測試檔）。
 
 ## 測試策略
 
