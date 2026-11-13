@@ -19,7 +19,8 @@ function tokens(tree: any): string[] {
   const out: string[] = [];
   const visit = (n: any) => {
     for (const v of [n.value, n.alt, n.type === 'link' || n.type === 'image' ? n.url : undefined]) {
-      if (typeof v === 'string') out.push(...v.split(/\s+/).filter(Boolean));
+      // think 標籤依 AC-4 不輸出，不算缺。
+      if (typeof v === 'string') out.push(...v.replace(/<\/?think>/gi, ' ').split(/\s+/).filter(Boolean));
     }
     (n.children ?? []).forEach(visit);
   };

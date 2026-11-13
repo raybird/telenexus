@@ -1,0 +1,451 @@
+TAP version 13
+# Subtest: plain paragraph escapes specials
+ok 1 - plain paragraph escapes specials
+  ---
+  duration_ms: 3.585925
+  type: 'test'
+  ...
+# Subtest: bold via **
+ok 2 - bold via **
+  ---
+  duration_ms: 1.309248
+  type: 'test'
+  ...
+# Subtest: italic via _
+ok 3 - italic via _
+  ---
+  duration_ms: 0.540879
+  type: 'test'
+  ...
+# Subtest: inline code
+ok 4 - inline code
+  ---
+  duration_ms: 0.63313
+  type: 'test'
+  ...
+# Subtest: fenced code with language
+ok 5 - fenced code with language
+  ---
+  duration_ms: 0.863943
+  type: 'test'
+  ...
+# Subtest: heading -> bold + underline for level 1
+not ok 6 - heading -> bold + underline for level 1
+  ---
+  duration_ms: 1.901867
+  type: 'test'
+  location: '~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:1:870'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + '*Title*'
+    - '*__Title__*'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: '*__Title__*'
+  actual: '*Title*'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:30:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: bullet list
+ok 7 - bullet list
+  ---
+  duration_ms: 1.21893
+  type: 'test'
+  ...
+# Subtest: link
+ok 8 - link
+  ---
+  duration_ms: 1.346924
+  type: 'test'
+  ...
+# Subtest: blockquote
+ok 9 - blockquote
+  ---
+  duration_ms: 0.525842
+  type: 'test'
+  ...
+# Subtest: falls back to escaped plain text on parse error
+ok 10 - falls back to escaped plain text on parse error
+  ---
+  duration_ms: 0.512474
+  type: 'test'
+  ...
+# Subtest: AC-1: nested lists keep every level with indent and level bullets
+not ok 11 - AC-1: nested lists keep every level with indent and level bullets
+  ---
+  duration_ms: 1.312397
+  type: 'test'
+  location: '~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:2:57'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + '• 第一層 A\n• 第一層 B'
+    - '• 第一層 A\n  ◦ 第二層 A\\-1\n    ▪ 第三層 A\\-1\\-a\n      ▪ 第四層\n  ◦ 第二層 A\\-2\n• 第一層 B'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: |-
+    • 第一層 A
+      ◦ 第二層 A\-1
+        ▪ 第三層 A\-1\-a
+          ▪ 第四層
+      ◦ 第二層 A\-2
+    • 第一層 B
+  actual: |-
+    • 第一層 A
+    • 第一層 B
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:74:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AC-1: ordered inside unordered and unordered inside ordered
+not ok 12 - AC-1: ordered inside unordered and unordered inside ordered
+  ---
+  duration_ms: 0.908096
+  type: 'test'
+  location: '~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:2:585'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + '• 第一點\n• 第二點'
+    - '1\\. 第一點\n  ◦ 子項 甲\n  ◦ 子項 乙\n2\\. 第二點\n  1\\. 子編號一\n  2\\. 子編號二'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: |-
+    1\. 第一點
+      ◦ 子項 甲
+      ◦ 子項 乙
+    2\. 第二點
+      1\. 子編號一
+      2\. 子編號二
+  actual: |-
+    • 第一點
+    • 第二點
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:89:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AC-1: later paragraphs of an item start a new line at the item indent
+not ok 13 - AC-1: later paragraphs of an item start a new line at the item indent
+  ---
+  duration_ms: 0.925559
+  type: 'test'
+  location: '~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:2:1079'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + '• 外層'
+    - '• 外層\n  ◦ 第一段\n  第二段'
+           ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: |-
+    • 外層
+      ◦ 第一段
+      第二段
+  actual: '• 外層'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:97:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AC-2: ordered list keeps start number and escapes the dot
+not ok 14 - AC-2: ordered list keeps start number and escapes the dot
+  ---
+  duration_ms: 0.428516
+  type: 'test'
+  location: '~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:2:1462'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + '• 甲\n• 乙'
+    - '1\\. 甲\n2\\. 乙'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: |-
+    1\. 甲
+    2\. 乙
+  actual: |-
+    • 甲
+    • 乙
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:101:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AC-3: heading levels 1-2 bold+underline, 3-6 bold, separated by blank lines
+not ok 15 - AC-3: heading levels 1-2 bold+underline, 3-6 bold, separated by blank lines
+  ---
+  duration_ms: 0.49361
+  type: 'test'
+  location: '~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:2:1722'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + '*H1*\n\n*H2*\n\n*H3*\n\n*H4*\n\n*H5*\n\n*H6*'
+    - '*__H1__*\n\n*__H2__*\n\n*H3*\n\n*H4*\n\n*H5*\n\n*H6*'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: |-
+    *__H1__*
+    
+    *__H2__*
+    
+    *H3*
+    
+    *H4*
+    
+    *H5*
+    
+    *H6*
+  actual: |-
+    *H1*
+    
+    *H2*
+    
+    *H3*
+    
+    *H4*
+    
+    *H5*
+    
+    *H6*
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:107:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AC-4: code block inside a list item is kept as a code block
+not ok 16 - AC-4: code block inside a list item is kept as a code block
+  ---
+  duration_ms: 0.508892
+  type: 'test'
+  location: '~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:2:1991'
+  failureType: 'testCodeFailure'
+  error: |-
+    • 執行：
+    • 完成
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:116:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AC-4: blockquote and heading inside a list item are kept
+not ok 17 - AC-4: blockquote and heading inside a list item are kept
+  ---
+  duration_ms: 0.550749
+  type: 'test'
+  location: '~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:2:2341'
+  failureType: 'testCodeFailure'
+  error: '• 項目'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:124:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AC-4: list and code inside a blockquote are kept, every line quoted
+not ok 18 - AC-4: list and code inside a blockquote are kept, every line quoted
+  ---
+  duration_ms: 1.443726
+  type: 'test'
+  location: '~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:2:2650'
+  failureType: 'testCodeFailure'
+  error: |-
+    missing "甲" in:
+    >引言一
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    assertKeepsWords (~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:66:12)
+    TestContext.<anonymous> (~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:133:3)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AC-4: unknown block and inline nodes fall back to escaped source
+not ok 19 - AC-4: unknown block and inline nodes fall back to escaped source
+  ---
+  duration_ms: 0.760551
+  type: 'test'
+  location: '~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:2:3055'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + '前 粗 後'
+    - '前 <b\\>粗</b\\> 後'
+         ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: '前 <b\\>粗</b\\> 後'
+  actual: '前 粗 後'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:137:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AC-4: think tags are dropped but surrounding text is kept
+not ok 20 - AC-4: think tags are dropped but surrounding text is kept
+  ---
+  duration_ms: 0.932166
+  type: 'test'
+  location: '~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:2:3474'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + '推理\n\n*報告*'
+    - '推理\n\n*__報告__*'
+              ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: |-
+    推理
+    
+    *__報告__*
+  actual: |-
+    推理
+    
+    *報告*
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:144:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AC-4: no word of a mixed document is lost
+not ok 21 - AC-4: no word of a mixed document is lost
+  ---
+  duration_ms: 2.498493
+  type: 'test'
+  location: '~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:2:3947'
+  failureType: 'testCodeFailure'
+  error: |-
+    missing "BTC：支撐" in:
+    *結論*
+    
+    • 技術面
+    • 指令
+    
+    >引言 開頭
+    
+    標籤 文字 與 
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    assertKeepsWords (~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:66:12)
+    TestContext.<anonymous> (~/Documents/RCodes/moltbot-lite/tests/telegram/render-markdown-v2.test.ts:168:3)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AC-6: paragraph-only bullet lists and blockquotes render as before
+ok 22 - AC-6: paragraph-only bullet lists and blockquotes render as before
+  ---
+  duration_ms: 0.671221
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 10
+# fail 12
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 244.103844

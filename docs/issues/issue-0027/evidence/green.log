@@ -1,0 +1,142 @@
+TAP version 13
+# Subtest: plain paragraph escapes specials
+ok 1 - plain paragraph escapes specials
+  ---
+  duration_ms: 3.761114
+  type: 'test'
+  ...
+# Subtest: bold via **
+ok 2 - bold via **
+  ---
+  duration_ms: 1.465847
+  type: 'test'
+  ...
+# Subtest: italic via _
+ok 3 - italic via _
+  ---
+  duration_ms: 0.563719
+  type: 'test'
+  ...
+# Subtest: inline code
+ok 4 - inline code
+  ---
+  duration_ms: 0.684367
+  type: 'test'
+  ...
+# Subtest: fenced code with language
+ok 5 - fenced code with language
+  ---
+  duration_ms: 0.884832
+  type: 'test'
+  ...
+# Subtest: heading -> bold + underline for level 1
+ok 6 - heading -> bold + underline for level 1
+  ---
+  duration_ms: 0.504185
+  type: 'test'
+  ...
+# Subtest: bullet list
+ok 7 - bullet list
+  ---
+  duration_ms: 1.238413
+  type: 'test'
+  ...
+# Subtest: link
+ok 8 - link
+  ---
+  duration_ms: 1.388951
+  type: 'test'
+  ...
+# Subtest: blockquote
+ok 9 - blockquote
+  ---
+  duration_ms: 0.893992
+  type: 'test'
+  ...
+# Subtest: falls back to escaped plain text on parse error
+ok 10 - falls back to escaped plain text on parse error
+  ---
+  duration_ms: 0.821954
+  type: 'test'
+  ...
+# Subtest: AC-1: nested lists keep every level with indent and level bullets
+ok 11 - AC-1: nested lists keep every level with indent and level bullets
+  ---
+  duration_ms: 1.747117
+  type: 'test'
+  ...
+# Subtest: AC-1: ordered inside unordered and unordered inside ordered
+ok 12 - AC-1: ordered inside unordered and unordered inside ordered
+  ---
+  duration_ms: 1.413312
+  type: 'test'
+  ...
+# Subtest: AC-1: later paragraphs of an item start a new line at the item indent
+ok 13 - AC-1: later paragraphs of an item start a new line at the item indent
+  ---
+  duration_ms: 1.4094
+  type: 'test'
+  ...
+# Subtest: AC-2: ordered list keeps start number and escapes the dot
+ok 14 - AC-2: ordered list keeps start number and escapes the dot
+  ---
+  duration_ms: 1.012897
+  type: 'test'
+  ...
+# Subtest: AC-3: heading levels 1-2 bold+underline, 3-6 bold, separated by blank lines
+ok 15 - AC-3: heading levels 1-2 bold+underline, 3-6 bold, separated by blank lines
+  ---
+  duration_ms: 0.944798
+  type: 'test'
+  ...
+# Subtest: AC-4: code block inside a list item is kept as a code block
+ok 16 - AC-4: code block inside a list item is kept as a code block
+  ---
+  duration_ms: 0.664871
+  type: 'test'
+  ...
+# Subtest: AC-4: blockquote and heading inside a list item are kept
+ok 17 - AC-4: blockquote and heading inside a list item are kept
+  ---
+  duration_ms: 0.717903
+  type: 'test'
+  ...
+# Subtest: AC-4: list and code inside a blockquote are kept, every line quoted
+ok 18 - AC-4: list and code inside a blockquote are kept, every line quoted
+  ---
+  duration_ms: 1.437213
+  type: 'test'
+  ...
+# Subtest: AC-4: unknown block and inline nodes fall back to escaped source
+ok 19 - AC-4: unknown block and inline nodes fall back to escaped source
+  ---
+  duration_ms: 1.823241
+  type: 'test'
+  ...
+# Subtest: AC-4: think tags are dropped but surrounding text is kept
+ok 20 - AC-4: think tags are dropped but surrounding text is kept
+  ---
+  duration_ms: 0.834503
+  type: 'test'
+  ...
+# Subtest: AC-4: no word of a mixed document is lost
+ok 21 - AC-4: no word of a mixed document is lost
+  ---
+  duration_ms: 2.654077
+  type: 'test'
+  ...
+# Subtest: AC-6: paragraph-only bullet lists and blockquotes render as before
+ok 22 - AC-6: paragraph-only bullet lists and blockquotes render as before
+  ---
+  duration_ms: 1.031651
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 262.290404

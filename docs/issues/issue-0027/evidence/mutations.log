@@ -1,0 +1,12 @@
+M1 子清單改回空字串 => AC-1: nested lists keep every level with indent and level bullets;AC-1: ordered inside unordered and unordered inside ordered;AC-1: later paragraphs of an item start a new line at the item indent;AC-4: no word of a mixed document is lost
+M2 編號不跳脫點 => AC-1: ordered inside unordered and unordered inside ordered;AC-2: ordered list keeps start number and escapes the dot;AC-4: code block inside a list item is kept as a code block
+M3 編號從 1 重算 => AC-2: ordered list keeps start number and escapes the dot
+M4 標題不分層級 => heading -> bold + underline for level 1;AC-3: heading levels 1-2 bold+underline, 3-6 bold, separated by blank lines;AC-4: think tags are dropped but surrounding text is kept
+M5 不認得的節點回傳空字串 => AC-4: unknown block and inline nodes fall back to escaped source;AC-4: no word of a mixed document is lost
+M6 HTML 回傳空字串 => AC-4: unknown block and inline nodes fall back to escaped source;AC-4: think tags are dropped but surrounding text is kept;AC-4: no word of a mixed document is lost
+M7 不拿掉 think 標籤 => AC-4: think tags are dropped but surrounding text is kept
+M8 不縮排 => AC-1: nested lists keep every level with indent and level bullets;AC-1: ordered inside unordered and unordered inside ordered;AC-1: later paragraphs of an item start a new line at the item indent
+M9 層級符號都用 • => AC-1: nested lists keep every level with indent and level bullets;AC-1: ordered inside unordered and unordered inside ordered;AC-1: later paragraphs of an item start a new line at the item indent
+M10 引言非段落區塊不加 > => AC-4: list and code inside a blockquote are kept, every line quoted
+M11 引言裡的程式碼照樣輸出 fence => （補斷言前沒有測試失敗；補上不留 fence 的斷言後）AC-4: list and code inside a blockquote are kept, every line quoted
+M12 清單裡的程式碼縮排 => AC-1: later paragraphs of an item start a new line at the item indent;AC-4: code block inside a list item is kept as a code block;AC-4: blockquote and heading inside a list item are kept
