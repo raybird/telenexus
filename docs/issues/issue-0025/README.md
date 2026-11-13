@@ -38,7 +38,7 @@ repo 自己的 `workspace/.opencode/skills` 另有 `agent-browser`：它在 `04f
 
 ## 現況
 
-**現行 review**: review-a716fc7.md
+**現行 review**: review-6b43d9c.md
 
 | 外部狀態 | 查證命令 | 上次結果 | 查證日期 |
 |---|---|---|---|
