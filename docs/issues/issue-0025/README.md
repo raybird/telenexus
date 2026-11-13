@@ -226,6 +226,7 @@ Feature: 從 workspace 收成 agent 做出的技能
 | 2026-11-12 | 更正概述的現況表：scheduler 是被改過，不是舊版內建。當初手動查證時把另一條命令的輸出誤當成 `--find-object` 的結果；步驟 2 的收成命令與重新查證都顯示 blob `15f041c1` 不在歷史裡。Scenario 不受影響 | - |
 | 2026-11-12 | 獨立審查 review-a716fc7.md 判定 RETURN TO execute-task：MUST FIX 含中文或引號的檔名比對錯誤；SHOULD FIX 3 項，其中 S2 需決策 | - |
 | 2026-11-13 | 使用者對 S2 選 (a)：名稱含 `..` 一律拒絕（TBD-2） | 使用者 |
+| 2026-11-13 | 重新審查 review-6b43d9c.md 判定 PASS，有 1 項 SHOULD FIX（技能檔案上萬時 hash-object 參數過長）。保存報告後，kit main（b5b5bec）的 verify-artifact.py 判定 OK；全域安裝的舊版（2026-09-14）不認得流程契約 2.5 的現行 review，判定 INVALID | - |
 
 ---
 **建立日期**: 2026-11-12
