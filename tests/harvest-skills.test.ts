@@ -183,6 +183,8 @@ const refusals: Array<[string, (f: ReturnType<typeof fixture>) => string, RegExp
   // 名稱檢查是唯一的防線：workspace 外的 outside 是合法技能，沒擋下就會寫到 repo 的 skills/ 之外。
   ['名稱以 .. 指向 workspace 外的技能', (f) => { write(join(f.ws, '..'), { 'outside/SKILL.md': skill('outside', 'x') }); return '../outside'; }, /不能含路徑/],
   ['名稱是 ..', () => '..', /不能含路徑/],
+  // 2026-11-13 審查 S2（使用者選 a）：名稱只要含 .. 就拒絕，不只整個名稱等於 ..。
+  ['名稱中間含 ..', (f) => { write(f.ws, { 'a..b/SKILL.md': skill('a..b', 'x') }); return 'a..b'; }, /不能含路徑/],
 ];
 for (const [label, prepare, reason] of refusals) {
   test(`SCN-007 promote 拒絕：${label}；非 0、skills/ 不變`, () => {

@@ -172,7 +172,8 @@ function promoteWarnings(name, source, files) {
 }
 
 function promote(repo, skillsDir, name, force) {
-  if (name === '.' || name === '..' || /[/\\]/.test(name)) fail(`技能名稱不能含路徑：${name}`);
+  // 含 .. 一律拒絕，不只整個名稱等於 ..（2026-11-13 審查 S2，使用者選 a）。
+  if (name === '.' || name.includes('..') || /[/\\]/.test(name)) fail(`技能名稱不能含路徑：${name}`);
   const source = path.join(skillsDir, name);
   let stat;
   try {

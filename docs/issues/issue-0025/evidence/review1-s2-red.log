@@ -1,0 +1,217 @@
+# 2026-11-13 審查 S2 紅燈。命令：npx tsx --test tests/harvest-skills.test.ts。被測：edc985d 的 scripts/harvest-skills.mjs，加上未提交的「名稱中間含 ..」測試。
+TAP version 13
+# Subtest: SCN-001 列出新技能，附檔案數；結束碼 0，repo 沒有變動
+ok 1 - SCN-001 列出新技能，附檔案數；結束碼 0，repo 沒有變動
+  ---
+  duration_ms: 117.824963
+  type: 'test'
+  ...
+# Subtest: SCN-002 被改過的內建技能附差異
+ok 2 - SCN-002 被改過的內建技能附差異
+  ---
+  duration_ms: 113.916728
+  type: 'test'
+  ...
+# Subtest: SCN-003 舊版內建技能列在略過，標出相符的版本
+ok 3 - SCN-003 舊版內建技能列在略過，標出相符的版本
+  ---
+  duration_ms: 119.491463
+  type: 'test'
+  ...
+# Subtest: SCN-004 linked 列在略過，原因是「symlink」
+ok 4 - SCN-004 linked 列在略過，原因是「symlink」
+  ---
+  duration_ms: 102.697915
+  type: 'test'
+  ...
+# Subtest: SCN-004 same 列在略過，原因是「與內建相同」
+ok 5 - SCN-004 same 列在略過，原因是「與內建相同」
+  ---
+  duration_ms: 107.479742
+  type: 'test'
+  ...
+# Subtest: SCN-004 old-tool 列在略過，原因是「已退役內建」
+ok 6 - SCN-004 old-tool 列在略過，原因是「已退役內建」
+  ---
+  duration_ms: 130.578636
+  type: 'test'
+  ...
+# Subtest: SCN-005 --from 掃描另一個 workspace，比對基準仍是本 repo
+ok 7 - SCN-005 --from 掃描另一個 workspace，比對基準仍是本 repo
+  ---
+  duration_ms: 104.552235
+  type: 'test'
+  ...
+# Subtest: SCN-005 --from 指向沒有 .opencode/skills 的路徑：非 0 並說明找不到
+ok 8 - SCN-005 --from 指向沒有 .opencode/skills 的路徑：非 0 並說明找不到
+  ---
+  duration_ms: 57.883692
+  type: 'test'
+  ...
+# Subtest: 不在 git checkout 裡執行：非 0 並說明
+ok 9 - 不在 git checkout 裡執行：非 0 並說明
+  ---
+  duration_ms: 60.082274
+  type: 'test'
+  ...
+# Subtest: SCN-006 promote 新技能：內容相同、提醒先檢查，不 commit、不動 skills/ 以外的檔案
+ok 10 - SCN-006 promote 新技能：內容相同、提醒先檢查，不 commit、不動 skills/ 以外的檔案
+  ---
+  duration_ms: 80.926038
+  type: 'test'
+  ...
+# Subtest: SCN-007 promote 拒絕：skills/ 已有同名技能；非 0、skills/ 不變
+ok 11 - SCN-007 promote 拒絕：skills/ 已有同名技能；非 0、skills/ 不變
+  ---
+  duration_ms: 61.777875
+  type: 'test'
+  ...
+# Subtest: SCN-007 promote 拒絕：目錄裡沒有 SKILL.md；非 0、skills/ 不變
+ok 12 - SCN-007 promote 拒絕：目錄裡沒有 SKILL.md；非 0、skills/ 不變
+  ---
+  duration_ms: 59.517602
+  type: 'test'
+  ...
+# Subtest: SCN-007 promote 拒絕：目錄裡含 symlink；非 0、skills/ 不變
+ok 13 - SCN-007 promote 拒絕：目錄裡含 symlink；非 0、skills/ 不變
+  ---
+  duration_ms: 64.831051
+  type: 'test'
+  ...
+# Subtest: SCN-007 promote 拒絕：技能本身是 symlink；非 0、skills/ 不變
+ok 14 - SCN-007 promote 拒絕：技能本身是 symlink；非 0、skills/ 不變
+  ---
+  duration_ms: 62.665404
+  type: 'test'
+  ...
+# Subtest: SCN-007 promote 拒絕：workspace 沒有這個名稱；非 0、skills/ 不變
+ok 15 - SCN-007 promote 拒絕：workspace 沒有這個名稱；非 0、skills/ 不變
+  ---
+  duration_ms: 53.639382
+  type: 'test'
+  ...
+# Subtest: SCN-007 promote 拒絕：名稱含路徑分隔符號；非 0、skills/ 不變
+ok 16 - SCN-007 promote 拒絕：名稱含路徑分隔符號；非 0、skills/ 不變
+  ---
+  duration_ms: 48.829808
+  type: 'test'
+  ...
+# Subtest: SCN-007 promote 拒絕：名稱以 .. 指向 workspace 外的技能；非 0、skills/ 不變
+ok 17 - SCN-007 promote 拒絕：名稱以 .. 指向 workspace 外的技能；非 0、skills/ 不變
+  ---
+  duration_ms: 51.417597
+  type: 'test'
+  ...
+# Subtest: SCN-007 promote 拒絕：名稱是 ..；非 0、skills/ 不變
+ok 18 - SCN-007 promote 拒絕：名稱是 ..；非 0、skills/ 不變
+  ---
+  duration_ms: 47.827866
+  type: 'test'
+  ...
+# Subtest: SCN-007 promote 拒絕：名稱中間含 ..；非 0、skills/ 不變
+not ok 19 - SCN-007 promote 拒絕：名稱中間含 ..；非 0、skills/ 不變
+  ---
+  duration_ms: 73.304971
+  type: 'test'
+  location: '<repo>/tests/harvest-skills.test.ts:7:4834'
+  failureType: 'testCodeFailure'
+  error: |-
+    [harvest] 已複製 <tmp>/repo/workspace/.opencode/skills/a..b → skills/a..b（1 個檔案）
+    [harvest] 沒有建立 commit；commit 前請先自己檢查內容（skills/ 會隨公開 repo 與 release bundle 出貨）。
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 0
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/harvest-skills.test.ts:196:14)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: SCN-008 --force 覆寫同名內建技能：與 workspace 完全相同，少掉的檔案也移除
+ok 20 - SCN-008 --force 覆寫同名內建技能：與 workspace 完全相同，少掉的檔案也移除
+  ---
+  duration_ms: 59.129103
+  type: 'test'
+  ...
+# Subtest: SCN-009 promote 照樣複製但警告：name 與目錄名不同
+ok 21 - SCN-009 promote 照樣複製但警告：name 與目錄名不同
+  ---
+  duration_ms: 59.583946
+  type: 'test'
+  ...
+# Subtest: SCN-009 promote 照樣複製但警告：疑似 token
+ok 22 - SCN-009 promote 照樣複製但警告：疑似 token
+  ---
+  duration_ms: 53.157
+  type: 'test'
+  ...
+# Subtest: SCN-009 promote 照樣複製但警告：本機絕對路徑
+ok 23 - SCN-009 promote 照樣複製但警告：本機絕對路徑
+  ---
+  duration_ms: 65.142531
+  type: 'test'
+  ...
+# Subtest: SCN-009 promote 照樣複製但警告：Telegram bot token 寫在 API 網址裡
+ok 24 - SCN-009 promote 照樣複製但警告：Telegram bot token 寫在 API 網址裡
+  ---
+  duration_ms: 55.863848
+  type: 'test'
+  ...
+# Subtest: SCN-009 沒有可疑內容時不警告
+ok 25 - SCN-009 沒有可疑內容時不警告
+  ---
+  duration_ms: 54.074792
+  type: 'test'
+  ...
+# Subtest: SCN-007 promote 複製失敗：非 0，skills/ 不變、不留暫存
+ok 26 - SCN-007 promote 複製失敗：非 0，skills/ 不變、不留暫存
+  ---
+  duration_ms: 53.32169
+  type: 'test'
+  ...
+# Subtest: SCN-007 promote --force 複製失敗：非 0，skills/ 不變、不留暫存
+ok 27 - SCN-007 promote --force 複製失敗：非 0，skills/ 不變、不留暫存
+  ---
+  duration_ms: 50.729678
+  type: 'test'
+  ...
+# Subtest: SCN-007 promote --force 換上新版時失敗：舊版移回原處，skills/ 不變
+ok 28 - SCN-007 promote --force 換上新版時失敗：舊版移回原處，skills/ 不變
+  ---
+  duration_ms: 57.451162
+  type: 'test'
+  ...
+# Subtest: 含中文或引號的檔名：內容相同就是與內建相同
+ok 29 - 含中文或引號的檔名：內容相同就是與內建相同
+  ---
+  duration_ms: 134.693619
+  type: 'test'
+  ...
+# Subtest: 中文技能名：與內建相同，不列成新技能
+ok 30 - 中文技能名：與內建相同，不列成新技能
+  ---
+  duration_ms: 130.647082
+  type: 'test'
+  ...
+# Subtest: 含中文檔名的舊版內建：找得到相符的歷史版本
+ok 31 - 含中文檔名的舊版內建：找得到相符的歷史版本
+  ---
+  duration_ms: 127.275829
+  type: 'test'
+  ...
+1..31
+# tests 31
+# suites 0
+# pass 30
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2677.786957
+exit=1
