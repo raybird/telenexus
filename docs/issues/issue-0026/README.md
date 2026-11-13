@@ -25,7 +25,8 @@ issue 0024 的第四次審查（`docs/issues/issue-0024/review-b38af46.md`）留
 | 外部狀態 | 查證命令 | 上次結果 | 查證日期 |
 |---|---|---|---|
 | GitHub issue #26 | `gh issue view 26 --repo raybird/telenexus --json state -q .state` | OPEN | 2026-11-13 |
-| 併入 main | `git branch --list main --contains fix/issue-0026-web-reading-race` | 沒有輸出（未併入） | 2026-11-13 |
+| 併入 main | `git branch --list main --contains fix/issue-0026-web-reading-race` | main（2026-11-13 快轉到 5ca81c6；分支本身不推送） | 2026-11-13 |
+| origin 的 main 含本 issue | `git merge-base --is-ancestor 5ca81c6 origin/main && echo yes` | yes | 2026-11-13 |
 
 ## 涉及檔案
 - `scripts/sync-skills.mjs`：`upgradeBuiltinWebReading()` 只掃描一次；警告前再確認原處；啟動時清掉過期暫存。`retireBuiltinBrowser()` 與一般同步不動。
@@ -93,6 +94,7 @@ issue 0024 的第四次審查（`docs/issues/issue-0024/review-b38af46.md`）留
 | 2026-11-13 | 使用者同意在本分支試用 dev-rules-kit v4.11.0 候選版：967d247 套用 docs/（文件版本 2.10） | 使用者 |
 | 2026-11-13 | 實作 AC-1～4（65ce42a），步驟 1～3 完成 | - |
 | 2026-11-13 | 獨立審查 review-aadf0a4.md 判定 PASS，有 1 項 SHOULD FIX；使用者選 (a) 記為殘餘風險（TBD-1），同意快轉併入 main 並推送 | 使用者 |
+| 2026-11-13 | 分支快轉併入 main（5ca81c6）並推送 origin main；GitHub #26 仍開著，未發版 | 使用者 |
 
 ---
 **建立日期**: 2026-11-13
