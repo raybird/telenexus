@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -259,5 +259,111 @@ test('S-C 舊版已備份、換上新版時失敗：舊版移回原處，不留�
     assert.deepEqual(snapshot(join(f.target, 'web-reading')), snapshot(legacySource), '舊版回到原處');
     assert.equal(existsSync(f.backup(f.target)), false);
     assert.deepEqual(f.leftovers(), [], '沒有留下暫存目錄');
+  } finally { f.close(); }
+});
+
+// issue 0026 AC-1：另一個服務在本服務掃描期間換上新版時，本服務不能誤報「新版未套用」。
+// 以 --import 掛勾在 B 的指定檔案操作時，同步跑完整個 A，固定重現兩種交錯。
+function raceHook(f: ReturnType<typeof legacyFixture>, method: 'readFileSync' | 'lstatSync' | 'readdirSync', path: string, after: boolean) {
+  const hook = join(f.root, `race-${method}.mjs`);
+  const log = join(f.root, `race-${method}.log`);
+  writeFileSync(hook, [
+    "import fs from 'node:fs';",
+    "import { spawnSync } from 'node:child_process';",
+    `const original = fs.${method};`,
+    'let fired = false;',
+    'const runOther = () => {',
+    '  fired = true;',
+    "  const other = spawnSync(process.execPath, [process.argv[1]], { encoding: 'utf8' });",
+    `  fs.writeFileSync(${JSON.stringify(log)}, other.stdout + other.stderr);`,
+    '};',
+    `fs.${method} = function (file, ...rest) {`,
+    `  const hit = !fired && String(file) === ${JSON.stringify(path)};`,
+    after ? '  const result = original.call(this, file, ...rest);\n  if (hit) runOther();\n  return result;' : '  if (hit) runOther();\n  return original.call(this, file, ...rest);',
+    '};',
+  ].join('\n'));
+  const output = f.spawnWith(process.execPath, ['--import', pathToFileURL(hook).href, syncScript]);
+  assert.ok(existsSync(log), '掛勾要真的觸發另一個服務');
+  return { output, other: readFileSync(log, 'utf8') };
+}
+
+function assertUpgradedOnce(f: ReturnType<typeof legacyFixture>) {
+  assert.deepEqual(snapshot(join(f.target, 'web-reading')), { 'SKILL.md': BIG_SKILL });
+  assert.deepEqual(snapshot(f.backup(f.target)), snapshot(legacySource));
+  assert.deepEqual(f.leftovers(), [], '沒有留下暫存目錄');
+}
+
+const FALSE_ALARM = /有自訂內容|備份已存在|未套用/;
+
+test('AC-1 B 讀到舊版之後、判斷之前，A 換上新版：B 不誤報，安靜結束', () => {
+  const f = legacyFixture();
+  try {
+    const r = raceHook(f, 'readFileSync', join(f.target, 'web-reading', 'SKILL.md'), true);
+    assert.match(r.other, /Upgraded builtin web-reading/);
+    assert.doesNotMatch(r.output, FALSE_ALARM);
+    assertUpgradedOnce(f);
+  } finally { f.close(); }
+});
+
+test('AC-1 B 判定是舊版之後、檢查備份之前，A 換上新版：B 不誤報，安靜結束', () => {
+  const f = legacyFixture();
+  try {
+    const r = raceHook(f, 'lstatSync', f.backup(f.target), false);
+    assert.match(r.other, /Upgraded builtin web-reading/);
+    assert.doesNotMatch(r.output, FALSE_ALARM);
+    assertUpgradedOnce(f);
+  } finally { f.close(); }
+});
+
+// issue 0026 AC-3：被殺時留下的暫存目錄，超過 1 小時才清，只認 .web-reading-new-* 目錄。
+test('AC-3 啟動時清掉超過 1 小時的 web-reading 暫存，其他東西不動', () => {
+  const f = legacyFixture();
+  try {
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const make = (name: string, old: boolean, file = false) => {
+      const p = join(f.retired, name);
+      if (file) writeFileSync(p, 'x\n');
+      else { mkdirSync(p, { recursive: true }); writeFileSync(join(p, 'SKILL.md'), `${name}\n`); }
+      if (old) utimesSync(p, twoHoursAgo, twoHoursAgo);
+    };
+    mkdirSync(f.retired, { recursive: true });
+    make('.web-reading-new-OLD123', true);
+    make('.web-reading-new-NEW456', false);
+    make('.web-reading-new', true);
+    make('.web-reading-newer-ABC789', true);
+    make('.web-reading-new-FILE00', true, true);
+    make('agent-browser', true);
+    f.spawnWith(process.execPath, [syncScript]);
+    assert.deepEqual(readdirSync(f.retired).sort(), [
+      '.web-reading-new', '.web-reading-new-FILE00', '.web-reading-new-NEW456', '.web-reading-newer-ABC789', 'agent-browser', backupName,
+    ].sort());
+  } finally { f.close(); }
+});
+
+test('AC-3 retired-skills 是 symlink：不跟著連結刪東西', () => {
+  const f = legacyFixture();
+  try {
+    const elsewhere = join(f.root, 'elsewhere');
+    const stale = join(elsewhere, '.web-reading-new-OLD123');
+    mkdirSync(stale, { recursive: true });
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    utimesSync(stale, twoHoursAgo, twoHoursAgo);
+    symlinkSync(elsewhere, f.retired);
+    f.spawnWith(process.execPath, [syncScript]);
+    assert.ok(existsSync(stale), '連結另一端的目錄不能被刪');
+  } finally { f.close(); }
+});
+
+test('AC-1 新版有多個檔案，B 列完舊版目錄、讀檔之前 A 換上新版：B 不誤報，安靜結束', () => {
+  const f = legacyFixture();
+  try {
+    // 新版多一個子目錄：B 的掃描會混到舊版的目錄清單與新版的檔案內容，新舊都對不上。
+    mkdirSync(join(f.source, 'web-reading', 'references'), { recursive: true });
+    writeFileSync(join(f.source, 'web-reading', 'references', 'moli.md'), 'Moli 參考\n');
+    const r = raceHook(f, 'readdirSync', join(f.target, 'web-reading'), true);
+    assert.match(r.other, /Upgraded builtin web-reading/);
+    assert.doesNotMatch(r.output, FALSE_ALARM);
+    assert.deepEqual(snapshot(join(f.target, 'web-reading')), { 'SKILL.md': BIG_SKILL, 'references/moli.md': 'Moli 參考\n' });
+    assert.deepEqual(snapshot(f.backup(f.target)), snapshot(legacySource));
   } finally { f.close(); }
 });

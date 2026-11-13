@@ -1,0 +1,44 @@
+# 2026-11-13 補測「新版有多個檔案」的紅燈：以 git show 967d247:scripts/sync-skills.mjs 暫時放回舊程式，跑完以 cmp 還原。命令：npx tsx --test --test-name-pattern 多個檔案 tests/skill-web-reading-upgrade.test.ts
+TAP version 13
+# Subtest: AC-1 新版有多個檔案，B 列完舊版目錄、讀檔之前 A 換上新版：B 不誤報，安靜結束
+not ok 1 - AC-1 新版有多個檔案，B 列完舊版目錄、讀檔之前 A 換上新版：B 不誤報，安靜結束
+  ---
+  duration_ms: 65.586257
+  type: 'test'
+  location: '<repo>/tests/skill-web-reading-upgrade.test.ts:3:1108'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input was expected to not match the regular expression /有自訂內容|備份已存在|未套用/. Input:
+    
+    '[SkillSync] Synced skills: copied=0, skipped=1, targets=<tmp>/workspace/.opencode/skills\n' +
+      '[SkillSync] Generated .opencode/AGENTS.md with 1 skills: <tmp>/workspace/.opencode/AGENTS.md\n' +
+      '[SkillSync] Generated skills-summary.md with 1 skills: <tmp>/workspace/context/skills-summary.md\n' +
+      '[SkillSync] web-reading 有自訂內容，已保留 <tmp>/workspace/.opencode/skills/web-reading；新版網頁閱讀指引未套用，請人工比對 <tmp>/source/web-reading。\n'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    [SkillSync] Synced skills: copied=0, skipped=1, targets=<tmp>/workspace/.opencode/skills
+    [SkillSync] Generated .opencode/AGENTS.md with 1 skills: <tmp>/workspace/.opencode/AGENTS.md
+    [SkillSync] Generated skills-summary.md with 1 skills: <tmp>/workspace/context/skills-summary.md
+    [SkillSync] web-reading 有自訂內容，已保留 <tmp>/workspace/.opencode/skills/web-reading；新版網頁閱讀指引未套用，請人工比對 <tmp>/source/web-reading。
+    
+  operator: 'doesNotMatch'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/skill-web-reading-upgrade.test.ts:365:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 259.850043
+exit=1

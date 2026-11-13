@@ -1,0 +1,10 @@
+# 2026-11-13 issue 0026 突變。一次改 scripts/sync-skills.mjs 一處，再跑 npx tsx --test tests/skill-web-reading-upgrade.test.ts，跑完以 cmp 確認還原。被測：未提交的工作樹（修正後）。
+M1 備份已存在分支拿掉再確認: not ok 15: B 讀到舊版之後、判斷之前，A 換上新版：B 不誤報，安靜結束 not ok 16: B 判定是舊版之後、檢查備份之前，A 換上新版：B 不誤報，安靜結束 # pass 17 # fail 2 
+M2 有自訂內容分支拿掉再確認: not ok 19: 新版有多個檔案，B 列完舊版目錄、讀檔之前 A 換上新版：B 不誤報，安靜結束 # pass 18 # fail 1 
+M3 再確認一律當作已換上: not ok 3: 有客製內容（SKILL.md 被改過）：原地保留並警告，重跑不變 not ok 4: 有客製內容（多了檔案）：原地保留並警告，重跑不變 not ok 5: 有客製內容（多了目錄）：原地保留並警告，重跑不變 not ok 6: web-reading 是指向舊版的 symlink：不跟著連結改動，原地保留並警告 not ok 7: 備份已存在而 workspace 仍是舊版：不覆寫備份，保留並警告 # pass 14 # fail 5 
+M4 拿掉 1 小時門檻: not ok 17: 啟動時清掉超過 1 小時的 web-reading 暫存，其他東西不動 # pass 18 # fail 1 
+M5 名稱比對放寬為 .web-reading-new 開頭: not ok 17: 啟動時清掉超過 1 小時的 web-reading 暫存，其他東西不動 # pass 18 # fail 1 
+M6 不檢查是不是目錄: not ok 17: 啟動時清掉超過 1 小時的 web-reading 暫存，其他東西不動 # pass 18 # fail 1 
+M7 拿掉 symlink 檢查: not ok 18: retired-skills 是 symlink：不跟著連結刪東西 # pass 18 # fail 1 
+M8 不呼叫清理: not ok 17: 啟動時清掉超過 1 小時的 web-reading 暫存，其他東西不動 # pass 18 # fail 1 
+還原：cmp 相同

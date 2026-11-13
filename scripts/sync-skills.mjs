@@ -61,14 +61,17 @@ function scanDirectory(candidate) {
   return { files, directories };
 }
 
-/** candidate 的內容是否與 manifest（files: 相對路徑→sha256、directories）完全相同。 */
-function matchesManifest(candidate, manifest) {
-  const scanned = scanDirectory(candidate);
-  if (!scanned) return false;
+/** scanDirectory 的結果是否與 manifest（files: 相對路徑→sha256、directories）完全相同。 */
+function sameContent(scanned, manifest) {
   const expectedFiles = Object.keys(manifest.files).sort();
   return JSON.stringify(Object.keys(scanned.files).sort()) === JSON.stringify(expectedFiles) &&
     expectedFiles.every((name) => scanned.files[name] === manifest.files[name]) &&
-    JSON.stringify(scanned.directories.sort()) === JSON.stringify([...manifest.directories].sort());
+    JSON.stringify([...scanned.directories].sort()) === JSON.stringify([...manifest.directories].sort());
+}
+
+function matchesManifest(candidate, manifest) {
+  const scanned = scanDirectory(candidate);
+  return Boolean(scanned) && sameContent(scanned, manifest);
 }
 
 function matchesRetiredBrowser(candidate) {
@@ -134,7 +137,8 @@ function retiredSkillsDir(targetDir) {
 // 完全相同（沒被改過）時換成新版並備份舊版；有客製內容、symlink 或備份已存在時原地保留並警告。
 // 新版先完整複製到 retired-skills 底下的暫存目錄，再以兩次改名換上；任一步失敗都把舊版移回原處，
 // 原處不會留下寫到一半的技能（2026-11-12 第三次審查 S-C）。
-// telenexus 與 agent-runner 會同時執行本腳本，改名是兩者之間唯一的競爭點。
+// telenexus 與 agent-runner 會同時執行本腳本，另一個服務可能在任何兩步之間換上新版：原處只掃描一次，
+// 警告前再看一次原處，已經是新版或正在被換（暫時不存在）就安靜結束（issue 0026 AC-1）。
 function upgradeBuiltinWebReading(targetDir) {
   const source = path.join(sourceDir, 'web-reading');
   const candidate = path.join(targetDir, 'web-reading');
@@ -149,21 +153,31 @@ function upgradeBuiltinWebReading(targetDir) {
     if (isMissing(error)) return;
     throw error;
   }
-  let matchesLegacy = false;
+  // 另一個服務已換上新版，或正在換（原處暫時不存在，之後的同步流程會補上新版）。
+  const upgradedElsewhere = () => {
+    try {
+      return matchesManifest(candidate, current);
+    } catch (error) {
+      if (isMissing(error)) return true;
+      throw error;
+    }
+  };
+  let scanned;
   try {
-    if (matchesManifest(candidate, current)) return;
-    matchesLegacy = matchesManifest(candidate, legacyWebReading);
+    scanned = scanDirectory(candidate);
   } catch (error) {
-    // 另一個 worker 剛把它改名；之後的同步流程會補上新版。
     if (isMissing(error)) return;
     throw error;
   }
-  if (!matchesLegacy) {
+  if (scanned && sameContent(scanned, current)) return;
+  if (!(scanned && sameContent(scanned, legacyWebReading))) {
+    if (upgradedElsewhere()) return;
     console.warn(`[SkillSync] web-reading 有自訂內容，已保留 ${candidate}；新版網頁閱讀指引未套用，請人工比對 ${source}。`);
     return;
   }
   try {
     fs.lstatSync(backup);
+    if (upgradedElsewhere()) return;
     console.warn(`[SkillSync] web-reading 備份已存在，保留 ${candidate} 與 ${backup}；新版網頁閱讀指引未套用。`);
     return;
   } catch (error) {
@@ -198,9 +212,37 @@ function upgradeBuiltinWebReading(targetDir) {
   console.log(`[SkillSync] Upgraded builtin web-reading; previous version: ${backup}`);
 }
 
+// 升級的暫存目錄只存在幾毫秒；行程在途中被殺才會留下。超過 1 小時的才清，避開另一個服務正在用的那份；
+// 只認 .web-reading-new-* 目錄，retired-skills 路徑含 symlink 時不動（issue 0026 AC-3）。
+const STALE_STAGING_MS = 60 * 60 * 1000;
+const STAGING_PREFIX = '.web-reading-new-';
+
+function purgeStaleWebReadingStaging(targetDir) {
+  const dir = retiredSkillsDir(targetDir);
+  if (!fs.existsSync(dir) || pathHasSymlink(dir)) return;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isDirectory() || !entry.name.startsWith(STAGING_PREFIX) || entry.name.length === STAGING_PREFIX.length) continue;
+    const staging = path.join(dir, entry.name);
+    try {
+      if (Date.now() - fs.lstatSync(staging).mtimeMs < STALE_STAGING_MS) continue;
+      fs.rmSync(staging, { recursive: true, force: true });
+      console.log(`[SkillSync] Removed stale web-reading staging: ${staging}`);
+    } catch (error) {
+      if (!isMissing(error)) throw error;
+    }
+  }
+}
+
 function syncBuiltinSkills() {
   targetDirs.forEach(ensureDir);
   targetDirs.forEach(retireBuiltinBrowser);
+  targetDirs.forEach((targetDir) => {
+    try {
+      purgeStaleWebReadingStaging(targetDir);
+    } catch (error) {
+      console.warn(`[SkillSync] 清除過期的 web-reading 暫存失敗（${targetDir}）：${error instanceof Error ? error.message : String(error)}`);
+    }
+  });
   // 升級失敗只影響 web-reading：警告後保留舊版，其他技能照常同步（2026-11-12 審查 S1）。
   targetDirs.forEach((targetDir) => {
     try {

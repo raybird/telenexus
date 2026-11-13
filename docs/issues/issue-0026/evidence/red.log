@@ -1,0 +1,221 @@
+# 2026-11-13 issue 0026 紅燈。命令：npx tsx --test tests/skill-web-reading-upgrade.test.ts。被測：967d247 的 scripts/sync-skills.mjs，加上未提交的 AC-1、AC-3 測試。
+TAP version 13
+# Subtest: SCN-008 沒有 web-reading：複製新版，重跑不變
+ok 1 - SCN-008 沒有 web-reading：複製新版，重跑不變
+  ---
+  duration_ms: 60.495615
+  type: 'test'
+  ...
+# Subtest: SCN-008 與已出貨舊版雜湊相同：換成新版，舊版備份到 retired-skills，重跑不變
+ok 2 - SCN-008 與已出貨舊版雜湊相同：換成新版，舊版備份到 retired-skills，重跑不變
+  ---
+  duration_ms: 59.03598
+  type: 'test'
+  ...
+# Subtest: SCN-008 有客製內容（SKILL.md 被改過）：原地保留並警告，重跑不變
+ok 3 - SCN-008 有客製內容（SKILL.md 被改過）：原地保留並警告，重跑不變
+  ---
+  duration_ms: 68.71723
+  type: 'test'
+  ...
+# Subtest: SCN-008 有客製內容（多了檔案）：原地保留並警告，重跑不變
+ok 4 - SCN-008 有客製內容（多了檔案）：原地保留並警告，重跑不變
+  ---
+  duration_ms: 76.689134
+  type: 'test'
+  ...
+# Subtest: SCN-008 有客製內容（多了目錄）：原地保留並警告，重跑不變
+ok 5 - SCN-008 有客製內容（多了目錄）：原地保留並警告，重跑不變
+  ---
+  duration_ms: 70.821889
+  type: 'test'
+  ...
+# Subtest: SCN-008 web-reading 是指向舊版的 symlink：不跟著連結改動，原地保留並警告
+ok 6 - SCN-008 web-reading 是指向舊版的 symlink：不跟著連結改動，原地保留並警告
+  ---
+  duration_ms: 27.064029
+  type: 'test'
+  ...
+# Subtest: SCN-008 備份已存在而 workspace 仍是舊版：不覆寫備份，保留並警告
+ok 7 - SCN-008 備份已存在而 workspace 仍是舊版：不覆寫備份，保留並警告
+  ---
+  duration_ms: 30.742228
+  type: 'test'
+  ...
+# Subtest: SCN-008 已經是新版：不變，不建立備份
+ok 8 - SCN-008 已經是新版：不變，不建立備份
+  ---
+  duration_ms: 29.857743
+  type: 'test'
+  ...
+# Subtest: SCN-008 telenexus 與 agent-runner 同時同步：只有一份備份、結果是新版
+ok 9 - SCN-008 telenexus 與 agent-runner 同時同步：只有一份備份、結果是新版
+  ---
+  duration_ms: 145.751611
+  type: 'test'
+  ...
+# Subtest: S1 來源沒有 web-reading：其他技能照常同步，不中止
+ok 10 - S1 來源沒有 web-reading：其他技能照常同步，不中止
+  ---
+  duration_ms: 25.887441
+  type: 'test'
+  ...
+# Subtest: S1 內建技能來源目錄不存在：照舊只說明找不到來源，不中止
+ok 11 - S1 內建技能來源目錄不存在：照舊只說明找不到來源，不中止
+  ---
+  duration_ms: 25.340261
+  type: 'test'
+  ...
+# Subtest: S1 升級時備份失敗：警告並保留舊版，其他技能照常同步
+ok 12 - S1 升級時備份失敗：警告並保留舊版，其他技能照常同步
+  ---
+  duration_ms: 32.211253
+  type: 'test'
+  ...
+# Subtest: S-C 新版寫到一半失敗：舊版回到原處、不留暫存，下次啟動照常升級
+ok 13 - S-C 新版寫到一半失敗：舊版回到原處、不留暫存，下次啟動照常升級
+  ---
+  duration_ms: 55.491899
+  type: 'test'
+  ...
+# Subtest: S-C 舊版已備份、換上新版時失敗：舊版移回原處，不留暫存
+ok 14 - S-C 舊版已備份、換上新版時失敗：舊版移回原處，不留暫存
+  ---
+  duration_ms: 29.994027
+  type: 'test'
+  ...
+# Subtest: AC-1 B 讀到舊版之後、判斷之前，A 換上新版：B 不誤報，安靜結束
+not ok 15 - AC-1 B 讀到舊版之後、判斷之前，A 換上新版：B 不誤報，安靜結束
+  ---
+  duration_ms: 58.154291
+  type: 'test'
+  location: '<repo>/tests/skill-web-reading-upgrade.test.ts:2:4130'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input was expected to not match the regular expression /有自訂內容|備份已存在|未套用/. Input:
+    
+    '[SkillSync] Synced skills: copied=0, skipped=1, targets=<tmp>/workspace/.opencode/skills\n' +
+      '[SkillSync] Generated .opencode/AGENTS.md with 1 skills: <tmp>/workspace/.opencode/AGENTS.md\n' +
+      '[SkillSync] Generated skills-summary.md with 1 skills: <tmp>/workspace/context/skills-summary.md\n' +
+      '[SkillSync] web-reading 有自訂內容，已保留 <tmp>/workspace/.opencode/skills/web-reading；新版網頁閱讀指引未套用，請人工比對 <tmp>/source/web-reading。\n'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    [SkillSync] Synced skills: copied=0, skipped=1, targets=<tmp>/workspace/.opencode/skills
+    [SkillSync] Generated .opencode/AGENTS.md with 1 skills: <tmp>/workspace/.opencode/AGENTS.md
+    [SkillSync] Generated skills-summary.md with 1 skills: <tmp>/workspace/context/skills-summary.md
+    [SkillSync] web-reading 有自訂內容，已保留 <tmp>/workspace/.opencode/skills/web-reading；新版網頁閱讀指引未套用，請人工比對 <tmp>/source/web-reading。
+    
+  operator: 'doesNotMatch'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/skill-web-reading-upgrade.test.ts:303:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AC-1 B 判定是舊版之後、檢查備份之前，A 換上新版：B 不誤報，安靜結束
+not ok 16 - AC-1 B 判定是舊版之後、檢查備份之前，A 換上新版：B 不誤報，安靜結束
+  ---
+  duration_ms: 57.156762
+  type: 'test'
+  location: '<repo>/tests/skill-web-reading-upgrade.test.ts:2:4550'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input was expected to not match the regular expression /有自訂內容|備份已存在|未套用/. Input:
+    
+    '[SkillSync] Synced skills: copied=0, skipped=1, targets=<tmp>/workspace/.opencode/skills\n' +
+      '[SkillSync] Generated .opencode/AGENTS.md with 1 skills: <tmp>/workspace/.opencode/AGENTS.md\n' +
+      '[SkillSync] Generated skills-summary.md with 1 skills: <tmp>/workspace/context/skills-summary.md\n' +
+      '[SkillSync] web-reading 備份已存在，保留 <tmp>/workspace/.opencode/skills/web-reading 與 <tmp>/workspace/.opencode/retired-skills/web-reading-718cc8b；新版網頁閱讀指引未套用。\n'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    [SkillSync] Synced skills: copied=0, skipped=1, targets=<tmp>/workspace/.opencode/skills
+    [SkillSync] Generated .opencode/AGENTS.md with 1 skills: <tmp>/workspace/.opencode/AGENTS.md
+    [SkillSync] Generated skills-summary.md with 1 skills: <tmp>/workspace/context/skills-summary.md
+    [SkillSync] web-reading 備份已存在，保留 <tmp>/workspace/.opencode/skills/web-reading 與 <tmp>/workspace/.opencode/retired-skills/web-reading-718cc8b；新版網頁閱讀指引未套用。
+    
+  operator: 'doesNotMatch'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/skill-web-reading-upgrade.test.ts:313:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AC-3 啟動時清掉超過 1 小時的 web-reading 暫存，其他東西不動
+not ok 17 - AC-3 啟動時清掉超過 1 小時的 web-reading 暫存，其他東西不動
+  ---
+  duration_ms: 27.341126
+  type: 'test'
+  location: '<repo>/tests/skill-web-reading-upgrade.test.ts:2:4965'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      [
+        '.web-reading-new',
+        '.web-reading-new-FILE00',
+        '.web-reading-new-NEW456',
+    +   '.web-reading-new-OLD123',
+        '.web-reading-newer-ABC789',
+        'agent-browser',
+        'web-reading-718cc8b'
+      ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: '.web-reading-new'
+    1: '.web-reading-new-FILE00'
+    2: '.web-reading-new-NEW456'
+    3: '.web-reading-newer-ABC789'
+    4: 'agent-browser'
+    5: 'web-reading-718cc8b'
+  actual:
+    0: '.web-reading-new'
+    1: '.web-reading-new-FILE00'
+    2: '.web-reading-new-NEW456'
+    3: '.web-reading-new-OLD123'
+    4: '.web-reading-newer-ABC789'
+    5: 'agent-browser'
+    6: 'web-reading-718cc8b'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>/tests/skill-web-reading-upgrade.test.ts:337:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AC-3 retired-skills 是 symlink：不跟著連結刪東西
+ok 18 - AC-3 retired-skills 是 symlink：不跟著連結刪東西
+  ---
+  duration_ms: 26.580793
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 15
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1103.524593
+exit=1
