@@ -26,6 +26,12 @@ GitHub：[#27](https://github.com/raybird/telenexus/issues/27)
 
 **現行 review**: review-4c35a8a.md
 
+| 外部狀態 | 查證命令 | 上次結果 | 查證日期 |
+|---|---|---|---|
+| GitHub issue #27 | `gh issue view 27 --repo raybird/telenexus --json state -q .state` | CLOSED（使用者同意關閉） | 2026-11-13 |
+| 併入 main | `git branch --list main --contains fix/issue-0027-telegram-markdown` | main（2026-11-13 快轉到 c690538；分支本身不推送） | 2026-11-13 |
+| origin 的 main 含本 issue | `git merge-base --is-ancestor c690538 origin/main` | exit 0（是祖先） | 2026-11-13 |
+
 ## 涉及檔案
 - `src/telegram/render/markdown-v2.ts`：子清單依層級縮排、編號清單保留號碼、標題分層級；清單項目與引言裡的其他區塊照常輸出；不認得的節點退回原文跳脫後輸出。
 - `tests/telegram/render-markdown-v2.test.ts`：補 AC-1～AC-4 的測試。
@@ -113,9 +119,11 @@ GitHub：[#27](https://github.com/raybird/telenexus/issues/27)
 | 2026-11-13 | 規格修訂：S2 改寫 AC-6 的範圍、N3 註明 AC-3 的空行只適用最上層，同日重新核准；N2 維持舊版行為；AC-3 的一、二級標題寫法改成底線在外層（顯示結果相同）；AC-6 檢查命令改成能執行的寫法 | 使用者 |
 | 2026-11-13 | 重新審查 review-4c35a8a.md 判定 PASS；更正上次 M2、S1 的嚴重度為 NICE TO HAVE；SHOULD FIX 兩項待使用者決定 | - |
 | 2026-11-13 | 審查 S1：使用者在手機上看過 6 則審查修正樣本，回覆「都正常」（AC-5 補齊）。審查 S2：使用者選合併後在 main 把步驟 7 搬回實作與驗證步驟底下，分支上維持原位 | 使用者 |
+| 2026-11-13 | 使用者同意合併推送、關閉 issue 並發版：分支快轉併入 main（c690538）並推送 origin main；在 main 把步驟 7 搬回原位；關閉 GitHub #27 | 使用者 |
+| 2026-11-13 | 結案：依 Gate 豁免不開 PR，以快轉合併為結案依據 | 使用者 |
 
 ---
 **建立日期**: 2026-11-13
 **分級**: Small
 **風險**: Medium
-**狀態**: 審查通過（review-4c35a8a.md），待合併
+**狀態**: 已完成（2026-11-13 併入 main 的 c690538）
