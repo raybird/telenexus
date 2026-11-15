@@ -58,6 +58,7 @@
 ### 我想看 Web Console
 
 - Web Console 詳細參考：`docs/web-console-reference.md`
+- [Issue 0030：Telegram Mini App 切換 provider／model](./issues/issue-0030/README.md) — 按需 Quick Tunnel 與 Docker Compose 的初始規劃，尚未實作。
 
 ### 我想看配置與執行模式
 
