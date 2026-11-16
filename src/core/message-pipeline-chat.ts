@@ -2,6 +2,9 @@ import { executionQueue } from './execution-queue.js';
 import { createLogger } from './logger.js';
 import type { MemoriaSyncTurn } from './memoria-sync.js';
 import type { MemoryIntent } from './memory-intent.js';
+import { parseMemoryIntent } from './memory-intent.js';
+import type { ReplyParts } from './agent-result.js';
+import type { FoldedReply } from '../types/index.js';
 import type { MemoryManager } from './memory.js';
 import type { MessagePipelineContext } from './message-pipeline-context.js';
 import type {
@@ -113,6 +116,25 @@ export function normalizeAgentResponse(rawResponse: string): {
     response: cleanedText || rawResponse,
     directives
   };
+}
+
+/**
+ * 把 replyParts 轉成要顯示的摺疊版面（issue 0028）。每段做與全文相同的 SEND_FILE 與
+ * MEMORY_INTENT 移除；要送的檔案與記下的 intent 仍以全文的解析為準，這裡只決定顯示。
+ * 清掉標記後沒有過程或結論為空時回 undefined，由呼叫端照舊送全文。
+ */
+export function toFoldedReply(parts: ReplyParts | undefined): FoldedReply | undefined {
+  if (!parts) {
+    return undefined;
+  }
+  const clean = (text: string): string =>
+    parseMemoryIntent(extractFileDirectives(text).cleanedText).cleanedResponse.trim();
+  const conclusion = clean(parts.conclusion);
+  const process = parts.process.map(clean).filter(Boolean);
+  if (!conclusion || process.length === 0) {
+    return undefined;
+  }
+  return { conclusion, process };
 }
 
 export async function persistUserMessage(options: PersistUserMessageOptions): Promise<void> {

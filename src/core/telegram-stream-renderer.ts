@@ -1,4 +1,4 @@
-import type { Connector } from '../types/index.js';
+import type { Connector, FoldedReply } from '../types/index.js';
 import type { AgentEvent } from './agent-result.js';
 import { createLogger } from './logger.js';
 import { parsePositiveInt } from '../utils/env.js';
@@ -500,7 +500,8 @@ export class TelegramStreamRenderer {
     }
   }
 
-  async finalize(finalText: string): Promise<void> {
+  /** folded 有值且連接器支援時，改送結論在前、過程摺疊的版面（issue 0028）；finalText 仍決定是否有內容。 */
+  async finalize(finalText: string, folded?: FoldedReply): Promise<void> {
     if (this.lifecycle !== 'active') {
       return;
     }
@@ -525,6 +526,23 @@ export class TelegramStreamRenderer {
     });
 
     try {
+      if (folded && this.connector.sendFoldedReply) {
+        await this.connector.sendFoldedReply(this.chatId, folded, {
+          retries: 2,
+          throwOnError: true,
+          retryOnTimeout: false,
+          ...(this.messageThreadId !== undefined ? { messageThreadId: this.messageThreadId } : {})
+        });
+        await this.clearProgressDisplay('✅ 已完成');
+        this.lifecycle = 'completed';
+        log.info('stream.finalized-via-folded-reply', {
+          chatId: this.chatId,
+          textLength: resolvedText.length,
+          processSegments: folded.process.length
+        });
+        return;
+      }
+
       const canEditInPlace =
         !this.finalizeAsNewMessage &&
         this.display.kind === 'message' &&

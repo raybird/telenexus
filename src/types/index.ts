@@ -31,6 +31,15 @@ export interface UnifiedMessage {
   raw?: unknown; // 原始訊息 payload，保留除錯用
 }
 
+/**
+ * 結論在前、過程摺疊在後的回覆（issue 0028）。header 是排程標頭這類放在第一行的純文字。
+ */
+export interface FoldedReply {
+  header?: string;
+  conclusion: string;
+  process: string[];
+}
+
 export interface Connector {
   name: string;
   initialize(): Promise<void>;
@@ -46,6 +55,20 @@ export interface Connector {
       throwOnError?: boolean;
       retryOnTimeout?: boolean;
       parseMode?: 'auto' | 'plain' | 'markdown-v2';
+      messageThreadId?: number;
+    }
+  ): Promise<void>;
+
+  /**
+   * 發送結論在前、過程收進可展開引言的回覆；只有支援的連接器實作，其餘由呼叫端改送全文。
+   */
+  sendFoldedReply?(
+    chatId: string,
+    reply: FoldedReply,
+    options?: {
+      retries?: number;
+      throwOnError?: boolean;
+      retryOnTimeout?: boolean;
       messageThreadId?: number;
     }
   ): Promise<void>;

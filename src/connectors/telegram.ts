@@ -3,12 +3,13 @@ import { Agent } from 'https';
 import { createConnection } from 'net';
 import fs from 'fs';
 import path from 'path';
-import type { Connector, UnifiedMessage } from '../types/index.js';
+import type { Connector, FoldedReply, UnifiedMessage } from '../types/index.js';
 import { parsePositiveInt } from '../utils/env.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
 import { resolveProjectDir } from '../utils/paths.js';
 import { renderMarkdownV2 } from '../telegram/render/markdown-v2.js';
 import { chunkMarkdownV2 } from '../telegram/render/chunker.js';
+import { buildFoldedMessages } from '../telegram/render/folded-reply.js';
 
 const DEFAULT_TELEGRAM_API_TIMEOUT_MS = 15000;
 const DEFAULT_TELEGRAM_API_RETRY_COUNT = 1;
@@ -503,7 +504,9 @@ export class TelegramConnector implements Connector {
     parseMode: TelegramParseMode | null,
     retries?: number,
     retryOnTimeout?: boolean,
-    messageThreadId?: number
+    messageThreadId?: number,
+    /** parse error 時改送的純文字；沒給時把 chunk 原樣當純文字重送。 */
+    plainFallback?: string
   ): Promise<void> {
     const label = `sendMessage chat=${chatId} chunk=${chunkIndex + 1}/${totalChunks}`;
     const threadOptions =
@@ -539,11 +542,15 @@ export class TelegramConnector implements Connector {
       if (!this.isParseModeError(error)) throw error;
       console.warn(`[Telegram] ${label} parse_mode failed, fallback to plain text.`);
       recordRuntimeIssue(`${label}:parse-mode-fallback`, error);
-      await this.callTelegram(
-        label,
-        () => this.bot.telegram.sendMessage(chatId, chunk, threadOptions),
-        callOptions
-      );
+      const fallbackParts =
+        plainFallback === undefined ? [chunk] : this.splitMessage(plainFallback);
+      for (const part of fallbackParts) {
+        await this.callTelegram(
+          label,
+          () => this.bot.telegram.sendMessage(chatId, part, threadOptions),
+          callOptions
+        );
+      }
     }
   }
 
@@ -1051,6 +1058,49 @@ export class TelegramConnector implements Connector {
       }
     } catch (error) {
       console.error(`[Telegram] Failed to send message to ${chatId}:`, error);
+      recordRuntimeIssue(`telegram:sendMessage:${chatId}`, error);
+      if (options?.throwOnError) {
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * 結論在前、過程收進可展開引言（issue 0028）。帶過程的訊息被以 parse error 拒收時改送
+   * 原文組成的純文字（plain），不把已渲染的 MarkdownV2 當純文字送出，引言標記才不會外露；
+   * 只有結論的訊息沒有 plain，沿用原本的退回。
+   */
+  async sendFoldedReply(
+    chatId: string,
+    reply: FoldedReply,
+    options?: {
+      retries?: number;
+      throwOnError?: boolean;
+      retryOnTimeout?: boolean;
+      messageThreadId?: number;
+    }
+  ): Promise<void> {
+    try {
+      const messages = buildFoldedMessages(reply, (markdown) => this.renderForMarkdownV2(markdown));
+      console.log(
+        `[Telegram] Sending folded reply chat=${chatId} messages=${messages.length} process=${reply.process.length}`
+      );
+      for (let i = 0; i < messages.length; i += 1) {
+        const { markdownV2, plain } = messages[i]!;
+        await this.sendChunkRaw(
+          chatId,
+          markdownV2,
+          i,
+          messages.length,
+          'MarkdownV2',
+          options?.retries,
+          options?.retryOnTimeout,
+          options?.messageThreadId,
+          plain
+        );
+      }
+    } catch (error) {
+      console.error(`[Telegram] Failed to send folded reply to ${chatId}:`, error);
       recordRuntimeIssue(`telegram:sendMessage:${chatId}`, error);
       if (options?.throwOnError) {
         throw error;

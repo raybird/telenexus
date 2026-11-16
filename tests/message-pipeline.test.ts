@@ -20,7 +20,8 @@ import {
   getRecentMemoryIntentTraces
 } from '../src/services/memory-intent-telemetry.js';
 import type { AIAgent } from '../src/core/agent.js';
-import type { Connector, UnifiedMessage } from '../src/types/index.js';
+import type { AgentStructuredResult } from '../src/core/agent-result.js';
+import type { Connector, FoldedReply, UnifiedMessage } from '../src/types/index.js';
 
 type SentMessage = {
   chatId: string;
@@ -1278,5 +1279,169 @@ test('memoria recall outcome:回覆完成後回報 reuse 覆蓋率到 /v1/recall
       else process.env.MEMORIA_ENDPOINT = prevEndpoint;
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
+  });
+});
+
+/**
+ * Issue 0028：pipeline 把 replyParts 交給 sendFoldedReply，結論在前、過程摺疊。
+ * 標記在過程與結論裡都移除、檔案照送（SCN-008）；儲存的仍是全文（SCN-009）；
+ * 沒有 replyParts 時照舊送全文（SCN-002）；串流與非串流的版面相同（SCN-008）。
+ */
+async function runFoldedTurn(
+  result: AgentStructuredResult,
+  mode: 'stream' | 'non-stream'
+): Promise<{
+  folded: FoldedReply[];
+  sentMessages: SentMessage[];
+  sentFiles: Array<{ chatId: string; filePath: string; caption?: string }>;
+  deletions: Array<{ chatId: string; messageId: string }>;
+  stored: string[];
+  intents: number;
+}> {
+  const envOverrides: Record<string, string> =
+    mode === 'stream'
+      ? {
+          TELEGRAM_STREAMING_ENABLED: 'true',
+          TELEGRAM_STREAM_EDIT_THROTTLE_MS: '1',
+          TELEGRAM_STREAM_MIN_DELTA_CHARS: '1',
+          TELEGRAM_STREAM_FORCE_FLUSH_MS: '1',
+          TELEGRAM_STREAM_EARLY_FLUSH_CHARS: '1',
+          TELEGRAM_STREAM_REASONING_MODE: 'false',
+          TELEGRAM_STREAM_FINALIZE_NEW_MESSAGE: 'false'
+        }
+      : { TELEGRAM_STREAMING_ENABLED: 'false' };
+  const saved = Object.keys(envOverrides).map((key) => [key, process.env[key]] as const);
+  Object.assign(process.env, envOverrides);
+  try {
+    const { connector, sentMessages, sentFiles, deletions } = createConnectorRecorder();
+    const folded: FoldedReply[] = [];
+    connector.sendFoldedReply = async (_chatId, reply) => {
+      folded.push(reply);
+    };
+    const memory = new MemoryManager();
+    const agent = createAgentStub({
+      async chatStructured() {
+        return result;
+      },
+      async streamChat(_prompt, _options, onEvent) {
+        await onEvent({ type: 'start', provider: 'opencode' });
+        await onEvent({ type: 'delta', text: result.text });
+        await onEvent({ type: 'done', text: result.text });
+        return result;
+      }
+    });
+    const pipeline = createMessagePipeline({
+      connector,
+      commandRouter: {
+        async handleMessage() {
+          return false;
+        },
+        isPassthroughCommand() {
+          return false;
+        }
+      } as never,
+      memory,
+      scheduler: { resetSilenceTimer() {} } as never,
+      userAgent: agent,
+      chatRunnerAgent: agent,
+      useRunnerForChat: false,
+      chatRunnerPercent: 0,
+      chatRunnerOnlyUsers: new Set(),
+      shouldSummarize: () => false,
+      buildPrompt: (userMessage) => `PROMPT:${userMessage}`,
+      recordRuntimeIssue() {},
+      writeContextSnapshots() {}
+    });
+    clearIntentTelemetry();
+    await pipeline(
+      createMessage('查一下行情', {
+        id: `folded-${mode}`,
+        chatId: 'chat-1',
+        telegram: { updateId: 0, chatType: 'supergroup' }
+      })
+    );
+    const stored = memory
+      .getRecentMessages('user-a', 10)
+      .filter((message) => message.role === 'model')
+      .map((message) => message.content);
+    return {
+      folded,
+      sentMessages,
+      sentFiles,
+      deletions,
+      stored,
+      intents: getRecentMemoryIntentTraces().length
+    };
+  } finally {
+    for (const [key, value] of saved) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}
+
+const FOLDED_INTENT =
+  '[[MEMORY_INTENT:{"level":"decision","confidence":"high","reason":"使用者指定","summary":"看兩個來源"}]]';
+const foldedResult: AgentStructuredResult = {
+  provider: 'opencode',
+  text: `[Opencode] 數據已到手。[[SEND_FILE: workspace/temp/report.txt | 報告]]改用 CoinGecko。結論：偏弱。\n\n${FOLDED_INTENT}`,
+  replyParts: {
+    process: ['數據已到手。[[SEND_FILE: workspace/temp/report.txt | 報告]]', '改用 CoinGecko。'],
+    conclusion: `[Opencode] 結論：偏弱。\n\n${FOLDED_INTENT}`
+  }
+};
+
+for (const mode of ['non-stream', 'stream'] as const) {
+  test(`SCN-001／SCN-008（${mode}）：送出摺疊版面，兩種標記都移除、檔案照送、intent 照記`, async () => {
+    await withTempProject(async (projectDir) => {
+      fs.writeFileSync(path.join(projectDir, 'workspace', 'temp', 'report.txt'), 'r', 'utf8');
+      const { folded, sentMessages, sentFiles, deletions, stored, intents } = await runFoldedTurn(
+        foldedResult,
+        mode
+      );
+
+      assert.deepEqual(folded, [
+        { conclusion: '[Opencode] 結論：偏弱。', process: ['數據已到手。', '改用 CoinGecko。'] }
+      ]);
+      assert.equal(sentFiles.length, 1);
+      assert.equal(sentFiles[0]?.caption, '報告');
+      assert.equal(intents, 1);
+      // 全文不另外送出;串流時預覽訊息在送出摺疊版面後收掉。
+      assert.ok(
+        !sentMessages.some((item) => item.text.includes('結論：偏弱')),
+        sentMessages.map((item) => item.text).join('\n---\n')
+      );
+      if (mode === 'stream') {
+        assert.equal(deletions.length, 1, '串流預覽應在最終回覆後刪除');
+      }
+      // SCN-009:儲存的是清掉標記後的全文,與變更前相同。
+      assert.deepEqual(stored, ['[Opencode] 數據已到手。改用 CoinGecko。結論：偏弱。']);
+    });
+  });
+}
+
+test('SCN-002：沒有 replyParts 時照舊送全文，不呼叫 sendFoldedReply', async () => {
+  await withTempProject(async () => {
+    const { folded, sentMessages } = await runFoldedTurn(
+      { provider: 'opencode', text: '[Opencode] 直接回答。' },
+      'non-stream'
+    );
+    assert.deepEqual(folded, []);
+    assert.ok(sentMessages.some((item) => item.text === '[Opencode] 直接回答。'));
+  });
+});
+
+test('過程清掉標記後是空的時候照舊送全文', async () => {
+  await withTempProject(async () => {
+    const { folded, sentMessages } = await runFoldedTurn(
+      {
+        provider: 'opencode',
+        text: `${FOLDED_INTENT}[Opencode] 結論。`,
+        replyParts: { process: [FOLDED_INTENT], conclusion: '[Opencode] 結論。' }
+      },
+      'non-stream'
+    );
+    assert.deepEqual(folded, []);
+    assert.ok(sentMessages.some((item) => item.text === '[Opencode] 結論。'));
   });
 });

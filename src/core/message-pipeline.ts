@@ -10,7 +10,8 @@ import {
   normalizeAgentResponse,
   persistModelResponse,
   persistUserMessage,
-  preparePromptForAgent
+  preparePromptForAgent,
+  toFoldedReply
 } from './message-pipeline-chat.js';
 import { type MessagePipelineContext } from './message-pipeline-context.js';
 import type { MemoriaSyncTurn } from './memoria-sync.js';
@@ -243,7 +244,7 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
         });
       }
 
-      const rawResponse = await executionQueue.enqueue(
+      const turnResult = await executionQueue.enqueue(
         userId,
         'chat',
         'high',
@@ -311,16 +312,18 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
           if (result.sessionId) {
             sessionStore?.set(context.userId, result.sessionId);
           }
-          return result.text;
+          return result;
         }
       );
 
-      const { response, directives } = normalizeAgentResponse(rawResponse);
+      const { response, directives } = normalizeAgentResponse(turnResult.text);
       const { cleanedResponse: parsedResponse, intent: memoryIntent } = parseMemoryIntent(response);
       // 只有標記的回覆仍保留 session 綁定與 intent,使用者則需要知道這回合沒有答案。
       const markerOnly =
         directives.length === 0 && parsedResponse !== response && !hasVisibleText(parsedResponse);
       const cleanedResponse = markerOnly ? MARKER_ONLY_NOTICE : parsedResponse;
+      // 顯示用的摺疊版面(issue 0028);儲存、摘要與 recall 回報仍用上面的全文。
+      const foldedReply = markerOnly ? undefined : toFoldedReply(turnResult.replyParts);
       if (markerOnly) {
         options.recordRuntimeIssue(
           'opencode:empty-output:marker_only',
@@ -393,10 +396,10 @@ export function createMessagePipeline(options: MessagePipelineOptions) {
       }
 
       if (telegramStreamRenderer) {
-        await telegramStreamRenderer.finalize(cleanedResponse);
+        await telegramStreamRenderer.finalize(cleanedResponse, foldedReply);
       } else if (!streamResponse) {
         await thinkingMessenger.stop();
-        await thinkingMessenger.deliverFinalResponse(cleanedResponse);
+        await thinkingMessenger.deliverFinalResponse(cleanedResponse, foldedReply);
       }
 
       if (directives.length > 0) {

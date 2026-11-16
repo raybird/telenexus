@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createLogger } from './logger.js';
-import type { Connector, UnifiedAttachment, UnifiedMessage } from '../types/index.js';
+import type { Connector, FoldedReply, UnifiedAttachment, UnifiedMessage } from '../types/index.js';
 import { resolveProjectDir } from '../utils/paths.js';
 
 const log = createLogger('message-pipeline.helpers');
@@ -292,7 +292,7 @@ export class ThinkingMessenger {
     await this.flushThinkingUpdate();
   }
 
-  async deliverFinalResponse(finalText: string): Promise<void> {
+  async deliverFinalResponse(finalText: string, folded?: FoldedReply): Promise<void> {
     if (this.placeholderMsgId) {
       try {
         await this.connector.editMessage(
@@ -309,12 +309,13 @@ export class ThinkingMessenger {
       }
     }
 
+    const sendOptions = { retries: 2, throwOnError: true, retryOnTimeout: false };
     try {
-      await this.connector.sendMessage(this.chatId, finalText, {
-        retries: 2,
-        throwOnError: true,
-        retryOnTimeout: false
-      });
+      if (folded && this.connector.sendFoldedReply) {
+        await this.connector.sendFoldedReply(this.chatId, folded, sendOptions);
+      } else {
+        await this.connector.sendMessage(this.chatId, finalText, sendOptions);
+      }
     } catch (error) {
       log.error('response.deliver-failed', { chatId: this.chatId, error });
     }

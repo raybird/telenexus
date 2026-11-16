@@ -3,6 +3,7 @@ import { MemoryManager, type Schedule } from './memory.js';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import type { AIAgent } from './agent.js';
+import type { AgentStructuredResult } from './agent-result.js';
 import { executionQueue } from './execution-queue.js';
 import {
   assessAiResponse,
@@ -405,15 +406,20 @@ export class Scheduler {
     prompt: string,
     timeoutSignal: AbortSignal,
     queueSignal: AbortSignal
-  ): Promise<string> {
+  ): Promise<AgentStructuredResult> {
     if (timeoutSignal.aborted) {
       throw new Error('Scheduled task aborted before execution (timed out while queued)');
     }
-    return this.taskAgent.chat(prompt, {
+    const options = {
       forceNewSession: true,
       fromScheduler: true,
       signal: AbortSignal.any([timeoutSignal, queueSignal])
-    });
+    };
+    // chatStructured 保留 replyParts,結果才能摺疊顯示(issue 0028)。
+    if (this.taskAgent.chatStructured) {
+      return this.taskAgent.chatStructured(prompt, options);
+    }
+    return { provider: 'opencode', text: await this.taskAgent.chat(prompt, options) };
   }
 
   /**
@@ -429,20 +435,22 @@ export class Scheduler {
       const fullPrompt = buildScheduledTaskPrompt(schedule.name, schedule.prompt, longTermMemory);
 
       // 3. 呼叫 Opencode CLI（套用 schedule-level timeout 防止下游卡死）
-      let response = await withScheduleTimeout(schedule.name, schedule.id, (timeoutSignal) =>
+      let result = await withScheduleTimeout(schedule.name, schedule.id, (timeoutSignal) =>
         executionQueue.enqueue(schedule.user_id, 'scheduler-task', 'low', ({ signal }) =>
           this.runScheduledChat(fullPrompt, timeoutSignal, signal)
         )
       );
+      let response = result.text;
       const firstAssessment = assessAiResponse(response);
       if (firstAssessment.shouldRetry) {
         log.warn('task.retrying', { scheduleId: schedule.id, reason: firstAssessment.reason });
         await new Promise((resolve) => setTimeout(resolve, 2500));
-        response = await withScheduleTimeout(schedule.name, schedule.id, (timeoutSignal) =>
+        result = await withScheduleTimeout(schedule.name, schedule.id, (timeoutSignal) =>
           executionQueue.enqueue(schedule.user_id, 'scheduler-task-retry', 'low', ({ signal }) =>
             this.runScheduledChat(fullPrompt, timeoutSignal, signal)
           )
         );
+        response = result.text;
         const secondAssessment = assessAiResponse(response);
         if (secondAssessment.shouldRetry) {
           throw new Error(
@@ -467,9 +475,18 @@ export class Scheduler {
         );
       }
 
-      // 5. 將結果傳送給使用者
-      const messageHeader = `🕐 [排程: ${schedule.name}]\n\n`;
-      await this.connector.sendMessage(schedule.user_id, messageHeader + response);
+      // 5. 將結果傳送給使用者:有 sendFoldedReply 的連接器一律走 MarkdownV2,
+      // 有過程時結論在前、過程摺疊(issue 0028 SCN-011、SCN-012)。
+      const header = `🕐 [排程: ${schedule.name}]`;
+      if (this.connector.sendFoldedReply) {
+        await this.connector.sendFoldedReply(schedule.user_id, {
+          header,
+          conclusion: result.replyParts?.conclusion ?? response,
+          process: result.replyParts?.process ?? []
+        });
+      } else {
+        await this.connector.sendMessage(schedule.user_id, `${header}\n\n${response}`);
+      }
     } catch (error) {
       log.error('task.failed', { scheduleId: schedule.id, name: schedule.name, error });
       const message = error instanceof Error ? error.message : String(error);
