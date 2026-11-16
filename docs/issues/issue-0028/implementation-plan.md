@@ -72,12 +72,14 @@
    - 測試：`telegram-stream-renderer-finalize` 斷言送出的訊息順序與內容（結論在前、引言第一行「過程」、各段分開）；超長樣本斷言每則都是完整引言且全部字詞都在（沿用 #27 的字詞保留檢查）；模擬 parse error 斷言純文字版本不含 `**>`、`||`；SEND_FILE、MEMORY_INTENT 在過程與結論中都被移除、檔案照送；`persistModelResponse` 與摘要追問收到的文字與變更前相同；沒有 `replyParts` 的回覆輸出與變更前逐字相同。
    - 相依：步驟 2、步驟 3。
    - 完成判準：上述測試先紅後綠並記錄證據；`npm run build`、`npm run test`（核對 `# tests` 數量，地雷 L-01）、`npm run lint` 全部 exit 0。
-5. 📝 **步驟 5：實機驗收**（SCN-010）
+5. ✅ **步驟 5：實機驗收**（SCN-010）
+   - 結果（2026-11-16）：[evidence/step5-device-check.md](evidence/step5-device-check.md)。以 `step5-samples.ts` 用實際的 `buildFoldedMessages()` 與 connector 渲染產生 5 個回覆共 7 則（一般長度、過程含清單與程式碼、排程有過程、超長拆成 3 則、排程沒有過程），依 TBD-2 以正式 bot 的 token 送出，7 則都 ok=true；使用者在手機上確認「都正常」。
    - 做法：以開發用 bot 送出步驟 4 實際產生的訊息（至少一則一般長度、一則超長、一則含清單與程式碼），或在開發 stack 跑一個會呼叫工具的真實回合；時機由使用者決定。
    - 產出：`evidence/step5-device-check.md`。
    - 相依：步驟 4。
    - 完成判準：每則 `ok: true`，使用者在手機上確認過程預設摺疊、可展開、結論在前。
-6. 📝 **步驟 6：常青文件**
+6. ✅ **步驟 6：常青文件**
+   - 結果（2026-11-16）：`CLAUDE.md` Key Modules 新增 `folded-reply.ts` 一列（含純文字退回的理由與 `replyParts` 的來源），`scheduler.ts` 列補上送出方式；`ARCHITECTURE.md` 補 pipeline、`folded-reply.ts`、排程的說明與聊天／排程流程的送出步驟；`README.md` 功能列表新增「過程摺疊」。`CLAUDE.md` 在 HEAD 就不符合 prettier，未整份重排，只改這兩列。
    - 產出：`CLAUDE.md` Key Modules 表（`markdown-v2.ts` 與 `telegram-stream-renderer.ts` 相關說明）、`ARCHITECTURE.md` 訊息流程、`README.md` 功能說明。
    - 相依：步驟 4。
    - 完成判準：三份文件描述的行為與實作一致。
@@ -112,10 +114,10 @@
 
 ## 檢查清單
 
-- [ ] 步驟 1 證據不含回覆原文，TBD-1 有結論
-- [ ] 步驟 2 的寫法得到 Telegram 接受
-- [ ] 沒有過程的回覆新舊輸出逐字相同
-- [ ] 儲存與摘要追問的文字不變
-- [ ] `npm run build`、`npm run test`、`npm run lint` 通過，`# tests` 數量相稱
-- [ ] GitNexus impact 與 grep 核對呼叫者（project.md 本地 gate）
-- [ ] 常青文件已更新
+- [x] 步驟 1 證據不含回覆原文，TBD-1 有結論
+- [x] 步驟 2 的寫法得到 Telegram 接受
+- [x] 沒有過程的回覆新舊輸出逐字相同
+- [x] 儲存與摘要追問的文字不變
+- [x] `npm run build`、`npm run test`、`npm run lint` 通過，`# tests` 數量相稱
+- [x] GitNexus impact 與 grep 核對呼叫者（project.md 本地 gate）
+- [x] 常青文件已更新

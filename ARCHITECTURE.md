@@ -23,6 +23,7 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
   - 一般聊天主流程
   - 處理 queue、thinking placeholder、附件合併、prompt 準備、AI 回覆正規化、記憶落盤
   - 串流回覆透過 `TelegramStreamRenderer`，finalize 輸出 MarkdownV2 格式
+  - 回合結果帶 `replyParts`（以 tool-calls 結束的 step 文字為過程、最後一個 step 為結論，issue 0028）時，`toFoldedReply()` 逐段移除 SEND_FILE 與 MEMORY_INTENT，交給 `Connector.sendFoldedReply()` 以結論在前、過程摺疊的版面送出；儲存、摘要與 Memoria 同步仍用全文
 - `src/core/command-router.ts`
   - 處理 `/new`、`/abort`、排程類指令、檔案回傳等命令流
   - dispatch 前諮詢 `InteractionGuard`，多步驟流程中封鎖非白名單指令
@@ -58,6 +59,9 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 - `src/telegram/render/markdown-v2.ts`
   - 以 `remark-parse` AST walking 將 Markdown 轉成 MarkdownV2 entities
   - 輸出自動 escape 特殊字元；`chunkMarkdownV2` 於 4096 字元邊界切分，保留 code block 完整
+- `src/telegram/render/folded-reply.ts`
+  - `buildFoldedMessages()`：聊天與排程共用的摺疊版面。過程收進可展開引言（第一行 `**>過程`、段落之間空一個引言行、結尾 `||`）；超過 4096 字時結論照 `chunkMarkdownV2` 切段，過程另起一或多則完整引言
+  - 帶過程的訊息附原文組成的純文字版本，`TelegramConnector` 遇 parse error 時改送它，不露出引言標記
 - `src/runner.ts`
   - `agent-runner` HTTP 服務
   - 接收 `/run` 任務，實際執行 chat / summarize
@@ -103,6 +107,7 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 - `src/core/scheduler.ts`
   - 管理使用者 schedule、系統排程、silence reflection
   - 排程輸出同樣會寫入記憶並可 enqueue Memoria sync
+  - 以 `chatStructured()` 執行，結果一律經 `sendFoldedReply()` 以 MarkdownV2 送出，第一行是 `🕐 [排程: 名稱]`；有過程時與聊天相同摺疊
 - `src/web/server.ts`
   - 提供 chat、memory、schedule、status API
   - 提供 SSE stream 與靜態 Web Console
@@ -161,7 +166,7 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 4. `message-pipeline` 寫入 user message，決定 prompt mode，並讀取該使用者綁定的聊天 session
 5. `buildPrompt` 視情況注入 memory context 與 Memoria capability hint；接續綁定的 session 時不放「近期對話」
 6. `DynamicAIAgent` 依 `ai-config.yaml` 選 provider，並決定走 runner 或 local；以 `-s` 接續綁定的 session，綁定的 session 不存在時改開新 session 重跑
-7. 回覆經正規化後送回 connector，並持久化到記憶；綁定更新為這一回合的 session
+7. 回覆經正規化後送回 connector（有過程時結論在前、過程摺疊），並持久化到記憶；綁定更新為這一回合的 session
 8. 成功回合可觸發 memory intent telemetry、prompt session telemetry、Memoria sync
 
 ### 2. 排程任務
@@ -169,7 +174,7 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 1. `Scheduler` 從 SQLite 載入啟用中的 schedules
 2. Cron 觸發後組裝排程 prompt
 3. 任務透過同一個 `AIAgent` 介面執行，可配置為 local 或 runner
-4. 輸出送到 connector，並同步寫入 memory / Memoria
+4. 輸出以 MarkdownV2 送到 connector（有過程時與聊天相同摺疊），並以全文同步寫入 memory / Memoria
 
 ### 3. Web Console
 
