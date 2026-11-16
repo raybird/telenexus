@@ -13,7 +13,7 @@
 - `src/core/message-pipeline.ts` 對全文依序做 `normalizeAgentResponse()`（抽 SEND_FILE）、`parseMemoryIntent()`，接著儲存（`persistModelResponse`）、送 Telegram（`telegramStreamRenderer.finalize()` 或 `thinkingMessenger.deliverFinalResponse()`）、摘要追問。
 - `TelegramStreamRenderer.finalize()` 預設送新訊息（`finalizeAsNewMessage` 跟著 reasoning 模式，預設開），長度在 3900 以內且關掉新訊息時才就地編輯；兩條都用 MarkdownV2。
 - `TelegramConnector.sendMessage(parseMode: 'markdown-v2')` 先 `renderMarkdownV2()` 再 `chunkMarkdownV2(…, 4096)`；chunker 只認得 code fence，會把引言切在任意一行。拒收時 `sendChunkRaw()` 把同一段已渲染的 MarkdownV2 原樣當純文字重送，所以引言標記會外露。
-- 排程走 `connector.sendMessage(userId, header + response)`，不帶 `parseMode`，不受本 issue 影響。
+- 排程經 `runScheduledChat()` → `taskAgent.chat()`（非串流的 chat 任務，同樣帶 `[Opencode]` 前綴），再以 `connector.sendMessage(userId, header + response)` 送出，不帶 `parseMode`：單則時 auto 模式把 Markdown 轉成 HTML，超過一則時以純文字送出。範圍是否納入排程待 TBD-4。
 
 ### 設計
 
@@ -27,10 +27,12 @@
 3. **組裝**。pipeline 對全文的既有處理不變；另外對 `replyParts` 的每一段做同樣的 SEND_FILE 與 MEMORY_INTENT 移除（SCN-008），`[Opencode] ` 加在結論前。把顯示用的過程與結論交給 `finalize()`／`deliverFinalResponse()`；沒有 `replyParts` 時走原本的單一字串路徑（SCN-002 逐字相同）。
 4. **渲染與切段**。過程渲染成 MarkdownV2 可展開引言：第一行 `**>過程`，各段之間空一個引言行，最後一行結尾加 `||`。結論加過程在 4096 以內時一則送出；超過時結論照現有方式切段送出，過程依段落切成多則，每則都是完整的可展開引言（SCN-004）。確切寫法以步驟 2 的實測為準。
 5. **純文字退回**。帶過程的訊息被以 parse error 拒收時，改送由原文組成的純文字版本（結論、空行、「過程」、各段），不送已渲染的 MarkdownV2（SCN-006）。
+6. **排程**（SCN-011、SCN-012）。`runScheduledChat()` 改取 structured 結果（`taskAgent.chat()` 只回字串），`assessAiResponse()`、`persistSchedulerMessage()` 照舊吃全文（SCN-009）。送出改為 `sendMessage(…, { parseMode: 'markdown-v2' })`：排程標頭（`🕐 [排程: 名稱]`，名稱需跳脫）在第一行，接著是與聊天相同的結論＋摺疊過程版面。組版面的邏輯與聊天共用一個函式，不各寫一份。排程失敗的錯誤訊息照舊。
 
 ## 實作步驟
 
-1. 📝 **步驟 1：唯讀盤點正式部署的 opencode.db**（SCN-001、SCN-003；TBD-1）
+1. ✅ **步驟 1：唯讀盤點正式部署的 opencode.db**（SCN-001、SCN-003；TBD-1）
+   - 結果（2026-11-16）：[evidence/step1-inventory.md](evidence/step1-inventory.md)。有過程的 85 個回合，結論最短 103 字，沒有「結論很短、前一步有工具」的回合；結論最短的 20 個中 19 個的最後一段是結論，1 個是 think 推理文字（依 SCN-005、SCN-003 處理）。另發現 85 個中 83 個是排程結果。使用者同日對 TBD-1 選維持分界規則、對 TBD-4 選納入排程（規格修訂見 README Timeline）。
    - 做法：使用者授權後，以 `sqlite3 .backup` 從 runner 容器的 `/home/node/.local/share/opencode/opencode.db` 複製快照到 scratchpad，不修改線上檔案；只查聊天 session（排除排程與探針）。
    - 產出：`evidence/step1-inventory.md`，只放統計與判定，不放回覆原文（地雷 L-10）：聊天回合總數；有過程的回合數與比例；最後一段的長度分布；「最後一段 80 字以內且前一個 step 有工具呼叫」的回合數，從中抽樣（至少 20 則，不足則全數）判定最後一段是不是結論；含 think 結束標籤的回合數。
    - 相依：無。
@@ -39,14 +41,16 @@
    - 做法：使用者提供開發用 bot 的 token 與實測時機後，直接呼叫 Bot API `sendMessage`（不 poll）送樣本：最小的可展開引言；引言裡有清單、粗體、行內程式碼、程式碼區塊；結論加引言接近 4096；只有引言的訊息；刻意寫錯的樣本，確認錯誤訊息的形狀以及 `isParseModeError()` 認得它。
    - 產出：`evidence/step2-telegram-probe.md`，記錄每則樣本的 MarkdownV2 原文、回應（`ok` 或錯誤描述），以及使用者在手機上看到的摺疊效果。
    - 相依：無（可與步驟 1 並行）。
+   - 樣本另含一則排程標頭開頭的訊息（SCN-011）。
    - 完成判準：設計第 4 點的寫法得到 `ok: true` 且使用者確認摺疊；被拒收的寫法列出替代寫法並重測通過。
 3. 📝 **步驟 3：解析層保留過程與結論**（SCN-002、SCN-003、SCN-005、SCN-007、SCN-008 的路徑一致部分）
    - 產出：`cli-agent-base.ts`、`opencode.ts`（必要時 `opencode-event-parser.ts`）、`agent-result.ts`、`agent.ts` 的修改與測試。
    - 測試：以 `1.18.34-tool-use.stdout.jsonl` 與手寫的多 step fixture 驅動串流與非串流路徑，斷言 `replyParts` 的過程與結論（期望值取自 fixture 的字面文字）；只有一個 step、最後一個 step 沒有文字、含 think 標籤、逾時／限流／上游錯誤各一例；runner 路徑（`dynamic-agent-runner-stream`）與本機路徑結果相同；`text` 與變更前相同。
    - 相依：步驟 1（TBD-1 有結論）。
    - 完成判準：上述測試先紅後綠，紅綠重構證據寫回本步驟；`npm run build` 通過。
-4. 📝 **步驟 4：組裝、渲染與送出**（SCN-001、SCN-004、SCN-006、SCN-008、SCN-009）
-   - 產出：pipeline、`telegram-stream-renderer.ts`、`message-pipeline-helpers.ts`、`markdown-v2.ts`／`chunker.ts`、`connectors/telegram.ts` 的修改與測試。
+4. 📝 **步驟 4：組裝、渲染與送出**（SCN-001、SCN-004、SCN-006、SCN-008、SCN-009、SCN-011、SCN-012）
+   - 產出：pipeline、`telegram-stream-renderer.ts`、`message-pipeline-helpers.ts`、`markdown-v2.ts`／`chunker.ts`、`connectors/telegram.ts`、`scheduler.ts` 的修改與測試。
+   - 排程測試：有過程的排程結果第一行是標頭、版面與聊天相同；沒有過程與超過一則的排程結果以 MarkdownV2 送出且字詞都在；重試判斷與 `persistSchedulerMessage` 收到全文。另以步驟 1 的快照（只在本機）把近 30 天排程結果跑過新的組版與轉換，統計缺字詞的則數，必須是 0，證據只記數字。
    - 測試：`telegram-stream-renderer-finalize` 斷言送出的訊息順序與內容（結論在前、引言第一行「過程」、各段分開）；超長樣本斷言每則都是完整引言且全部字詞都在（沿用 #27 的字詞保留檢查）；模擬 parse error 斷言純文字版本不含 `**>`、`||`；SEND_FILE、MEMORY_INTENT 在過程與結論中都被移除、檔案照送；`persistModelResponse` 與摘要追問收到的文字與變更前相同；沒有 `replyParts` 的回覆輸出與變更前逐字相同。
    - 相依：步驟 2、步驟 3。
    - 完成判準：上述測試先紅後綠並記錄證據；`npm run build`、`npm run test`（核對 `# tests` 數量，地雷 L-01）、`npm run lint` 全部 exit 0。
@@ -67,6 +71,7 @@
 | 會呼叫工具且途中有說話的提問 | 一則：`[Opencode] 數據已到手。接著抓……（結論）` | 一則：`[Opencode]（結論）`，下面是摺疊的「過程」 |
 | 直接回答、沒有工具 | 一則全文 | 不變 |
 | 超長回覆 | 依行切成多則 | 結論的切段不變，過程另起摺疊引言 |
+| 排程結果 | `🕐 [排程: 名稱]` 後接全文，單則 HTML、多則純文字 | 標頭後接 `[Opencode]`＋結論與摺疊的過程，一律 MarkdownV2 |
 
 ## 測試策略
 
@@ -82,6 +87,8 @@
 | SCN-008 | 整合 | 標記移除、檔案照送；runner 與本機、串流與非串流一致 |
 | SCN-009 | 整合 | 儲存與摘要追問收到的文字不變 |
 | SCN-010 | 實機 | 步驟 2 先驗寫法，步驟 5 驗實際產出 |
+| SCN-011 | 整合 | 排程送出內容：標頭在第一行，版面與聊天共用 |
+| SCN-012 | 整合＋本機資料 | 字詞保留檢查；步驟 1 快照的排程結果缺字詞 0 則 |
 
 外迴圈以標注 Scenario ID 的整合測試承擔（repo 沒有 BDD runner）；與單元測試同層者依 verification.md 合併並記錄理由。
 

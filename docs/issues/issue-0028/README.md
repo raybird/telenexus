@@ -10,10 +10,15 @@ GitHub：[#28](https://github.com/raybird/telenexus/issues/28)
 
 另一個相關情況（issue 留言，#27 盤點時發現）：正式部署 2026-10-13～2026-10-22 有 22 則回覆含 think 結束標籤，標籤前是模型的英文推理文字，之後沒有再出現。#27 已讓兩個 think 標籤不輸出，但推理文字仍顯示在回覆裡；這次一併摺進過程。
 
+範圍包含聊天回覆與排程結果。步驟 1 盤點近 30 天有過程的回覆 85 個，2 個是聊天、83 個是排程結果（[evidence/step1-inventory.md](evidence/step1-inventory.md)）。排程結果現在以 auto 模式轉成 HTML 送出，超過一則時是純文字；這次改走與聊天相同的 MarkdownV2 路徑。
+
+> [!NOTE]
+> 2026-11-16 更正：建檔時寫「排程不加 `[Opencode]` 前綴」是錯的。排程以 chat 任務呼叫 agent，同樣帶前綴。原本的 Q4「只做聊天」是在這個錯誤前提下回答的，使用者同日看過盤點後改為納入排程（TBD-4）。
+
 **不在範圍內**：
-- 排程任務送出的結果：走一般 `sendMessage`，不經 MarkdownV2，也不加 `[Opencode]` 前綴。
 - Web Console 的聊天。
-- 存進記憶、Memoria 與摘要追問的文字：維持現在的全文，只改 Telegram 上的呈現。
+- 排程失敗時送出的錯誤訊息，以及排程以外的系統通知（告警、釘選訊息等）。
+- 存進記憶、Memoria 與摘要追問的文字，以及排程判斷要不要重試所看的文字：維持現在的全文，只改 Telegram 上的呈現。
 - MarkdownV2 轉換器漏內容的問題（#27 已處理）。
 
 ## 現況
@@ -30,8 +35,10 @@ GitHub：[#28](https://github.com/raybird/telenexus/issues/28)
 ### 當前流程
 opencode 各 step 的 `text` 事件 → `aggregatedText +=` 不加分隔接成一串 → 加 `[Opencode]` 前綴 → 解析 SEND_FILE 與 MEMORY_INTENT → `TelegramStreamRenderer.finalize()`（或非串流的 `deliverFinalResponse()`）以 MarkdownV2 送出整串文字。
 
+排程：`runScheduledChat()` 取得全文 → 存進記憶 → `sendMessage(userId, "🕐 [排程: 名稱]" + 全文)`，未指定 parseMode，單則時轉 HTML、多則時純文字。
+
 ### 調整後流程
-opencode 各 step 的文字依 step 結束原因標成過程或結論 → structured 結果同時帶全文（儲存用，不變）與過程／結論兩部分（runner 一併傳回）→ Telegram 送出 `[Opencode]` 前綴＋結論，後面接第一行為「過程」的摺疊引言；超長時過程另起訊息。
+opencode 各 step 的文字依 step 結束原因標成過程或結論 → structured 結果同時帶全文（儲存用，不變）與過程／結論兩部分（runner 一併傳回）→ Telegram 送出 `[Opencode]` 前綴＋結論，後面接第一行為「過程」的摺疊引言；超長時過程另起訊息。排程結果以同樣的版面走 MarkdownV2 送出，第一行仍是排程標頭。
 
 ## 關鍵差異
 | 項目 | 變更前 | 變更後 |
@@ -40,6 +47,7 @@ opencode 各 step 的文字依 step 結束原因標成過程或結論 → struct
 | 過程敘述 | 與結論連成一串，全部展開 | 摺疊在結論後面，各段各自成一段 |
 | think 標籤前的推理文字 | 照常顯示 | 摺進過程 |
 | 超過 4096 字 | 整串依行切成多則 | 結論照現有方式切段；過程另起一或多則摺疊引言 |
+| 排程結果的格式 | 單則轉 HTML，多則為純文字 | 一律 MarkdownV2，與聊天相同 |
 | 儲存的文字 | 全文 | 不變 |
 
 ## 涉及檔案
@@ -56,6 +64,7 @@ opencode 各 step 的文字依 step 結束原因標成過程或結論 → struct
 - `src/core/message-pipeline-helpers.ts`：非串流的 `deliverFinalResponse()` 同上。
 - `src/telegram/render/markdown-v2.ts`、`src/telegram/render/chunker.ts`：可展開引言的輸出與切段，每則都是完整的引言。
 - `src/connectors/telegram.ts`：MarkdownV2 被拒收時的純文字退回版本不帶引言標記。
+- `src/core/scheduler.ts`：排程取得過程與結論，結果改走 MarkdownV2 送出；儲存與重試判斷仍用全文。
 
 ### 測試與文件
 - `tests/` 下對應的測試檔（`opencode-structured-output`、`dynamic-agent-runner-stream`、`telegram-stream-renderer-finalize`、`telegram/render-*` 等）。
@@ -64,10 +73,10 @@ opencode 各 step 的文字依 step 結束原因標成過程或結論 → struct
 ## Gherkin 驗收劇本
 
 ```gherkin
-Feature: Telegram 聊天回覆把過程敘述摺疊起來，結論放在前面
+Feature: Telegram 聊天回覆與排程結果把過程敘述摺疊起來，結論放在前面
 
   Background:
-    Given 使用者在 Telegram 私聊對 bot 發問
+    Given 使用者在 Telegram 私聊對 bot 發問（SCN-001～SCN-010 指聊天回覆，排程結果見 SCN-011、SCN-012）
     And opencode 的一個回合由一或多個 step 組成
     And 「過程」指以工具呼叫結束（tool-calls）的 step 產生的文字
     And 「結論」指最後一個 step 產生的文字
@@ -127,13 +136,13 @@ Feature: Telegram 聊天回覆把過程敘述摺疊起來，結論放在前面
     When bot 送出這個回合的回覆
     Then 兩種標記都不出現在任何一則訊息裡
     And SEND_FILE 指定的檔案照常送出，MEMORY_INTENT 照常記錄
-    And 聊天由 runner 或本機執行、走串流或非串流，送出的版面都相同
+    And 由 runner 或本機執行、走串流或非串流，送出的版面都相同
 
   @SCN-009
   Scenario: 儲存的文字不變
-    Given 一個有過程的回覆
-    When 回覆存進聊天記憶、同步到 Memoria、觸發摘要追問
-    Then 寫入與送去摘要的文字與變更前相同
+    Given 一個有過程的聊天回覆或排程結果
+    When 回覆存進聊天記憶、同步到 Memoria、觸發摘要追問，或排程判斷要不要重試
+    Then 寫入、送去摘要與重試判斷所用的文字與變更前相同
 
   @SCN-010
   Scenario: Telegram 實際接受並摺疊顯示
@@ -141,13 +150,41 @@ Feature: Telegram 聊天回覆把過程敘述摺疊起來，結論放在前面
     When 呼叫 Bot API `sendMessage`（parse_mode 為 MarkdownV2）
     Then 每一則都回 `ok: true`
     And 使用者在手機上看到過程預設摺疊、可以展開，結論在前
+
+  @SCN-011
+  Scenario: 有過程的排程結果，結論在前、過程摺疊在後
+    Given 一個排程任務的回合有過程，最後一個 step 也有文字
+    When 排程把結果送到 Telegram
+    Then 第一行是「🕐 [排程: 名稱]」標頭，接著是 `[Opencode]` 前綴與結論全文
+    And 結論後面的過程與 SCN-001、SCN-004、SCN-006 的聊天回覆相同：預設摺疊、第一行「過程」、各段分開，超長時另起訊息，被拒收時的純文字版本不帶引言標記
+
+  @SCN-012
+  Scenario: 排程結果一律以 MarkdownV2 送出，內容不丟
+    Given 一個排程任務的結果，不論有沒有過程、長度是否超過一則
+    When 排程把結果送到 Telegram
+    Then 訊息以 MarkdownV2 送出，與聊天回覆使用同一個轉換器，第一行是排程標頭
+    And 把送出的所有訊息合起來，原文的每個字詞都還在
+    And 沒有過程的排程結果不產生摺疊引言
 ```
 
 ## Gherkin 核准紀錄
 - **核准 commit**: 待提交
-- **核准來源**: 使用者於 2026-11-16 對話逐題回答，全部選建議答案：Q1 以 step 結構分界（tool-calls 的 step 文字為過程、最後一個 step 為結論），步驟 1 先唯讀盤點正式部署的 opencode.db，比例偏高時回來修規格（SCN-001～SCN-003）；Q2 結論在前、過程摺疊在後，引言第一行寫「過程」，沒有過程時與現在相同，超過 4096 字時過程另起一或多則完整的摺疊引言，不截斷、不丟內容（SCN-001、SCN-002、SCN-004）；Q3 think 標籤前的推理文字一併摺進過程（SCN-005）；Q4 只做 Telegram 聊天回覆的串流與非串流路徑，排程、Web Console 不在範圍，記憶、Memoria 與摘要追問的文字維持全文（SCN-008、SCN-009）；Q5 照寫：最後一個 step 沒有文字時不摺疊、過程各段各自成段、MarkdownV2 被拒收時的純文字退回不帶引言標記、降級訊息維持原樣（SCN-001、SCN-003、SCN-006、SCN-007）；Q6 盤點正式 opencode.db 到步驟 1 再問使用者授權；Q7 用開發用 bot 實測，時機由使用者決定（SCN-010）。
+- **核准來源**: 使用者於 2026-11-16 對話逐題回答，全部選建議答案：Q1 以 step 結構分界（tool-calls 的 step 文字為過程、最後一個 step 為結論），步驟 1 先唯讀盤點正式部署的 opencode.db，比例偏高時回來修規格（SCN-001～SCN-003）；Q2 結論在前、過程摺疊在後，引言第一行寫「過程」，沒有過程時與現在相同，超過 4096 字時過程另起一或多則完整的摺疊引言，不截斷、不丟內容（SCN-001、SCN-002、SCN-004）；Q3 think 標籤前的推理文字一併摺進過程（SCN-005）；Q4 只做 Telegram 聊天回覆的串流與非串流路徑，排程、Web Console 不在範圍，記憶、Memoria 與摘要追問的文字維持全文（SCN-008、SCN-009；排程部分已由下方 TBD-4 的答案取代）；Q5 照寫：最後一個 step 沒有文字時不摺疊、過程各段各自成段、MarkdownV2 被拒收時的純文字退回不帶引言標記、降級訊息維持原樣（SCN-001、SCN-003、SCN-006、SCN-007）；Q6 盤點正式 opencode.db 到步驟 1 再問使用者授權；Q7 用開發用 bot 實測，時機由使用者決定（SCN-010）。同日步驟 1 盤點後，使用者對 TBD-1 選「維持 step 結構分界（建議）」（SCN-001～SCN-003 不變）；對 TBD-4 選「納入排程，改走 MarkdownV2（建議）」，選項內容為「排程結果改走和聊天相同的 MarkdownV2 路徑與摺疊版面，第一行仍是『🕐 [排程: 名稱]』」，並接受所有排程訊息的排版從 HTML 換成 MarkdownV2、超長報告從純文字變成有格式的代價，取代原 Q4 的「只做聊天」（規格修訂 SCN-009，新增 SCN-011、SCN-012）。
 
-全部 Scenario 於 2026-11-16 核准。
+| Scenario | 核准日期 | 狀態 |
+|----------|---------|------|
+| SCN-001 | 2026-11-16 | 已核准 |
+| SCN-002 | 2026-11-16 | 已核准 |
+| SCN-003 | 2026-11-16 | 已核准 |
+| SCN-004 | 2026-11-16 | 已核准 |
+| SCN-005 | 2026-11-16 | 已核准 |
+| SCN-006 | 2026-11-16 | 已核准 |
+| SCN-007 | 2026-11-16 | 已核准 |
+| SCN-008 | 2026-11-16 | 已核准 |
+| SCN-009 | 2026-11-16 | 已核准 |
+| SCN-010 | 2026-11-16 | 已核准 |
+| SCN-011 | 2026-11-16 | 已核准 |
+| SCN-012 | 2026-11-16 | 已核准 |
 
 ## 重構步驟概要
 
@@ -165,9 +202,10 @@ Feature: Telegram 聊天回覆把過程敘述摺疊起來，結論放在前面
 
 | 編號 | 事項 | 狀態 | 影響 |
 |------|------|------|------|
-| TBD-1 | 步驟 1 盤點後，最後一段不是結論的比例是否高到要修改分界規則 | 待確認 | 步驟 1 完成後由使用者判斷；影響 SCN-001、SCN-003 與步驟 3 |
+| TBD-1 | 步驟 1 盤點後，最後一段不是結論的比例是否高到要修改分界規則 | 已解決 | 2026-11-16 盤點顯示有過程的 85 個回合沒有結論很短的情況，抽查 20 個中 19 個最後一段是結論、1 個是 think 推理文字；使用者選「維持 step 結構分界（建議）」，SCN-001～SCN-003 不變 |
 | TBD-2 | 開發用 bot 的 token 與實測時機 | 待確認 | 由使用者提供與決定；影響步驟 2、步驟 5 與 SCN-010 |
-| TBD-3 | 交付方式：在分支實作後開 PR，或照 #27 的做法本機獨立審查、不開 PR | 待確認 | 不影響規格；在步驟 3 開工前決定 |
+| TBD-3 | 交付方式：在分支實作後開 PR，或照 #27 的做法本機獨立審查、不開 PR | 已解決 | 2026-11-16 使用者選「照 #27：分支＋本機審查」：開 issue 分支實作，本機獨立審查，不開 PR，通過後快轉併入 main |
+| TBD-4 | 範圍是否納入排程結果：步驟 1 盤點有過程的 85 個回覆中 83 個是排程，Q4 的「只做聊天」是在排程不帶 `[Opencode]` 前綴的錯誤前提下回答的 | 已解決 | 2026-11-16 使用者選「納入排程，改走 MarkdownV2（建議）」：排程結果改走與聊天相同的 MarkdownV2 路徑與摺疊版面；修訂 SCN-009，新增 SCN-011、SCN-012 |
 
 ## Timeline
 
@@ -175,9 +213,10 @@ Feature: Telegram 聊天回覆把過程敘述摺疊起來，結論放在前面
 |------|------|--------|
 | 2026-11-13 | 建立 GitHub issue #28；同日補充 think 標籤推理文字的留言 | 使用者 |
 | 2026-11-16 | 建立 issue 文件，全部 Scenario 依 Q1～Q7 的答案核准 | 使用者 |
+| 2026-11-16 | 規格修訂：步驟 1 盤點發現有過程的回覆大多是排程結果，使用者改為納入排程並改走 MarkdownV2（TBD-4），修訂 SCN-009、新增 SCN-011、SCN-012，同日核准；分界規則維持（TBD-1） | 使用者 |
 
 ---
 **建立日期**: 2026-11-16  
 **分級**: Medium — 跨 opencode 輸出解析、runner 結果、回覆組裝與 Telegram 渲染，但不涉及 schema 或架構調整  
 **風險**: Medium\
-**狀態**: 待實作（步驟 1 等待使用者授權盤點正式 opencode.db）
+**狀態**: 實作中（步驟 1 完成；步驟 2 等待開發用 bot 的 token）
