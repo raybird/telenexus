@@ -23,6 +23,8 @@ GitHub：[#28](https://github.com/raybird/telenexus/issues/28)
 
 ## 現況
 
+**現行 review**: review-eb9cc0b.md
+
 | 外部狀態 | 查證命令 | 上次結果 | 查證日期 |
 |---|---|---|---|
 | GitHub issue #28 | `gh issue view 28 --repo raybird/telenexus --json state -q .state` | OPEN | 2026-11-16 |
@@ -168,7 +170,7 @@ Feature: Telegram 聊天回覆與排程結果把過程敘述摺疊起來，結�
 ```
 
 ## Gherkin 核准紀錄
-- **核准 commit**: 待提交
+- **核准 commit**: 17b4cb3
 - **核准來源**: 使用者於 2026-11-16 對話逐題回答，全部選建議答案：Q1 以 step 結構分界（tool-calls 的 step 文字為過程、最後一個 step 為結論），步驟 1 先唯讀盤點正式部署的 opencode.db，比例偏高時回來修規格（SCN-001～SCN-003）；Q2 結論在前、過程摺疊在後，引言第一行寫「過程」，沒有過程時與現在相同，超過 4096 字時過程另起一或多則完整的摺疊引言，不截斷、不丟內容（SCN-001、SCN-002、SCN-004）；Q3 think 標籤前的推理文字一併摺進過程（SCN-005）；Q4 只做 Telegram 聊天回覆的串流與非串流路徑，排程、Web Console 不在範圍，記憶、Memoria 與摘要追問的文字維持全文（SCN-008、SCN-009；排程部分已由下方 TBD-4 的答案取代）；Q5 照寫：最後一個 step 沒有文字時不摺疊、過程各段各自成段、MarkdownV2 被拒收時的純文字退回不帶引言標記、降級訊息維持原樣（SCN-001、SCN-003、SCN-006、SCN-007）；Q6 盤點正式 opencode.db 到步驟 1 再問使用者授權；Q7 用開發用 bot 實測，時機由使用者決定（SCN-010）。同日步驟 1 盤點後，使用者對 TBD-1 選「維持 step 結構分界（建議）」（SCN-001～SCN-003 不變）；對 TBD-4 選「納入排程，改走 MarkdownV2（建議）」，選項內容為「排程結果改走和聊天相同的 MarkdownV2 路徑與摺疊版面，第一行仍是『🕐 [排程: 名稱]』」，並接受所有排程訊息的排版從 HTML 換成 MarkdownV2、超長報告從純文字變成有格式的代價，取代原 Q4 的「只做聊天」（規格修訂 SCN-009，新增 SCN-011、SCN-012）。同日步驟 2 找不到開發用 bot 的 token，使用者選「改用正式 bot 直接呼叫（建議）」，選項內容為「照 #27 的做法：用正式 bot 的 token 直接呼叫 sendMessage 送樣本到你的聊天，不 poll、不停正式服務」，取代 Q7 的開發用 bot（規格修訂 SCN-010）；看過樣本後回「都正常」，過程段落之間選「留空行（建議）」。
 
 | Scenario | 核准日期 | 狀態 |
