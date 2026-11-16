@@ -33,6 +33,17 @@ export type AgentStructuredResult = {
    * 這個欄位就是讓呼叫端能把「降級」跟「成功」分開的唯一依據。
    */
   failure?: AgentFailure;
+  /**
+   * 回合裡模型的過程敘述與結論(issue 0028)。只有確實分出過程、結論也不是空的時候才有;
+   * 降級結果不帶。`text` 仍是全文,儲存與摘要照舊用它。
+   */
+  replyParts?: ReplyParts;
+};
+
+/** 過程:以工具呼叫結束的 step 的文字與推理文字,依產生順序各自成段。結論:最後一個 step 的文字。 */
+export type ReplyParts = {
+  process: string[];
+  conclusion: string;
 };
 
 export type AgentEvent =

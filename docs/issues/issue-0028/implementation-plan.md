@@ -43,7 +43,15 @@
    - 相依：無（可與步驟 1 並行）。
    - 樣本另含一則排程標頭開頭的訊息（SCN-011）。
    - 完成判準：設計第 4 點的寫法得到 `ok: true` 且使用者確認摺疊；被拒收的寫法列出替代寫法並重測通過。
-3. 📝 **步驟 3：解析層保留過程與結論**（SCN-002、SCN-003、SCN-005、SCN-007、SCN-008 的路徑一致部分）
+3. ✅ **步驟 3：解析層保留過程與結論**（SCN-002、SCN-003、SCN-005、SCN-007、SCN-008 的路徑一致部分）
+   - 實作（2026-11-16）：新增 `src/core/reply-parts.ts`（`StepTextCollector`：依 step 收文字，結束原因 `tool-calls` 的是過程，最後一個 step 是結論；段落裡最後一個 think 結束標籤前的文字歸入過程，兩個標籤不留；逐段套 `cleanOutput`）。`AgentStructuredResult.replyParts`；串流（`cli-agent-base.ts` 兩個成功出口共用 `successResult()`）與非串流（`parseOpencodeJsonOutput(stdout, clean)`）各自收集；`CliStreamParse.stepFinished` 帶 step 結束原因；`agent.ts` 的 `fromRunnerStructured()` 帶上 `replyParts`，`withChatPrefix()` 把前綴加在全文與結論前（四個出口共用）。runner 的 HTTP 回應本來就序列化整個 `structured`（`src/runner.ts` 的 result 事件），不需修改。
+   - 外迴圈與單元合併：被測行為在 agent 的回傳值這一層就完整可觀察，假 `opencode` 跑真實的 `OpencodeAgent`（串流與非串流）與 `DynamicAIAgent`（runner 以本機 HTTP 模擬、本機替換 opencodeAgent），沒有另一層整合責任。
+   - 紅燈：`npx tsx --test tests/opencode-reply-parts.test.ts` exit 1，9 個中 4 個失敗（SCN-001 前提 2 個、SCN-005 2 個），原因是回傳值沒有 `replyParts`（actual `undefined`）；其餘 5 個「不該分段」的情況在紅燈時已通過，作為回歸保護。`npx tsx --test tests/dynamic-agent-reply-parts.test.ts` exit 1，3 個中 2 個失敗：runner 路徑 `replyParts` 為 `undefined`（被 `fromRunnerStructured` 丟掉），本機路徑的結論沒有 `[Opencode]` 前綴。
+   - 綠燈：同兩個檔案 12 個測試全過（exit 0）。期望值都是 fixture 與測試裡的字面文字，`1.18.34-tool-use.stdout.jsonl` 是真實 opencode 輸出。
+   - 既有測試契約變更：`tests/opencode-stream-status.test.ts` 對 `parseStreamLine()` 的 step_finish 輸出做完整比對，補上新的 `stepFinished: { reason: 'tool-calls' }` 欄位，原有欄位的斷言不變。理由：核准行為需要 step 結束原因，這是新增的欄位。
+   - 精煉：檢查變更後沒有實質可簡化之處（no-op）；`prettier --write` 只調整了新測試檔的換行。
+   - 交付檢查：`npm run build` exit 0；`npm run test` exit 0，`# tests 793`、`# pass 793`，91 個測試檔（比主幹多的 12 個就是本步驟新增的測試）；`npm run lint` exit 0。
+   - 影響分析：GitNexus impact 回報 LOW（`parseOpencodeJsonOutput` 0 個呼叫者、`runStreamChat` 1 個、`fromRunnerStructured` 查無此 symbol）；grep 實際呼叫點為 `parseOpencodeJsonOutput` 1 處（`opencode.ts` 的 `toStructuredResult`）、`fromRunnerStructured` 2 處、`parseStreamLine` 2 處，都在本次修改範圍內，新增的都是可選欄位。
    - 產出：`cli-agent-base.ts`、`opencode.ts`（必要時 `opencode-event-parser.ts`）、`agent-result.ts`、`agent.ts` 的修改與測試。
    - 測試：以 `1.18.34-tool-use.stdout.jsonl` 與手寫的多 step fixture 驅動串流與非串流路徑，斷言 `replyParts` 的過程與結論（期望值取自 fixture 的字面文字）；只有一個 step、最後一個 step 沒有文字、含 think 標籤、逾時／限流／上游錯誤各一例；runner 路徑（`dynamic-agent-runner-stream`）與本機路徑結果相同；`text` 與變更前相同。
    - 相依：步驟 1（TBD-1 有結論）。

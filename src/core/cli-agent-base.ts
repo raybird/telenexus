@@ -13,6 +13,7 @@ import { ProcessError } from './process-runner.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
 import { createLogger } from './logger.js';
 import { describeUpstreamError, type UpstreamError } from './rate-limit.js';
+import { StepTextCollector } from './reply-parts.js';
 
 export type CliStreamParse = {
   sessionId?: string;
@@ -21,6 +22,8 @@ export type CliStreamParse = {
   statusText?: string;
   stats?: Record<string, unknown>;
   emitStart?: boolean;
+  /** 這一行結束了一個 step;值是結束原因(`tool-calls`、`stop`…),用來分出過程與結論。 */
+  stepFinished?: { reason?: string };
   /** CLI 回報上游沒有服務這次請求;有值代表這個回合失敗。 */
   upstreamError?: UpstreamError;
 };
@@ -199,6 +202,7 @@ export abstract class CliAgentBase implements AIAgent {
     let stdoutBuffer = '';
     let stderr = '';
     let aggregatedText = '';
+    const stepTexts = new StepTextCollector();
     let parsedLineCount = 0;
     let sessionId: string | undefined;
     let stats: Record<string, unknown> | undefined;
@@ -291,6 +295,17 @@ export abstract class CliAgentBase implements AIAgent {
     let lineProcessing: Promise<void> = Promise.resolve();
 
     return new Promise<AgentStructuredResult>((resolve, reject) => {
+      // 模型真的回了話的兩條出口共用;降級結果另外組,不帶 replyParts。
+      const successResult = (): AgentStructuredResult => {
+        const replyParts = stepTexts.build((text) => this.cleanOutput(text));
+        return {
+          provider,
+          text: aggregatedText,
+          ...(sessionId ? { sessionId } : {}),
+          ...(stats !== undefined ? { stats } : {}),
+          ...(replyParts ? { replyParts } : {})
+        };
+      };
       const finishWithTimeout = async (detail: string): Promise<void> => {
         const timeoutResult = buildTextOnlyStructuredResult(provider, this.config.timeoutMessage, {
           failure: { kind: 'timeout', message: `streamChat ${detail}` }
@@ -341,7 +356,11 @@ export abstract class CliAgentBase implements AIAgent {
                 lastDeltaAt = Date.now();
                 await emitStart();
                 aggregatedText += parsed.deltaText;
+                stepTexts.addText(parsed.deltaText);
                 await onEvent({ type: 'delta', text: parsed.deltaText });
+              }
+              if (parsed.stepFinished) {
+                stepTexts.finishStep(parsed.stepFinished.reason);
               }
               if (parsed.stats) {
                 stats = parsed.stats;
@@ -411,6 +430,10 @@ export abstract class CliAgentBase implements AIAgent {
             }
             if (typeof trailing?.deltaText === 'string' && trailing.deltaText.length > 0) {
               aggregatedText += trailing.deltaText;
+              stepTexts.addText(trailing.deltaText);
+            }
+            if (trailing?.stepFinished) {
+              stepTexts.finishStep(trailing.stepFinished.reason);
             }
           }
 
@@ -480,12 +503,7 @@ export abstract class CliAgentBase implements AIAgent {
                 await onEvent({ type: 'usage', stats });
               }
               await onEvent({ type: 'done', text: aggregatedText });
-              resolve({
-                provider,
-                text: aggregatedText,
-                ...(sessionId ? { sessionId } : {}),
-                ...(stats !== undefined ? { stats } : {})
-              });
+              resolve(successResult());
               return;
             }
 
@@ -590,12 +608,7 @@ export abstract class CliAgentBase implements AIAgent {
             await onEvent({ type: 'usage', stats });
           }
           await onEvent({ type: 'done', text: aggregatedText });
-          resolve({
-            provider,
-            text: aggregatedText,
-            ...(sessionId ? { sessionId } : {}),
-            ...(stats !== undefined ? { stats } : {})
-          });
+          resolve(successResult());
         })().catch((error) => {
           reject(error);
         });

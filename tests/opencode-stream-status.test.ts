@@ -50,7 +50,9 @@ test('OpencodeAgent parseStreamLine maps JSON tool events to status updates', ()
     {
       sessionId: 'ses_1',
       statusText: '工具執行完成，等待模型整理回覆...',
-      stats: { tokens: { total: 10 }, reason: 'tool-calls' }
+      stats: { tokens: { total: 10 }, reason: 'tool-calls' },
+      // issue 0028:step 的結束原因,用來分出過程與結論。
+      stepFinished: { reason: 'tool-calls' }
     }
   );
 

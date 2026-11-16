@@ -12,7 +12,7 @@ function textOnly(text: string): AgentStructuredResult {
   return { provider: 'opencode', text };
 }
 
-/** runner 回傳的結構化結果換上呼叫端要的文字,保留 sessionId、stats 與 failure。 */
+/** runner 回傳的結構化結果換上呼叫端要的文字,保留 sessionId、stats、failure 與 replyParts。 */
 function fromRunnerStructured(
   structured: AgentStructuredResult | undefined,
   text: string
@@ -22,8 +22,21 @@ function fromRunnerStructured(
     text,
     ...(structured?.sessionId ? { sessionId: structured.sessionId } : {}),
     ...(structured?.stats !== undefined ? { stats: structured.stats } : {}),
-    ...(structured?.failure ? { failure: structured.failure } : {})
+    ...(structured?.failure ? { failure: structured.failure } : {}),
+    ...(structured?.replyParts ? { replyParts: structured.replyParts } : {})
   };
+}
+
+/** 聊天結果的 `[Opencode]` 前綴:加在全文與結論前面,過程不加(issue 0028)。 */
+function withChatPrefix(result: AgentStructuredResult): AgentStructuredResult {
+  const prefixed: AgentStructuredResult = { ...result, text: `[Opencode] ${result.text}` };
+  if (result.replyParts) {
+    prefixed.replyParts = {
+      process: result.replyParts.process,
+      conclusion: `[Opencode] ${result.replyParts.conclusion}`
+    };
+  }
+  return prefixed;
 }
 
 export interface AIAgentOptions {
@@ -373,7 +386,7 @@ export class DynamicAIAgent implements AIAgent {
 
     if (task === 'chat') {
       const response = await this.opencodeAgent.chatStructured(input, mergedOptions);
-      return { ...response, text: `[Opencode] ${response.text}` };
+      return withChatPrefix(response);
     }
     return textOnly(await this.opencodeAgent.summarize(input, mergedOptions));
   }
@@ -427,7 +440,7 @@ export class DynamicAIAgent implements AIAgent {
         if (runnerResult.ok && runnerResult.output) {
           this.markRunnerSuccess();
           const rawText = runnerResult.structured?.text || runnerResult.output;
-          return fromRunnerStructured(runnerResult.structured, `[Opencode] ${rawText}`);
+          return withChatPrefix(fromRunnerStructured(runnerResult.structured, rawText));
         }
 
         const errorMessage = runnerResult.error || 'Unknown runner error';
@@ -441,7 +454,7 @@ export class DynamicAIAgent implements AIAgent {
 
     if (this.opencodeAgent.streamChat) {
       const result = await this.opencodeAgent.streamChat(normalizedInput, mergedOptions, onEvent);
-      return { ...result, text: `[Opencode] ${result.text}` };
+      return withChatPrefix(result);
     }
 
     await onEvent({ type: 'start', provider });
@@ -516,10 +529,8 @@ export class DynamicAIAgent implements AIAgent {
           durationMs: runnerResult.durationMs
         });
         const outputText = runnerResult.structured?.text || runnerResult.output;
-        return fromRunnerStructured(
-          runnerResult.structured,
-          task === 'chat' ? `[Opencode] ${outputText}` : outputText
-        );
+        const structured = fromRunnerStructured(runnerResult.structured, outputText);
+        return task === 'chat' ? withChatPrefix(structured) : structured;
       }
 
       const errorMessage = runnerResult.error || 'Unknown runner error';

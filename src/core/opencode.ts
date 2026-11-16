@@ -16,6 +16,7 @@ import {
 } from './rate-limit.js';
 import { resolveProjectDir } from '../utils/paths.js';
 import { createLogger } from './logger.js';
+import { StepTextCollector } from './reply-parts.js';
 import { emitEvent } from '../services/event-bus.js';
 import {
   findUpstreamError,
@@ -26,7 +27,13 @@ import {
 
 const logger = createLogger('Opencode');
 
-export function parseOpencodeJsonOutput(stdout: string): AgentStructuredResult | null {
+/**
+ * `clean` 套用在各段過程與結論上(issue 0028);`text` 由呼叫端自己清洗,這裡回原文。
+ */
+export function parseOpencodeJsonOutput(
+  stdout: string,
+  clean: (text: string) => string = (text) => text
+): AgentStructuredResult | null {
   const lines = stdout
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -37,6 +44,7 @@ export function parseOpencodeJsonOutput(stdout: string): AgentStructuredResult |
 
   const events: OpencodeEvent[] = [];
   const textParts: string[] = [];
+  const stepTexts = new StepTextCollector();
   let stats: Record<string, unknown> | undefined;
   let sessionId: string | undefined;
 
@@ -51,6 +59,10 @@ export function parseOpencodeJsonOutput(stdout: string): AgentStructuredResult |
     const interpreted = interpretEvent(event);
     if (interpreted.text) {
       textParts.push(interpreted.text);
+      stepTexts.addText(interpreted.text);
+    }
+    if (event.type === 'step_finish') {
+      stepTexts.finishStep(event.part?.reason);
     }
     if (interpreted.stats) {
       stats = interpreted.stats;
@@ -81,6 +93,10 @@ export function parseOpencodeJsonOutput(stdout: string): AgentStructuredResult |
   // 聊天回合結束後以它更新 session 綁定(issue 0012);串流路徑在 cli-agent-base 取得同一個值。
   if (sessionId) {
     result.sessionId = sessionId;
+  }
+  const replyParts = stepTexts.build(clean);
+  if (replyParts) {
+    result.replyParts = replyParts;
   }
   return result;
 }
@@ -272,6 +288,10 @@ export class OpencodeAgent extends CliAgentBase {
     if (interpreted.reasoningText !== undefined) result.reasoningText = interpreted.reasoningText;
     if (interpreted.text !== undefined) result.deltaText = interpreted.text;
     if (interpreted.stats) result.stats = interpreted.stats;
+    if (event.type === 'step_finish') {
+      const reason = event.part?.reason;
+      result.stepFinished = typeof reason === 'string' ? { reason } : {};
+    }
     if (interpreted.upstreamError) result.upstreamError = interpreted.upstreamError;
     return result;
   }
@@ -404,7 +424,7 @@ export class OpencodeAgent extends CliAgentBase {
 
   private toStructuredResult(stdout: string, options?: AIAgentOptions): AgentStructuredResult {
     if (options?.isPassthroughCommand !== true) {
-      const structured = parseOpencodeJsonOutput(stdout);
+      const structured = parseOpencodeJsonOutput(stdout, (text) => this.cleanOutput(text));
       if (structured) {
         structured.text = this.cleanOutput(structured.text);
         return structured;
