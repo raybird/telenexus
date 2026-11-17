@@ -422,7 +422,11 @@ test('issue 0029 AC-4 --models 與 --all 不讀設定檔、不印來源，也沒
     parsedModels.results.map((r) => r.model),
     ['mock/a']
   );
-  assert.doesNotMatch(runInProject(files, ['--models', 'mock/a']).stdout, /模型來源/);
+  const modelsText = runInProject(files, ['--models', 'mock/a']).stdout;
+  assert.doesNotMatch(modelsText, /模型來源/);
+  // 不讀設定檔、不知道有沒有 override，所以 /reset_model 的提醒一律附上（AC-5）。
+  assert.match(modelsText, /\/set_model mock\/a/);
+  assert.match(modelsText, /若有 \/set_model 的 override/);
 
   const allEnv = { FAKE_OPENCODE_MODELS: 'mock/b\nnvidia/baai/bge-m3' };
   const viaAll = runInProject(files, ['--all', '--json'], allEnv);
@@ -432,7 +436,10 @@ test('issue 0029 AC-4 --models 與 --all 不讀設定檔、不印來源，也沒
     parsedAll.results.map((r) => r.model),
     ['mock/b']
   );
-  assert.doesNotMatch(runInProject(files, ['--all'], allEnv).stdout, /模型來源/);
+  const allText = runInProject(files, ['--all'], allEnv).stdout;
+  assert.doesNotMatch(allText, /模型來源/);
+  assert.match(allText, /\/set_model mock\/b/);
+  assert.match(allText, /若有 \/set_model 的 override/);
 });
 
 test('issue 0029 AC-5 結尾提示改用 /set_model，有 override 時註明要先 /reset_model', () => {

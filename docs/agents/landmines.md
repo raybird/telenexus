@@ -95,13 +95,13 @@
 - **怎麼查**：主檔與 `-wal` 檔一起量。要縮小 WAL，執行 `PRAGMA wal_checkpoint(TRUNCATE)`，並看輸出的 `busy`：有其他連線在讀取時 `busy` 是 1，WAL 不會縮小，但 `opencode db` 的 exit 仍是 0。
 - **證據**：[issue 0014 步驟 1 實測](../issues/issue-0014/evidence/step1-wal-truncate-probe.md)：`VACUUM` 後主檔 172,851,200 bytes、WAL 173,864,032 bytes，截斷後 WAL 為 0；正式環境 2026-10-18 第一次回收後 WAL 從 5 MB 長到 173 MB。
 
----
-
-**最後驗證**: 2026-10-18（新增 L-13）
-
 ## L-14 探針腳本裡的 TypeScript 邏輯複本悄悄分歧
 
 - **症狀**：`npm run models:probe` 回報「✅ 可用」，聊天與排程卻全部失敗；探針測的不是 bot 實際在用的那一顆。
 - **觸發**：修改 `src/core/config-loader.ts` 的模型解析，或 `scripts/probe-models.mjs` 裡對應的複本（限流樣式的複本見 L-04）。腳本要在沒有原始碼與建置的正式映像裡跑，不能 import TypeScript，只能維持一份刻意的複本；複本少一條規則時不會報錯。
 - **怎麼查**：`tests/probe-models-script.test.ts` 的對照測試在同一組設定情境下比對腳本與 `loadAiConfig()` 的結果。改規則時兩邊一起改，並在對照情境補上新規則會走到的設定。
 - **證據**：GitHub #29（2026-11-13 正式部署：override 是 `nvidia/z-ai/glm-5.3-flash`、上游回 404，不帶參數的探針卻測 `ai-config.yaml` 的 `opencode/big-pickle`）；修正與紅燈紀錄見 [issue 0029](../issues/issue-0029/README.md)。
+
+---
+
+**最後驗證**: 2026-11-17（新增 L-14）

@@ -53,19 +53,19 @@
    - 做法：`scripts/probe-models.mjs` 以 `js-yaml` 讀兩個設定檔的頂層 `model`（讀不到、YAML 壞掉、不是字串或空白都當成沒有設定），override 有模型就用它；`--json` 帶 `config: { model, source, baseModel, overrideModel }`，`source` 是 `data/ai-config.override.yaml` 或 `ai-config.yaml`。
    - 對照測試：`tests/probe-models-script.test.ts` 的「issue 0029 AC-3」13 個情境，每個都在暫存專案目錄（cwd 與 `APP_PROJECT_DIR` 相同，同正式映像）裡執行腳本，與同一份設定的 `loadAiConfig()` 比對。實際探測的模型（`results[].model`）先比，`config.model` 後比。
    - 紅燈（2026-11-17，修改前的腳本）：`npx tsx --test tests/probe-models-script.test.ts` 32 個中 17 個失敗。AC-3 有 4 個情境實際探測了錯的模型：override 不同時測了 `opencode/big-pickle`（就是 #29 的事故）；值加引號時單行 regex 讀到 `'` 與 `"opencode/big-pickle"`；缺 `ai-config.yaml` 時直接以 1 結束、沒有讀 override。其餘情境的模型相同，只缺 `config` 欄位。AC-1、AC-2、AC-5、AC-6 的測試全部失敗；AC-4 與「兩個檔都沒有模型」在修改前就通過（回歸保護）。
+   - 限制：設定檔路徑的解析不在對照範圍內。`loadAiConfig()` 的 `ai-config.yaml` 預設相對於目前目錄（`src/core/agent.ts`、`src/runner.ts` 都用這個預設），探針以 `APP_PROJECT_DIR` 為準；對照測試讓兩者相同，所以分不出差別（review-23d451d 以變異確認）。正式映像（WORKDIR 與 `APP_PROJECT_DIR` 都是 `/app`）與 host 上的 `npm run models:probe`（不設 `APP_PROJECT_DIR`，兩邊都退回目前目錄）結果相同；只有 host 上把 `APP_PROJECT_DIR` 設成另一個目錄時才會分歧。
    - 綠燈：同一命令 33 個全過（之後補了「`ai-config.yaml` 的值前後有空白」一個情境，見下方變異）。
    - 變異（每次只改腳本一處，跑 AC-3 後以備份還原，`cmp` 確認還原）：優先順序對調 → 2 個情境失敗；不讀 override → 3 個；不 trim → 起初只有「override 的 model 空白」1 個，補上「`ai-config.yaml` 的值前後有空白」情境後 2 個；非字串也收 → 1 個；空字串不當成沒設定 → 1 個；退回單行 regex → 5 個；override 路徑改錯 → 3 個。
 2. ✅ **AC-4、AC-5：`--models`／`--all` 不受影響，結尾提示改成 `/set_model`** — 驗證方式：同一個測試檔的斷言。
-   - 完成證據：「issue 0029 AC-4」以 `--models` 與 `--all`（假 `opencode models` 回兩顆，其中一顆是非對話模型、照舊被略過）執行，`--json` 沒有 `config` 欄位、文字輸出沒有「模型來源」；「issue 0029 AC-5」斷言沒有 override 時只出現 `/set_model <模型>`、沒有 `/reset_model`，有 override 時另有「直接改 ai-config.yaml … 要先 /reset_model」。
+   - 完成證據：「issue 0029 AC-4」以 `--models` 與 `--all`（假 `opencode models` 回兩顆，其中一顆是非對話模型、照舊被略過）執行，`--json` 沒有 `config` 欄位、文字輸出沒有「模型來源」；「issue 0029 AC-5」斷言沒有 override 時只出現 `/set_model <模型>`、沒有 `/reset_model`，有 override 時另有「直接改 ai-config.yaml … 要先 /reset_model」。審查後（review-23d451d SHOULD FIX 2）在 AC-4 測試補上 `--models`／`--all` 文字輸出的斷言：要有 `/set_model <模型>` 與「若有 /set_model 的 override」；把提醒條件改成 `config?.overrideModel`（等於這兩種模式不再提醒）時該測試失敗，還原後全過。
    - 實作細節：`--all`／`--models` 依 AC-4 不讀設定檔、不知道有沒有 override，所以結尾一律附上同一句提醒，措辭改成「若有 /set_model 的 override」；不帶參數時只在確實有 override 時才附（「目前有」）。
-2. ⏳ **AC-4、AC-5：`--models`／`--all` 不受影響，結尾提示改成 `/set_model`** — 驗證方式：同一個測試檔的斷言。
-   - 完成證據：（執行時回寫）
 3. ✅ **AC-7：正式映像實跑** — 驗證方式：AC-7 的 `docker run`。
    - 完成證據（2026-11-17）：暫存專案目錄放 `ai-config.yaml`（`opencode/big-pickle`）與 override（`nvidia/z-ai/glm-5.3-flash`），執行 `docker run --rm --network none --entrypoint node -e APP_PROJECT_DIR=/proj -w /app -v "$PWD/scripts/probe-models.mjs:/app/scripts/probe-models.mjs:ro" -v "<暫存目錄>:/proj:ro" ghcr.io/raybird/telenexus:v2.39.1 scripts/probe-models.mjs --timeout 10 --rounds 1`。輸出第一行「模型來源：data/ai-config.override.yaml（/set_model）＝nvidia/z-ai/glm-5.3-flash」，第二行「ai-config.yaml＝opencode/big-pickle（已被覆寫，不測；要測請用 --models opencode/big-pickle）」，只探測 override 那顆；加 `--json` 時 `config` 為 `{"model":"nvidia/z-ai/glm-5.3-flash","source":"data/ai-config.override.yaml","baseModel":"opencode/big-pickle","overrideModel":"nvidia/z-ai/glm-5.3-flash"}`。探測結果是「⛔ 模型不存在」，因為容器斷網、沒有 provider 設定，不在本項判定範圍。映像裡的 `js-yaml` 從 `/app/scripts` 載入成功。
 4. ✅ **交付檢查與文件** — `npm run build`、`npm run test`（核對 `# tests`，地雷 L-01）、`npm run lint` 都 exit 0；更新 `CLAUDE.md` 的 Common Commands、`README.md` 的探測指令說明與腳本開頭的用法註解。
+   - 審查修正後重跑（2026-11-17）：`npm run build`、`npm run lint` exit 0；`npm run test` exit 0，`# tests 841`、`# pass 841`（測試數不變：SHOULD FIX 2 是在既有的 AC-4 測試加斷言）。
    - 完成證據（2026-11-17）：`npm run build` exit 0；`npm run test` exit 0，`# tests 841`、`# pass 841`、`# fail 0`（比 main 的 821 多 20 個，都是本 issue 新增），`tests/` 下 94 個測試檔；`npm run lint` exit 0；兩個變更檔通過 `prettier --check`。
    - 文件：`CLAUDE.md` Common Commands 與 `README.md` 的探測說明改成「實際生效的模型」；腳本開頭的用法與 `--help` 同步。另依 project.md 的地雷規則新增 [L-14](../../agents/landmines.md)（探針裡的 TypeScript 邏輯複本悄悄分歧，證據是 #29），並在 project.md 的地雷指引登記觸發情境。
-   - 影響分析：GitNexus `impact` 對 `readConfiguredModel`、`renderTable` 都是 LOW，唯一呼叫者是腳本的 `main`，與 grep 一致；`detect_changes` 另列出 issue-0008、issue-0010 的章節，是索引行號過時，`git diff --stat` 確認只改了 6 個檔案。
+   - 影響分析：GitNexus `impact` 對 `readConfiguredModel`、`renderTable` 都是 LOW，唯一呼叫者是腳本的 `main`，與 grep 一致；`detect_changes` 另列出 issue-0008、issue-0010 的章節，是索引行號過時，`git diff --stat` 確認只改了 6 個檔案（另加本 README 共 7 個）。
 
 ## Timeline
 
@@ -79,4 +79,4 @@
 **建立日期**: 2026-11-17  
 **分級**: Small  
 **風險**: Low\
-**狀態**: 實作中（審查要求修正）
+**狀態**: 實作中（審查修正完成，等待重新審查）
