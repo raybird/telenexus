@@ -2,6 +2,29 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.40.1 — 2026-11-17
+
+### 停止與升級時，telenexus、agent-runner 會正常收尾（#31）
+
+- 以前 `docker stop`、`docker compose down` 與升級時的重建，兩個服務的主程序都收不到 SIGTERM，容器直接被殺掉，關閉流程從來沒有執行。
+- 現在停止時：
+  - telenexus 會停止排程、收掉 opencode／Chrome 子程序，並關閉 Web Console 與面板伺服器。
+  - agent-runner 會收掉子程序並關閉 HTTP server。
+- 原因有兩層：
+  - compose 少了 `KILL` capability，以 root 執行的 init 轉不出訊號給降權後的主程序。
+  - telenexus 以 `npm start` 啟動，訊號停在中間的 shell。
+- 修法：
+  - 兩份 compose 的共用設定加上 `KILL`。
+  - `start`、`start:runner` 腳本最後一段改用 `exec`。
+- 關閉 Web Console 與面板伺服器最多等 3 秒，有連線卡住時不會等滿 Docker 的 10 秒寬限再被強制終止。
+
+### 升級注意
+
+- 升級時會重建容器，新設定才會生效。升級當下停掉的是舊容器，那一次仍然是舊行為。
+- `KILL` 只作用在容器自己的 PID namespace 內，降權後的程序（含 opencode）沒有任何 capability。
+- 不需要其他設定變動；memoria 映像沒有變動。
+- build、969 項測試與 lint 通過；本機獨立審查兩輪，第二輪 PASS。
+
 ## 2.40.0 — 2026-11-17
 
 ### 在 Telegram 用手機面板切換模型（#30）
