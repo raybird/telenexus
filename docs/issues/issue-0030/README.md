@@ -5,6 +5,14 @@ GitHub：https://github.com/raybird/telenexus/issues/30
 ## 目標
 在 Telegram 私聊中按需開啟 Mini App，方便選擇 OpenCode 的 provider 與 model；部署沿用 Docker Compose，無須自有網域或固定 HTTPS 網址。
 
+## 現況
+
+**現行 review**: review-87b6cf6.md
+
+| 外部狀態 | 查證命令 | 上次結果 | 查證日期 |
+|---|---|---|---|
+| GitHub issue #30 | `gh issue view 30 --repo raybird/telenexus --json state -q .state` | OPEN | 2026-11-17 |
+
 ## 需求來源與範圍
 2026-11-15 討論：
 - 使用者要求以 cloudflared 臨時 Tunnel 動態取得 HTTPS 網址，再更新 Telegram 入口。
