@@ -17,7 +17,7 @@
 | 外部狀態 | 查證命令 | 上次結果 | 查證日期 |
 |---|---|---|---|
 | GitHub issue #29 | `gh issue view 29 --repo raybird/telenexus --json state -q .state` | OPEN | 2026-11-17 |
-| origin 的 main 含本 issue | `git merge-base --is-ancestor 95c2ed2 origin/main` | exit 1（尚未推送） | 2026-11-17 |
+| origin 的 main 含本 issue | `git merge-base --is-ancestor 95c2ed2 origin/main` | exit 0（是祖先） | 2026-11-17 |
 
 ## 涉及檔案
 
@@ -82,9 +82,10 @@
 | 2026-11-17 | 重新審查 PASS（review-0e899ed.md，無 MUST FIX、無 SHOULD FIX） | - |
 | 2026-11-17 | 使用者選「fast-forward 合併（建議）」：分支快轉併入本機 main（95c2ed2），未推送；兩項 NICE TO HAVE 不處理 | 使用者 |
 | 2026-11-17 | 結案：照 #27、#28 不開 PR，以本機快轉合併為結案依據；推送、發版與關閉 GitHub #29 由使用者另行決定 | 使用者 |
+| 2026-11-17 | 使用者要求推送 main，origin/main 在 7c3f678（含 95c2ed2） | 使用者 |
 
 ---
 **建立日期**: 2026-11-17  
 **分級**: Small  
 **風險**: Low\
-**狀態**: 已完成（2026-11-17 快轉併入本機 main 的 95c2ed2，尚未推送）
+**狀態**: 已完成（2026-11-17 快轉併入 main 的 95c2ed2，已推送 origin）
