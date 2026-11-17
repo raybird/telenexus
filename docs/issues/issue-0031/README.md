@@ -112,6 +112,7 @@ GitHub：[#31](https://github.com/raybird/telenexus/issues/31)
 | 2026-11-17 | 使用者決定修 S1、N1（只改文件措辭），PASS 隨之失效，送重新審查；N2～N5 不處理 | 使用者 |
 | 2026-11-17 | 重新審查 review-3ef47bf 判定 PASS（無 MUST FIX、無 SHOULD FIX） | Claude |
 | 2026-11-17 | 使用者決定合併、發版並升級正式部署；快轉併入 main 的 e678952 | 使用者 |
+| 2026-11-17 | 發版 v2.40.1（tag 指向 e99cb6f，Release workflow 成功、bundle 已上傳）；15:46（台北）正式部署升級到 v2.40.1，升級前備份 data、skills 與兩個 opencode volume；四個服務 healthy，telenexus 與 agent-runner 的 caps 含 `CAP_KILL`。升級當下停掉的是舊容器，新容器的停止行為留待下次停止或升級時觀察 | Claude |
 
 ---
 **建立日期**: 2026-11-17  
