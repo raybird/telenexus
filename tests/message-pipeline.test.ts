@@ -1289,9 +1289,11 @@ test('memoria recall outcome:回覆完成後回報 reuse 覆蓋率到 /v1/recall
  */
 async function runFoldedTurn(
   result: AgentStructuredResult,
-  mode: 'stream' | 'non-stream'
+  mode: 'stream' | 'non-stream',
+  messageThreadId?: number
 ): Promise<{
   folded: FoldedReply[];
+  foldedThreadIds: Array<number | undefined>;
   sentMessages: SentMessage[];
   sentFiles: Array<{ chatId: string; filePath: string; caption?: string }>;
   deletions: Array<{ chatId: string; messageId: string }>;
@@ -1315,8 +1317,10 @@ async function runFoldedTurn(
   try {
     const { connector, sentMessages, sentFiles, deletions } = createConnectorRecorder();
     const folded: FoldedReply[] = [];
-    connector.sendFoldedReply = async (_chatId, reply) => {
+    const foldedThreadIds: Array<number | undefined> = [];
+    connector.sendFoldedReply = async (_chatId, reply, options) => {
       folded.push(reply);
+      foldedThreadIds.push(options?.messageThreadId);
     };
     const memory = new MemoryManager();
     const agent = createAgentStub({
@@ -1357,7 +1361,11 @@ async function runFoldedTurn(
       createMessage('查一下行情', {
         id: `folded-${mode}`,
         chatId: 'chat-1',
-        telegram: { updateId: 0, chatType: 'supergroup' }
+        telegram: {
+          updateId: 0,
+          chatType: 'supergroup',
+          ...(messageThreadId !== undefined ? { messageThreadId } : {})
+        }
       })
     );
     const stored = memory
@@ -1366,6 +1374,7 @@ async function runFoldedTurn(
       .map((message) => message.content);
     return {
       folded,
+      foldedThreadIds,
       sentMessages,
       sentFiles,
       deletions,
@@ -1443,5 +1452,38 @@ test('過程清掉標記後是空的時候照舊送全文', async () => {
     );
     assert.deepEqual(folded, []);
     assert.ok(sentMessages.some((item) => item.text === '[Opencode] 結論。'));
+  });
+});
+
+for (const [label, conclusion] of [
+  ['SEND_FILE', '[Opencode] [[SEND_FILE: workspace/temp/report.txt | 報告]]'],
+  ['MEMORY_INTENT', `[Opencode] ${FOLDED_INTENT}`]
+] as const) {
+  test(`SCN-003：結論只有 ${label} 時不摺疊，照舊送全文`, async () => {
+    await withTempProject(async (projectDir) => {
+      fs.writeFileSync(path.join(projectDir, 'workspace', 'temp', 'report.txt'), 'r', 'utf8');
+      const { folded, sentMessages } = await runFoldedTurn(
+        {
+          provider: 'opencode',
+          text: `[Opencode] 我來產生報告。${conclusion.replace('[Opencode] ', '')}`,
+          replyParts: { process: ['我來產生報告。'], conclusion }
+        },
+        'non-stream'
+      );
+      assert.deepEqual(folded, []);
+      assert.ok(
+        sentMessages.some((item) => item.text === '[Opencode] 我來產生報告。'),
+        sentMessages.map((item) => item.text).join('\n---\n')
+      );
+    });
+  });
+}
+
+test('串流摺疊版面送到原本的論壇主題（messageThreadId）', async () => {
+  await withTempProject(async (projectDir) => {
+    fs.writeFileSync(path.join(projectDir, 'workspace', 'temp', 'report.txt'), 'r', 'utf8');
+    const { folded, foldedThreadIds } = await runFoldedTurn(foldedResult, 'stream', 42);
+    assert.equal(folded.length, 1);
+    assert.deepEqual(foldedThreadIds, [42]);
   });
 });

@@ -131,7 +131,8 @@ export function toFoldedReply(parts: ReplyParts | undefined): FoldedReply | unde
     parseMemoryIntent(extractFileDirectives(text).cleanedText).cleanedResponse.trim();
   const conclusion = clean(parts.conclusion);
   const process = parts.process.map(clean).filter(Boolean);
-  if (!conclusion || process.length === 0) {
+  // 結論帶 [Opencode] 前綴,只剩前綴時也算沒有結論:摺起來會讓使用者只看到前綴。
+  if (!hasVisibleText(conclusion) || process.length === 0) {
     return undefined;
   }
   return { conclusion, process };

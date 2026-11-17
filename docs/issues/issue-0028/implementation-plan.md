@@ -84,6 +84,17 @@
    - 相依：步驟 4。
    - 完成判準：三份文件描述的行為與實作一致。
 
+7. ✅ **審查修正**（[review-eb9cc0b.md](review-eb9cc0b.md) 的 SHOULD FIX 1 與 NICE TO HAVE 1～3；使用者 2026-11-17 選「修 SHOULD FIX 加三項小補強（建議）」）
+   - SHOULD FIX 1：`toFoldedReply()` 改以 `hasVisibleText()` 判斷結論，結論只剩 `[Opencode]` 前綴（例如最後一個 step 只有 SEND_FILE 或 MEMORY_INTENT）時不摺疊，照舊送全文（SCN-003）。
+   - NICE 1：`folded-reply.ts` 的 `quote()` 把過程裡渲染出的 Markdown 引言行（開頭 `>`）攤平進摺疊引言，不送出 `>>`；程式碼區塊內以 `>` 開頭的行是內容，照原樣保留。
+   - NICE 2：補 `StepTextCollector` 單元測試，回合停在以 tool-calls 結束的 step 時沒有 `replyParts`。
+   - NICE 3：pipeline 串流測試補論壇主題，斷言摺疊版面帶著原本的 `messageThreadId`。
+   - 紅燈：在 `dffa5b4`（修正前）的暫時 worktree 放進新測試：`tests/telegram/render-folded-reply.test.ts` 9 個中 1 個失敗（輸出含 `>>注意來源`）；`tests/message-pipeline.test.ts` 26 個中 2 個失敗（結論只有 SEND_FILE／MEMORY_INTENT 時仍呼叫 `sendFoldedReply`）。NICE 2、3 的測試保護既有行為，在修正前已通過，改以變異確認：把 `last.reason === 'tool-calls'` 拿掉時 NICE 2 的測試失敗；拿掉 renderer 摺疊路徑的 `messageThreadId` 時 NICE 3 的測試失敗；兩者還原後全過。
+   - 實測：[evidence/review-fix-samples.ts](evidence/review-fix-samples.ts) 產生 2 則（過程含 Markdown 引言、程式碼區塊有以 `>` 開頭的行，後者送出的是 `>> 1`），依 TBD-2 以正式 bot 的 token 送出，都 ok=true；使用者 2026-11-17 在手機上確認「都正常」（引言文字在過程裡正常顯示，程式碼行顯示為 `> 1`）。
+   - 交付檢查：`npm run build` exit 0；`npm run test` exit 0，`# tests 818`、`# pass 818`（比審查時多 5 個，都是本項新增）；`npm run lint` exit 0；步驟 4 的語料檢查重跑結果不變（缺字詞 0、超長 0、引言不完整 0）。
+   - 影響分析：GitNexus 索引尚未收錄本分支新增的符號（`toFoldedReply`、`quote` 回報 not found），改以 grep 核對：`toFoldedReply` 1 處呼叫（pipeline），`quote` 只在 `folded-reply.ts` 內部 3 處。
+   - 未處理：NICE 4～8 維持審查報告的評估，不在本項範圍。
+
 ## 使用方式對照
 
 | 情況 | 變更前 | 變更後 |

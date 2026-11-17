@@ -169,3 +169,11 @@ test('SCN-004：超長的程式碼區塊切在中間時，每則的 fence 都成
     assert.ok(all.includes(word), `缺少字詞 ${word}`);
   }
 });
+
+test('過程裡的 Markdown 引言攤平進摺疊引言，不產生 >>；程式碼裡以 > 開頭的行照原樣', () => {
+  const [message] = buildFoldedMessages(
+    { conclusion: '結論', process: ['> 注意來源', '```\n> prompt\n```'] },
+    render
+  );
+  assert.equal(message?.markdownV2, '結論\n\n**>過程\n>注意來源\n>\n>```\n>> prompt\n>```||');
+});

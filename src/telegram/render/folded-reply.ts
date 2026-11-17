@@ -66,7 +66,17 @@ function quote(renderedSegments: string[]): string {
     if (i > 0) lines.push('');
     lines.push(...segment.split('\n'));
   });
-  const quoted = lines.map((line) => `>${line}`);
+  // 過程裡的 Markdown 引言攤平進摺疊引言(同 #27 把巢狀引言攤平成一層),不送出 `>>`;
+  // 程式碼區塊裡以 > 開頭的行是內容,照原樣保留。
+  let inCode = false;
+  const quoted = lines.map((line) => {
+    if (line.startsWith('```')) {
+      inCode = !inCode;
+    } else if (!inCode && line.startsWith('>')) {
+      return line;
+    }
+    return `>${line}`;
+  });
   quoted[0] = `**${quoted[0]}`;
   quoted[quoted.length - 1] = `${quoted[quoted.length - 1]}||`;
   return quoted.join('\n');

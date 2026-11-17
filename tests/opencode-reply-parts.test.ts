@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { OpencodeAgent } from '../src/core/opencode.js';
 import type { AgentStructuredResult } from '../src/core/agent-result.js';
+import { StepTextCollector } from '../src/core/reply-parts.js';
 
 /**
  * Issue 0028 步驟 3:opencode 的回合依 step 分出過程與結論。
@@ -206,4 +207,17 @@ test('SCN-007：上游錯誤的回合即使前面有過程也沒有 replyParts',
   const streamed = await agent.streamChat('問題', { forceNewSession: true }, () => undefined);
   assert.equal(streamed.failure?.kind, 'upstream-error');
   assert.equal(streamed.replyParts, undefined);
+});
+
+test('SCN-003：回合停在以 tool-calls 結束的 step 時沒有 replyParts', () => {
+  // 例如工具呼叫後 opencode 就結束(非 0 結束但有文字的成功出口):最後一段是過程,沒有結論。
+  const collector = new StepTextCollector();
+  collector.addText('先讀檔。');
+  collector.finishStep('tool-calls');
+  collector.addText('再查一個來源。');
+  collector.finishStep('tool-calls');
+  assert.equal(
+    collector.build((text) => text),
+    undefined
+  );
 });
