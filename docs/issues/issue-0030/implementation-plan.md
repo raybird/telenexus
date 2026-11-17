@@ -70,8 +70,30 @@
 - 驗收編號：SCN-004（責任）、SCN-003（支援：清單解析與空清單／命令失敗）
 - 完成判準：套用後 `loadAiConfig()` 讀到新模型，重設後回到 base；無效 ID（空白、含換行或空白、不在目前清單內）被拒且檔案不變；寫入中途失敗（暫存檔或 rename 失敗）舊檔原樣保留；`opencode models` 失敗或為空時回傳可區分的結果。進行中任務不換模型沿用現有語意（每次新呼叫才讀設定），以測試證明服務沒有快取有效模型。
 - 驗證：隔離 data 目錄的單元／整合測試；opencode 用假執行檔（沿用 `tests/probe-models-script.test.ts` 的做法）。
-- 狀態：📝 待實作
+- 狀態：✅ 已完成（2026-11-17）
 - 證據：
+  - 產出：
+    - `src/core/config-loader.ts`：合併規則抽成 `describeAiConfigModel()`（多回傳來源與兩個檔各自的值）與 `readOverrideModel()`；`loadAiConfig()` 改成呼叫它。行為不變，影響分析見下方。
+    - `src/core/model-config.ts`：`readModelState()`、`listModels()`、`isModelId()`、`applyModel()`、`resetModel()`。
+    - `tests/model-config.test.ts`：21 支，標 SCN-003／004／006。有效模型的期望值是依 README 合併規則手寫的字面值，不拿 `loadAiConfig()` 當對照。
+  - 影響分析：
+    - GitNexus 把 `loadAiConfig` 評為 CRITICAL：3 個直接呼叫者（`DynamicAIAgent.loadProviderConfig`、`runner.ts` 的 `loadProviderConfig`、`main.ts` 的 `bootstrap`），影響 5 個流程。grep 也只找到同樣 3 個生產檔案。
+    - 改動只抽出函式，回傳值不變。佐證有兩項：#29 的 13 組 parity 測試（`tests/probe-models-script.test.ts`）照樣通過；本檔 9 組組合同時斷言 `loadAiConfig().model` 等於手寫期望值。
+  - 單迴圈理由：服務層就是可觀察的行為（檔案內容、`loadAiConfig()` 讀回的值），以隔離的 `APP_PROJECT_DIR` 與真實檔案系統驗證，沒有另一層整合責任。經 API 套用的部分由 Task 4.1 負責。
+  - 紅燈：樁實作（讀取一律回 `none`、寫入什麼都不做、清單一律空）下，`npx tsx --test tests/model-config.test.ts` exit 1，`# fail 20`。
+    - 唯一通過的是「兩個檔都沒有 model」，因為期望值剛好等於樁的回傳。變異「base 優先」下它照樣有覆蓋（見下）。
+  - 綠燈：首次執行 exit 0 前，有 1 支失敗：「YAML 特殊字元」的測試值 `'mock/a: b'` 含空白，本來就是核准規則下的無效 ID，屬於測試本身的錯。改成 `'mock/a:b'` 後 exit 0，`# tests 21`、`# pass 21`。
+  - 重構：把「只讀 override」的寫法從 `describeAiConfigModel({ basePath: '\0' })` 改成 `readOverrideModel()`。重跑本檔與 `tests/probe-models-script.test.ts`：`# tests 54`、`# pass 54`。
+  - 變異檢查（各自還原後重跑），5 種都被抓到：
+    - base 優先於 override：7 支失敗
+    - 直接覆寫目標檔、不經暫存檔：6 支失敗
+    - 不清暫存檔：1 支失敗
+    - 不檢查可用清單：1 支失敗
+    - 用字串拼 YAML：3 支失敗
+  - 交付檢查：
+    - `npm run build` exit 0；`npm run lint` exit 0。
+    - `npm run test` exit 0，`# tests 881`、`# pass 881`，比 Task 1.2 後的 860 多 21 支；測試檔 97 個（多 1 個）（L-01）。
+  - 限制：「目錄唯讀」那支以 root 執行時會略過。主機上以一般使用者執行，有實際驗證到。
 
 #### Task 2.2 — 既有指令改用共用服務
 - 產出與範圍：`src/core/command-router.ts` 的 `/model`、`/set_model`、`/reset_model`、`/models` 改呼叫 Task 2.1，移除自己的 YAML 解析與路徑推導；回覆文字盡量不變。
