@@ -262,7 +262,7 @@ memory_policy_lines:
 
 | 編號 | 事項 | 狀態 | 影響 |
 |------|------|------|------|
-| TBD-1 | 另一台部署有沒有在用 `mcp-memory-libsql`。那台開著回填 dry-run，2026-10-03 起刻意停擺，從本機查不到。升級那台之前，由使用者執行實作計畫步驟 6 寫進文件的唯讀檢查命令；有在用的話，在那台的 `OPENCODE_CONFIG_CONTENT` 設定這個 MCP（SCN-003 會保留它） | 待確認 | 不阻塞本次交付（Q5）；影響那台升級後是否保留 MCP |
+| TBD-1 | 另一台部署有沒有在用 `mcp-memory-libsql`。那台開著回填 dry-run，2026-10-03 起刻意停擺，從本機查不到。升級那台之前，由使用者執行實作計畫步驟 6 寫進文件的唯讀檢查命令；有在用的話，在那台的 `OPENCODE_CONFIG_CONTENT` 設定這個 MCP（SCN-003 會保留它） | 不影響本次交付（2026-11-17）：追蹤：無——升級前的唯讀檢查命令與想保留時的 `OPENCODE_CONFIG_CONTENT` 設定，已寫在 `docs/installation.md` 與 `docs/configuration-reference.md` 的「已退役：mcp-memory-libsql 與記憶回填」；那台升級時照文件查即可，本 issue 沒有後續工作 | 不阻塞本次交付（Q5）；影響那台升級後是否保留 MCP |
 | TBD-2 | 本機審查 `review-4e99ceb.md` S1：prompt 標題、`ai-config.example.yaml` 與正式部署的 `ai-config.yaml` 仍指示 agent 使用 MCP Memory 工具；`configuration-reference.md` 新寫的「2026-03-29 起 prompt 就不再指示」不正確 | 已解決：使用者選擇擴大 #22，新增 SCN-010、SCN-011，文件一併更正（SCN-009） | 退役後指示會指向不存在的工具；4e99ceb 不合併，補實作後重新審查 |
 
 ## Gate 豁免紀錄
@@ -279,6 +279,7 @@ memory_policy_lines:
 | 2026-10-27 | Q5、Q6 回答；建立 issue 文件；SCN-001～009 全部核准 | 使用者 |
 | 2026-10-27 | 步驟 1～6 完成（分支 4e99ceb）；本機獨立審查 PASS 但有一項需決策（TBD-2）；使用者選擇擴大範圍，SCN-010、SCN-011 核准 | 使用者 |
 | 2026-10-27 | 步驟 7 完成（f15dd15）；第二輪本機獨立審查 [review-f15dd15.md](./review-f15dd15.md) PASS，沒有要修的項目；依 Gate 豁免以 `git merge --ff-only` 合併到 main（90ad876），未推送、未發版 | - |
+| 2026-11-17 | 逐題確認：TBD-1 改為不影響本次交付，追蹤：無，那台部署升級時照升級文件檢查 | 使用者 |
 
 ---
 **建立日期**: 2026-10-27  

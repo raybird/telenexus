@@ -74,7 +74,7 @@ GitHub：[#31](https://github.com/raybird/telenexus/issues/31)
 
 | 編號 | 事項 | 狀態 | 影響 |
 |------|------|------|------|
-| TBD-1 | 開發 stack 用 `npm run dev`（`tsx watch`），訊號經 npm、tsx 才到 node，這次沒有實測 | 不在範圍內，非阻塞 | 不影響 AC-1～AC-4；共用設定加了 `KILL` 後，dev 容器至少不會再出現 tini 的 FATAL |
+| TBD-1 | 開發 stack 用 `npm run dev`（`tsx watch`），訊號經 npm、tsx 才到 node，這次沒有實測 | 不影響本次交付（2026-11-17）：追蹤：無——正式映像不經 tsx；開發容器停止時最壞是等滿 10 秒寬限被強制終止、沒有收尾，不影響開發資料，共用設定的 `KILL` 也讓 tini 不再 FATAL | 不影響 AC-1～AC-4；共用設定加了 `KILL` 後，dev 容器至少不會再出現 tini 的 FATAL |
 
 ## 實作與驗證步驟
 
@@ -114,6 +114,7 @@ GitHub：[#31](https://github.com/raybird/telenexus/issues/31)
 | 2026-11-17 | 使用者決定合併、發版並升級正式部署；快轉併入 main 的 e678952 | 使用者 |
 | 2026-11-17 | 發版 v2.40.1（tag 指向 e99cb6f，Release workflow 成功、bundle 已上傳）；15:46（台北）正式部署升級到 v2.40.1，升級前備份 data、skills 與兩個 opencode volume；四個服務 healthy，telenexus 與 agent-runner 的 caps 含 `CAP_KILL`。升級當下停掉的是舊容器，新容器的停止行為留待下次停止或升級時觀察 | Claude |
 | 2026-11-17 | 依使用者決定關閉 GitHub #31 | 使用者 |
+| 2026-11-17 | 逐題確認：TBD-1 改為不影響本次交付，追蹤：無，只影響開發容器的停止 | 使用者 |
 
 ---
 **建立日期**: 2026-11-17  
