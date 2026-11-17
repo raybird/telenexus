@@ -38,6 +38,7 @@ GitHub：https://github.com/raybird/telenexus/issues/30
 - 驗證原始 Telegram initData 簽章、auth_date 與 ALLOWED_USER_ID，換發短效憑證；API 以已驗證身分授權。
 - 新管理 API 不得因缺少 WEB_AUTH_TOKEN 或代理／內網信任而放行；Bot Token、登入憑證不得置於公開網址。
 - 模型讀取／列舉／套用／重設抽成共用服務，供原指令與 Web 使用；採驗證後的安全寫入，寫入失敗保留舊設定。
+- `/model` 目前自己讀兩個設定檔（`src/core/command-router.ts`），與 `loadAiConfig()` 有兩處差異（2026-11-17 自 #29 TBD-1 併入，SCN-006）：`model` 不是字串時 `/model` 回「❌ 無法讀取設定檔」，`loadAiConfig()` 則忽略該值、改用另一個檔；`ai-config.yaml` 的位置 `/model` 以 `APP_PROJECT_DIR` 為準，`loadAiConfig()` 預設相對於目前目錄（正式映像兩者都是 `/app`）。改用共用服務後，指令、面板與實際呼叫看到的是同一個有效模型。
 - 保留既有 Telegram long polling；不需要改成 webhook。前端與 API 同源並用相對路徑。
 - 開發與 release Compose 同步；新增映像及部署檔須納入 release bundle／安裝升級機制。
 
@@ -85,6 +86,13 @@ Feature: 按需開啟的 Telegram 模型切換面板
     Then 系統清除失效的啟用狀態並恢復一般選單
     And 重新輸入 /panel 可取得健康入口
     And 不宣稱已送出的歷史按鈕會自動更新
+
+  @SCN-006
+  Scenario: 指令與面板顯示的有效模型與實際呼叫一致
+    Given ai-config.yaml 與 data/ai-config.override.yaml 的 model 可能空白、不是字串或 YAML 壞掉
+    When 使用者輸入 /model 或在面板查看目前設定
+    Then 顯示的有效模型與來源，和後續新呼叫實際使用的模型相同
+    And 某個檔的 model 不合法時照合併規則改用另一個檔，不回報「無法讀取設定檔」
 ```
 
 ## Gherkin 核准紀錄
@@ -99,6 +107,7 @@ Feature: 按需開啟的 Telegram 模型切換面板
 | SCN-003 | - | 待核准 |
 | SCN-004 | - | 待核准 |
 | SCN-005 | - | 待核准 |
+| SCN-006 | - | 待核准 |
 
 ## 風險與首要驗證
 
@@ -120,7 +129,7 @@ Feature: 按需開啟的 Telegram 模型切換面板
 - 自動模型測試或額外計費請求；手動模型探測按鈕僅為後續可選提案。
 
 ## 待確認事項
-- TBD-4：SCN-001～005 完整草案待核准；依 acceptance.md，在主要成功及重要失敗路徑核准前不得開始依賴它們的實作。
+- TBD-4：SCN-001～006 完整草案待核准（SCN-006 於 2026-11-17 自 #29 TBD-1 併入）；依 acceptance.md，在主要成功及重要失敗路徑核准前不得開始依賴它們的實作。
 - TBD-1：閒置自動關閉的預設時間、活動定義及進行中設定操作的保護；實作此行為前確認，暫不列已核准 Scenario。
 - TBD-2：OpenCode 清單如何辨識已認證供應商、快取與刷新方式，實作前查證；UI 不得把目錄清單當認證成功。
 - TBD-3：真實驗證用獨立測試 Bot 與 iOS／Android 客戶端窗口；不得與正式 Bot 共用 polling token。
@@ -148,6 +157,7 @@ Feature: 按需開啟的 Telegram 模型切換面板
 | 日期 | 異動 | 負責人 |
 |---|---|---|
 | 2026-11-15 | 依對話建立 GitHub #30 與初始需求草案，未開始實作 | Codex |
+| 2026-11-17 | 依使用者要求併入 #29 的 TBD-1（`/model` 與 `loadAiConfig()` 的解析差異）：新增 SCN-006（待核准），已查證現況補上差異 | 使用者 |
 
 **建立日期**: 2026-11-15
 **分級**: Large

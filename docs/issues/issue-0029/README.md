@@ -50,7 +50,7 @@
 
 | 編號 | 事項 | 狀態 | 影響 |
 |------|------|------|------|
-| TBD-1 | Telegram 的 `/model`（`src/core/command-router.ts`）有第三份「讀目前模型」的實作：`ai-config.yaml` 以 `APP_PROJECT_DIR` 解析，`loadAiConfig()` 預設以目前目錄解析；`model` 不是字串時 `/model` 會丟例外，`loadAiConfig()` 則忽略它 | 已決定不納入（2026-11-17，Q4）；之後另開 issue | 不影響 AC-1～AC-7 |
+| TBD-1 | Telegram 的 `/model`（`src/core/command-router.ts`）有第三份「讀目前模型」的實作：`ai-config.yaml` 以 `APP_PROJECT_DIR` 解析，`loadAiConfig()` 預設以目前目錄解析；`model` 不是字串時 `/model` 會丟例外，`loadAiConfig()` 則忽略它 | 已決定不納入（2026-11-17，Q4）；同日使用者決定併入 [issue 0030](../issue-0030/README.md) 的 SCN-006（待核准） | 不影響 AC-1～AC-7 |
 
 ## 實作與驗證步驟
 
@@ -84,6 +84,7 @@
 | 2026-11-17 | 結案：照 #27、#28 不開 PR，以本機快轉合併為結案依據；推送、發版與關閉 GitHub #29 由使用者另行決定 | 使用者 |
 | 2026-11-17 | 使用者要求推送 main，origin/main 在 7c3f678（含 95c2ed2） | 使用者 |
 | 2026-11-17 | 使用者關閉 GitHub #29 | 使用者 |
+| 2026-11-17 | TBD-1 併入 issue 0030 的 SCN-006 | 使用者 |
 
 ---
 **建立日期**: 2026-11-17  
