@@ -29,6 +29,8 @@ GitHub：[#31](https://github.com/raybird/telenexus/issues/31)
 
 ## 現況
 
+**現行 review**: review-fec9420.md
+
 | 外部狀態 | 查證命令 | 上次結果 | 查證日期 |
 |---|---|---|---|
 | GitHub issue #31 | `gh issue view 31 --repo raybird/telenexus --json state -q .state` | OPEN | 2026-11-17 |
@@ -105,6 +107,7 @@ GitHub：[#31](https://github.com/raybird/telenexus/issues/31)
 | 2026-11-17 | 建立 GitHub issue #31（#30 實作時發現） | 使用者 |
 | 2026-11-17 | 建立 issue 文件；實測發現 telenexus 只加 `KILL` 無效（訊號停在 dash），Q1～Q3 照建議答案決定；AC-1～AC-4 照草案核准；交付方式：分支＋本機獨立審查 | 使用者 |
 | 2026-11-17 | 步驟 1～4 完成：分支映像實測兩個服務停止時 exit 0、有關閉紀錄（v2.40.0 對照組 exit 1）；卡住的連線 3.1 秒結束 | Claude |
+| 2026-11-17 | 本機獨立審查 review-fec9420 判定 PASS（無 MUST FIX；SHOULD FIX 1 項文件措辭、NICE TO HAVE 5 項） | Claude |
 
 ---
 **建立日期**: 2026-11-17  
