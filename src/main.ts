@@ -11,6 +11,8 @@ import { MemoriaSyncBridge } from './core/memoria-sync.js';
 import { createMessagePipeline } from './core/message-pipeline.js';
 import { Scheduler } from './core/scheduler.js';
 import { startWebServer } from './web/server.js';
+import { PanelSessions } from './web/panel-auth.js';
+import { startPanelServer, type PanelServerHandle } from './web/panel-server.js';
 import { parseBool, parsePositiveInt, parseNumber } from './utils/env.js';
 import {
   loadChatPromptConfig,
@@ -96,6 +98,19 @@ function getWebBindHost(): string {
 
 function getWebPort(): number {
   return parsePositiveInt(process.env.WEB_PORT, 3030);
+}
+
+// issue 0030：模型面板專用連接埠。Compose 只在 Docker 內網開放（不列入 ports:），由 Quick Tunnel 對外。
+function getPanelEnabled(): boolean {
+  return parseBool(process.env.PANEL_ENABLED, true);
+}
+
+function getPanelBindHost(): string {
+  return process.env.PANEL_BIND?.trim() || '127.0.0.1';
+}
+
+function getPanelPort(): number {
+  return parsePositiveInt(process.env.PANEL_PORT, 3040);
 }
 
 function getWebTrustPrivateNetwork(): boolean {
@@ -346,6 +361,26 @@ async function bootstrap() {
     writeContextSnapshots: writeContextSnapshotsFn
   });
 
+  const panelSessions = new PanelSessions();
+  let panelServer: PanelServerHandle | null = null;
+  if (getPanelEnabled()) {
+    try {
+      panelServer = await startPanelServer({
+        host: getPanelBindHost(),
+        port: getPanelPort(),
+        botToken: TELEGRAM_TOKEN,
+        allowedUserId: ALLOWED_USER_ID,
+        sessions: panelSessions
+      });
+      console.log(`[Panel] Listening on ${getPanelBindHost()}:${panelServer.port}`);
+    } catch (error) {
+      // 面板起不來不影響 Bot 本身；/panel 會回報入口無法使用。
+      recordRuntimeIssue('panel:start-failed', error);
+    }
+  }
+  const closeServers = () =>
+    Promise.allSettled([webServer.close(), panelServer?.close() ?? Promise.resolve()]);
+
   // 註冊優雅關閉處理器
   process.on('SIGINT', () => {
     console.log('\n[System] Shutting down gracefully...');
@@ -358,7 +393,7 @@ async function bootstrap() {
     if (terminated > 0) {
       console.log(`[System] Terminated ${terminated} child process tree(s)`);
     }
-    void webServer.close().finally(() => process.exit(0));
+    void closeServers().finally(() => process.exit(0));
   });
 
   process.on('SIGTERM', () => {
@@ -372,7 +407,7 @@ async function bootstrap() {
     if (terminated > 0) {
       console.log(`[System] Terminated ${terminated} child process tree(s)`);
     }
-    void webServer.close().finally(() => process.exit(0));
+    void closeServers().finally(() => process.exit(0));
   });
 
   process.on('SIGUSR1', async () => {

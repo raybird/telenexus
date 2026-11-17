@@ -39,8 +39,28 @@
 - 驗收編號：SCN-002（責任）
 - 完成判準：真實 HTTP 請求下，偽造／過期／非白名單 initData 登入失敗；沒帶憑證、偽造憑證、舊世代憑證、帶 `X-Forwarded-For: 127.0.0.1` 或內網 Host 的請求都被拒絕；`/api/chat`、`/api/memory/export`、`/api/schedules`、`/` 等既有 Web Console 路徑都是 404，不論 `WEB_AUTH_TOKEN` 是否空白、`WEB_TRUST_PRIVATE_NETWORK` 是否為 true；被拒的請求沒有改動 override 檔。
 - 驗證：整合測試起真伺服器打 HTTP（外迴圈），Task 1.1 為內迴圈；設定未變以讀檔比對。
-- 狀態：📝 待實作
+- 狀態：✅ 已完成（2026-11-17）
 - 證據：
+  - 產出：
+    - `src/web/panel-server.ts`（`startPanelServer()`）。`POST /panel-api/login` 換發憑證，其他 `/panel-api/*` 先驗 Bearer 憑證，其餘路徑 404。
+    - `src/main.ts` 以 `PANEL_ENABLED`（預設 true）、`PANEL_BIND`（預設 127.0.0.1，Compose 在 Task 5.1 設 0.0.0.0）、`PANEL_PORT`（預設 3040）啟動。啟動失敗記 `panel:start-failed`，不影響 Bot。關閉時一併收掉。
+    - `tests/web/panel-server.test.ts`：8 支，皆標 SCN-002，以真實 HTTP 驗證。
+  - 雙迴圈：外迴圈是本檔的真實 HTTP 測試，內迴圈是 Task 1.1 的單元測試。
+  - 外迴圈紅燈 1（allow-all 樁，任何請求回 200 並附憑證）：`npx tsx --test tests/web/panel-server.test.ts` exit 1，`# fail 8`。偽造登入、沒帶憑證、偽造 `X-Forwarded-For`、舊 Web Console 路徑都拿到 200。
+  - 外迴圈紅燈 2（deny-all 樁，一律 404）：同命令 exit 1，`# fail 8`。有效登入拿不到憑證，拒絕回 404 而不是 401。
+  - 綠燈：同命令 exit 0，`# tests 8`、`# pass 8`。
+  - 變異檢查（各自還原後重跑）：4 種都被抓到。
+    - 接受網址參數裡的憑證：1 支失敗
+    - 信任 `X-Forwarded-For: 127.0.0.1`：2 支失敗
+    - 未登入時先回 404 再驗授權（洩漏路徑是否存在）：1 支失敗
+    - 拿掉 body 大小上限：1 支失敗
+  - 重構：code-simplify 檢查後沒有實質改善（no-op）。
+  - 交付檢查：
+    - `npm run build` exit 0；`npm run lint` exit 0。
+    - `npm run test` exit 0，`# tests 860`、`# pass 860`，比 Task 1.1 後的 852 多 8 支；測試檔 96 個（多 1 個），相符（L-01）。
+  - 限制：
+    - 「被拒的請求不改動設定」目前只證明到「未登入的寫入路徑都 401、檔案不變」。這時還沒有寫入 API，Task 4.1 加上套用與重設後，要重跑這個斷言。
+    - `src/main.ts` 的啟動接線沒有自動化測試（要真的 Bot token），留給 Task 5.2 的實際 stack 驗證。
 
 ### Phase 2 — 共用模型設定
 
