@@ -11,7 +11,7 @@ GitHub：https://github.com/raybird/telenexus/issues/30
 
 | 外部狀態 | 查證命令 | 上次結果 | 查證日期 |
 |---|---|---|---|
-| GitHub issue #30 | `gh issue view 30 --repo raybird/telenexus --json state -q .state` | OPEN | 2026-11-17 |
+| GitHub issue #30 | `gh issue view 30 --repo raybird/telenexus --json state -q .state` | CLOSED | 2026-11-17 |
 | 發版 v2.40.0 含本 issue | `gh release view v2.40.0 --repo raybird/telenexus --json tagName -q .tagName` | v2.40.0 | 2026-11-17 |
 | 正式部署版本 | 在部署目錄執行 `docker compose exec -T telenexus node -p "require('/app/package.json').version"` | 2.40.0 | 2026-11-17 |
 
@@ -194,6 +194,7 @@ Feature: 按需開啟的 Telegram 模型切換面板
 | 2026-11-17 | 使用者決定合併、發版並升級正式部署；快轉併入 main 的 2c37836，進入 Task 5.4 外部驗收窗 | 使用者 |
 | 2026-11-17 | 發版 v2.40.0（含 #28、#29），14:23（台北）升級正式部署，四個服務 healthy；容器網路上的面板連線檢查通過，Task 5.4 等使用者在 Android 驗收 | Claude |
 | 2026-11-17 | 使用者在 Android 完成 Task 5.4（補做換網域後重新登入），Tunnel 世代 7 佐證；issue 完成 | 使用者 |
+| 2026-11-17 | 依使用者指示關閉 GitHub #30 | Claude |
 
 **建立日期**: 2026-11-15
 **分級**: Large
