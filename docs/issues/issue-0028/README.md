@@ -23,7 +23,7 @@ GitHub：[#28](https://github.com/raybird/telenexus/issues/28)
 
 ## 現況
 
-**現行 review**: review-eb9cc0b.md
+**現行 review**: review-2eafbb6.md
 
 | 外部狀態 | 查證命令 | 上次結果 | 查證日期 |
 |---|---|---|---|
@@ -223,4 +223,4 @@ Feature: Telegram 聊天回覆與排程結果把過程敘述摺疊起來，結�
 **建立日期**: 2026-11-16  
 **分級**: Medium — 跨 opencode 輸出解析、runner 結果、回覆組裝與 Telegram 渲染，但不涉及 schema 或架構調整  
 **風險**: Medium\
-**狀態**: 實作中（審查修正完成，等待重新審查）
+**狀態**: 實作中（重新審查 PASS，等待合併）
