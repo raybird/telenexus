@@ -7,6 +7,7 @@ import yaml from 'js-yaml';
 import { parseBool } from '../utils/env.js';
 import { resolveProjectDir } from '../utils/paths.js';
 import { applyModel, listModels, readModelState, resetModel } from './model-config.js';
+import type { OpenResult } from '../services/panel-controller.js';
 
 type CommandContext = {
   msg: UnifiedMessage;
@@ -18,6 +19,13 @@ type CommandContext = {
   requestNewSession: (userId: string) => void;
 };
 
+/** /panel 指令需要的面板控制介面（實作在 services/panel-controller.ts）。 */
+export type PanelCommandTarget = {
+  adminUserId: string;
+  open(): Promise<OpenResult>;
+  close(reason: 'manual'): Promise<{ wasOpen: boolean }>;
+};
+
 type CommandDefinition = {
   name: string;
   match: (content: string) => boolean;
@@ -26,6 +34,7 @@ type CommandDefinition = {
 
 export class CommandRouter {
   private commands: CommandDefinition[] = [];
+  private panel: PanelCommandTarget | null = null;
   private readonly maxSendFileBytes = 45 * 1024 * 1024;
   private readonly sendFileStrictTempOnly = parseBool(
     process.env.SEND_FILE_STRICT_TEMP_ONLY,
@@ -41,8 +50,23 @@ export class CommandRouter {
     this.registerDefaultCommands();
   }
 
+  /** 不能使用面板指令時回傳原因（沒有設定、不是私聊、不是管理員）。 */
+  private panelDenied(msg: UnifiedMessage, userId: string): string | null {
+    if (!this.panel) return 'ℹ️ 模型設定面板未啟用。';
+    if (msg.telegram && msg.telegram.chatType !== 'private') {
+      return 'ℹ️ 模型設定面板只能在與 Bot 的私聊中使用。';
+    }
+    if (userId !== this.panel.adminUserId) return '❌ 只有管理員可以使用模型設定面板。';
+    return null;
+  }
+
   registerCommand(command: CommandDefinition): void {
     this.commands.push(command);
+  }
+
+  /** issue 0030：模型面板入口；沒有設定時 /panel 回覆未啟用。 */
+  setPanel(panel: PanelCommandTarget | null): void {
+    this.panel = panel;
   }
 
   async handleMessage(
@@ -162,6 +186,8 @@ export class CommandRouter {
 - \`/models opencode\`: 只列出 opencode 模型
 - \`/set_model <model-id>\`: 切換使用模型（寫入 override）
 - \`/reset_model\`: 清除 override，恢復 base config 設定
+- \`/panel\`: 開啟模型設定面板（Telegram Mini App，私聊限定）
+- \`/panel_close\`: 立即關閉面板入口
 
 📅 **排程管理功能**
 目前的系統內建了強大的排程系統，您可以設定定時任務讓 AI 主動執行。
@@ -476,6 +502,55 @@ export class CommandRouter {
         await connector.sendMessage(
           userId,
           `✅ 已清除模型 override（\`${result.previous || '?'}\`），恢復使用 base config 設定。`
+        );
+      }
+    });
+
+    this.registerCommand({
+      name: 'panel',
+      match: (content) => content === '/panel',
+      execute: async ({ msg, userId, connector }) => {
+        const denied = this.panelDenied(msg, userId);
+        if (denied) {
+          await connector.sendMessage(msg.chatId || userId, denied);
+          return;
+        }
+        const result = await this.panel!.open();
+        if (!result.ok) {
+          await connector.sendMessage(
+            userId,
+            `❌ 無法開啟模型設定面板：${result.message}\n沒有發布新入口。`
+          );
+          return;
+        }
+        await connector.sendMessage(
+          userId,
+          result.reused
+            ? '🔧 模型設定面板的入口仍然有效，請點輸入框旁的「模型設定」選單按鈕開啟。'
+            : [
+                '🔧 模型設定面板已開啟：請點輸入框旁的「模型設定」選單按鈕進入。',
+                '入口 30 分鐘沒有操作會自動關閉，也可以用 /panel_close 立即關閉。',
+                '之前送出的面板網址或按鈕不會跟著更新，請一律從選單按鈕進入。'
+              ].join('\n')
+        );
+      }
+    });
+
+    this.registerCommand({
+      name: 'panel_close',
+      match: (content) => content === '/panel_close',
+      execute: async ({ msg, userId, connector }) => {
+        const denied = this.panelDenied(msg, userId);
+        if (denied) {
+          await connector.sendMessage(msg.chatId || userId, denied);
+          return;
+        }
+        const { wasOpen } = await this.panel!.close('manual');
+        await connector.sendMessage(
+          userId,
+          wasOpen
+            ? '✅ 模型設定面板的入口已關閉，選單已恢復。'
+            : 'ℹ️ 模型設定面板目前沒有開啟（已確認 Tunnel 停止、選單恢復）。'
         );
       }
     });

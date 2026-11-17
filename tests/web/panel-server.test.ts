@@ -227,3 +227,31 @@ test('SCN-001：/panel/health 不需登入，只回服務名稱，供 tunnel-man
     assert.equal((await fetch(`${base}/panel/health`, { method: 'POST' })).status, 404);
   });
 });
+
+test('SCN-005：只有經過驗證的面板請求算活動（供閒置計時），未登入的請求不算', async () => {
+  const sessions = new PanelSessions();
+  let activity = 0;
+  const server = await startPanelServer({
+    host: '127.0.0.1',
+    port: 0,
+    botToken: BOT_TOKEN,
+    allowedUserId: ALLOWED,
+    sessions,
+    now: () => (AUTH_DATE + 30) * 1000,
+    onActivity: () => {
+      activity += 1;
+    }
+  });
+  const base = `http://127.0.0.1:${server.port}`;
+  try {
+    await fetch(`${base}/panel-api/session`, { headers: { 'x-forwarded-for': '127.0.0.1' } });
+    await fetch(`${base}/panel/health`);
+    await login(base, VALID.replace('424242', '424243'));
+    assert.equal(activity, 0);
+    const token = await tokenFor(base);
+    await fetch(`${base}/panel-api/session`, { headers: { authorization: `Bearer ${token}` } });
+    assert.equal(activity, 2);
+  } finally {
+    await server.close();
+  }
+});

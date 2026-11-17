@@ -22,6 +22,8 @@ export type PanelServerOptions = {
   allowedUserId: string;
   sessions: PanelSessions;
   now?: () => number;
+  /** 每筆經過驗證的請求（登入成功、帶有效憑證）呼叫一次，供閒置計時（SCN-005）。 */
+  onActivity?: () => void;
 };
 
 export type PanelServerHandle = { port: number; close(): Promise<void> };
@@ -102,6 +104,7 @@ async function handle(
       sendJson(res, 401, { ok: false, error: 'unauthorized', reason: result.reason });
       return;
     }
+    options.onActivity?.();
     sendJson(res, 200, { ok: true, token: options.sessions.issue(result.userId) });
     return;
   }
@@ -112,6 +115,7 @@ async function handle(
     sendJson(res, 401, { ok: false, error: 'unauthorized' });
     return;
   }
+  options.onActivity?.();
 
   if (req.method === 'GET' && pathname === `${API_PREFIX}session`) {
     sendJson(res, 200, { ok: true, userId: session.userId });

@@ -173,13 +173,54 @@
     - telenexus 以唯讀掛載同一個 volume。
 
 #### Task 3.2 — `/panel`、`/panel_close` 與選單按鈕
-- 產出與範圍：Tunnel 客戶端、兩個指令、`setChatMenuButton` 的設定與還原、Tunnel 退出／閒置關閉時還原選單並作廢憑證、面板請求回報活動。
+- 產出與範圍：Tunnel 客戶端、兩個指令、`setChatMenuButton` 的設定與還原、30 分鐘閒置計時（寫入中不算閒置）、Tunnel 退出或閒置關閉時還原選單並作廢憑證、面板請求回報活動、服務啟動時收掉殘留入口。
 - 相依：Task 1.2、Task 3.1
 - 驗收編號：SCN-001（責任）、SCN-005（責任）
 - 完成判準：健康後才設定 `web_app` 按鈕；重複 `/panel` 沿用同一網址；tunnel-manager 不存在、拒絕或逾時時回報原因且不呼叫 `setChatMenuButton`；`/panel_close`、閒置與意外退出三種情況都還原成 `default` 並使舊憑證失效；之後再 `/panel` 能取得新入口；回覆不宣稱已送出的舊按鈕會更新；非私聊或非白名單不啟動 Tunnel。
 - 驗證：pipeline／指令層整合測試，Telegram API 與 tunnel-manager 用假的（記錄呼叫順序），tunnel-manager 也以 Task 3.1 的真程式搭假 cloudflared 跑一次端對端。
-- 狀態：📝 待實作
+- 狀態：✅ 已完成（2026-11-17）
 - 證據：
+  - 產出：
+    - `src/tunnel/tunnel-client.ts`（`TunnelClient`，失敗分 unreachable／unauthorized／failed／timeout／bad-response）
+    - `src/services/panel-controller.ts`（`PanelController`：open／close／touch／beginWrite／checkIdle／poll／boot、30 秒的檢查計時）
+    - `src/core/command-router.ts` 的 `/panel`、`/panel_close`（`setPanel()`、私聊與管理員檢查、`/start` 說明）
+    - `TelegramConnector.setPanelMenuButton()`（web_app／default，網址必須是 HTTPS）
+    - `panel-server` 的 `onActivity`
+    - `src/main.ts` 接線：`TUNNEL_MANAGER_URL` 預設 `http://tunnel-manager:8790`，`TUNNEL_KEY_FILE` 預設 `/run/telenexus-tunnel/key`。Telegram 就緒後先 `boot()` 再開計時。
+  - 測試（共 26 支）：
+    - `tests/panel-controller.test.ts` 16 支。最後兩支是端對端：真的 `TunnelManager`、內部 API、`TunnelClient`，搭假 cloudflared。
+    - `tests/command-router-panel.test.ts` 6 支
+    - `tests/telegram/connector-panel-menu.test.ts` 3 支，參數形狀依 Bot API 文件
+    - `tests/web/panel-server.test.ts` 加 1 支
+    - 共用的假 cloudflared 移到 `tests/fixtures/tunnel/fake-cloudflared.sh`，Task 3.1 的測試改讀它，仍 13 支全過。
+  - 雙迴圈：
+    - 外迴圈是指令層測試與控制器端對端，內迴圈是控制器、客戶端、connector 的單元測試。
+    - 閒置與狀態檢查以注入時鐘直接呼叫 `checkIdle()`、`poll()`，不等真實計時器。
+  - 紅燈（每段都是目標行為缺失）：
+    - 控制器與客戶端：樁實作（open 一律成功、什麼都不呼叫）下 `# fail 15`。
+    - 指令：先放 no-op 的 `setPanel()`，`# fail 6`，回覆是「❌ 未知指令」。
+    - 選單按鈕：先放 no-op 方法，`# fail 3`。
+    - 活動回報：`# fail 1`，計數停在 0。
+  - 綠燈：
+    - `tests/panel-controller.test.ts` 加 `tests/command-router-panel.test.ts`：`# pass 21`
+    - connector：`# pass 3`
+    - panel-server：`# pass 10`
+  - 變異檢查（各自還原後重跑），8 種都被抓到：
+    - 換網址不作廢憑證：1 支失敗
+    - 閒置不看寫入中：1 支失敗
+    - 狀態查詢第一次失敗就關：1 支失敗
+    - 選單設定失敗不停 Tunnel：1 支失敗
+    - 閒置差一毫秒：2 支失敗
+    - 不檢查私聊：1 支失敗
+    - 不檢查管理員：1 支失敗
+    - 不檢查就緒狀態：一開始沒被抓到，補上「有網址但狀態不是就緒」那支後，1 支失敗
+  - 重構：`boot()` 改成不經 `close()`，因為沒部署 tunnel-manager 時停止必然失敗，不應每次啟動都記 runtime issue 觸發告警。重跑仍綠。
+  - 交付檢查：
+    - `npm run build` exit 0；`npm run lint` exit 0。
+    - `npm run test` exit 0，`# tests 930`、`# pass 930`，比 Task 3.1 後的 904 多 26 支；測試檔 102 個（多 3 個）（L-01）。
+  - 限制：
+    - `src/main.ts` 的接線與真的 Telegram `setChatMenuButton` 沒有自動化測試，前者由 Task 5.2 驗證，後者由 Task 5.4 驗證。
+    - `/panel` 的成功回覆不含網址，入口只有選單按鈕，所以沒有會過期的歷史按鈕。
 
 ### Phase 4 — Mini App 模型面板
 

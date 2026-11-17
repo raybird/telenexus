@@ -8,18 +8,10 @@ import path from 'node:path';
 import { TunnelManager, type TunnelState } from '../../src/tunnel/tunnel-manager.js';
 import { ensureTunnelKey, startTunnelApi } from '../../src/tunnel/tunnel-api.js';
 
-const FAKE = `#!/bin/sh
-# 記錄每次啟動的參數，供測試核對次數與內容
-printf '%s\\n' "$*" >> "$FAKE_LOG"
-case "$FAKE_MODE" in
-  exit-early) echo "ERR failed to request quick Tunnel" >&2; exit 1 ;;
-  no-url) exec sleep 30 ;;
-  url-then-exit) echo "INF |  https://fake-$$.trycloudflare.com  |" >&2; sleep 0.3; exit 0 ;;
-  *) echo "INF Requesting new quick Tunnel on trycloudflare.com..." >&2
-     echo "INF |  https://fake-$$.trycloudflare.com  |" >&2
-     exec sleep 30 ;;
-esac
-`;
+const FAKE = fs.readFileSync(
+  path.join(import.meta.dirname, '..', 'fixtures', 'tunnel', 'fake-cloudflared.sh'),
+  'utf8'
+);
 
 type Env = { bin: string; log: string; dir: string; launches(): string[] };
 

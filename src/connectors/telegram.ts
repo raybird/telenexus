@@ -1013,6 +1013,26 @@ export class TelegramConnector implements Connector {
     this.messageHandler = handler;
   }
 
+  /**
+   * issue 0030：設定私聊的選單按鈕。url 為 null 時恢復一般選單（MenuButtonDefault）。
+   * Bot API 規定 web_app 網址必須是 HTTPS，不是就不送出。
+   */
+  async setPanelMenuButton(chatId: string, url: string | null): Promise<void> {
+    const id = Number(chatId);
+    if (!Number.isSafeInteger(id)) throw new Error(`選單按鈕只能設定在私聊（chat id: ${chatId}）`);
+    if (url !== null && !url.startsWith('https://')) {
+      throw new Error('Mini App 網址必須是 HTTPS');
+    }
+    const menuButton =
+      url === null
+        ? ({ type: 'default' } as const)
+        : ({ type: 'web_app', text: '模型設定', web_app: { url } } as const);
+    await this.withTimeout(
+      this.bot.telegram.setChatMenuButton({ chatId: id, menuButton }),
+      'setChatMenuButton'
+    );
+  }
+
   async sendMessage(
     chatId: string,
     text: string,

@@ -13,6 +13,8 @@ import { Scheduler } from './core/scheduler.js';
 import { startWebServer } from './web/server.js';
 import { PanelSessions } from './web/panel-auth.js';
 import { startPanelServer, type PanelServerHandle } from './web/panel-server.js';
+import { PanelController } from './services/panel-controller.js';
+import { TunnelClient } from './tunnel/tunnel-client.js';
 import { parseBool, parsePositiveInt, parseNumber } from './utils/env.js';
 import {
   loadChatPromptConfig,
@@ -363,14 +365,35 @@ async function bootstrap() {
 
   const panelSessions = new PanelSessions();
   let panelServer: PanelServerHandle | null = null;
-  if (getPanelEnabled()) {
+  const panelController = getPanelEnabled()
+    ? new PanelController({
+        client: new TunnelClient({
+          baseUrl: process.env.TUNNEL_MANAGER_URL?.trim() || 'http://tunnel-manager:8790',
+          keyFile: process.env.TUNNEL_KEY_FILE?.trim() || '/run/telenexus-tunnel/key'
+        }),
+        menu: {
+          show: (url) => telegram.setPanelMenuButton(ALLOWED_USER_ID, url),
+          reset: () => telegram.setPanelMenuButton(ALLOWED_USER_ID, null)
+        },
+        sessions: panelSessions,
+        notify: (text) => telegram.sendMessage(ALLOWED_USER_ID, text),
+        panelAvailable: () => panelServer !== null
+      })
+    : null;
+  if (panelController) {
+    commandRouter.setPanel({
+      adminUserId: ALLOWED_USER_ID,
+      open: () => panelController.open(),
+      close: (reason) => panelController.close(reason)
+    });
     try {
       panelServer = await startPanelServer({
         host: getPanelBindHost(),
         port: getPanelPort(),
         botToken: TELEGRAM_TOKEN,
         allowedUserId: ALLOWED_USER_ID,
-        sessions: panelSessions
+        sessions: panelSessions,
+        onActivity: () => panelController.touch()
       });
       console.log(`[Panel] Listening on ${getPanelBindHost()}:${panelServer.port}`);
     } catch (error) {
@@ -378,8 +401,10 @@ async function bootstrap() {
       recordRuntimeIssue('panel:start-failed', error);
     }
   }
-  const closeServers = () =>
-    Promise.allSettled([webServer.close(), panelServer?.close() ?? Promise.resolve()]);
+  const closeServers = () => {
+    panelController?.stopTimers();
+    return Promise.allSettled([webServer.close(), panelServer?.close() ?? Promise.resolve()]);
+  };
 
   // 註冊優雅關閉處理器
   process.on('SIGINT', () => {
@@ -430,6 +455,14 @@ async function bootstrap() {
 
   // 啟動連接器 (確保 bot instance 存在)
   await telegram.initialize();
+
+  // issue 0030：重啟後記憶體憑證都失效了，先收掉殘留的 Tunnel 與選單按鈕，再開始閒置／狀態檢查。
+  if (panelController) {
+    void panelController
+      .boot()
+      .catch((error: unknown) => console.warn('[Panel] boot cleanup failed:', error))
+      .finally(() => panelController.startTimers());
+  }
 
   // 模型健康檢查:必須在 connector 就緒後才啟動,否則告警無處可去。
   // 非阻塞 —— startModelHealthCheck 內部自行排程,不 await 首次探測。
