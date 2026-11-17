@@ -40,6 +40,13 @@ export interface FoldedReply {
   process: string[];
 }
 
+export interface SendFoldedReplyOptions {
+  retries?: number;
+  throwOnError?: boolean;
+  retryOnTimeout?: boolean;
+  messageThreadId?: number;
+}
+
 export interface Connector {
   name: string;
   initialize(): Promise<void>;
@@ -65,12 +72,7 @@ export interface Connector {
   sendFoldedReply?(
     chatId: string,
     reply: FoldedReply,
-    options?: {
-      retries?: number;
-      throwOnError?: boolean;
-      retryOnTimeout?: boolean;
-      messageThreadId?: number;
-    }
+    options?: SendFoldedReplyOptions
   ): Promise<void>;
 
   /**

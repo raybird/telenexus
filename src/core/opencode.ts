@@ -94,7 +94,7 @@ export function parseOpencodeJsonOutput(
   if (sessionId) {
     result.sessionId = sessionId;
   }
-  const replyParts = stepTexts.build(clean);
+  const replyParts = stepTexts.build(clean, clean(text));
   if (replyParts) {
     result.replyParts = replyParts;
   }

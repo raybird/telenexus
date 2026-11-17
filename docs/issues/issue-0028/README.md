@@ -218,9 +218,10 @@ Feature: Telegram 聊天回覆與排程結果把過程敘述摺疊起來，結�
 | 2026-11-16 | 規格修訂：步驟 1 盤點發現有過程的回覆大多是排程結果，使用者改為納入排程並改走 MarkdownV2（TBD-4），修訂 SCN-009、新增 SCN-011、SCN-012，同日核准；分界規則維持（TBD-1） | 使用者 |
 | 2026-11-16 | 規格修訂：沒有開發用 bot，SCN-010 改為以正式 bot 的 token 直接呼叫 Bot API（TBD-2），同日核准 | 使用者 |
 | 2026-11-17 | 本機獨立審查 PASS（review-eb9cc0b.md，1 項 SHOULD FIX）；使用者選擇修正 SHOULD FIX 與 NICE TO HAVE 1～3 後重新審查 | 使用者 |
+| 2026-11-17 | 重新審查 PASS（review-2eafbb6.md）；使用者選擇合併前先處理 NICE TO HAVE 4～8，處理後再審查 | 使用者 |
 
 ---
 **建立日期**: 2026-11-16  
 **分級**: Medium — 跨 opencode 輸出解析、runner 結果、回覆組裝與 Telegram 渲染，但不涉及 schema 或架構調整  
 **風險**: Medium\
-**狀態**: 實作中（重新審查 PASS，等待合併）
+**狀態**: 實作中（處理 NICE 4～8 完成，等待重新審查）

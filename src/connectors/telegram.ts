@@ -3,7 +3,12 @@ import { Agent } from 'https';
 import { createConnection } from 'net';
 import fs from 'fs';
 import path from 'path';
-import type { Connector, FoldedReply, UnifiedMessage } from '../types/index.js';
+import type {
+  Connector,
+  FoldedReply,
+  SendFoldedReplyOptions,
+  UnifiedMessage
+} from '../types/index.js';
 import { parsePositiveInt } from '../utils/env.js';
 import { recordRuntimeIssue } from '../utils/errors.js';
 import { resolveProjectDir } from '../utils/paths.js';
@@ -1073,12 +1078,7 @@ export class TelegramConnector implements Connector {
   async sendFoldedReply(
     chatId: string,
     reply: FoldedReply,
-    options?: {
-      retries?: number;
-      throwOnError?: boolean;
-      retryOnTimeout?: boolean;
-      messageThreadId?: number;
-    }
+    options?: SendFoldedReplyOptions
   ): Promise<void> {
     try {
       const messages = buildFoldedMessages(reply, (markdown) => this.renderForMarkdownV2(markdown));

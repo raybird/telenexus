@@ -22,7 +22,9 @@
    - 只有一段，或沒有任何 `tool-calls` step 有文字 → 沒有過程（SCN-002）。
    - 最後一個 step 沒有文字 → 不分段（SCN-003）。
    - 每段各自 `cleanOutput()`，空段捨棄。
-   - think 結束標籤：段落裡標籤前的文字移到過程（成為一段），標籤後的文字留在原處（SCN-005）。兩個標籤本身沿用 #27 的處理不輸出。
+   - think 結束標籤：段落裡標籤前的文字移到過程（成為一段），標籤後的文字留在原處（SCN-005）。兩個標籤本身沿用 #27 的處理不輸出。只有一個 step 但含 think 結束標籤時，SCN-005 優先於 SCN-002：推理文字照樣摺進過程，依據是 Q3「think 標籤前的推理文字一併摺進過程」（review-eb9cc0b NICE 4）。
+   - 最後一個 step 之前有文字、卻不是以 `tool-calls` 結束的 step 不算過程，整個回合不分段（照舊送全文），與 Background 的「過程」定義一致（review-eb9cc0b NICE 5）。
+   - 每一段都必須出現在清洗後的全文裡才分段：跨 step 的 `<thinking>` 區塊與工具呼叫外洩的警示只有全文清洗才判斷得到，不一致時照舊送全文（review-eb9cc0b NICE 7）。
 2. **結果型別**。`AgentStructuredResult` 新增可選欄位（暫名 `replyParts: { process: string[]; conclusion: string }`），只有確實分出過程時才帶。`text` 維持現在的全文，儲存與摘要照舊（SCN-009）。`fromRunnerStructured()` 帶上新欄位，runner 的 HTTP 回應本來就序列化整個 `structured`。降級結果（`failure` 有值、中止）不帶（SCN-007）。tool_only 追問的回合以追問的文字為結論，首輪若有過程文字一併保留為過程。
 3. **組裝**。pipeline 對全文的既有處理不變；另外對 `replyParts` 的每一段做同樣的 SEND_FILE 與 MEMORY_INTENT 移除（SCN-008），`[Opencode] ` 加在結論前。把顯示用的過程與結論交給 `finalize()`／`deliverFinalResponse()`；沒有 `replyParts` 時走原本的單一字串路徑（SCN-002 逐字相同）。
 4. **渲染與切段**。過程渲染成 MarkdownV2 可展開引言：第一行 `**>過程`，各段之間空一個引言行，最後一行結尾加 `||`。結論加過程在 4096 以內時一則送出；超過時結論照現有方式切段送出，過程依段落切成多則，每則都是完整的可展開引言（SCN-004）。確切寫法以步驟 2 的實測為準。
@@ -54,7 +56,7 @@
    - 交付檢查：`npm run build` exit 0；`npm run test` exit 0，`# tests 793`、`# pass 793`，91 個測試檔（比主幹多的 12 個就是本步驟新增的測試）；`npm run lint` exit 0。
    - 影響分析：GitNexus impact 回報 LOW（`parseOpencodeJsonOutput` 0 個呼叫者、`runStreamChat` 1 個、`fromRunnerStructured` 查無此 symbol）；grep 實際呼叫點為 `parseOpencodeJsonOutput` 1 處（`opencode.ts` 的 `toStructuredResult`）、`fromRunnerStructured` 2 處、`parseStreamLine` 2 處，都在本次修改範圍內，新增的都是可選欄位。
    - 產出：`cli-agent-base.ts`、`opencode.ts`（必要時 `opencode-event-parser.ts`）、`agent-result.ts`、`agent.ts` 的修改與測試。
-   - 測試：以 `1.18.34-tool-use.stdout.jsonl` 與手寫的多 step fixture 驅動串流與非串流路徑，斷言 `replyParts` 的過程與結論（期望值取自 fixture 的字面文字）；只有一個 step、最後一個 step 沒有文字、含 think 標籤、逾時／限流／上游錯誤各一例；runner 路徑（`dynamic-agent-runner-stream`）與本機路徑結果相同；`text` 與變更前相同。
+   - 測試：以 `1.18.34-tool-use.stdout.jsonl` 與手寫的多 step fixture 驅動串流與非串流路徑，斷言 `replyParts` 的過程與結論（期望值取自 fixture 的字面文字）；只有一個 step、最後一個 step 沒有文字、含 think 標籤、上游錯誤一例（逾時、限流、中止由 `buildTextOnlyStructuredResult()` 組結果、不經 `successResult()`，結構上不帶 `replyParts`，以讀碼確認，未另寫測試；review-eb9cc0b NICE 6）；runner 路徑（`dynamic-agent-runner-stream`）與本機路徑結果相同；`text` 與變更前相同。
    - 相依：步驟 1（TBD-1 有結論）。
    - 完成判準：上述測試先紅後綠，紅綠重構證據寫回本步驟；`npm run build` 通過。
 4. ✅ **步驟 4：組裝、渲染與送出**（SCN-001、SCN-004、SCN-006、SCN-008、SCN-009、SCN-011、SCN-012）
@@ -94,6 +96,17 @@
    - 交付檢查：`npm run build` exit 0；`npm run test` exit 0，`# tests 818`、`# pass 818`（比審查時多 5 個，都是本項新增）；`npm run lint` exit 0；步驟 4 的語料檢查重跑結果不變（缺字詞 0、超長 0、引言不完整 0）。
    - 影響分析：GitNexus 索引尚未收錄本分支新增的符號（`toFoldedReply`、`quote` 回報 not found），改以 grep 核對：`toFoldedReply` 1 處呼叫（pipeline），`quote` 只在 `folded-reply.ts` 內部 3 處。
    - 未處理：NICE 4～8 維持審查報告的評估，不在本項範圍。
+
+8. ✅ **審查建議 NICE 4～8**（[review-2eafbb6.md](review-2eafbb6.md) 照列的第一輪 NICE TO HAVE 4～8；使用者 2026-11-17 選「先處理 NICE 4～8」再合併）
+   - NICE 4：設計第 1 點註明只有一個 step 但含 think 結束標籤時 SCN-005 優先於 SCN-002（Q3 的答案），規格文字不變。
+   - NICE 5：改程式對齊規格的「過程」定義。`StepTextCollector.build()` 遇到最後一個 step 之前有文字、卻不是以 `tool-calls` 結束的 step 時不分段。步驟 1 的快照中這種 step 2,144 個裡只有 1 個（結束原因 `unknown`）。
+   - NICE 6：步驟 3 的測試描述改成實際做法（SCN-007 只有上游錯誤一例，其餘降級出口結構上不帶 `replyParts`）。
+   - NICE 7：`build()` 新增必填參數 `shownText`（清洗後的全文；串流傳 `aggregatedText`，非串流傳 `clean(text)`），每一段都要出現在全文裡才分段。用真的 `cleanOutput` 把步驟 4 的語料重跑一次（暫存副本，跑完刪除），85 個有過程的回合仍全部分段，缺字詞 0。
+   - NICE 8：`Fence` 型別提到檔案層；`SendFoldedReplyOptions` 定義在 `types/index.ts`，`TelegramConnector` 沿用；`StepTextCollector` 的說明註解移到 class 上方。
+   - 紅燈：新增 3 個測試在修正前的程式上都失敗（`tests/opencode-reply-parts.test.ts` 13 個中 3 個，`replyParts` 不是 undefined）：非最後的 step 以 `unknown` 結束、跨 step 的 `<thinking>`、只有一段觸發外洩警示。
+   - 變異：拿掉結束原因的檢查時第 1 個失敗；拿掉全文一致性檢查時後 2 個失敗；還原後全過。
+   - 交付檢查：`npm run build` exit 0；`npm run test` exit 0，`# tests 821`、`# pass 821`（比 2eafbb6 多 3 個，都是本項新增）；`npm run lint` exit 0；步驟 4 的語料檢查重跑結果不變。
+   - 影響分析：`StepTextCollector.build()` 的呼叫者以 grep 核對為 2 處（`cli-agent-base.ts` 的 `successResult()`、`opencode.ts` 的 `parseOpencodeJsonOutput()`），另有測試與 `evidence/step4-corpus-check.ts` 一併更新；GitNexus 索引尚未收錄本分支新增的符號。
 
 ## 使用方式對照
 

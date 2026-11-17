@@ -9,6 +9,9 @@ const TELEGRAM_MESSAGE_LIMIT = 4096;
 const PROCESS_TITLE = '過程';
 const FENCE = /^(\s*)(`{3,}|~{3,})/;
 
+/** 目前開著的程式碼區塊：開頭那一行與對應的結尾 fence。 */
+type Fence = { line: string; close: string };
+
 /**
  * 把回覆排成結論在前、過程收進可展開引言的訊息（issue 0028）。寫法依步驟 2 實測定案：
  * 第一行 `**>過程`，每行前加 `>`，段落之間一個空的引言行，最後一行結尾加 `||`。
@@ -91,7 +94,6 @@ function processPlain(segments: string[]): string {
  * 下一段以同一個開頭 fence 接續，兩邊都還是程式碼。單行就放不下時依字元切。
  */
 function splitSegment(segment: string, fits: (piece: string) => boolean, limit: number): string[] {
-  type Fence = { line: string; close: string };
   const pieces: string[] = [];
   let openFence: Fence | undefined;
   let current: string[] = [];
@@ -135,10 +137,7 @@ function splitSegment(segment: string, fits: (piece: string) => boolean, limit: 
   return pieces;
 }
 
-function toggleFence(
-  open: { line: string; close: string } | undefined,
-  line: string
-): { line: string; close: string } | undefined {
+function toggleFence(open: Fence | undefined, line: string): Fence | undefined {
   const match = FENCE.exec(line);
   if (!match) return open;
   const marker = match[2]!;

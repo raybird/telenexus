@@ -297,7 +297,7 @@ export abstract class CliAgentBase implements AIAgent {
     return new Promise<AgentStructuredResult>((resolve, reject) => {
       // 模型真的回了話的兩條出口共用;降級結果另外組,不帶 replyParts。
       const successResult = (): AgentStructuredResult => {
-        const replyParts = stepTexts.build((text) => this.cleanOutput(text));
+        const replyParts = stepTexts.build((text) => this.cleanOutput(text), aggregatedText);
         return {
           provider,
           text: aggregatedText,

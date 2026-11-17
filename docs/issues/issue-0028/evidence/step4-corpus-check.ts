@@ -67,8 +67,8 @@ for (const turn of turns) {
     collector.addText(step);
     collector.finishStep(i < turn.steps.length - 1 ? 'tool-calls' : 'stop');
   });
-  const parts = collector.build((text) => text);
   const fullText = turn.steps.join('');
+  const parts = collector.build((text) => text, fullText);
   const conclusion = `[Opencode] ${parts?.conclusion ?? fullText.trim()}`;
   const process = parts?.process ?? [];
   if (process.length > 0) stats.withProcess += 1;

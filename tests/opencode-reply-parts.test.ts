@@ -217,7 +217,60 @@ test('SCN-003：回合停在以 tool-calls 結束的 step 時沒有 replyParts',
   collector.addText('再查一個來源。');
   collector.finishStep('tool-calls');
   assert.equal(
-    collector.build((text) => text),
+    collector.build((text) => text, '先讀檔。再查一個來源。'),
     undefined
   );
+});
+
+test('SCN-001 定義：非最後的 step 有文字但不是以 tool-calls 結束時沒有 replyParts', async () => {
+  // 「過程」只指以 tool-calls 結束的 step;結束原因不明的 step 不當成過程,照舊送全文。
+  const file = writeStdout([
+    ev.start(),
+    ev.text('先說明一下。'),
+    ev.finish('unknown'),
+    ev.start(),
+    ev.text('結論在此。'),
+    ev.finish('stop')
+  ]);
+  for (const result of await runBoth(file)) {
+    assert.equal(result.replyParts, undefined);
+    assert.equal(result.text, '先說明一下。結論在此。');
+  }
+});
+
+test('跨 step 的 <thinking> 區塊只有全文清洗得掉時沒有 replyParts，摺疊版面與全文一致', async () => {
+  const file = writeStdout([
+    ev.start(),
+    ev.text('前言。<thinking>內部'),
+    ev.tool(),
+    ev.finish('tool-calls'),
+    ev.start(),
+    ev.text('推理</thinking>結論。'),
+    ev.finish('stop')
+  ]);
+  for (const result of await runBoth(file)) {
+    assert.equal(result.text, '前言。結論。');
+    assert.equal(result.replyParts, undefined);
+  }
+});
+
+test('只有某一段觸發工具呼叫外洩的警示時沒有 replyParts，不讓摺疊版面顯示全文沒有的警示', async () => {
+  const conclusion = '結論：'.padEnd(60, '甲');
+  const file = writeStdout([
+    ev.start(),
+    ev.text('</function>'.repeat(6)),
+    ev.tool(),
+    ev.finish('tool-calls'),
+    ev.start(),
+    ev.text('前一步的說明。'),
+    ev.tool(),
+    ev.finish('tool-calls'),
+    ev.start(),
+    ev.text(conclusion),
+    ev.finish('stop')
+  ]);
+  for (const result of await runBoth(file)) {
+    assert.equal(result.text, `前一步的說明。${conclusion}`);
+    assert.equal(result.replyParts, undefined);
+  }
 });
