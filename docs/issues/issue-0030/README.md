@@ -192,12 +192,13 @@ Feature: 按需開啟的 Telegram 模型切換面板
 | 2026-11-17 | 依使用者決定修 N1'、補 N2' 測試（第二修正輪），PASS 隨之失效，送重新審查 | Claude |
 | 2026-11-17 | 獨立審查 review-5524003 判定 PASS（無 MUST FIX／SHOULD FIX，無新增 NICE TO HAVE） | Claude |
 | 2026-11-17 | 使用者決定合併、發版並升級正式部署；快轉併入 main 的 2c37836，進入 Task 5.4 外部驗收窗 | 使用者 |
-| 2026-11-17 | 發版 v2.40.0（含 #28、#29），14:21（台北）升級正式部署，四個服務 healthy；容器網路上的面板連線檢查通過，Task 5.4 等使用者在 Android 驗收 | Claude |
+| 2026-11-17 | 發版 v2.40.0（含 #28、#29），14:23（台北）升級正式部署，四個服務 healthy；容器網路上的面板連線檢查通過，Task 5.4 等使用者在 Android 驗收 | Claude |
+| 2026-11-17 | 使用者在 Android 完成 Task 5.4（補做換網域後重新登入），Tunnel 世代 7 佐證；issue 完成 | 使用者 |
 
 **建立日期**: 2026-11-15
 **分級**: Large
 **風險**: High
-**狀態**: 等待外部驗收窗（2026-11-17 快轉併入 main 的 2c37836；Task 5.4：發版 v2.40.0 並升級正式部署後，以正式 Bot 在 Android 驗 /panel、登入、切換、恢復預設、/panel_close 與換網域後重新登入，判準見 implementation-plan.md Task 5.4）
+**狀態**: 已完成（2026-11-17 快轉併入 main 的 2c37836，發版 v2.40.0；Task 5.4 Android 真機驗收通過）
 
 ## 參考
 - [Cloudflare Quick Tunnels 與限制](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)
