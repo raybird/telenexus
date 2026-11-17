@@ -7,7 +7,7 @@ GitHub：https://github.com/raybird/telenexus/issues/30
 
 ## 現況
 
-**現行 review**: review-87b6cf6.md
+**現行 review**: review-6d0d27c.md
 
 | 外部狀態 | 查證命令 | 上次結果 | 查證日期 |
 |---|---|---|---|
@@ -185,6 +185,7 @@ Feature: 按需開啟的 Telegram 模型切換面板
 | 2026-11-17 | Task 1.1～5.3 完成；經使用者核准執行真實 Quick Tunnel 外部檢查並通過；實測發現 telenexus／agent-runner 缺 `KILL` 時 `docker stop` 收不到 SIGTERM（既有問題，不在本 issue 修）；交付方式選分支＋本機獨立審查 | Claude |
 | 2026-11-17 | 獨立審查 review-87b6cf6 判定 RETURN TO execute-task；使用者決定 M1 照核准規格只允許 Telegram 私聊，S1 與 N1～N10 同一輪修正；KILL 問題另開 #31 | 使用者 |
 | 2026-11-17 | 審查修正輪完成（M1、S1、N1～N10），證據見 implementation-plan.md「審查修正輪」 | Claude |
+| 2026-11-17 | 獨立審查 review-6d0d27c 判定 PASS（無 MUST FIX／SHOULD FIX，另列 3 項 NICE TO HAVE） | Claude |
 
 **建立日期**: 2026-11-15
 **分級**: Large
