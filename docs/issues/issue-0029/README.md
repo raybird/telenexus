@@ -14,6 +14,11 @@
 
 **現行 review**: review-0e899ed.md
 
+| 外部狀態 | 查證命令 | 上次結果 | 查證日期 |
+|---|---|---|---|
+| GitHub issue #29 | `gh issue view 29 --repo raybird/telenexus --json state -q .state` | OPEN | 2026-11-17 |
+| origin 的 main 含本 issue | `git merge-base --is-ancestor 95c2ed2 origin/main` | exit 1（尚未推送） | 2026-11-17 |
+
 ## 涉及檔案
 
 - `scripts/probe-models.mjs` - 以 `js-yaml` 照 `loadAiConfig()` 的規則合併 override；輸出模型來源、`--json` 的 `config` 欄位、結尾提示與錯誤訊息
@@ -75,9 +80,11 @@
 | 2026-11-17 | 建立 issue 文件；AC-1～AC-7 依 Q1～Q4 的答案與草案確認核准；交付方式照 #27、#28（分支、本機獨立審查、不開 PR） | 使用者 |
 | 2026-11-17 | 本機獨立審查 RETURN TO execute-task（review-23d451d.md：MUST FIX 1 項、SHOULD FIX 2 項），回頭修正 | - |
 | 2026-11-17 | 重新審查 PASS（review-0e899ed.md，無 MUST FIX、無 SHOULD FIX） | - |
+| 2026-11-17 | 使用者選「fast-forward 合併（建議）」：分支快轉併入本機 main（95c2ed2），未推送；兩項 NICE TO HAVE 不處理 | 使用者 |
+| 2026-11-17 | 結案：照 #27、#28 不開 PR，以本機快轉合併為結案依據；推送、發版與關閉 GitHub #29 由使用者另行決定 | 使用者 |
 
 ---
 **建立日期**: 2026-11-17  
 **分級**: Small  
 **風險**: Low\
-**狀態**: 實作中（重新審查 PASS，等待合併）
+**狀態**: 已完成（2026-11-17 快轉併入本機 main 的 95c2ed2，尚未推送）
