@@ -27,7 +27,8 @@ GitHub：[#28](https://github.com/raybird/telenexus/issues/28)
 
 | 外部狀態 | 查證命令 | 上次結果 | 查證日期 |
 |---|---|---|---|
-| GitHub issue #28 | `gh issue view 28 --repo raybird/telenexus --json state -q .state` | OPEN | 2026-11-16 |
+| GitHub issue #28 | `gh issue view 28 --repo raybird/telenexus --json state -q .state` | OPEN | 2026-11-17 |
+| origin 的 main 含本 issue | `git merge-base --is-ancestor ea3adf3 origin/main` | exit 1（尚未推送） | 2026-11-17 |
 
 ## 文件清單
 - [implementation-plan.md](./implementation-plan.md)
@@ -219,9 +220,11 @@ Feature: Telegram 聊天回覆與排程結果把過程敘述摺疊起來，結�
 | 2026-11-16 | 規格修訂：沒有開發用 bot，SCN-010 改為以正式 bot 的 token 直接呼叫 Bot API（TBD-2），同日核准 | 使用者 |
 | 2026-11-17 | 本機獨立審查 PASS（review-eb9cc0b.md，1 項 SHOULD FIX）；使用者選擇修正 SHOULD FIX 與 NICE TO HAVE 1～3 後重新審查 | 使用者 |
 | 2026-11-17 | 重新審查 PASS（review-2eafbb6.md）；使用者選擇合併前先處理 NICE TO HAVE 4～8，處理後再審查 | 使用者 |
+| 2026-11-17 | 第三輪審查 PASS（review-51b8e1c.md，無 MUST FIX、無 SHOULD FIX）；使用者選「fast-forward 合併（建議）」：分支快轉併入本機 main（ea3adf3），未推送；新的 NICE TO HAVE 1～2 不處理 | 使用者 |
+| 2026-11-17 | 結案：依 TBD-3 不開 PR，以本機快轉合併為結案依據；推送、發版、升級正式部署與關閉 GitHub #28 由使用者另行決定 | 使用者 |
 
 ---
 **建立日期**: 2026-11-16  
 **分級**: Medium — 跨 opencode 輸出解析、runner 結果、回覆組裝與 Telegram 渲染，但不涉及 schema 或架構調整  
 **風險**: Medium\
-**狀態**: 實作中（重新審查 PASS，等待合併）
+**狀態**: 已完成（2026-11-17 快轉併入本機 main 的 ea3adf3，尚未推送）
