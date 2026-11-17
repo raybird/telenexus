@@ -68,7 +68,7 @@ GitHub：[#31](https://github.com/raybird/telenexus/issues/31)
 - **選擇理由**：問題出在映像、caps、npm、dash、tini 的組合。靜態測試只能確認設定字串存在，規劃時的實測正好證明「設定看起來對」（加了 `KILL`）仍可能沒用；只有實際的映像與真的進入點能證明訊號送得到。
 - **完成證據**：AC-1 修好與對照組的兩組結果（exit code、耗時、log），以及 AC-2 加上限前的紅燈與加上限後的綠燈。
 
-`KILL` 讓容器內以 root 執行的程序（只有 tini 與 entrypoint）可以送訊號給同一個容器內其他 UID 的程序，範圍限於容器的 PID namespace；`no-new-privileges` 與其他 caps 不變。
+`KILL` 讓容器內以 root 執行的程序（init、entrypoint、compose 的 healthcheck 與 `docker exec` 預設的 session）可以送訊號給同一個容器內其他 UID 的程序，範圍限於容器的 PID namespace；降權後的 node 程序有效 capability 為空，`no-new-privileges` 與其他 caps 不變。容器內的 root 本來就有 `SETUID`，`KILL` 增加的能力很小（review-fec9420 S1）。
 
 ## 待確認事項
 
@@ -95,6 +95,7 @@ GitHub：[#31](https://github.com/raybird/telenexus/issues/31)
    - 交付檢查：`npm run lint` exit 0；`npm run build` exit 0；`npm run test` exit 0，`# tests 969`、`# pass 969`，比 v2.40.0 的 961 多 8 支（都是 `container-signals`）；`tests/` 下 105 個測試檔（多 1 個）。
    - 影響分析：`closeServers` 是 `main()` 裡的區域函式，GitNexus 找不到；grep 確認只有 SIGINT、SIGTERM 兩個 handler 用它。`detect_changes` 回報 HIGH，因為它把整個 `bootstrap()` 標成變動並列出 7 條啟動流程；實際只改了函式尾端的關閉 handler，啟動流程沒有經過這段（AC-1 的分支映像正常啟動到 Telegram 重試）。`git diff --stat` 確認只動 6 個檔案加 1 個新測試檔。
    - 精煉：合併兩段相同的 handler（見步驟 2）；其餘 no-op。
+   - 審查修正（review-fec9420，2026-11-17）：S1 把「容器裡以 root 執行的只有 init 與 entrypoint」改成列出 init、entrypoint、healthcheck 與 `docker exec`，補上降權後的 node 程序沒有 capability、root 本來就有 `SETUID`；N1 把「v2.40.0 以前的映像」改成「v2.40.0 及更早」。只改 `docs/runtime-boundary-and-security.md` 與本 README，程式與測試不變。
 
 ## Gate 豁免紀錄
 
@@ -108,6 +109,7 @@ GitHub：[#31](https://github.com/raybird/telenexus/issues/31)
 | 2026-11-17 | 建立 issue 文件；實測發現 telenexus 只加 `KILL` 無效（訊號停在 dash），Q1～Q3 照建議答案決定；AC-1～AC-4 照草案核准；交付方式：分支＋本機獨立審查 | 使用者 |
 | 2026-11-17 | 步驟 1～4 完成：分支映像實測兩個服務停止時 exit 0、有關閉紀錄（v2.40.0 對照組 exit 1）；卡住的連線 3.1 秒結束 | Claude |
 | 2026-11-17 | 本機獨立審查 review-fec9420 判定 PASS（無 MUST FIX；SHOULD FIX 1 項文件措辭、NICE TO HAVE 5 項） | Claude |
+| 2026-11-17 | 使用者決定修 S1、N1（只改文件措辭），PASS 隨之失效，送重新審查；N2～N5 不處理 | 使用者 |
 
 ---
 **建立日期**: 2026-11-17  

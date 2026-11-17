@@ -170,13 +170,13 @@ UI API 唯讀，啟動要求資料根目錄已初始化；容器根檔案系統�
 
 ### Tier 2 容器硬化（v2.19）
 
-- 三服務皆加 `security_opt: [no-new-privileges:true]` 與 `cap_drop: [ALL]`（issue 0030 新增的 `tunnel-manager` 也是）;`telenexus`/`agent-runner`/`tunnel-manager` 另 `cap_add` entrypoint UID 對齊所需的最小集合(`CHOWN`/`SETUID`/`SETGID`/`FOWNER`/`DAC_OVERRIDE`——`gosu` 是降權不是提權,與 no-new-privileges 相容)，再加 `KILL`：PID 1 是以 root 執行的 init（tini），主程序已降成 node，root 送訊號給不同 UID 的程序需要它，沒有它 `docker stop` 時 tini 回報 `Operation not permitted` 並直接結束，主程序收不到 SIGTERM（issue 0031，2026-11-17）。範圍只在容器的 PID namespace 內，容器裡以 root 執行的只有 init 與 entrypoint。`memoria` 維持 cap_drop ALL 無 cap_add。
+- 三服務皆加 `security_opt: [no-new-privileges:true]` 與 `cap_drop: [ALL]`（issue 0030 新增的 `tunnel-manager` 也是）;`telenexus`/`agent-runner`/`tunnel-manager` 另 `cap_add` entrypoint UID 對齊所需的最小集合(`CHOWN`/`SETUID`/`SETGID`/`FOWNER`/`DAC_OVERRIDE`——`gosu` 是降權不是提權,與 no-new-privileges 相容)，再加 `KILL`：PID 1 是以 root 執行的 init（tini），主程序已降成 node，root 送訊號給不同 UID 的程序需要它，沒有它 `docker stop` 時 tini 回報 `Operation not permitted` 並直接結束，主程序收不到 SIGTERM（issue 0031，2026-11-17）。範圍只在容器的 PID namespace 內。容器裡以 root 執行的有 init、entrypoint、compose 的 healthcheck 與 `docker exec` 預設的 session；降權後的 node 程序（含 opencode 與它的 bash 工具）有效 capability 為空，拿不到 `KILL`。容器內的 root 本來就有 `SETUID`，可以先切成 node 再送訊號，所以 `KILL` 增加的能力很小。`memoria` 維持 cap_drop ALL 無 cap_add。
 - `memoria` 服務可寫面僅 `/data` volume,已上完整 `read_only: true` + `tmpfs: [/tmp]`。
 - `telenexus` / `agent-runner` 的 `read_only` 仍待可寫路徑稽核(opencode/uvx/npm cache、context 快照寫入點等)後再逐一開白名單,目前未啟用。
 
 ### 子程序回收
 
-2026-11-17（issue 0031）：`docker stop` 的 SIGTERM 要經 init 轉送才到得了主程序，需要上一節的 `KILL`。telenexus 的映像預設命令是 `npm start`，npm 把訊號轉給 `sh -c`，而 dash 不會再轉給子程序，所以 `package.json` 的 `start`、`start:runner` 最後一段用 `exec node …` 讓 node 取代 sh。在這之前（v2.40.0 以前的映像）兩個服務停止時都不會執行收尾。現在停止時 telenexus 會停排程、`terminateAllChildren()`、關閉 Web Console 與面板伺服器（伺服器關閉最多等 3 秒），agent-runner 會收掉子程序並關閉 HTTP server；收尾跑不完時仍由 Docker 在寬限期後強制終止。已建立的正式容器要重建才會套用。
+2026-11-17（issue 0031）：`docker stop` 的 SIGTERM 要經 init 轉送才到得了主程序，需要上一節的 `KILL`。telenexus 的映像預設命令是 `npm start`，npm 把訊號轉給 `sh -c`，而 dash 不會再轉給子程序，所以 `package.json` 的 `start`、`start:runner` 最後一段用 `exec node …` 讓 node 取代 sh。v2.40.0 及更早的映像，兩個服務停止時都不會執行收尾。現在停止時 telenexus 會停排程、`terminateAllChildren()`、關閉 Web Console 與面板伺服器（伺服器關閉最多等 3 秒），agent-runner 會收掉子程序並關閉 HTTP server；收尾跑不完時仍由 Docker 在寬限期後強制終止。已建立的正式容器要重建才會套用。
 
 2026-10-04：開發與 release Compose 的 `telenexus`／`agent-runner` 設定 `init: true`，dev overlay 繼承此設定；保留 runner 的 `pids_limit: 1024`。容器 init 負責回收被收養且已退出的子程序，不能代替工作專屬瀏覽器收尾，也不能關閉仍存活的孤兒 Chrome。此設定變更不會自動重建既有正式容器；維護者需另行核准部署時機。
 
