@@ -30,6 +30,7 @@
 - **Runner 隔離執行**：AI 任務交給獨立的 `agent-runner` 容器，連續失敗時熔斷並自動退回本地執行
 - **即時串流**：工具活動 emoji feed（🔍📖💻✏️🌐）+ MarkdownV2 渲染，對話感更即時
 - **過程摺疊**：模型在工具呼叫之間的過程敘述收進可展開的「過程」引言，結論放在最前面；聊天回覆與排程結果都適用
+- **手機切換模型（issue 0030）**：`/panel` 按需開一個 Cloudflare Quick Tunnel，從 Telegram 輸入框旁的「模型設定」選單按鈕開啟 Mini App，篩選、搜尋、套用或恢復預設模型；只有管理員能用，30 分鐘沒有操作自動關閉；[公開面與授權方式](docs/runtime-boundary-and-security.md#模型面板與-quick-tunnelissue-0030)
 - **Pinned 狀態訊息**：釘選訊息即時顯示模型、排程數、異常數，不需打 `/status`
 - **可觀測性**：`workspace/context/` 持續寫出 runtime / scheduler / error / runner 快照，並有事件流 `events.jsonl`
 - **主動告警**：定期確認目前的模型仍可呼叫，上游回任何錯誤（模型下架、opencode 版本過舊、限流等）都會推 Telegram 通知，上游有回狀態碼時一併附上；同類錯誤短時間內重複發生也會推播
@@ -139,14 +140,18 @@ docker compose exec telenexus node /app/dist/tools/scheduler-cli.js health
 
 ### 模型管理
 
-| 指令                    | 說明                                          |
-| ----------------------- | --------------------------------------------- |
-| `/model`                | 顯示目前生效的模型及來源                      |
-| `/models [provider]`    | 列出可用模型，可篩選 provider                 |
-| `/set_model <model-id>` | 切換模型，下一則訊息立即生效                  |
-| `/reset_model`          | 清除 override，恢復 `ai-config.yaml` 基礎設定 |
+| 指令                    | 說明                                                                       |
+| ----------------------- | -------------------------------------------------------------------------- |
+| `/model`                | 顯示目前生效的模型及來源                                                   |
+| `/models [provider]`    | 列出 `opencode models` 的模型，可篩選 provider（列出不代表可以呼叫）       |
+| `/set_model <model-id>` | 切換模型，下一則訊息立即生效                                               |
+| `/reset_model`          | 清除 override，恢復 `ai-config.yaml` 基礎設定                              |
+| `/panel`                | 開啟手機模型面板，從輸入框旁的「模型設定」選單按鈕進入（私聊、管理員限定） |
+| `/panel_close`          | 立即關閉面板入口並恢復選單                                                 |
 
-模型 override 寫入 `data/ai-config.override.yaml`，`ai-config.yaml` 維持唯讀不變動。
+模型 override 寫入 `data/ai-config.override.yaml`，`ai-config.yaml` 維持唯讀不變動。指令與面板讀寫同一份設定，套用後新的聊天與排程生效，進行中的任務不受影響。
+
+`/panel` 會請 `tunnel-manager` 服務開一個新的 `trycloudflare.com` 網址，只接面板專用的連接埠（不是 Web Console）。每次開啟網址都不同，之前的網址與登入隨即失效，所以一律從選單按鈕進入。主機要能連到 Cloudflare；不想用時在 `.env` 設 `PANEL_ENABLED=false`。
 
 上游會下架模型，而 `opencode models` 仍會列出已下架的名稱。換模型前先實測：
 
@@ -180,8 +185,10 @@ docker compose exec agent-runner node scripts/probe-models.mjs --all  # 探測�
 開發時預設在容器內執行服務：工具鏈與正式映像相同（opencode、Chrome DevTools MCP、固定 Chrome、uv、Memoria），原始碼由主機掛載，存檔即重載。
 
 ```bash
-npm run docker:dev   # 以 dev stage 啟動 telenexus、agent-runner、memoria（tsx watch）
+npm run docker:dev   # 以 dev stage 啟動 telenexus、agent-runner、tunnel-manager、memoria（tsx watch）
 ```
+
+`tunnel-manager` 平時不連外，只有在 Telegram 輸入 `/panel` 才開 Quick Tunnel。開發 stack 若用另一個 bot，`/panel` 的選單按鈕也只會出現在那個 bot。
 
 Linux 上需要瀏覽這份開發資料的記憶時，先依[安裝指南](docs/installation.md#memoria-本機記憶-ui)備份並初始化同一份記憶資料，再於相同目錄與 Compose 專案執行 `docker compose --profile memory-ui up -d --build --wait --no-deps memoria-ui`，開啟 `http://127.0.0.1:3918/ui/`。此選用服務使用 host network；埠號、依賴服務與停用方式亦見安裝指南。
 
@@ -197,6 +204,8 @@ Linux 上需要瀏覽這份開發資料的記憶時，先依[安裝指南](docs/
 npm run dev          # 啟動主服務（tsx watch）
 npm run dev:runner   # 啟動 agent-runner（tsx watch）
 ```
+
+主機執行時沒有 `tunnel-manager`，`/panel` 會回覆連不到 tunnel-manager，不會發布入口。
 
 build、lint、test 在主機執行：
 

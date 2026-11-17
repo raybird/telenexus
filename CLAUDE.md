@@ -71,6 +71,8 @@ The system runs two Docker services that share volumes (`data/`, `workspace/`, `
 - **telenexus** (`src/main.ts`): Orchestrator service — handles Telegram ingress, command routing, scheduling, memory, Web Console, and dispatches AI tasks either locally or to the runner.
 - **agent-runner** (`src/runner.ts`): Standalone HTTP service (port 8787) that executes Opencode CLI commands. Provides `/run`, `/health`, and `/stats` endpoints.
 
+A third service, **tunnel-manager** (`src/tunnel-manager.ts`, same image, issue 0030), starts and stops a cloudflared Quick Tunnel on demand for the `/panel` model panel. It reads no `.env`, mounts no `data/`, publishes no ports, and shares only the `tunnel_key` volume with telenexus (read-only there; agent-runner does not mount it). It gets `KILL` on top of the shared cap set because the root-run init cannot forward SIGTERM to a non-root process without it (telenexus and agent-runner still lack it, so `docker stop` kills them without a graceful shutdown).
+
 Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per-user whitelisting. The runner has a circuit breaker pattern (`RUNNER_FAILURE_THRESHOLD` / `RUNNER_COOLDOWN_MS`) with automatic local fallback.
 
 ### Message Flow
@@ -110,6 +112,11 @@ Chat traffic routing is controlled by `CHAT_USE_RUNNER_PERCENT` (0-100) with per
 | `src/telegram/render/folded-reply.ts`        | issue 0028：`buildFoldedMessages()`，聊天與排程共用的「結論在前、過程摺疊」版面（`**>過程`…`||`，寫法經 Bot API 實測）。過程的每則訊息都附原文純文字，`sendChunkRaw()` 遇 parse error 改送它：直接重送已渲染的 MarkdownV2 會露出 `**>`、`||`。過程只在回合結果帶 `replyParts`（`src/core/reply-parts.ts`：以 tool-calls 結束的 step 為過程、最後一個 step 為結論）時出現；每段都要出現在清洗後的全文裡才分段，否則照舊送全文 |
 | `src/services/chat-session-store.ts`         | 每位使用者的聊天 session 綁定（`data/chat-session-state.json`）；聊天一律以 `-s <綁定 id>` 接續，`-c` 會接進排程或探針的 session                                                                                        |
 | `src/services/opencode-session-retention.ts` | 每小時刪除 TeleNexus 目錄下超過保留期（預設 30 天）的 opencode session，保留綁定中的聊天 session，可回收空間達兩成且全庫閒置 5 分鐘時 `VACUUM` 並截斷 WAL；runner 一律執行，telenexus 只在沒有 `RUNNER_ENDPOINT` 時執行 |
+| `src/core/model-config.ts`                   | issue 0030：`/model`、`/models`、`/set_model`、`/reset_model` 與模型面板共用的設定服務。有效模型與來源取自 `describeAiConfigModel()`（`loadAiConfig()` 同一套合併規則）；套用只接受 `isModelId()` 格式，面板另要求在 `opencode models` 清單內；override 以暫存檔加 rename 寫入 |
+| `src/web/panel-server.ts`                    | issue 0030：面板專用 HTTP 伺服器（容器內 3040），Quick Tunnel 只接這裡，它就是整個公開面：`/panel/health`、`/panel/` 靜態頁（`src/web/panel-public/`，嚴格 CSP）、`/panel-api/login` 與需要 Bearer 憑證的 `state`／`models`／`apply`／`reset`，其餘 404。授權只看憑證，不看來源 IP、`WEB_AUTH_TOKEN` 或 `WEB_TRUST_PRIVATE_NETWORK`；憑證不接受網址參數 |
+| `src/web/panel-auth.ts`                      | issue 0030：驗 Mini App `initData`（`WebAppData` HMAC、10 分鐘有效、未來 60 秒容忍、只接受 `ALLOWED_USER_ID`），換發只存在記憶體的憑證，網址換代或入口關閉時全部作廢 |
+| `src/services/panel-controller.ts`           | issue 0030：`/panel` 的生命週期。Tunnel 就緒且外部健康檢查通過才設選單按鈕；選單設定失敗就停 Tunnel；Tunnel 狀態輪詢連續失敗兩次、換代、30 分鐘沒有驗證過的請求（寫入中不算）或 `/panel_close` 時關閉；啟動時 `boot()` 停掉殘留 Tunnel、還原選單，不記 runtime issue |
+| `src/tunnel/*`、`src/tunnel-manager.ts`      | issue 0030：tunnel-manager 服務。`tunnel-manager.ts` 管 cloudflared 子程序與狀態機（`generation` 在進出就緒時遞增），`tunnel-api.ts` 是以 `x-tunnel-key` 認證的內部 API（金鑰每次啟動重產），`tunnel-client.ts` 是 telenexus 端的客戶端 |
 | `src/services/interaction-guard.ts`          | 多步驟互動的 per-user in-memory state；`CommandRouter` 在 dispatch 前 consult，`/abort` 自動 clear                                                                                                                      |
 | `src/services/pinned-status-manager.ts`      | 維護釘選訊息（節流 5s）；`pinned-status.ts` 接事件與快照計時器，`Recent errors (24h)` 取自 `runtime_issues`；`PINNED_STATUS_ENABLED=false` 可停用                                                                       |
 | `src/connectors/telegram.ts`                 | Telegraf-based connector implementing `Connector` interface                                                                                                                                                             |

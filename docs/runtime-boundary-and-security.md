@@ -170,7 +170,7 @@ UI API 唯讀，啟動要求資料根目錄已初始化；容器根檔案系統�
 
 ### Tier 2 容器硬化（v2.19）
 
-- 三服務皆加 `security_opt: [no-new-privileges:true]` 與 `cap_drop: [ALL]`;`telenexus`/`agent-runner` 另 `cap_add` entrypoint UID 對齊所需的最小集合(`CHOWN`/`SETUID`/`SETGID`/`FOWNER`/`DAC_OVERRIDE`——`gosu` 是降權不是提權,與 no-new-privileges 相容)。`memoria` 維持 cap_drop ALL 無 cap_add。
+- 三服務皆加 `security_opt: [no-new-privileges:true]` 與 `cap_drop: [ALL]`（issue 0030 新增的 `tunnel-manager` 也是，另多 `KILL`，見「模型面板與 Quick Tunnel」）;`telenexus`/`agent-runner` 另 `cap_add` entrypoint UID 對齊所需的最小集合(`CHOWN`/`SETUID`/`SETGID`/`FOWNER`/`DAC_OVERRIDE`——`gosu` 是降權不是提權,與 no-new-privileges 相容)。`memoria` 維持 cap_drop ALL 無 cap_add。
 - `memoria` 服務可寫面僅 `/data` volume,已上完整 `read_only: true` + `tmpfs: [/tmp]`。
 - `telenexus` / `agent-runner` 的 `read_only` 仍待可寫路徑稽核(opencode/uvx/npm cache、context 快照寫入點等)後再逐一開白名單,目前未啟用。
 
@@ -196,6 +196,55 @@ launcher 自身若被 SIGKILL 無法執行清理；PID/starttime 檢查不是 pi
 - 沒帶 `--profile-dir` 時，Moli 把 cookie、IndexedDB、OPFS 寫在 `TMPDIR/moli-storage-*`，被訊號中斷時不會清掉。wrapper 把 `HOME`／`TMPDIR` 指到自己的 `/tmp/tnm-*`，結束時刪除；另起一個獨立 session、不持有 stdout／stderr 的清理程序，處理 wrapper 與 Moli 一起被 SIGKILL 的情況。
 - 收尾：30 秒硬逾時（`timeout --foreground`，再 5 秒 SIGKILL），wrapper 啟動後 45 秒內不留下 moli 程序或暫存目錄。Moli 是單一程序。
 - 使用者取消回合時，runner 只終止 opencode；bash 工具裡的 wrapper 收不到訊號，會被收養到 pid 1 繼續執行，由 Moli 自己的 10 秒逾時（最壞是 30 秒硬逾時）結束並清掉暫存目錄。這段時間 Moli 仍在讀那個公開網址，但結果不會送給任何人（issue 0024 步驟 6 實測）。
+
+### 模型面板與 Quick Tunnel（issue 0030）
+
+2026-11-17：`/panel` 會開一個公開的 `trycloudflare.com` 網址。這是 TeleNexus 唯一由系統主動建立的對外入口，邊界如下。
+
+**公開面只有面板。** Quick Tunnel 只轉發到 telenexus 容器內的面板專用連接埠 3040，不是 Web Console 的 3030。面板伺服器（`src/web/panel-server.ts`）只回應下列路徑，其餘一律 404：
+
+- `/panel/health`：只回服務名稱
+- `/panel/` 靜態頁
+- `/panel-api/login`
+- 需要憑證的 `state`、`models`、`apply`、`reset`
+
+Web Console 的頁面與 `/api/*` 不在這個伺服器上，所以 `WEB_AUTH_TOKEN`、`WEB_TRUST_PRIVATE_NETWORK` 怎麼設都不影響公開面。3040 沒有對主機開放，只在容器網路上。
+
+**授權。**
+
+- 登入：Mini App 送出 Telegram 的 `initData`，伺服器以 Bot Token 導出的 HMAC 驗證，條件如下；通過後換發一個隨機的 Bearer 憑證：
+  - `auth_date` 在 10 分鐘內，未來最多容忍 60 秒
+  - 使用者必須是 `ALLOWED_USER_ID`
+- 憑證：
+  - 只存在 telenexus 的記憶體。網址換代、入口關閉或 telenexus 重啟時全部作廢。
+  - 只接受 `Authorization` 標頭，不接受網址參數，因為網址會留在 Tunnel 與瀏覽器紀錄裡。
+- 其他：
+  - 授權不看來源 IP、`X-Forwarded-For` 或 `Host`。
+  - 未登入時，任何 `/panel-api/*` 路徑都回 401，不透露路徑是否存在。
+  - 只有在私聊由管理員輸入 `/panel` 才會開 Tunnel，選單按鈕也只設在那個私聊。
+- 寫入：只接受格式正確、而且在當下 `opencode models` 清單內的模型 ID，寫的是 `data/ai-config.override.yaml`。
+
+**入口的生命週期。** 網址就緒且從外部確認連得到面板，才設選單按鈕；設定失敗就停掉 Tunnel。下列情況會停掉 Tunnel、作廢憑證、還原選單：
+
+- 30 分鐘沒有經過驗證的請求，寫入中不算閒置
+- `/panel_close`
+- Tunnel 中斷或網址換代
+- telenexus 啟動時
+
+**tunnel-manager 容器。** 它是唯一能開公開網址的容器，所以邊界比其他服務窄：
+
+- 不讀 `.env`，沒有 Bot Token、`ALLOWED_USER_ID` 或 runner 密鑰
+- 不掛 `data/`、`workspace/`、Docker socket
+- 沒有 `ports:`，不是 privileged，不用 host 網路
+- `no-new-privileges`、`cap_drop: ALL`，主程序以 node 執行
+
+它與 telenexus 只共用 `tunnel_key` volume：金鑰在 tunnel-manager 每次啟動時重新產生，檔案權限 0600；telenexus 以唯讀掛載，agent-runner 不掛。內部 API（8790）同樣只在容器網路上，沒有金鑰一律 401。cloudflared 版本釘在映像內，安裝時驗 sha256。
+
+**已知限制。**
+
+- Quick Tunnel 是 Cloudflare 的免費服務，沒有 SLA，網址由 Cloudflare 隨機產生。開著的期間，任何知道網址的人都能看到面板頁的靜態內容與 `/panel/health`；讀設定與改設定都要通過上面的授權。
+- telenexus 的 opencode 以 YOLO 模式執行，它的 bash 讀得到唯讀掛載的金鑰，也讀得到 Bot Token。模型可以請 tunnel-manager 開 Tunnel，但開出來的仍然只有需要 `initData` 的面板，與 Bot Token 本來就暴露在同一個容器裡的風險相同。
+- 停止容器時的訊號：以 root 執行的 init 要把 SIGTERM 轉給非 root 的主程序，需要 `KILL` capability。tunnel-manager 有這個 capability，`docker stop` 時會正常收掉 cloudflared。telenexus 與 agent-runner 目前的 cap 集合沒有 `KILL`：2026-11-17 實測 init 回報 `Operation not permitted`，主程序收不到 SIGTERM，應用程式的收尾不會執行，上一節「Docker stop 先傳遞 SIGTERM」對這兩個服務不成立。對面板的影響是 telenexus 停止時不會還原選單按鈕；下次啟動的 `boot()` 會還原。
 
 ### dev/prod 模式說明
 

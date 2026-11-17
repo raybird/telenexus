@@ -13,6 +13,7 @@
    npm run docker:dev
    ```
    不經容器、直接在主機執行：`npm run dev`。
+   開發 stack 也會啟動 `tunnel-manager`（模型面板的 Quick Tunnel，issue 0030），它平時不連外，只有輸入 `/panel` 才開公開網址；主機執行時沒有它，`/panel` 會回覆連不到。改了面板前端（`src/web/panel-public/`）要重新 `npm run build`，`scripts/copy-web-assets.mjs` 會把它複製到 `dist/web/panel-public/`。
    Linux 上可選擇啟動本機記憶 UI。先依[安裝指南](docs/installation.md#memoria-本機記憶-ui)備份並初始化資料、確認主記憶服務健康，再執行 `docker compose --profile memory-ui up -d --build --wait --no-deps memoria-ui`，網址為 `http://127.0.0.1:3918/ui/`。請沿用相同 Compose 專案與記憶資料掛載；啟停、埠號及安全限制亦見安裝指南。
 3. 收成 agent 做出的技能（選用）。agent 在容器裡寫進 `workspace/.opencode/skills/` 的技能會出現在主機上：
    ```bash

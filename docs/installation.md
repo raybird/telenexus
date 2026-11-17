@@ -7,7 +7,7 @@ TeleNexus 提供兩種安裝方式：**一鍵安裝**（下載預建映像，推
 ## 機制總覽
 
 - 每次 release（`v*` tag）由 GitHub Actions 預建兩個映像推到 GHCR：
-  - `ghcr.io/raybird/telenexus`（主服務 + agent-runner 共用）
+  - `ghcr.io/raybird/telenexus`（主服務、agent-runner、tunnel-manager 共用）
   - `ghcr.io/raybird/telenexus-memoria`（記憶服務）
 - Release 同時附上 `telenexus-docker-<版本>.tar.gz` **部署 bundle**，內含：
   `docker-compose.yml`（映像已釘版）、`.env.example`、`ai-config.example.yaml`、`AGENTS.md`、`skills/`、`scripts/install.sh`
@@ -103,6 +103,15 @@ curl -fsSL https://raw.githubusercontent.com/raybird/telenexus/main/scripts/inst
 ```
 
 `--upgrade` 會重新下載最新 bundle 覆蓋部署檔（`.env`、`ai-config.yaml`、`data/`、`workspace/` 完整保留），然後 `docker compose pull` 拉新映像並 `--force-recreate` 換上。
+
+### 模型面板與 tunnel-manager（issue 0030）
+
+升級到含 issue 0030 的版本後，compose 多一個 `tunnel-manager` 服務與 `tunnel_key` named volume，`up -d` 會一起建立，不需要改 `.env`：
+- `/panel` 預設啟用，`.env` 沒有 `PANEL_ENABLED` 時視為 `true`。
+- `tunnel-manager` 平時只在容器網路上待命，不連外，也不對主機開任何連接埠。
+- 只有在 Telegram 私聊由管理員輸入 `/panel`，它才向 Cloudflare 開一個 Quick Tunnel，所以主機要能連到 Cloudflare。
+
+不想用時在 `.env` 加 `PANEL_ENABLED=false` 再 `docker compose up -d`。這樣 `/panel` 只會回覆未啟用；`tunnel-manager` 仍會跑，但不會被叫去開 Tunnel。要連服務都不跑，可以 `docker compose stop tunnel-manager`，但下次 `up -d` 或升級時它會再啟動。公開面與授權方式見 [Runtime 邊界與安全模型](runtime-boundary-and-security.md#模型面板與-quick-tunnelissue-0030)。
 
 ### mcp-memory-libsql 與記憶回填退役（issue 0022）
 

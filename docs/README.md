@@ -54,11 +54,12 @@
 - 模組職責說明：`CLAUDE.md`（Key Modules 表）
 - 環境變數（`PINNED_STATUS_ENABLED` 等）：`docs/configuration-reference.md`
 - 串流渲染設計背景（歷史）：`docs/telegram-streaming-design.md`
+- 手機模型面板（`/panel`）：設定見 `docs/configuration-reference.md` 的「模型面板」，公開面與授權見 `docs/runtime-boundary-and-security.md` 的「模型面板與 Quick Tunnel」，需求與驗收見 [Issue 0030](./issues/issue-0030/README.md)
 
 ### 我想看 Web Console
 
 - Web Console 詳細參考：`docs/web-console-reference.md`
-- [Issue 0030：Telegram Mini App 切換 provider／model](./issues/issue-0030/README.md) — 按需 Quick Tunnel 與 Docker Compose 的初始規劃，尚未實作。
+- 模型面板（issue 0030）不是 Web Console 的一部分：它有自己的伺服器與連接埠，Quick Tunnel 只接面板，見上一節。
 
 ### 我想看配置與執行模式
 

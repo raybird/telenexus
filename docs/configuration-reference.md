@@ -1,6 +1,6 @@
 # Configuration Reference
 
-最後驗證日期：2026-11-12（OpenCode 網頁閱讀一節，issue 0024）；其餘各節見各自的日期。
+最後驗證日期：2026-11-17（model 切換與模型面板兩節，issue 0030）；2026-11-12（OpenCode 網頁閱讀一節，issue 0024）；其餘各節見各自的日期。
 
 ## OpenCode 網頁閱讀與工作專屬 MCP
 
@@ -50,14 +50,18 @@ CONTEXT_REFRESH_MS=60000
 
 ## ai-config.yaml（model 切換）
 
-可透過 Telegram 指令即時切換 `ai-config.yaml` 中的 `model:` 欄位，無須重啟服務：
+最後驗證日期：2026-11-17（issue 0029、0030）。
+
+模型可以用 Telegram 指令或手機模型面板即時切換，無須重啟服務。兩者都寫 `data/ai-config.override.yaml`，`ai-config.yaml` 維持唯讀；有效模型是 override 蓋過 `ai-config.yaml` 的結果，由 `src/core/config-loader.ts` 一處合併：
 
 | 指令 | 說明 |
 |------|------|
-| `/model` | 顯示目前 ai-config.yaml 設定的模型 |
-| `/models` | 列出所有可用模型（最多顯示 40 個） |
+| `/model` | 顯示目前有效的模型與來源（override 或 `ai-config.yaml`） |
+| `/models` | 列出 `opencode models` 的模型（最多顯示 40 個）；列出不代表可以呼叫，認證與額度沒有經過測試 |
 | `/models opencode` | 篩選特定 provider 的模型（如 `opencode`、`nvidia`） |
-| `/set_model <model-id>` | 切換模型，下一則訊息立即生效 |
+| `/set_model <model-id>` | 寫入 override，下一則訊息立即生效 |
+| `/reset_model` | 清除 override，回到 `ai-config.yaml` |
+| `/panel`、`/panel_close` | 開啟或關閉手機模型面板，見下一節 |
 
 範例：
 ```
@@ -65,9 +69,36 @@ CONTEXT_REFRESH_MS=60000
 /set_model opencode/big-pickle
 ```
 
-- `DynamicAIAgent` 每次呼叫時重新讀取 `ai-config.yaml`，因此切換後立即生效
-- `/set_model` 以 regex 替換 `model:` 行，YAML 注釋與其他欄位完整保留
-- 模型來源為 `opencode models` 指令，涵蓋所有已設定 provider 的可用模型
+- `DynamicAIAgent` 每次呼叫時重新讀取合併後的設定，因此切換後新的聊天與排程立即生效，進行中的任務不受影響
+- 模型 ID 必須是 `provider/model` 形式，不含空白與控制字元（`isModelId()`，`src/core/model-config.ts`）；面板另外要求 ID 在目前的 `opencode models` 清單內
+- override 以暫存檔加 rename 寫入，寫入失敗時原本的設定不變
+- 換模型前用 `npm run models:probe` 實測，見 `CLAUDE.md` 的 Model health check
+
+## 模型面板（/panel，issue 0030）
+
+最後驗證日期：2026-11-17。
+
+`/panel` 請 `tunnel-manager` 服務開一個 Cloudflare Quick Tunnel，網址就緒且從外部確認連得到面板後，把私聊輸入框旁的選單按鈕設成「模型設定」Mini App。面板可以篩選 provider、搜尋、看完整 ID 與目前有效的模型和來源，並套用或恢復預設。只有 `ALLOWED_USER_ID` 能在私聊使用。
+
+入口在下列情況關閉，同時停掉 Tunnel、作廢面板登入、還原選單：
+- 30 分鐘沒有經過驗證的面板請求；寫入中不會關閉
+- `/panel_close`
+- Tunnel 中斷：狀態不再是就緒、網址換代，或狀態查詢連續兩次失敗
+- telenexus 重新啟動，啟動時會先停掉殘留的 Tunnel
+
+每次開啟的網址都不同，舊網址、舊按鈕與舊登入都會失效，所以一律從選單按鈕進入。公開面與授權方式見 `docs/runtime-boundary-and-security.md`。
+
+| 變數 | 服務 | 預設 | 說明 |
+|------|------|------|------|
+| `PANEL_ENABLED` | telenexus | `true` | `false` 時不啟動面板伺服器，`/panel` 回覆未啟用。`tunnel-manager` 仍會啟動，但不會連外 |
+| `PANEL_BIND`、`PANEL_PORT` | telenexus | compose 固定 `0.0.0.0`、`3040` | 面板只在容器網路上監聽，compose 沒有對主機開放這個連接埠；在主機執行時預設 `127.0.0.1` |
+| `TUNNEL_MANAGER_URL` | telenexus | `http://tunnel-manager:8790` | tunnel-manager 的內部 API |
+| `TUNNEL_KEY_FILE` | 兩者 | `/run/telenexus-tunnel/key` | 內部 API 金鑰，在 `tunnel_key` volume；tunnel-manager 每次啟動重產，telenexus 唯讀掛載、每次呼叫重讀 |
+| `TUNNEL_TARGET_URL` | tunnel-manager | `http://telenexus:3040` | Quick Tunnel 轉發的目標，只能是面板連接埠 |
+| `TUNNEL_START_TIMEOUT_MS` | tunnel-manager | `60000` | 等網址與外部健康檢查的上限，逾時就不發布入口 |
+| `CLOUDFLARED_BIN` | tunnel-manager | `cloudflared` | 映像內建 cloudflared 2026.11.0（釘版並驗 sha256） |
+
+`PANEL_*` 寫在 `.env`；`TUNNEL_*` 由 compose 設定，`tunnel-manager` 不讀 `.env`。主機要能連到 Cloudflare。
 
 ## ai-config.yaml（passthrough_commands）
 

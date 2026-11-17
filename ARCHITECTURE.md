@@ -1,12 +1,12 @@
 ## 架構概覽
 
-最後驗證日期：2026-11-12（網頁閱讀相關條目，issue 0024）。
+最後驗證日期：2026-11-17（模型面板與 tunnel-manager 相關條目，issue 0030）；2026-11-12（網頁閱讀相關條目，issue 0024）。
 
 TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram bot。
 
 系統主要由四層組成：
 
-- 互動層：Telegram Bot、Web Console
+- 互動層：Telegram Bot、Web Console、模型面板（Telegram Mini App，經按需開啟的 Quick Tunnel）
 - 協調層：訊息管線、命令路由、記憶注入、排程
 - 執行層：本地 provider 執行與 `agent-runner`
 - 觀測層：`workspace/context/` 狀態快照、runner audit、memory intent / prompt telemetry、**錯誤事件持久化 (`runtime_issues` 表) 與 Telegram 主動告警**
@@ -19,6 +19,7 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
   - 啟動 Telegram connector、MemoryManager、Scheduler、MemoriaSyncBridge、Web server
   - 建立聊天 prompt builder，決定 chat / scheduler 是否改走 runner
   - 以 `startPinnedStatus()` 啟動釘選訊息：訂閱 event-bus 更新，並在 context 快照計時器每輪檢查 24 小時錯誤數
+  - `PANEL_ENABLED` 時啟動面板伺服器與 `PanelController`；Telegram 初始化後先 `boot()`（停掉殘留 Tunnel、還原選單），再開始輪詢 Tunnel 狀態與閒置計時
 - `src/core/message-pipeline.ts`
   - 一般聊天主流程
   - 處理 queue、thinking placeholder、附件合併、prompt 準備、AI 回覆正規化、記憶落盤
@@ -114,6 +115,21 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 - `src/web/public/app/*`
   - 純 vanilla JS 的前端頁面與資料服務
 
+### 模型設定與面板（issue 0030）
+
+- `src/core/model-config.ts`
+  - `/model`、`/models`、`/set_model`、`/reset_model` 與面板共用的模型設定服務：讀取有效模型與來源（`describeAiConfigModel()`，與 `loadAiConfig()` 同一套合併規則）、列出 `opencode models`、驗證 ID 格式、以暫存檔加 rename 寫入或清除 `data/ai-config.override.yaml`
+- `src/web/panel-server.ts`
+  - 面板專用的 HTTP 伺服器（容器內 3040），Quick Tunnel 只接這個連接埠，所以它就是整個公開面：`/panel/health`、`/panel/` 靜態頁（`src/web/panel-public/`）、`/panel-api/login` 與需要憑證的 `state`、`models`、`apply`、`reset`；其餘一律 404，Web Console 的頁面與 `/api/*` 不在這裡
+- `src/web/panel-auth.ts`
+  - 驗 Telegram Mini App 的 `initData`（以 Bot Token 導出的 HMAC、10 分鐘有效、只接受 `ALLOWED_USER_ID`），換發只存在記憶體的 Bearer 憑證
+- `src/services/panel-controller.ts`
+  - 入口的生命週期：`/panel` 請 tunnel-manager 開 Tunnel，網址就緒且通過外部健康檢查後，才把私聊的選單按鈕設成 Mini App；網址換代時作廢所有憑證；Tunnel 中斷、30 分鐘沒有經過驗證的請求（寫入中不算）或 `/panel_close` 時關閉 Tunnel、作廢憑證、還原選單
+- `src/tunnel/tunnel-client.ts`
+  - telenexus 呼叫 tunnel-manager 內部 API 的客戶端，每次呼叫重讀共用 volume 裡的金鑰
+- `src/tunnel-manager.ts`、`src/tunnel/tunnel-manager.ts`、`src/tunnel/tunnel-api.ts`
+  - 獨立的 `tunnel-manager` 服務（同一個主映像、不同命令）：管理 cloudflared 子程序（停止／啟動中／就緒／失敗）、從輸出取得網址、確認外部能連到面板才算就緒；內部 API（`/tunnel/start`、`status`、`stop`）以每次啟動重新產生的金鑰認證
+
 ### 可觀測性
 
 - `src/services/event-bus.ts`
@@ -183,6 +199,14 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 3. Web chat 走與 Telegram 相同的 message pipeline
 4. Status 頁直接讀取 `workspace/context/*.md` 的結構化快照
 
+### 4. 模型面板
+
+1. 管理員在私聊輸入 `/panel`，`CommandRouter` 交給 `PanelController.open()`
+2. telenexus 經內部 API 請 `tunnel-manager` 啟動 cloudflared；網址就緒且外部能連到 `/panel/health` 後回傳
+3. `PanelController` 作廢舊憑證，把私聊的選單按鈕設成指向新網址的 Mini App「模型設定」
+4. Mini App 以 `initData` 登入換得憑證，經同源的 `/panel-api/*` 讀取設定與清單、套用或恢復預設；寫入走 `model-config.ts`，新的聊天與排程讀到同一個值
+5. 閒置 30 分鐘、Tunnel 中斷或 `/panel_close` 時，停掉 Tunnel、作廢憑證、還原選單
+
 ## Prompt 與記憶策略
 
 目前 prompt 並不是每輪都塞完整上下文，而是依訊息型態切換：
@@ -213,6 +237,8 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
   - 控制聊天 runner 白名單
 - `SCHEDULE_USE_RUNNER`
   - 控制排程是否固定走 runner
+
+Compose 另有 `tunnel-manager`（模型面板的 Quick Tunnel）與 `memoria` 兩個輔助服務；`tunnel-manager` 不讀 `.env`、不掛 data，與 telenexus 只共用一個存放內部 API 金鑰的 volume（telenexus 唯讀，agent-runner 不掛）。
 
 `DynamicAIAgent` 在 runner 模式下具備：
 
@@ -250,4 +276,4 @@ TeleNexus 目前是一套本地 AI control plane，而不是單純的 Telegram b
 - 配置與 runner/session：`docs/configuration-reference.md`
 - Web Console：`docs/web-console-reference.md`
 - 記憶系統與 SAR：`docs/summary-aware-retrieval-plan.md`
-- runtime 邊界：`docs/runtime-boundary-and-security.md`
+- runtime 邊界與模型面板的公開面：`docs/runtime-boundary-and-security.md`

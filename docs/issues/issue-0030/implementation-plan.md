@@ -327,8 +327,25 @@
 - 驗收編號：交付成果
 - 完成判準：文件描述與實際行為一致，不宣稱正式部署已上線。
 - 驗證：靜態檢查（`prettier --check`、連結）。
-- 狀態：📝 待實作
+- 狀態：✅ 完成（2026-11-17）
 - 證據：
+  - 更新：
+    - `README.md`：核心能力、模型管理指令表加 `/panel`、`/panel_close` 與面板說明，本機開發補 tunnel-manager。順手把 `/models`「列出可用模型」改成「列出不代表可以呼叫」。
+    - `ARCHITECTURE.md`：互動層、`main.ts` 啟動順序、新增「模型設定與面板」模組節、資料流「4. 模型面板」、Runner 模式補輔助服務。
+    - `CLAUDE.md`：服務拓撲補 tunnel-manager 與 KILL 的理由；Key Modules 加 `model-config`、`panel-server`、`panel-auth`、`panel-controller`、`src/tunnel/*`。
+    - `CONTRIBUTING.md`：開發流程補 tunnel-manager 與 `panel-public` 的建置。
+    - `docs/configuration-reference.md`：「model 切換」一節原本還寫 `/set_model` 直接改 `ai-config.yaml`，已依 #29／#30 後的實際行為重寫；新增「模型面板」一節與變數表。
+    - `docs/runtime-boundary-and-security.md`：新增「模型面板與 Quick Tunnel」一節，涵蓋公開面、授權、生命週期、tunnel-manager 邊界與已知限制；Tier 2 硬化補 tunnel-manager。
+    - `docs/installation.md`：映像共用說明；升級一節補 tunnel-manager、預設啟用與停用方式。
+    - `docs/README.md`：Telegram UX 加面板文件指引，移除「尚未實作」的舊條目。
+    - `.env.example`：Task 5.1 已更新。
+    - 不更新的文件：`docs/web-console-reference.md`，Web Console 沒有變動。
+  - 內容核對：面板回覆、選單按鈕文字、閒置與中斷通知、30 分鐘、10 分鐘與 60 秒、`/models` 最多 40 個，都從原始碼取值。文件沒有宣稱正式部署已上線（`git diff` 新增行 grep「已上線、已部署、已發版」無結果），安全一節不描述任何正式部署的設定。
+  - 靜態檢查：
+    - `prettier --check`：HEAD 時已經乾淨的 `README.md`、`ARCHITECTURE.md`、`CONTRIBUTING.md`、`docs/runtime-boundary-and-security.md`、`docs/README.md` 全部通過。
+    - `CLAUDE.md`、`docs/configuration-reference.md`、`docs/installation.md` 在 HEAD 就不符合 prettier，沒有整檔重排，以免把無關的格式差異混進來。
+    - 相對連結與錨點：以腳本檢查 7 份文件，沒有失效，包含新加的 `#模型面板與-quick-tunnelissue-0030`。
+  - 限制：Task 5.2 的真實 Tunnel 檢查若發現行為差異，要回頭修這些文件。
 
 #### Task 5.4 — 發版後以正式 Bot 驗收（外部驗收窗）
 - 產出與範圍：使用者發版並升級正式部署後，在 Android 客戶端驗 `/panel`、登入、切換、恢復預設、`/panel_close`、再 `/panel` 換網域後重新登入；資料只記結果與統計。
