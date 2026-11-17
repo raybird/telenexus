@@ -40,7 +40,7 @@ npm run memory:seed-sar-anchors    # Seed SAR retrieval anchors
 npm run memoria:migrate-legacy-scope -- --db <sessions.db>  # Move pre-2026-08-14 project:TeleNexus Memoria sessions to user:/scheduler: (preview; --write applies; deployment steps: docs/installation.md)
 
 # Model availability probing (no build needed — plain .mjs, ships in the image)
-npm run models:probe             # Probe the model currently set in ai-config.yaml
+npm run models:probe             # Probe the model in effect: data/ai-config.override.yaml (/set_model) over ai-config.yaml, same merge as config-loader
 npm run models:probe:all         # Probe every chat model `opencode models` lists, 2 rounds each
 npm run models:probe -- --models a,b --rounds 3   # Probe specific models
 docker compose exec agent-runner node scripts/probe-models.mjs --all  # From a release deployment

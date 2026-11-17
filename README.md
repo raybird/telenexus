@@ -151,7 +151,7 @@ docker compose exec telenexus node /app/dist/tools/scheduler-cli.js health
 上游會下架模型，而 `opencode models` 仍會列出已下架的名稱。換模型前先實測：
 
 ```bash
-docker compose exec agent-runner node scripts/probe-models.mjs        # 探測目前設定的模型
+docker compose exec agent-runner node scripts/probe-models.mjs        # 探測實際生效的模型（/set_model 的 override 優先於 ai-config.yaml）
 docker compose exec agent-runner node scripts/probe-models.mjs --all  # 探測所有可用模型
 ```
 

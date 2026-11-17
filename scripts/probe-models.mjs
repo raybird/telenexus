@@ -19,7 +19,7 @@
  *   並行探測會自己製造出 429,把健康的模型冤枉成限流。慢一點但結論可信。
  *
  * 用法:
- *   node scripts/probe-models.mjs                          # 測 ai-config.yaml 目前這顆
+ *   node scripts/probe-models.mjs                          # 測實際生效的那顆（合併 /set_model 的 override）
  *   node scripts/probe-models.mjs --all                    # 測 `opencode models` 全清單
  *   node scripts/probe-models.mjs --models a,b,c           # 測指定的幾顆
  *   node scripts/probe-models.mjs --all --rounds 3         # 每顆跑 3 輪看穩定性
@@ -31,6 +31,7 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import yaml from 'js-yaml';
 
 /** 真實任務形狀的 prompt:必須逼模型動用工具,並且要求可驗證的中文輸出。 */
 const DEFAULT_PROMPT =
@@ -102,21 +103,62 @@ function printUsage() {
   --prompt "..."     自訂探測 prompt（預設是會動用網路工具的真實任務）
   --json             輸出 JSON
 
-不給 --all / --models 時，測 ai-config.yaml 目前設定的那一顆。`);
+不給 --all / --models 時，測實際生效的那一顆：data/ai-config.override.yaml（/set_model 寫入）
+有模型時用它，否則用 ai-config.yaml。`);
 }
 
-/** 讀 ai-config.yaml 的 model —— 只做單行比對，不引 YAML 套件（此腳本要能在無 devDeps 的正式映像裡跑）。 */
-function readConfiguredModel() {
-  const configPath = path.resolve(process.env.APP_PROJECT_DIR || process.cwd(), 'ai-config.yaml');
+const BASE_CONFIG = 'ai-config.yaml';
+const OVERRIDE_CONFIG = 'data/ai-config.override.yaml';
+
+/** 讀設定檔頂層的 model；讀不到、YAML 壞掉、不是字串或空白都當成沒有設定。 */
+function readConfigModel(filePath) {
+  let doc;
   try {
-    for (const line of fs.readFileSync(configPath, 'utf8').split(/\r?\n/)) {
-      const match = line.match(/^model:\s*(\S+)/);
-      if (match) return match[1];
-    }
+    doc = yaml.load(fs.readFileSync(filePath, 'utf8'));
   } catch {
-    // 讀不到就讓呼叫端報錯，不要猜。
+    return null;
   }
-  return null;
+  const value = doc?.model;
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * 實際生效的模型(issue 0029):照 src/core/config-loader.ts 的 loadAiConfig(),override 有模型
+ * 就用它,否則用 ai-config.yaml。這支腳本要在沒有原始碼與建置的正式映像裡跑,不能 import
+ * TypeScript,所以是刻意的複本;改規則時兩邊一起改,tests/probe-models-script.test.ts 的對照
+ * 測試會在兩邊分歧時失敗。
+ */
+function resolveConfiguredModel() {
+  const projectDir = process.env.APP_PROJECT_DIR?.trim() || process.cwd();
+  const baseModel = readConfigModel(path.resolve(projectDir, BASE_CONFIG));
+  const overrideModel = readConfigModel(path.resolve(projectDir, OVERRIDE_CONFIG));
+  const model = overrideModel ?? baseModel;
+  return {
+    model,
+    source: overrideModel ? OVERRIDE_CONFIG : baseModel ? BASE_CONFIG : null,
+    baseModel,
+    overrideModel
+  };
+}
+
+function printConfigSource(config) {
+  if (!config.overrideModel) {
+    console.log(`模型來源：${BASE_CONFIG}＝${config.baseModel}`);
+    return;
+  }
+  const same = config.baseModel === config.overrideModel;
+  console.log(
+    `模型來源：${OVERRIDE_CONFIG}（/set_model）＝${config.overrideModel}` +
+      (same ? `（與 ${BASE_CONFIG} 相同）` : '')
+  );
+  if (same) return;
+  console.log(
+    config.baseModel
+      ? `${BASE_CONFIG}＝${config.baseModel}（已被覆寫，不測；要測請用 --models ${config.baseModel}）`
+      : `${BASE_CONFIG} 沒有設定模型`
+  );
 }
 
 /** `abortPattern` 命中 stderr 時立刻結束子程序，不等逾時（issue 0023：額度用完後只會在背景重試）。 */
@@ -306,7 +348,7 @@ async function probeModel(model, options) {
   return { model, verdict: worstVerdict(rounds), rounds };
 }
 
-function renderTable(results) {
+function renderTable(results, config) {
   const sorted = [...results].sort(
     (a, b) =>
       VERDICTS[a.verdict].order - VERDICTS[b.verdict].order || a.model.localeCompare(b.model)
@@ -340,8 +382,15 @@ function renderTable(results) {
   const usable = sorted.filter((r) => r.verdict === 'ok');
   console.log(`\n可用 ${usable.length} / 共測 ${sorted.length} 顆`);
   if (usable.length > 0) {
-    console.log('\n把其中一顆寫進 ai-config.yaml 的 model:');
-    for (const result of usable) console.log(`  model: ${result.model}`);
+    console.log('\n在 Telegram 用 /set_model 切換到其中一顆（下一則訊息生效）：');
+    for (const result of usable) console.log(`  /set_model ${result.model}`);
+    // --all／--models 不讀設定檔，不知道有沒有 override，所以照樣提醒。
+    if (!config || config.overrideModel) {
+      console.log(
+        `直接改 ${BASE_CONFIG} 的 model: 時，${config ? '目前有' : '若有'} /set_model 的 override，` +
+          '要先 /reset_model 清掉才會生效。'
+      );
+    }
   }
 }
 
@@ -349,20 +398,24 @@ async function main() {
   const options = parseArgs(process.argv.slice(2));
 
   let models;
+  let config;
   if (options.all) {
     models = await listAllModels(60_000);
   } else if (options.models.length > 0) {
     models = options.models;
   } else {
-    const configured = readConfiguredModel();
-    if (!configured) {
-      console.error('讀不到 ai-config.yaml 的 model，請改用 --models 或 --all');
+    config = resolveConfiguredModel();
+    if (!config.model) {
+      console.error(
+        `讀不到模型：${BASE_CONFIG} 與 ${OVERRIDE_CONFIG} 都沒有設定 model，請改用 --models 或 --all`
+      );
       process.exit(1);
     }
-    models = [configured];
+    models = [config.model];
   }
 
   if (!options.json) {
+    if (config) printConfigSource(config);
     console.log(`探測 ${models.length} 顆模型，每顆 ${options.rounds} 輪，逐一執行（不並行）。`);
     console.log(`prompt: ${options.prompt}`);
     console.log(`預估最長耗時: ${models.length * options.rounds * options.timeoutSec} 秒\n`);
@@ -377,9 +430,15 @@ async function main() {
   }
 
   if (options.json) {
-    console.log(JSON.stringify({ probedAt: new Date().toISOString(), results }, null, 2));
+    console.log(
+      JSON.stringify(
+        { probedAt: new Date().toISOString(), ...(config ? { config } : {}), results },
+        null,
+        2
+      )
+    );
   } else {
-    renderTable(results);
+    renderTable(results, config);
   }
 
   // 有任何一顆不可用就給非零 exit code，方便接 CI 或排程告警。
