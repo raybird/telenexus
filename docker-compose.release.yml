@@ -13,6 +13,8 @@ x-common-config: &common-config
   # 降權:禁止透過 setuid 提權,並丟棄所有 Linux capabilities，
   # 只保留 entrypoint 做 runtime UID 對齊 (usermod/chown) 與 gosu 降權所需的最小集合。
   # gosu 是「降權」不是提權,與 no-new-privileges 相容。
+  # KILL:以 root 執行的 init (tini) 要把 SIGTERM 轉給降權後的主程序，沒有它 docker stop 時
+  # tini 回報 Operation not permitted 並直接結束，優雅關閉不會執行（issue 0031）。
   security_opt:
     - no-new-privileges:true
   cap_drop:
@@ -23,6 +25,7 @@ x-common-config: &common-config
     - SETGID
     - FOWNER
     - DAC_OVERRIDE
+    - KILL
   volumes:
     - ./data:/app/data
     - ./workspace:/app/workspace
@@ -132,9 +135,8 @@ services:
   # issue 0030：按需啟停 Cloudflare Quick Tunnel，只接 telenexus 的面板連接埠。
   # 它是唯一能開公開網址的容器，所以邊界最窄：不讀 .env（有 Bot Token）、不掛 data、
   # 沒有 ports:（內部 API 只在容器網路上，以 tunnel_key volume 裡的金鑰認證）。
-  # cap_add 前五項與其他服務相同，給 entrypoint 對齊 PUID/PGID 用；主程序以 node 執行。
-  # 多一個 KILL：以 root 執行的 init（tini）要把 SIGTERM 轉給非 root 的主程序，沒有它 docker stop 會直接殺掉，
-  # cloudflared 不能正常收尾（2026-11-17 實測：沒有 KILL 時 tini 回報 Operation not permitted、exit 1）。
+  # cap_add 與其他服務相同：前五項給 entrypoint 對齊 PUID/PGID 用，KILL 讓 init（tini）把 SIGTERM
+  # 轉給非 root 的主程序，cloudflared 才能正常收尾（2026-11-17 實測：沒有 KILL 時 tini 回報 Operation not permitted、exit 1）。
   tunnel-manager:
     image: ghcr.io/raybird/telenexus:latest
     command: [ 'node', 'dist/tunnel-manager.js' ]

@@ -404,11 +404,19 @@ async function bootstrap() {
   }
   const closeServers = () => {
     panelController?.stopTimers();
-    return Promise.allSettled([webServer.close(), panelServer?.close() ?? Promise.resolve()]);
+    const closing = Promise.allSettled([
+      webServer.close(),
+      panelServer?.close() ?? Promise.resolve()
+    ]);
+    // 有連線卡住時 server.close() 會一直等；給 3 秒上限就走（與 runner 一致），
+    // 不然每次 docker stop 都要等滿寬限再被 SIGKILL（issue 0031）。
+    const limit = new Promise<void>((resolve) => setTimeout(resolve, 3000).unref());
+    return Promise.race([closing, limit]);
   };
 
-  // 註冊優雅關閉處理器
-  process.on('SIGINT', () => {
+  // 註冊優雅關閉處理器。容器裡要靠 compose 的 KILL capability 與 start 腳本的 exec，
+  // init 轉送的 SIGTERM 才送得到這裡（issue 0031）。
+  const shutdown = () => {
     console.log('\n[System] Shutting down gracefully...');
     stopContextRefresh();
     modelHealthCheck?.stop();
@@ -420,21 +428,9 @@ async function bootstrap() {
       console.log(`[System] Terminated ${terminated} child process tree(s)`);
     }
     void closeServers().finally(() => process.exit(0));
-  });
-
-  process.on('SIGTERM', () => {
-    console.log('\n[System] Shutting down gracefully...');
-    stopContextRefresh();
-    modelHealthCheck?.stop();
-    opencodeRetention?.stop();
-    scheduler.shutdown();
-    // 子程序是 detached 的,不會跟著終端機的 Ctrl-C 一起收到 SIGINT,要明確收掉。
-    const terminated = terminateAllChildren();
-    if (terminated > 0) {
-      console.log(`[System] Terminated ${terminated} child process tree(s)`);
-    }
-    void closeServers().finally(() => process.exit(0));
-  });
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 
   process.on('SIGUSR1', async () => {
     try {
