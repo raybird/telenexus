@@ -2,6 +2,45 @@
 
 > 更早的版本歷史見 [GitHub Releases](https://github.com/raybird/telenexus/releases) 與 git log。
 
+## 2.40.0 — 2026-11-17
+
+### 在 Telegram 用手機面板切換模型（#30）
+
+- 新增 `/panel`：管理員在與 Bot 的私聊輸入後，系統按需開一個 Cloudflare Quick Tunnel，輸入框旁出現「模型設定」選單按鈕，點開就是手機版面板。
+  - 可以依 provider 篩選、搜尋模型，套用選定的模型或恢復預設。
+  - 清單取自 `opencode models`，列出不代表一定能呼叫。
+  - 套用是全域設定，之後的聊天與排程都用新模型。
+- 安全邊界：
+  - 面板登入以 Telegram Mini App 的 initData 驗證，只接受 `ALLOWED_USER_ID`。
+  - Tunnel 只接面板專用的連接埠，Web Console 的頁面與 API 都不在公開網址上。
+  - 群組、非管理員與 Web Console 送出的 `/panel` 都不會開 Tunnel。
+- 自動關閉：
+  - 連續 30 分鐘沒有操作、輸入 `/panel_close`，或 Tunnel 中斷時，入口會關閉，選單按鈕還原成一般選單。
+  - 每次重新開啟都是新網址，舊網址登入的面板會失效。
+- `/model`、`/models` 顯示的模型改用與實際呼叫相同的合併規則（`data/ai-config.override.yaml` 優先），不會再顯示一顆、實際用另一顆。
+
+### 回覆的結論在前、過程摺疊（#28）
+
+- 模型在工具呼叫之間講的過程，收進 Telegram 的可展開引言（預設摺疊），結論放在最前面，長回覆不必先捲過一大段過程。
+- 聊天回覆與排程結果都套用；排程結果改走與聊天相同的 MarkdownV2 路徑。
+- 存進記憶、Memoria 與排程重試判斷的文字維持全文，只改 Telegram 上的呈現。
+
+### `models:probe` 測實際生效的模型（#29）
+
+- `npm run models:probe` 不帶參數時，改測合併 `data/ai-config.override.yaml`（`/set_model` 寫入的檔案）之後實際生效的模型，並標明模型來自哪個檔。以前只讀 `ai-config.yaml`，override 的模型失效時會誤報可用。
+
+### 升級注意
+
+- 新增 `tunnel-manager` 服務，與 telenexus 同一個映像，負責啟停 cloudflared。
+  - 不讀 `.env`，也不開放主機連接埠。
+  - 只掛新的 `tunnel_key` volume。
+- 映像內建 cloudflared 2026.11.0，下載時驗證 sha256。
+- 主機要能連到 Cloudflare，`/panel` 才開得起來。
+- `PANEL_ENABLED` 預設 `true`；不想用面板可在 `.env` 設成 `false`。
+- 每次 telenexus 啟動，都會停掉殘留的 Tunnel，並把管理員私聊的選單按鈕還原成預設。
+- memoria 映像沒有變動。
+- build、961 項測試與 lint 通過。#30 本機獨立審查三輪，第三輪 PASS。
+
 ## 2.39.1 — 2026-11-13
 
 ### Telegram 回覆不再丟掉子清單（#27）
