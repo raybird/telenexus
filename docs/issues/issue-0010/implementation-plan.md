@@ -150,7 +150,7 @@
 - 相依：T4.1／T4.2 的既有產品與證據；2026-10-05 使用者明確要求新增 SCN-008，先提交新規格。責任驗收：SCN-008。
 - 完成判準：真 MCP／Chrome descendant 活著時，Docker stop/SIGTERM 正常終止與 graceful deadline 後強制終止皆有真 signal／退出證據；宿主 PID/starttime 查核 15 秒內無 leaked/orphan/persistent Z，不能只看容器 stopped 或 exec 不可用。application／init／teardown 責任及 profile 限制照實記錄。
 - 驗證：最大未知為整條容器 termination 路徑，以真 runner→OpenCode→MCP→Chrome 整合及宿主存活程序正對照直接降低風險；fixture／文件不改產品行為時以 characterization／靜態證據，不製造假紅燈。發現產品 bug 時先保存目標失敗再最小修復。依序重跑 build／完整 test／lint／installer；GitHub checks 為空與本機 gate 分開揭露。
-- 狀態：⏳ 2026-10-05 真實補驗與交付材料完成，等待維護者第二輪 review；舊 PASS 不涵蓋新增 SCN-008，不自行合併。
+- 狀態：✅ 2026-10-05 完成：第二輪獨立審查 [review-3127601](review-3127601.md) PASS，涵蓋 SCN-001～008；同日 PR #11 以 squash 合併進 main（`718cc8b`）。2026-11-17 補記：當時合併後沒有回寫這一列。
 - 證據：[SCN-008 報告](evidence/scn008-report.md)、[最終 v3 宿主程序／cgroup 樣本](evidence/scn008-v3-summary.json)、[獨立數值查核](evidence/scn008-independent-counts.json)、[重跑 final gate](evidence/scn008-project-gates.json)。兩組各 16 樣本 live／Z／cgroup PID=0，正常 handler SIGTERM 退出 0、force deadline SIGKILL 退出 137；force profile 留在停止容器可寫層，不虛報 application cleanup。最終 gate／CI 未配置的區別與前測失效原因照實保留。靜態 `node docs/issues/issue-0010/evidence/verify-scn008-spec.mjs` 確認八項核准集合一致、原七項語意不變與連結有效；沙箱 spawn git 的 EPERM 另於取得權限後重跑 exit 0。
 
 ## 測試策略與驗收映射

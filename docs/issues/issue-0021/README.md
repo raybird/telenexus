@@ -102,8 +102,8 @@ Telegram 釘選狀態訊息有一行 `Recent errors (24h): N`（`src/services/pi
 
 | 編號 | 事項 | 狀態 | 影響 |
 |------|------|------|------|
-| TBD-1 | `tests/pinned-status.test.ts` 有兩個測試呼叫 `emitEvent` 時沒有指向暫存目錄，會在執行目錄的 `workspace/context/events.jsonl` 寫入假的 `request_done`（複審 [review-3bb8538.md](review-3bb8538.md) N-1）。路徑在 gitignore 內，`tests/event-projector.test.ts` 本來也這樣 | 不處理（2026-10-28）：NICE TO HAVE，不影響驗收；只在跑 `docker:dev` 的同時於 repo 目錄跑測試時，開發環境的事件流會多幾筆 | 不影響 AC |
-| TBD-2 | Telegram 編輯訊息失敗後，定期更新不補送，訊息停在舊數字，直到下一次數字改變或事件（審查 review-64b4025 N-5） | 不處理（2026-10-28）：改動前也不重試，不算退步；補送需要另訂重試策略 | 不影響 AC |
+| TBD-1 | `tests/pinned-status.test.ts` 有兩個測試呼叫 `emitEvent` 時沒有指向暫存目錄，會在執行目錄的 `workspace/context/events.jsonl` 寫入假的 `request_done`（複審 [review-3bb8538.md](review-3bb8538.md) N-1）。路徑在 gitignore 內，`tests/event-projector.test.ts` 本來也這樣 | 不影響本次交付（2026-10-28）：追蹤：無——NICE TO HAVE，不影響驗收；只在跑 `docker:dev` 的同時於 repo 目錄跑測試時，開發環境的事件流會多幾筆 | 不影響 AC |
+| TBD-2 | Telegram 編輯訊息失敗後，定期更新不補送，訊息停在舊數字，直到下一次數字改變或事件（審查 review-64b4025 N-5） | 不影響本次交付（2026-10-28）：追蹤：無——改動前也不重試，不算退步；補送需要另訂重試策略 | 不影響 AC |
 
 ## Timeline
 
@@ -116,6 +116,7 @@ Telegram 釘選狀態訊息有一行 `Recent errors (24h): N`（`src/services/pi
 | 2026-10-28 | 審查後續：補 S-1、S-2、N-1 的測試；N-2、N-4 修正 AC-1 說明與「已確認的現況」的措辭（error-summary 只列前 10 個 scope、去重視窗會往後移），條件與檢查方式不變；N-5 不處理 | - |
 | 2026-10-28 | 本機獨立複審 review-3bb8538：PASS，沒有 MUST FIX 與 SHOULD FIX，2 項 NICE TO HAVE（N-2 已在結案時修正，N-1 記為 TBD-1） | reviewer |
 | 2026-10-28 | 依使用者事先的指示（審查 PASS 而且沒有要修的項目時自動合併）以 `git merge --ff-only` 合併進 `main`（`2a862da`），未推送、未發版 | 使用者 |
+| 2026-11-17 | 補整待確認事項的狀態值：TBD-1、TBD-2 的「不處理」改為標準值「不影響本次交付」並寫明追蹤：無，理由沿用原結論（懸置掃描發現） | - |
 
 ---
 **建立日期**: 2026-10-28  

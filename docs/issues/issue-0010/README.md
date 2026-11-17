@@ -191,6 +191,7 @@ Phase 0 契約探測 → Phase 1 容器回收 → Phase 2 工具與生命週期 
 | 2026-10-05 | PR #11 以 squash 合併進 main（`718cc8b`），GitHub issue #10 關閉；同日發版 v2.28.0 | [PR #11](https://github.com/raybird/telenexus/pull/11) |
 | 2026-10-07 | 正式部署升到 v2.29.0，含本 issue 的變更；TBD-5 結案 | - |
 | 2026-10-16 | 補記合併後的結案紀錄：合併時沒有回寫狀態（見[地雷 L-09](../../agents/landmines.md#l-09-issue-文件與實際交付狀態不一致)） | - |
+| 2026-11-17 | 補記實作計畫 T4.3 的完成狀態：第二輪審查 review-3127601 PASS、PR #11 合併後沒有回寫（懸置掃描發現） | - |
 
 ---
 
