@@ -393,7 +393,8 @@ async function bootstrap() {
         botToken: TELEGRAM_TOKEN,
         allowedUserId: ALLOWED_USER_ID,
         sessions: panelSessions,
-        onActivity: () => panelController.touch()
+        onActivity: () => panelController.touch(),
+        beginWrite: () => panelController.beginWrite()
       });
       console.log(`[Panel] Listening on ${getPanelBindHost()}:${panelServer.port}`);
     } catch (error) {

@@ -60,7 +60,7 @@
     - `npm run build` exit 0；`npm run lint` exit 0。
     - `npm run test` exit 0，`# tests 860`、`# pass 860`，比 Task 1.1 後的 852 多 8 支；測試檔 96 個（多 1 個），相符（L-01）。
   - 限制：
-    - 「被拒的請求不改動設定」目前只證明到「未登入的寫入路徑都 401、檔案不變」。這時還沒有寫入 API，Task 4.1 加上套用與重設後，要重跑這個斷言。
+    - 「被拒的請求不改動設定」目前只證明到「未登入的寫入路徑都 401、檔案不變」。這時還沒有寫入 API，Task 4.1 加上套用與重設後，要重跑這個斷言。（2026-11-17 已在 Task 4.1 重跑通過，見該節證據。）
     - `src/main.ts` 的啟動接線沒有自動化測試（要真的 Bot token），留給 Task 5.2 的實際 stack 驗證。
 
 ### Phase 2 — 共用模型設定
@@ -230,8 +230,38 @@
 - 驗收編號：SCN-003（責任）、SCN-004（支援：經 API 套用與重設）、SCN-006（支援：面板顯示同一個有效模型）
 - 完成判準：登入後取得清單與目前設定；provider 篩選與搜尋結果正確；清單失敗與空清單顯示明確訊息；套用與重設經 API 改動設定、無效輸入回錯誤且檔案不變；頁面沒有任何字眼把「列出」說成「可用」。
 - 驗證：API 整合測試；前端以 DOM 層的最小測試或手動截圖（實作時依現有 Web Console 的測試方式決定），真 Telegram 客戶端留給 Task 5.4。
-- 狀態：📝 待實作
+- 狀態：✅ 完成（2026-11-17）
 - 證據：
+  - 測試：`tests/web/panel-api.test.ts`（9 支），以真實 HTTP 打 `startPanelServer()`。暫存專案同時是 cwd 與 `APP_PROJECT_DIR`，期望值是手寫字面值，套用或重設後再用 `loadAiConfig()` 讀回，確認與實際呼叫是同一個值。只注入 `opencode models` 的結果。
+  - 端點：`GET state`、`GET models`（附 provider 依出現順序去重）、`POST apply`（先驗格式，再取清單，清單取不到回 502 不寫；只套用清單內的 ID）、`POST reset`。套用與重設期間呼叫 `beginWrite()`，`src/main.ts` 接到 `PanelController.beginWrite()`，寫入中不算閒置（SCN-005）。
+  - 靜態頁：`src/web/panel-public/`（`index.html`、`app.js`、`app.css`），`/panel/<檔名>` 只服務 `^[a-z0-9-]+\.(html|js|css)$` 的檔名，不解碼。CSP 為 `default-src 'none'`，script 只允許同源與 `https://telegram.org`，`connect-src 'self'`，沒有 inline script 或 style。`scripts/copy-web-assets.mjs` 改為複製 `public/` 與 `panel-public/`，`dist/web/panel-public/` 由編譯後的伺服器服務（已用 `dist/` 實測 200／404）。
+  - 紅燈：`# tests 9`、`# fail 8`；唯一通過的是未登入一律 401，Task 1.2 已有這個行為。
+  - 綠燈：`panel-api` 加 `panel-server` 共 `# pass 19`。
+  - 被拒的請求不改動設定（Task 1.2 留下的斷言）：重跑通過，有兩支測試證明。
+    - 已登入時，不在清單內、格式不合、型別錯誤、缺欄位、body 不是 JSON、清單取不到，6 種情況都不改動 override 檔，寫入標記也都有成對釋放。
+    - 未登入時，套用、重設、狀態、清單四個端點都回 401，檔案不變。
+  - 變異檢查（各自還原後重跑），6 種都被抓到：
+    - 不比對清單：1 支失敗
+    - 套用後不釋放寫入標記：2 支失敗
+    - 不檢查方法：1 支失敗
+    - 不送 CSP：1 支失敗
+    - 清單失敗仍寫入：1 支失敗
+    - 不驗憑證：1 支失敗
+  - 重構：精煉時發現路由表是一般物件，`/panel-api/constructor`、`__proto__` 會取到原型成員而回 405。先把測試補到 404 取得紅燈（`405 !== 404`），再改用 `Map`，重跑轉綠。順手把 `serveStatic` 的 try／throw 改成直接判斷。
+  - 前端實測：用 Chrome headless 與 playwright-core，在 scratchpad 跑，不進 repo，全部用合成資料。`telegram-web-app.js` 換成帶測試 initData 的樁。在 390×844 淺色與 360×640 深色兩種環境下，逐步檢查：
+    - 載入後顯示 33／33 筆。
+    - 選 provider 並搜尋後剩 1／33 筆。
+    - 套用長模型 ID 後，override 檔內容正確，「恢復預設」變成可按。
+    - 恢復預設後 override 檔被刪除。
+    - 頁面沒有水平溢出、沒有 console 錯誤。原本有一次 `/favicon.ico` 404，補了 `data:` 圖示後消失。
+    - 沒有 initData 時顯示「請從 Telegram 私聊的『模型設定』選單按鈕開啟」。
+    - Playwright 的字串求值被頁面 CSP 擋下，反過來證明 CSP 確實生效；改從 Node 端輪詢。
+    - 截圖人工檢視：長 ID 完整換行，目前模型標示與全域說明都看得到。
+  - 用語：頁面與前端程式沒有「可用」「available」字樣；說明寫的是「列出不代表可以呼叫」。
+  - 交付檢查：
+    - `npm run build` exit 0；`npm run lint` exit 0。
+    - `npm run test` exit 0，`# tests 939`、`# pass 939`，比 Task 3.2 後的 930 多 9 支；測試檔 103 個（多 1 個）（L-01）。
+  - 限制：真的 Telegram 客戶端（主題變數、initData、選單按鈕開啟）沒有測，留給 Task 5.4；經 Tunnel 的同源存取由 Task 5.2 驗證。
 
 ### Phase 5 — 部署整合、外部證據與文件
 

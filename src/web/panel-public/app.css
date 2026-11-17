@@ -1,0 +1,215 @@
+/* issue 0030：模型面板。顏色優先用 Telegram 注入的 --tg-theme-* 變數，沒有時跟隨系統深淺色。 */
+:root {
+  color-scheme: light dark;
+  --bg: var(--tg-theme-bg-color, Canvas);
+  --text: var(--tg-theme-text-color, CanvasText);
+  --hint: var(--tg-theme-hint-color, GrayText);
+  --section: var(--tg-theme-secondary-bg-color, color-mix(in srgb, CanvasText 6%, Canvas));
+  --button: var(--tg-theme-button-color, #2481cc);
+  --button-text: var(--tg-theme-button-text-color, #fff);
+  --danger: var(--tg-theme-destructive-text-color, #d93025);
+  --target-size: 24px;
+}
+
+@media (pointer: coarse) {
+  :root {
+    --target-size: 44px;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 1rem/1.5 system-ui, sans-serif;
+  overflow-wrap: break-word;
+}
+
+main {
+  max-inline-size: 40rem;
+  margin-inline: auto;
+  padding: 1rem max(1rem, env(safe-area-inset-right, 0px))
+    calc(1.5rem + env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
+}
+
+h1 {
+  font-size: 1.25rem;
+  margin-block: 0 1rem;
+  text-wrap: balance;
+}
+
+h2 {
+  font-size: 1rem;
+  margin-block: 0 0.5rem;
+}
+
+code {
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, monospace;
+}
+
+.current,
+.notice,
+fieldset {
+  background: var(--section);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin-block: 0 1rem;
+}
+
+.current dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0;
+}
+
+.current dd {
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.notice {
+  color: var(--hint);
+  font-size: 0.9rem;
+  text-wrap: pretty;
+}
+
+.notice strong {
+  color: var(--text);
+}
+
+.filters {
+  display: grid;
+  gap: 0.75rem;
+  margin-block-end: 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+select,
+input[type='search'],
+button {
+  font: inherit;
+  font-size: max(1rem, 1em);
+  min-block-size: var(--target-size);
+}
+
+select,
+input[type='search'] {
+  inline-size: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--text) 55%, transparent);
+  border-radius: 0.5rem;
+  background: var(--bg);
+  color: var(--text);
+}
+
+fieldset {
+  border: 0;
+}
+
+legend {
+  font-weight: 600;
+  padding: 0;
+  margin-block-end: 0.5rem;
+  float: inline-start;
+  inline-size: 100%;
+}
+
+#count {
+  color: var(--hint);
+  font-weight: 400;
+  margin-inline-start: 0.5rem;
+}
+
+.models {
+  clear: both;
+  display: grid;
+  gap: 0.25rem;
+  max-block-size: 50dvh;
+  overflow-y: auto;
+}
+
+.models label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-block-size: var(--target-size);
+  padding: 0.25rem 0.25rem;
+  border-radius: 0.5rem;
+}
+
+.models label:has(input:checked) {
+  background: color-mix(in srgb, var(--button) 15%, transparent);
+}
+
+.models input {
+  flex: none;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  margin: 0;
+}
+
+.models .tag {
+  color: var(--hint);
+  font-size: 0.8rem;
+  margin-inline-start: auto;
+  white-space: nowrap;
+}
+
+.empty {
+  color: var(--hint);
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+button {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--button);
+  background: transparent;
+  color: var(--button);
+  cursor: pointer;
+}
+
+button[type='submit'] {
+  background: var(--button);
+  color: var(--button-text);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 3px solid var(--button);
+  outline-offset: 2px;
+}
+
+.status {
+  margin-block: 1rem 0;
+  min-block-size: 1.5em;
+}
+
+.status[data-kind='error'] {
+  color: var(--danger);
+}
