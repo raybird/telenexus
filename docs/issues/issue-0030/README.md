@@ -157,6 +157,14 @@ Feature: 按需開啟的 Telegram 模型切換面板
 - `docs/README.md`：新增 issue 文件索引。
 不變更排程／記憶管理功能、provider 認證儲存與正式部署資料。
 
+實際交付（2026-11-17）與上列預估的差異：面板依 Q1 改用獨立的 `src/web/panel-server.ts` 與 `src/web/panel-public/`，Web Console 的 `src/web/server.ts`、`src/web/public/` 與 `docs/web-console-reference.md` 都沒有變更；`scripts/install.sh` 不必改。逐 Task 的檔案見 implementation-plan.md。
+
+## Gate 豁免紀錄
+
+| 日期 | 豁免項目 | 使用者原話 | 殘餘風險 |
+|------|----------|-----------|----------|
+| 2026-11-17 | 不開 PR；改由獨立 subagent 在本機審查 `main..HEAD`，合併由使用者決定 | 交付方式選「分支＋本機獨立審查 (Recommended)」 | 沒有 GitHub 上的 PR 紀錄；審查報告保存在本 issue 目錄 |
+
 ## Timeline
 
 | 日期 | 異動 | 負責人 |
@@ -164,6 +172,7 @@ Feature: 按需開啟的 Telegram 模型切換面板
 | 2026-11-15 | 依對話建立 GitHub #30 與初始需求草案，未開始實作 | Codex |
 | 2026-11-17 | 依使用者要求併入 #29 的 TBD-1（`/model` 與 `loadAiConfig()` 的解析差異）：新增 SCN-006（待核准），已查證現況補上差異 | 使用者 |
 | 2026-11-17 | 逐題確認 Q1～Q4 並核准修改後的 SCN-001～006；TBD-1～4 解決；Tunnel 改接面板專用連接埠、tunnel-manager 沿用主映像；implementation-plan 拆成 Phase 1～5、Task 1.1～5.4 | 使用者 |
+| 2026-11-17 | Task 1.1～5.3 完成；經使用者核准執行真實 Quick Tunnel 外部檢查並通過；實測發現 telenexus／agent-runner 缺 `KILL` 時 `docker stop` 收不到 SIGTERM（既有問題，不在本 issue 修）；交付方式選分支＋本機獨立審查 | Claude |
 
 **建立日期**: 2026-11-15
 **分級**: Large
