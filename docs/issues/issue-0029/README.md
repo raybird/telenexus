@@ -10,6 +10,10 @@
 
 目標：不帶參數時測合併 override 之後的模型，並標明模型來自哪個檔；再用對照測試讓探針與 config-loader 的解析規則不能各自分歧。
 
+## 現況
+
+**現行 review**: review-23d451d.md
+
 ## 涉及檔案
 
 - `scripts/probe-models.mjs` - 以 `js-yaml` 照 `loadAiConfig()` 的規則合併 override；輸出模型來源、`--json` 的 `config` 欄位、結尾提示與錯誤訊息
@@ -69,9 +73,10 @@
 |------|------|--------|
 | 2026-11-13 | 建立 GitHub issue #29 | 使用者 |
 | 2026-11-17 | 建立 issue 文件；AC-1～AC-7 依 Q1～Q4 的答案與草案確認核准；交付方式照 #27、#28（分支、本機獨立審查、不開 PR） | 使用者 |
+| 2026-11-17 | 本機獨立審查 RETURN TO execute-task（review-23d451d.md：MUST FIX 1 項、SHOULD FIX 2 項），回頭修正 | - |
 
 ---
 **建立日期**: 2026-11-17  
 **分級**: Small  
 **風險**: Low\
-**狀態**: 實作中（步驟 1～4 完成，等待審查）
+**狀態**: 實作中（審查要求修正）
