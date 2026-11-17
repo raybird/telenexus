@@ -101,7 +101,7 @@ Feature: 按需開啟的 Telegram 模型切換面板
 
 ## Gherkin 核准紀錄
 
-- **核准 commit**: 待提交
+- **核准 commit**: 2d23d19
 - **核准來源**: 2026-11-15 使用者：「聊天串流與即時更新可以不用，然後主要是可以方便切換 provider 與 model」及「可以根據目前這樣的討論在 github 開此 issue」（授權建單）。2026-11-17 逐題確認：Q1 選「面板專用的連接埠」（建議，SCN-001、002、004）、Q2 選「新服務，沿用主映像」（建議，SCN-001）、Q3 選「30 分鐘無操作」（建議，SCN-005）、Q4 選「發版後用正式 Bot 驗」（SCN-001、002、005 的真機證據）；之後對修改後的 SCN-001～006（SCN-001 加 tunnel-manager 不存在／逾時、SCN-002 加公開網址只有面板與舊憑證失效、SCN-005 加 30 分鐘閒置關閉），連同工程預設與證據安排，回答「照草案核准」；發版後驗收的客戶端選 Android。
 
 | Scenario | 核准日期 | 狀態 |
@@ -168,7 +168,7 @@ Feature: 按需開啟的 Telegram 模型切換面板
 **建立日期**: 2026-11-15
 **分級**: Large
 **風險**: High
-**狀態**: 驗收已核准（2026-11-17），尚未實作
+**狀態**: 實作中（分支 `feat/telegram-model-panel`；Task 1.1 完成）
 
 ## 參考
 - [Cloudflare Quick Tunnels 與限制](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)

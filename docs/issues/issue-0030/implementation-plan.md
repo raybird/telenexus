@@ -21,8 +21,17 @@
 - 驗收編號：SCN-002（支援）
 - 完成判準：正確簽章且在時效內的白名單帳號通過；改任一欄位、錯的 Bot Token、`auth_date` 超過 10 分鐘或在未來、非白名單、缺 `hash`、空字串都拒絕；世代變更後舊憑證失效。
 - 驗證：單元測試。簽章期望值來自獨立的真相來源：用測試外的工具（例如 Python `hmac`）依 Telegram 文件算出的字面值，不在測試裡用同一段 Node 程式重算。
-- 狀態：📝 待實作
+- 狀態：✅ 已完成（2026-11-17）
 - 證據：
+  - 產出：`src/web/panel-auth.ts`（`verifyInitData()`、`PanelSessions`）、`tests/web/panel-auth.test.ts`（11 支，皆標 SCN-002）。簽章期望值是 Python `hmac` 依 Telegram 文件另外算出的字面值，不在測試裡重算。
+  - 單迴圈理由：本 Task 只有函式層行為，沒有 HTTP 或整合責任；SCN-002 的外迴圈（真實 HTTP 拒絕、設定未變）由 Task 1.2 負責。
+  - 紅燈 1（allow-all 樁，全部放行）：`npx tsx --test tests/web/panel-auth.test.ts` exit 1，`# fail 9`。拒絕類 9 支失敗，原因是偽造、過期、非白名單、未設定都被放行、憑證作廢無效；只有 2 支正面案例通過。
+  - 紅燈 2（deny-all 樁，全部拒絕）：同命令 exit 1，`# fail 9`。正面的 2 支（正確簽章、signature 兩種讀法）失敗。兩次合起來，每一支測試都至少紅過一次。
+  - 綠燈：同命令 exit 0，`# tests 11`、`# pass 11`。
+  - 變異檢查（各自還原後重跑）：拿掉重複欄位檢查、時效差一秒、拿掉未來時間檢查、拿掉 signature 的第二種算法、拿掉白名單、拿掉未設定檢查、`revokeAll()` 不清空，7 種都有 1 支失敗。
+  - 重構：code-simplify 檢查後沒有實質改善（no-op），綠燈即最終狀態。
+  - 交付檢查：`npm run build` exit 0；`npm run lint` exit 0；`npm run test` exit 0，`# tests 852`、`# pass 852`、`# fail 0`，比前一版 841 多 11 支，測試檔 95 個（多 1 個），相符（L-01）。
+  - 殘餘風險：Telegram 文件沒有說清楚 bot 端的 hash 要不要納入 `signature`，所以兩種都接受，兩種都需要 Bot token。真實 initData 要到 Task 5.4（發版後）才驗得到。
 
 #### Task 1.2 — 面板專用伺服器與授權邊界
 - 產出與範圍：面板 HTTP 伺服器的骨架（登入 API、憑證檢查 middleware、未知路徑 404），在 `src/main.ts` 啟動；尚無模型 API。
