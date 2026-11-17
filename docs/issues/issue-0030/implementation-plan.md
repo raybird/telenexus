@@ -318,8 +318,24 @@
 - 驗收編號：風險證據（README 首要驗證）；SCN-001、SCN-002 的外部面
 - 完成判準：公開網址的面板頁回 200；`/api/chat`、`/api/memory/export`、`/` 回 404；未登入呼叫 `/panel-api/*` 被拒；`/panel_close` 等效操作後網址失效。
 - 驗證：觀測式證據，記命令與狀態碼（不記網址）；反向自檢：先確認同一組 `curl` 對 3030 的 Web Console 會回 200，證明判準抓得到失敗。
-- 狀態：📝 待實作
+- 狀態：✅ 完成（2026-11-17，使用者核准當天執行）
 - 證據：
+  - 做法調整：計畫原本要起「不開 Telegram polling 的 telenexus」，但 `src/main.ts` 沒有只開面板的模式，所以改在主機上直接啟動實際元件，效果相同，也不會與正式 Bot 產生 409：
+    - 測試腳本放在 scratchpad，不進 repo，因為裡面有本機路徑。腳本內以真實的 `startPanelServer()` 起面板，使用合成 Bot Token、合成模型清單與暫存設定目錄，不碰 repo 的 `data/` 與正式部署。
+    - 以 `npx tsx src/tunnel-manager.ts` 起真的 tunnel-manager 進入點，cloudflared 用 Task 5.1 驗過 sha256 的 2026.11.0。
+    - 以真的 `TunnelClient` 經內部 API 啟停 Tunnel。全程不連 Telegram。
+  - 反向自檢：同一組 curl 判準先套在「所有路徑都回 200」的合成服務上（模擬 Tunnel 接到沒有保護的服務），11 項中有 9 項判 FAIL，判準抓得到失敗。計畫原本要對 3030 的 Web Console 做這一步，改用合成服務是為了不碰正式部署的資料。
+  - 公開網址：`tunnel start` 回 ready（generation=1），耗時 7.4 秒，網址形式為 `https://<隨機>.trycloudflare.com`，網址不記錄。從主機經 Cloudflare 執行 `curl`，11 項全部符合：
+    - `GET /panel/`、`GET /panel/health`：200
+    - `GET /`、`POST /api/chat`、`GET /api/memory/export`、`GET /api/health`：404
+    - 未登入的 `GET /panel-api/state`、`POST /panel-api/apply`、帶假 Bearer、`?token=` 網址參數、`/panel-api/constructor`：401
+  - 經公開網址的完整流程：以合成 initData 登入 200，帶憑證讀 state 200，套用 `mock/b` 200，暫存目錄的 override 檔內容為 `model: mock/b`。
+  - 關閉：`tunnel stop` 回 stopped（generation=2）。5 秒後同一網址 `GET /panel/health` 回 530（Cloudflare 找不到 Tunnel），網址已失效。`pgrep` 確認 cloudflared 程序為 0，腳本結束後也沒有殘留 tunnel-manager。暫存目錄、金鑰與含網址的 log 都已刪除。
+  - 過程中的錯誤（都出在測試腳本，產品程式沒有改）：
+    - 第一次執行用同步的 `execFileSync` 呼叫 curl，卡住同一程序裡面板與合成服務的事件迴圈，全部逾時；腳本又被外層 timeout 中止，留下 tunnel-manager 與 cloudflared。以 `pgrep -af` 逐一確認 PID 屬於本次測試後，對它們的程序群組送 SIGTERM，清理乾淨。
+    - 第二次執行判準全部正確，但「殘留 cloudflared」的檢查讓 `pgrep -f` 比對到自己的 `sh -c` 命令列，誤報 1。改用 `[c]` 寫法後第三次執行，總判定 PASS。
+    - 每次執行都只開一個網址，都在 1 分鐘內關閉。
+  - 限制：沒有經過 Telegram 客戶端（initData 是合成的），容器網路上的 compose 連線（`telenexus:3040`、`tunnel-manager:8790`）沒有在 compose stack 中實測，都留給 Task 5.4 發版後以正式 Bot 驗收。
 
 #### Task 5.3 — 常青文件
 - 產出與範圍：依 project.md「常青文件更新責任」更新 `README.md`、`ARCHITECTURE.md`、`CLAUDE.md`、`CONTRIBUTING.md`、`.env.example`、`docs/configuration-reference.md`、`docs/runtime-boundary-and-security.md`（公開面與授權模型）、`docs/installation.md`、`docs/README.md`；`docs/web-console-reference.md` 只在動到 Web Console 時更新。

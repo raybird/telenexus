@@ -168,7 +168,7 @@ Feature: 按需開啟的 Telegram 模型切換面板
 **建立日期**: 2026-11-15
 **分級**: Large
 **風險**: High
-**狀態**: 實作中（分支 `feat/telegram-model-panel`；Task 1.1～5.1、5.3 完成；5.2 待使用者決定時機）
+**狀態**: 實作中（分支 `feat/telegram-model-panel`；Task 1.1～5.3 完成；剩 Task 5.4 發版後驗收）
 
 ## 參考
 - [Cloudflare Quick Tunnels 與限制](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)
