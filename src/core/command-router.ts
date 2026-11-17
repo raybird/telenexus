@@ -6,7 +6,7 @@ import path from 'path';
 import yaml from 'js-yaml';
 import { parseBool } from '../utils/env.js';
 import { resolveProjectDir } from '../utils/paths.js';
-import { runProcess } from './process-runner.js';
+import { applyModel, listModels, readModelState, resetModel } from './model-config.js';
 
 type CommandContext = {
   msg: UnifiedMessage;
@@ -377,35 +377,18 @@ export class CommandRouter {
       name: 'model',
       match: (content) => content === '/model',
       execute: async ({ userId, connector }) => {
-        try {
-          const configPath = this.resolveConfigPath();
-          const overridePath = this.resolveOverridePath();
-          const base = yaml.load(fs.readFileSync(configPath, 'utf8')) as
-            | { model?: string }
-            | undefined;
-          const baseModel = base?.model?.trim();
-
-          let overrideModel: string | undefined;
-          if (fs.existsSync(overridePath)) {
-            const ov = yaml.load(fs.readFileSync(overridePath, 'utf8')) as
-              | { model?: string }
-              | undefined;
-            overrideModel = ov?.model?.trim() || undefined;
-          }
-
-          if (overrideModel) {
-            await connector.sendMessage(
-              userId,
-              `🤖 目前使用模型：\`${overrideModel}\`（override）\n📄 基礎設定：\`${baseModel || '未設定'}\``
-            );
-          } else {
-            await connector.sendMessage(
-              userId,
-              `🤖 目前使用模型：\`${baseModel || '未設定（使用 opencode 預設）'}\`（base config）`
-            );
-          }
-        } catch {
-          await connector.sendMessage(userId, '❌ 無法讀取設定檔。');
+        // 與實際呼叫同一套合併規則（issue 0030 SCN-006），任一檔不合法時照規則改用另一個檔。
+        const state = readModelState();
+        if (state.source === 'override') {
+          await connector.sendMessage(
+            userId,
+            `🤖 目前使用模型：\`${state.model}\`（override）\n📄 基礎設定：\`${state.baseModel || '未設定'}\``
+          );
+        } else {
+          await connector.sendMessage(
+            userId,
+            `🤖 目前使用模型：\`${state.model || '未設定（使用 opencode 預設）'}\`（base config）`
+          );
         }
       }
     });
@@ -420,33 +403,31 @@ export class CommandRouter {
           if (msgId) await connector.editMessage(userId, msgId, text);
           else await connector.sendMessage(userId, text);
         };
-        try {
-          const args = providerFilter ? ['models', providerFilter] : ['models'];
-          const { stdout } = await runProcess('opencode', args, { timeoutMs: 15000 });
-          const models = stdout.trim().split('\n').filter(Boolean);
-          if (models.length === 0) {
-            await send(
-              providerFilter
-                ? `❌ 找不到 provider「${providerFilter}」的模型。`
-                : '❌ 無法取得模型清單。'
-            );
-            return;
-          }
-          const MAX_DISPLAY = 40;
-          const displayed = models.slice(0, MAX_DISPLAY);
-          const hasMore = models.length > MAX_DISPLAY;
-          const list = displayed.map((m) => `• \`${m}\``).join('\n');
-          const header = providerFilter
-            ? `📋 **${providerFilter}** 模型列表（共 ${models.length} 個）`
-            : `📋 可用模型列表（共 ${models.length} 個）`;
-          const footer = hasMore
-            ? `\n\n_...還有 ${models.length - MAX_DISPLAY} 個。使用 \`/models <provider>\` 篩選，例如 \`/models opencode\`_`
-            : '';
-          await send(`${header}\n\n${list}${footer}`);
-        } catch (error) {
-          const errMsg = error instanceof Error ? error.message : String(error);
-          await send(`❌ 無法取得模型清單：${errMsg}`);
+        const listed = await listModels(providerFilter ? { provider: providerFilter } : {});
+        if (!listed.ok) {
+          await send(`❌ 無法取得模型清單：${listed.error}`);
+          return;
         }
+        const models = listed.models.map((m) => m.id);
+        if (models.length === 0) {
+          await send(
+            providerFilter
+              ? `❌ 找不到 provider「${providerFilter}」的模型。`
+              : '❌ 無法取得模型清單。'
+          );
+          return;
+        }
+        const MAX_DISPLAY = 40;
+        const displayed = models.slice(0, MAX_DISPLAY);
+        const hasMore = models.length > MAX_DISPLAY;
+        const list = displayed.map((m) => `• \`${m}\``).join('\n');
+        const header = providerFilter
+          ? `📋 **${providerFilter}** 模型列表（共 ${models.length} 個）`
+          : `📋 可用模型列表（共 ${models.length} 個）`;
+        const footer = hasMore
+          ? `\n\n_...還有 ${models.length - MAX_DISPLAY} 個。使用 \`/models <provider>\` 篩選，例如 \`/models opencode\`_`
+          : '';
+        await send(`${header}\n\n${list}${footer}`);
       }
     });
 
@@ -455,32 +436,24 @@ export class CommandRouter {
       match: (content) => content.startsWith('/set_model '),
       execute: async ({ userId, connector, content }) => {
         const modelId = content.slice('/set_model '.length).trim();
-        if (!modelId) {
+        const result = applyModel(modelId);
+        if (!result.ok && result.error === 'invalid-model') {
           await connector.sendMessage(
             userId,
             '❌ 格式錯誤。使用範例：`/set_model nvidia/deepseek-ai/deepseek-v4-flash`'
           );
           return;
         }
-        try {
-          const overridePath = this.resolveOverridePath();
-          let oldModel: string | undefined;
-          if (fs.existsSync(overridePath)) {
-            const ov = yaml.load(fs.readFileSync(overridePath, 'utf8')) as
-              | { model?: string }
-              | undefined;
-            oldModel = ov?.model?.trim() || undefined;
-          }
-          fs.writeFileSync(overridePath, `model: ${modelId}\n`, 'utf8');
-          const fromStr = oldModel ? `\`${oldModel}\`` : '（base config）';
-          await connector.sendMessage(
-            userId,
-            `✅ 模型已切換：${fromStr} → \`${modelId}\`\n下一則訊息生效。`
-          );
-        } catch (error) {
-          const errMsg = error instanceof Error ? error.message : String(error);
+        if (!result.ok) {
+          const errMsg = 'message' in result ? result.message : result.error;
           await connector.sendMessage(userId, `❌ 更新失敗：${errMsg}`);
+          return;
         }
+        const fromStr = result.previous ? `\`${result.previous}\`` : '（base config）';
+        await connector.sendMessage(
+          userId,
+          `✅ 模型已切換：${fromStr} → \`${modelId}\`\n下一則訊息生效。`
+        );
       }
     });
 
@@ -488,28 +461,22 @@ export class CommandRouter {
       name: 'reset_model',
       match: (content) => content === '/reset_model',
       execute: async ({ userId, connector }) => {
-        try {
-          const overridePath = this.resolveOverridePath();
-          if (!fs.existsSync(overridePath)) {
-            await connector.sendMessage(
-              userId,
-              'ℹ️ 目前沒有 override，已使用 base config 的模型設定。'
-            );
-            return;
-          }
-          const ov = yaml.load(fs.readFileSync(overridePath, 'utf8')) as
-            | { model?: string }
-            | undefined;
-          const oldModel = ov?.model?.trim();
-          fs.unlinkSync(overridePath);
+        const result = resetModel();
+        if (!result.ok) {
+          await connector.sendMessage(userId, `❌ 清除失敗：${result.message}`);
+          return;
+        }
+        if (!result.changed) {
           await connector.sendMessage(
             userId,
-            `✅ 已清除模型 override（\`${oldModel || '?'}\`），恢復使用 base config 設定。`
+            'ℹ️ 目前沒有 override，已使用 base config 的模型設定。'
           );
-        } catch (error) {
-          const errMsg = error instanceof Error ? error.message : String(error);
-          await connector.sendMessage(userId, `❌ 清除失敗：${errMsg}`);
+          return;
         }
+        await connector.sendMessage(
+          userId,
+          `✅ 已清除模型 override（\`${result.previous || '?'}\`），恢復使用 base config 設定。`
+        );
       }
     });
 
@@ -525,16 +492,5 @@ export class CommandRouter {
         await connector.sendMessage(msg.chatId || userId, reply);
       }
     });
-  }
-
-  private resolveConfigPath(): string {
-    const projectDir = resolveProjectDir();
-    const absPath = path.resolve(projectDir, 'ai-config.yaml');
-    return fs.existsSync(absPath) ? absPath : 'ai-config.yaml';
-  }
-
-  private resolveOverridePath(): string {
-    const projectDir = resolveProjectDir();
-    return path.resolve(projectDir, 'data', 'ai-config.override.yaml');
   }
 }

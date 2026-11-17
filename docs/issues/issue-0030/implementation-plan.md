@@ -101,8 +101,30 @@
 - 驗收編號：SCN-006（責任）
 - 完成判準：`model` 空白、不是字串、YAML 壞掉、引號、只有其中一個檔等組合下，`/model` 顯示的有效模型與來源都和 `loadAiConfig()` 相同，不回「❌ 無法讀取設定檔」；`ai-config.yaml` 位置與 `loadAiConfig()` 一致；`/set_model` 寫出的檔能被 `loadAiConfig()` 讀回同一個 ID。
 - 驗證：以 `loadAiConfig()` 為對照的組合測試（同 #29 的 parity 做法），期望值來自 loader 這條獨立路徑。
-- 狀態：📝 待實作
+- 狀態：✅ 已完成（2026-11-17）
 - 證據：
+  - 產出：
+    - `src/core/command-router.ts`：四個指令改呼叫 `model-config`，拿掉自己的 YAML 解析、`resolveConfigPath()`、`resolveOverridePath()`。一般情況的回覆文字不變。
+    - `/set_model` 的 ID 不合 `isModelId()`（含空白、換行、沒有 `/`）時回原本的「❌ 格式錯誤」。
+  - 測試：`tests/command-router-model.test.ts`，9 支。cwd 與 `APP_PROJECT_DIR` 分在兩個目錄，才看得出 `ai-config.yaml` 讀的是哪一個。期望值是手寫字面值。
+  - 影響分析：GitNexus 對 `registerDefaultCommands` 評為 LOW，只有 `CommandRouter` 的 constructor 一個呼叫者。
+  - 單迴圈理由：指令層就是使用者看到的回覆；底層合併規則已由 Task 2.1 的單元測試保障，這裡驗的是指令改走同一條路，沒有另一層整合責任。
+  - 紅燈：在舊版 `command-router.ts`（`git show HEAD:` 暫時放回，跑完還原）上執行 `npx tsx --test tests/command-router-model.test.ts`，exit 1，`# fail 6`。失敗的情況：
+    - `model: 123`、`ai-config.yaml` 壞掉、base 的 model 是清單，都回「❌ 無法讀取設定檔」。
+    - `ai-config.yaml` 讀成 `APP_PROJECT_DIR` 底下的那份。
+    - `/set_model [mock]/x` 寫出不合法的 YAML。
+    - 含換行的 ID 被直接寫進檔案。
+
+    另外 2 支是回覆文字的回歸守門，舊版也通過。
+  - 綠燈：exit 0，`# pass 9`。過程中改了一個測試值：`mock/it's` 透過指令送不出去，因為 `handleMessage` 原本就會移除引號與反引號（既有行為），屬於測試設計錯誤，所以從清單拿掉，留下 `[mock]/x`、`mock/x:y`。
+  - 回歸守門：`/models` 的回覆格式與 provider 篩選，用 PATH 上的假 `opencode` 驗證，新舊版都通過。
+  - 重構：把 `/models` 改寫時留下的多餘區塊拿掉，重跑同組測試仍綠。
+  - 交付檢查：
+    - `npm run build` exit 0；`npm run lint` exit 0。
+    - `npm run test` exit 0，`# tests 890`、`# pass 890`，比 Task 2.1 後的 881 多 9 支；測試檔 98 個（多 1 個）（L-01）。
+  - 行為差異（揭露）：
+    - `/models` 現在會略過不像模型 ID 的行，例如 opencode 印出的警告。
+    - `/set_model` 現在會拒絕含空白或換行的 ID；以前會把它寫進檔案，讓設定檔壞掉。
 
 ### Phase 3 — Tunnel 生命週期與 Bot 入口
 
