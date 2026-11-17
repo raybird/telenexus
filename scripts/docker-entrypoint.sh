@@ -46,4 +46,12 @@ for dir in /home/node/.local/share/opencode /home/node/.config/opencode; do
 done
 chown node:node /home/node 2>/dev/null || true
 
+# issue 0030：Tunnel 金鑰目錄（named volume，Docker 初次以 root 建立）。
+# tunnel-manager 以 node 寫入金鑰，telenexus 以唯讀掛載讀取；唯讀時 chown 失敗不影響啟動。
+if [[ -n "${TUNNEL_KEY_FILE:-}" ]]; then
+  key_dir="$(dirname "$TUNNEL_KEY_FILE")"
+  mkdir -p "$key_dir" 2>/dev/null || true
+  chown node:node "$key_dir" 2>/dev/null || true
+fi
+
 exec gosu node "$@"

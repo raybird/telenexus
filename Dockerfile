@@ -75,6 +75,12 @@ RUN curl -fL --retry 2 -o /tmp/moli.tar.gz \
   && tar -xzf /tmp/moli.tar.gz -C /opt/telenexus/moli \
   && rm /tmp/moli.tar.gz
 COPY scripts/moli-fetch.sh /usr/local/bin/telenexus-moli-fetch
+# 2026-11-17：模型面板按需開 Cloudflare Quick Tunnel（issue 0030），只有 tunnel-manager 服務會執行它。
+RUN curl -fL --retry 2 -o /tmp/cloudflared \
+      https://github.com/cloudflare/cloudflared/releases/download/2026.11.0/cloudflared-linux-amd64 \
+  && printf '%s  %s\n' 51f7c68b57ed7269164075d7e789efce5b59355982f06392deeb037d982a51fd /tmp/cloudflared | sha256sum -c - \
+  && install -m 0755 /tmp/cloudflared /usr/local/bin/cloudflared \
+  && rm /tmp/cloudflared
 
 # ==========================================
 # 非 root 執行：以 root 啟動 entrypoint，runtime 依 PUID/PGID 對齊 node 使用者後

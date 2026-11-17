@@ -271,8 +271,46 @@
 - 驗收編號：SCN-001（支援）、SCN-004（支援：設定在 `data/`，重建後保留）
 - 完成判準：compose parity 測試通過且新服務沒有 `ports:`、沒有 Bot Token 與 data 掛載、不是 privileged、沒有 Docker socket；release.yml 的 sed 會把新服務的映像一起釘版；改到 install.sh 時 `npm run test:installer` 通過。
 - 驗證：擴充 `tests/docker/` 的靜態測試；`docker build` 確認 cloudflared 可執行。
-- 狀態：📝 待實作
+- 狀態：✅ 完成（2026-11-17）
 - 證據：
+  - 產出：
+    - `Dockerfile` base stage 安裝 cloudflared 2026.11.0（linux-amd64），同一條 RUN 先 `sha256sum -c` 再 `install` 到 `/usr/local/bin/cloudflared`。雜湊經兩方對照相同：GitHub release asset 公布的 digest，與本機下載後 `sha256sum` 的結果。
+    - `docker-compose.yml` 與 `docker-compose.release.yml` 同步新增 `tunnel-manager` 服務：沿用主映像，命令 `node dist/tunnel-manager.js`，不讀 `.env`，只掛 `tunnel_key` volume，沒有 `ports:`，有 `no-new-privileges`、`cap_drop: ALL`，`mem_limit` 256m、`pids_limit` 256，並設 healthcheck，以「沒帶金鑰回 401」判定在線。
+    - telenexus 的 Compose 設定：面板設 `PANEL_BIND=0.0.0.0`、`PANEL_PORT=3040`，只在容器網路上，`ports:` 仍只有 Web Console；以唯讀掛 `tunnel_key`。因為自己列 volumes 會蓋掉共用清單，所以重列全部共用掛載，由測試核對一個都沒少。
+    - `docker-compose.dev.yml`：tunnel-manager 以 `npx tsx src/tunnel-manager.ts` 執行，因為 dev stage 沒有 `dist/`。
+    - `scripts/docker-entrypoint.sh`：設有 `TUNNEL_KEY_FILE` 時，把金鑰目錄交給 node；唯讀掛載時 chown 失敗會略過。這是 Task 3.1 交接的 L-08。
+    - `.env.example`：加入 `PANEL_ENABLED`，並說明 3040 由 compose 固定。
+    - `install.sh` 不必改：升級時以 bundle 覆蓋 `docker-compose.yml`，再執行 `up -d`，不逐一列出服務。`npm run test:installer` 通過。
+  - 測試：`tests/docker/tunnel-manager-compose.test.ts`（10 支），以 js-yaml 解析兩份 compose。檢查項目：
+    - Dockerfile 的釘版、驗雜湊順序，不用 latest，不用 `curl | sh`。
+    - 新服務的邊界。
+    - telenexus 的面板設定與金鑰掛載。
+    - agent-runner 拿不到金鑰。
+    - 模擬 `release.yml` 的 sed 之後，所有 `image:` 都已釘版，tunnel-manager 也一起釘。
+    - entrypoint 的金鑰目錄處理。
+    - `.env.example`。
+  - 紅燈：`# tests 10`、`# fail 10`。綠燈：`tests/docker/*.test.ts` 共 `# pass 50`；`docker compose config -q` 對三種組合都通過：dev、release、dev 加上 dev overlay。
+  - 變異檢查（還原後 `cmp` 確認相同），8 種都被抓到，各 1 支失敗：
+    - tunnel-manager 開主機連接埠
+    - tunnel-manager 讀 `.env`
+    - tunnel-manager 掛 data
+    - telenexus 可寫金鑰
+    - telenexus 漏掉共用掛載
+    - 面板只聽 loopback
+    - Tunnel 接 3030
+    - 拿掉 KILL
+  - 映像實測：`docker build` exit 0。以與 compose 相同的 caps 用 `docker run` 檢查，暫存 volume，不用 compose、不開 Telegram：
+    - `cloudflared --version` 輸出 2026.11.0。
+    - tunnel-manager 主程序以 PUID 對齊後的 node 執行；金鑰目錄與檔案都屬 node，檔案權限 600。
+    - healthcheck 命令 exit 0（401）；帶金鑰查狀態回 `{"status":"stopped","generation":0}`。
+    - 唯讀掛載的另一個容器以 node 讀得到 43 bytes 的金鑰，寫不進去；沒掛 volume 的容器沒有金鑰。
+  - 實測發現：
+    - 原本照其他服務的 cap 集合，以 root 執行的 tini 無法把 SIGTERM 轉給非 root 主程序：`[FATAL tini (1)] … Operation not permitted`，`docker stop` exit 1，cloudflared 會被直接殺掉。tunnel-manager 因此多給 `KILL`；加上後 `docker stop` exit 0，耗時 0.08 秒。
+    - 同一個問題也存在於既有的 telenexus 與 agent-runner：同樣 caps，以最小程式重現 exit 1；加上 `KILL` 後收到 SIGTERM、exit 0。這不在本 issue 範圍，沒有修改，已回報使用者。對本 issue 的影響是 telenexus 停止時不會還原選單按鈕；重啟時的 `boot()` 會還原。
+  - 交付檢查：
+    - `npm run build` exit 0；`npm run lint` exit 0。
+    - `npm run test` exit 0，`# tests 949`、`# pass 949`，比 Task 4.1 後的 939 多 10 支；測試檔 104 個（多 1 個）（L-01）。
+  - 限制：沒有用 compose 起完整 stack。容器之間的連線（telenexus:3040、tunnel-manager:8790）與真實 Quick Tunnel 留給 Task 5.2。
 
 #### Task 5.2 — 合併前的真實 Quick Tunnel 外部檢查
 - 產出與範圍：在本機起 tunnel-manager 與一個只有面板伺服器、不開 Telegram polling 的 telenexus（避免與正式 Bot 409），開一次真實 Quick Tunnel，從外部 `curl`。資料全為合成，網址只開幾分鐘；啟動時機由使用者決定。

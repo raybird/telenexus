@@ -79,6 +79,22 @@ services:
       MEMORIA_RECALL_MODE: ${MEMORIA_RECALL_MODE:-vector}
       MEMORIA_RECALL_TIMEOUT_MS: ${MEMORIA_RECALL_TIMEOUT_MS:-}
       MEMORIA_RECALL_TOP_K: ${MEMORIA_RECALL_TOP_K:-5}
+      # issue 0030：模型面板。只在容器網路上聽 3040，不對主機開放；公開網址由 tunnel-manager 按需建立。
+      PANEL_ENABLED: ${PANEL_ENABLED:-true}
+      PANEL_BIND: 0.0.0.0
+      PANEL_PORT: '3040'
+      TUNNEL_MANAGER_URL: http://tunnel-manager:8790
+      TUNNEL_KEY_FILE: /run/telenexus-tunnel/key
+    # 自己列 volumes 會蓋掉共用清單，所以共用的掛載要全部重列（tests/docker/tunnel-manager-compose.test.ts 檢查）
+    volumes:
+      - ./data:/app/data
+      - ./workspace:/app/workspace
+      - ./ai-config.yaml:/app/ai-config.yaml:ro
+      - opencode_auth:/home/node/.local/share/opencode
+      - opencode_config:/home/node/.config/opencode
+      - ./skills:/app/skills:ro
+      - ./AGENTS.md:/app/workspace/AGENTS.md:ro
+      - tunnel_key:/run/telenexus-tunnel:ro
     ports:
       - ${WEB_PORT:-3030}:${WEB_PORT:-3030}
     healthcheck:
@@ -106,6 +122,52 @@ services:
     pids_limit: 1024
     healthcheck:
       test: [ 'CMD', 'node', '-e', "fetch('http://127.0.0.1:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # issue 0030：按需啟停 Cloudflare Quick Tunnel，只接 telenexus 的面板連接埠。
+  # 它是唯一能開公開網址的容器，所以邊界最窄：不讀 .env（有 Bot Token）、不掛 data、
+  # 沒有 ports:（內部 API 只在容器網路上，以 tunnel_key volume 裡的金鑰認證）。
+  # cap_add 前五項與其他服務相同，給 entrypoint 對齊 PUID/PGID 用；主程序以 node 執行。
+  # 多一個 KILL：以 root 執行的 init（tini）要把 SIGTERM 轉給非 root 的主程序，沒有它 docker stop 會直接殺掉，
+  # cloudflared 不能正常收尾（2026-11-17 實測：沒有 KILL 時 tini 回報 Operation not permitted、exit 1）。
+  tunnel-manager:
+    build:
+      context: .
+      args:
+        APP_GIT_SHA: ${APP_GIT_SHA:-unknown}
+        APP_BUILD_TIME: ${APP_BUILD_TIME:-unknown}
+    command: [ 'node', 'dist/tunnel-manager.js' ]
+    environment:
+      TZ: Asia/Taipei
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TUNNEL_KEY_FILE: /run/telenexus-tunnel/key
+      TUNNEL_API_HOST: 0.0.0.0
+      TUNNEL_API_PORT: '8790'
+      TUNNEL_TARGET_URL: http://telenexus:3040
+    volumes:
+      - tunnel_key:/run/telenexus-tunnel
+    init: true
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - FOWNER
+      - DAC_OVERRIDE
+      - KILL
+    mem_limit: 256m
+    pids_limit: 256
+    healthcheck:
+      # 內部 API 沒帶金鑰一律 401；回 401 就代表服務在線
+      test: [ 'CMD', 'node', '-e', "fetch('http://127.0.0.1:8790/tunnel/status').then(r=>process.exit(r.status===401?0:1)).catch(()=>process.exit(1))" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -185,3 +247,4 @@ volumes:
   opencode_auth:
   opencode_config:
   memoria_data:
+  tunnel_key:

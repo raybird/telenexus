@@ -37,3 +37,8 @@ services:
   agent-runner:
     <<: *dev-service
     command: ['npm', 'run', 'dev:runner']
+
+  # dev stage 沒有 dist/，改以 tsx 直接執行原始碼（不 watch：重啟會換新金鑰並關掉 Tunnel）
+  tunnel-manager:
+    <<: *dev-service
+    command: ['npx', 'tsx', 'src/tunnel-manager.ts']
