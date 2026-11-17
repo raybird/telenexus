@@ -6,7 +6,8 @@
 - **公開面**：telenexus 另開面板專用 HTTP 伺服器（新連接埠，只在 Docker 內網，不列入 Compose `ports:`），只掛面板頁、面板靜態檔與 `/panel-api/*`；其他路徑一律 404。既有 Web Console（3030）的程式與授權不動。
 - **登入**：前端把 `Telegram.WebApp.initData` 原文送到登入 API；伺服器依 Telegram 文件驗 HMAC（`WebAppData` 推導的金鑰）、`auth_date` 不超過 10 分鐘、`user.id` 等於 `ALLOWED_USER_ID`，通過後換發只存在記憶體的隨機憑證。憑證綁定目前的 Tunnel 世代，入口關閉或換網址就全部失效。授權只看這張憑證，不看來源 IP、`X-Forwarded-For`、Host 或 `WEB_AUTH_TOKEN`。
 - **模型設定服務**：讀取有效設定與來源（與 `loadAiConfig()` 同一套合併規則，不再自己讀 YAML）、列舉 `opencode models`、套用完整模型 ID、清除 override。寫入用 `yaml.dump` 寫暫存檔再 `rename`，任何失敗都保留舊檔。`/model`、`/set_model`、`/reset_model`、`/models` 與面板共用。
-- **tunnel-manager**：沿用主映像、換啟動命令的 Compose 服務，不放 Bot Token、不掛 data。只提供啟動／狀態／停止／活動回報四個內部 API，目標固定是 telenexus 的面板連接埠，不接受任意代理目標。內部 API 的認證不需使用者設定（例如由 tunnel-manager 產生隨機金鑰、放在只有兩個服務掛載的 volume），實作時決定；沒有金鑰時拒絕，不放行。cloudflared 以參數陣列啟動，不經 shell。
+- **tunnel-manager**：沿用主映像、換啟動命令的 Compose 服務，不放 Bot Token、不掛 data。只提供啟動、狀態、停止三個內部 API，目標固定是 telenexus 的面板連接埠，不接受任意代理目標。內部 API 以 `x-tunnel-key` 認證：tunnel-manager 每次啟動時產生隨機金鑰，寫進只有它與 telenexus 掛載的 volume（檔案 0600），不需使用者設定；沒有金鑰或不符一律拒絕。cloudflared 以參數陣列啟動，不經 shell。
+- **閒置關閉放在 telenexus**（2026-11-17 實作 Task 3.1 時調整，行為與核准的 SCN-005 相同）：只有 telenexus 知道面板有沒有經過驗證的請求、是否正在寫入，所以 30 分鐘計時由 Task 3.2 負責，tunnel-manager 不提供活動回報 API。telenexus 重啟時記憶體憑證已全部失效，啟動時先停掉殘留的 Tunnel 並還原選單。
 - **Bot 入口**：`/panel`、`/panel_close` 只接受私聊與 `ALLOWED_USER_ID`。Tunnel 就緒且外部 HTTPS 健康檢查通過後，才以 `setChatMenuButton` 設定該私聊的 `web_app` 按鈕；關閉或 Tunnel 退出時改回 `default`。
 
 ## Phase 與 Task（唯一任務來源）
@@ -129,13 +130,47 @@
 ### Phase 3 — Tunnel 生命週期與 Bot 入口
 
 #### Task 3.1 — tunnel-manager 程式
-- 產出與範圍：新進入點（`src/` 下，編譯進主映像），狀態機（停止／啟動中／就緒／失敗）、cloudflared 子程序、從輸出取得 `trycloudflare.com` 網址、外部 HTTPS 健康檢查、30 分鐘閒置計時與寫入中保護、子程序退出清理、內部 API 認證。
+- 產出與範圍：新進入點（`src/` 下，編譯進主映像），狀態機（停止／啟動中／就緒／失敗）、cloudflared 子程序、從輸出取得 `trycloudflare.com` 網址、外部 HTTPS 健康檢查、子程序退出清理、內部 API 認證。閒置計時改由 Task 3.2 負責（見設計方案）。
 - 相依：無（介面先定，與 Phase 2 並行）
 - 驗收編號：SCN-001、SCN-005（支援）
-- 完成判準：並行的啟動請求只開一個 cloudflared；健康檢查失敗或逾時回報失敗且不給網址；子程序意外退出時狀態回停止、世代遞增；閒置 30 分鐘停止、期間有活動則延後、寫入中不停；沒有或錯誤的內部金鑰被拒。
+- 完成判準：並行的啟動請求只開一個 cloudflared；健康檢查失敗或逾時回報失敗且不給網址；子程序意外退出時狀態回停止、世代遞增；啟動中被停止不會變成就緒；沒有或錯誤的內部金鑰被拒。
 - 驗證：單元測試用假 cloudflared 腳本與可控時鐘；不連外。
-- 狀態：📝 待實作
+- 狀態：✅ 已完成（2026-11-17）
 - 證據：
+  - 產出：
+    - `src/tunnel/tunnel-manager.ts`（`TunnelManager`）
+    - `src/tunnel/tunnel-api.ts`（`ensureTunnelKey()`、`startTunnelApi()`）
+    - `src/tunnel-manager.ts`（進入點，環境變數 `TUNNEL_KEY_FILE`、`TUNNEL_API_HOST`／`PORT`、`TUNNEL_TARGET_URL`、`CLOUDFLARED_BIN`、`TUNNEL_START_TIMEOUT_MS`）
+    - `src/web/panel-server.ts` 加上不需登入的 `GET /panel/health`，供健康檢查確認打到的是面板。
+  - 測試：
+    - `tests/tunnel/tunnel-manager.test.ts`：13 支，用真實 spawn 的假 cloudflared 腳本，健康檢查用注入的。
+    - `tests/web/panel-server.test.ts`：加 1 支。
+  - 單迴圈理由：狀態機與內部 API 都以真實子程序和真實 HTTP 驗證，就是這個服務對外的可觀察行為。telenexus 端的整合由 Task 3.2 負責。
+  - 紅燈：
+    - 樁實作（start 不 spawn 直接回就緒、API 不驗金鑰）下，`npx tsx --test tests/tunnel/tunnel-manager.test.ts` exit 1，`# fail 13`。
+    - `/panel/health` 的新測試在舊版 panel-server 上 `# fail 1`（回 404）。
+  - 綠燈：
+    - `tests/tunnel/tunnel-manager.test.ts` exit 0，`# pass 13`，連跑 3 次結果相同，結束後沒有殘留的假 cloudflared 程序。
+    - `tests/web/panel-server.test.ts` `# pass 9`。
+  - 變異檢查（各自還原後重跑），5 種被抓到：
+    - 不共用並行啟動：1 支失敗
+    - 意外結束時世代不遞增：1 支失敗
+    - 跳過健康檢查：3 支失敗
+    - 不驗內部金鑰：1 支失敗
+    - 就緒時不沿用：1 支失敗
+
+    「健康檢查後不檢查 attempt」沒被抓到，判定為等價變異：`stop()` 會等子程序真的結束才返回，下一行的 `exited` 檢查必定成立並走 `fail()`，而 `fail()` 本身也檢查 attempt。保留這個檢查作為防線。
+  - 冒煙：`node dist/tunnel-manager.js`（`CLOUDFLARED_BIN=/bin/false`，不連外）。
+    - 沒帶金鑰回 401；帶金鑰查狀態回 `stopped`；啟動回 502 並附「在取得網址前結束」。
+    - 金鑰檔權限 600，目錄 700。
+    - 收到 SIGTERM 後 exit 0。
+  - 重構：假腳本改用 `exec sleep`，避免 sh 被終止後 sleep 留下來。產品碼沒有其他精簡空間（no-op）。
+  - 交付檢查：
+    - `npm run build` exit 0；`npm run lint` exit 0。
+    - `npm run test` exit 0，`# tests 904`、`# pass 904`，比 Task 2.2 後的 890 多 14 支；測試檔 99 個（多 1 個）（L-01）。
+  - 交給 Task 5.1：
+    - 金鑰 volume 在容器內要歸 node 使用者（PUID/PGID 對齊，L-08）。
+    - telenexus 以唯讀掛載同一個 volume。
 
 #### Task 3.2 — `/panel`、`/panel_close` 與選單按鈕
 - 產出與範圍：Tunnel 客戶端、兩個指令、`setChatMenuButton` 的設定與還原、Tunnel 退出／閒置關閉時還原選單並作廢憑證、面板請求回報活動。

@@ -8,6 +8,7 @@ import { verifyInitData, type PanelSessions } from './panel-auth.js';
  * Quick Tunnel 只接這個連接埠，所以這裡就是整個公開面：
  * - `POST /panel-api/login`：以 Telegram initData 換發憑證
  * - 其他 `/panel-api/*`：先驗 `Authorization: Bearer <憑證>`，未通過一律 401（不透露路徑是否存在）
+ * - `GET /panel/health`：不需登入，只回服務名稱，供 tunnel-manager 確認連通
  * - 其餘路徑一律 404；既有 Web Console（3030）的頁面與 API 不在這裡
  *
  * 授權只看憑證，不看來源 IP、X-Forwarded-For、Host、WEB_AUTH_TOKEN 或 WEB_TRUST_PRIVATE_NETWORK；
@@ -26,6 +27,7 @@ export type PanelServerOptions = {
 export type PanelServerHandle = { port: number; close(): Promise<void> };
 
 const API_PREFIX = '/panel-api/';
+export const HEALTH_PATH = '/panel/health';
 const MAX_BODY_BYTES = 16 * 1024;
 
 class HttpError extends Error {
@@ -69,6 +71,13 @@ async function handle(
   options: PanelServerOptions
 ): Promise<void> {
   const pathname = new URL(req.url || '/', 'http://panel.invalid').pathname;
+
+  // tunnel-manager 經公開網址打這裡確認 Tunnel 通了；不含任何狀態資訊。
+  if (pathname === HEALTH_PATH && req.method === 'GET') {
+    req.resume();
+    sendJson(res, 200, { ok: true, service: 'telenexus-panel' });
+    return;
+  }
 
   if (!pathname.startsWith(API_PREFIX)) {
     req.resume();

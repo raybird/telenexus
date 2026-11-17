@@ -218,3 +218,12 @@ test('SCN-002：未登入時不能探測面板 API 有哪些路徑，被拒的�
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('SCN-001：/panel/health 不需登入，只回服務名稱，供 tunnel-manager 經公開網址確認連通', async () => {
+  await withServer(async ({ base }) => {
+    const res = await fetch(`${base}/panel/health`);
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { ok: true, service: 'telenexus-panel' });
+    assert.equal((await fetch(`${base}/panel/health`, { method: 'POST' })).status, 404);
+  });
+});
