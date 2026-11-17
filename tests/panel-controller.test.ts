@@ -209,6 +209,77 @@ test('SCN-001：選單按鈕設定失敗時停掉 Tunnel，不算開啟', async 
   assert.equal(h.controller.isOpen(), false);
 });
 
+test('SCN-001：換新入口時選單按鈕設定失敗，停掉 Tunnel 後把選單還原成一般選單', async () => {
+  // review-6d0d27c N1'：選單可能還指著上一個入口的網址
+  const h = makeHarness();
+  await h.controller.open();
+  h.setStart({ ok: true, state: ready(2) });
+  h.menu.show = async () => {
+    throw new Error('Bad Request: chat not found');
+  };
+  const opened = await h.controller.open();
+  assert.equal(opened.ok, false);
+  assert.deepEqual(h.calls.slice(-3), ['start', 'stop', 'reset']);
+  assert.equal(h.controller.isOpen(), false);
+});
+
+test('SCN-001：沿用入口時重送選單失敗，不拆掉仍可用的入口', async () => {
+  // review-6d0d27c N1'：重送只是保險，失敗時原本的入口與憑證照舊可用
+  const h = makeHarness();
+  await h.controller.open();
+  const token = h.sessions.issue('424242');
+  h.menu.show = async () => {
+    throw new Error('Too Many Requests: retry after 3');
+  };
+  const again = await h.controller.open();
+  assert.deepEqual(again, { ok: true, url: 'https://g1.trycloudflare.com', reused: true });
+  assert.equal(h.controller.isOpen(), true);
+  assert.equal(h.calls.includes('stop'), false);
+  assert.equal(h.calls.includes('reset'), false);
+  assert.ok(h.sessions.verify(token), '既有憑證仍有效');
+});
+
+test('SCN-005：沿用入口重送選單期間被關閉，即使重送失敗也不回報入口有效', async () => {
+  const h = makeHarness();
+  await h.controller.open();
+  let rejectShow: (e: Error) => void = () => {};
+  h.menu.show = () => new Promise<void>((_, reject) => (rejectShow = reject));
+  const again = h.controller.open();
+  await new Promise((r) => setTimeout(r, 20));
+  await h.controller.close('manual');
+  rejectShow(new Error('Bad Request'));
+  const result = await again;
+  assert.equal(result.ok, false);
+  assert.equal(h.controller.isOpen(), false);
+});
+
+test('SCN-005：開啟途中服務重新 boot，開啟放棄、不設定選單', async () => {
+  // review-6d0d27c N2'
+  let releaseStart: () => void = () => {};
+  const h = makeHarness();
+  const client = (
+    h.controller as unknown as {
+      options: { client: { start: () => Promise<TunnelClientResult> } };
+    }
+  ).options.client;
+  client.start = async () => {
+    h.calls.push('start');
+    await new Promise<void>((r) => (releaseStart = r));
+    return { ok: true, state: ready(1) };
+  };
+  const opening = h.controller.open();
+  await new Promise((r) => setTimeout(r, 20));
+  await h.controller.boot();
+  releaseStart();
+  const result = await opening;
+  assert.equal(result.ok, false);
+  assert.equal(h.controller.isOpen(), false);
+  assert.equal(
+    h.calls.some((c) => c.startsWith('show')),
+    false
+  );
+});
+
 test('SCN-001：面板伺服器沒有啟動時不啟動 Tunnel', async () => {
   const h = makeHarness({ panelAvailable: () => false });
   const opened = await h.controller.open();

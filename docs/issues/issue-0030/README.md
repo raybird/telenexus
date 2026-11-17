@@ -149,6 +149,7 @@ Feature: 按需開啟的 Telegram 模型切換面板
 - 主機與整組 Compose 必須正在運行；不含從停機狀態遠端喚醒。
 - 審查 review-87b6cf6 M1（已解決，2026-11-17 使用者決定）：`/panel`、`/panel_close` 只允許 Telegram 私聊；Web Console 不算面板的入口，送出時回覆只能在私聊使用。維持已核准的 SCN-002 與 Task 3.2，不修訂規格。
 - 審查 review-87b6cf6 其餘發現（2026-11-17 使用者決定）：S1 與 N1～N10 在同一輪一起修正。
+- 審查 review-6d0d27c 的 NICE TO HAVE（2026-11-17 使用者決定「依照建議修」）：修 N1'（沿用時重送選單失敗不拆入口、換新入口失敗時還原選單），並補 N2' 的守門測試；N3' 依 reviewer 判斷不處理。
 
 ## 驗證策略
 實作取得 Scenario 對應的紅綠重構證據，涵蓋驗證／權限、設定安全寫入、生命週期與 Web 整合；合併前以本機開發 stack 做一次真實 Quick Tunnel 外部可達性檢查，Telegram 客戶端實測在發版後的外部驗收窗進行（TBD-3）。
@@ -186,6 +187,7 @@ Feature: 按需開啟的 Telegram 模型切換面板
 | 2026-11-17 | 獨立審查 review-87b6cf6 判定 RETURN TO execute-task；使用者決定 M1 照核准規格只允許 Telegram 私聊，S1 與 N1～N10 同一輪修正；KILL 問題另開 #31 | 使用者 |
 | 2026-11-17 | 審查修正輪完成（M1、S1、N1～N10），證據見 implementation-plan.md「審查修正輪」 | Claude |
 | 2026-11-17 | 獨立審查 review-6d0d27c 判定 PASS（無 MUST FIX／SHOULD FIX，另列 3 項 NICE TO HAVE） | Claude |
+| 2026-11-17 | 依使用者決定修 N1'、補 N2' 測試（第二修正輪），PASS 隨之失效，送重新審查 | Claude |
 
 **建立日期**: 2026-11-15
 **分級**: Large

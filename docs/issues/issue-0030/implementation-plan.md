@@ -398,6 +398,18 @@
   - `npm run lint` exit 0；`npm run build` exit 0。
   - `npm run test` exit 0，`# tests 957`、`# pass 957`，比 87b6cf6 的 949 多 8 支（router 1、controller 3、tunnel-manager 2、panel-api 2）；測試檔仍 104 個（L-01）。
 
+#### 第二修正輪（review-6d0d27c NICE TO HAVE，2026-11-17）
+- 範圍：使用者決定修 N1'、補 N2' 的守門測試；N3' 不處理（README 待確認事項）。
+- 紅燈（先寫測試，在 6d0d27c 的程式上跑）：`npx tsx --test tests/panel-controller.test.ts` 22 支 2 支失敗。
+  - 換新入口時選單設定失敗：停掉 Tunnel 後要呼叫 reset。失敗（原本不還原）。
+  - 沿用入口時重送選單失敗：回報入口仍有效，不呼叫 stop、reset，既有憑證仍有效。失敗（原本拆掉入口）。
+  - N2'：start 進行中呼叫 `boot()`，開啟失敗、不呼叫 show。原程式就正確，直接綠燈，以突變確認。
+  - 另補一支：沿用入口重送選單期間被關閉，即使重送失敗也不能回報入口有效。
+- 修正：`src/services/panel-controller.ts` 的 show 失敗處理。沿用且期間沒被關閉時，只記 `panel:menu-button`、更新活動時間，回報沿用；否則照舊作廢憑證、停 Tunnel，再多呼叫一次 `resetMenu()`。
+- 突變（各自還原後重跑）：沿用失敗照舊拆掉入口：1 支失敗；沿用失敗不比對關閉：1 支失敗；換新入口失敗不還原選單：1 支失敗；`boot()` 不遞增計數：1 支失敗。
+- 重構：Prettier 格式化，其餘 no-op。
+- 交付檢查：`npm run lint` exit 0；`npm run build` exit 0；`npm run test` exit 0，`# tests 961`、`# pass 961`，比 6d0d27c 的 957 多 4 支；測試檔仍 104 個（L-01）。
+
 #### Task 5.4 — 發版後以正式 Bot 驗收（外部驗收窗）
 - 產出與範圍：使用者發版並升級正式部署後，在 Android 客戶端驗 `/panel`、登入、切換、恢復預設、`/panel_close`、再 `/panel` 換網域後重新登入；資料只記結果與統計。
 - 相依：Task 1.1～5.3 合併；發版與升級（使用者決定）

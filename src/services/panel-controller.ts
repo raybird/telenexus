@@ -105,9 +105,16 @@ export class PanelController {
       await this.options.menu.show(`${url}${PANEL_PATH}`);
     } catch (error) {
       recordRuntimeIssue('panel:menu-button', error);
+      if (reused && closes === this.closes) {
+        // 沿用時重送只是保險：上次設定的選單仍指向這個入口，不因一次失敗拆掉可用的入口（review-6d0d27c N1'）
+        this.touch();
+        return { ok: true, url, reused };
+      }
       this.options.sessions.revokeAll();
       this.published = null;
       await this.options.client.stop();
+      // 選單可能還指著上一個入口的網址
+      await this.resetMenu();
       return {
         ok: false,
         message: `無法設定選單按鈕：${error instanceof Error ? error.message : String(error)}`
