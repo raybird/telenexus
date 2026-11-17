@@ -111,9 +111,10 @@ GitHub：[#31](https://github.com/raybird/telenexus/issues/31)
 | 2026-11-17 | 本機獨立審查 review-fec9420 判定 PASS（無 MUST FIX；SHOULD FIX 1 項文件措辭、NICE TO HAVE 5 項） | Claude |
 | 2026-11-17 | 使用者決定修 S1、N1（只改文件措辭），PASS 隨之失效，送重新審查；N2～N5 不處理 | 使用者 |
 | 2026-11-17 | 重新審查 review-3ef47bf 判定 PASS（無 MUST FIX、無 SHOULD FIX） | Claude |
+| 2026-11-17 | 使用者決定合併、發版並升級正式部署；快轉併入 main 的 e678952 | 使用者 |
 
 ---
 **建立日期**: 2026-11-17  
 **分級**: Small — 一項 compose 設定、一行啟動腳本與一處關閉上限，其餘是測試與文件；邏輯直觀，不需要計畫檔  
 **風險**: High — 改容器 capability，且改變正式部署停止與升級時的行為\
-**狀態**: 審查 PASS，等待合併（分支 `fix/container-sigterm`）
+**狀態**: 已完成（2026-11-17 快轉併入 main 的 e678952，發版 v2.40.1）
