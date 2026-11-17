@@ -416,8 +416,14 @@
 - 驗收編號：SCN-001、SCN-002、SCN-005 的真機證據（TBD-3）
 - 完成判準：上列操作都成功，換網域後舊頁面不能操作；任何一項失敗即回到 execute-task。
 - 驗證：觀測式證據，合併後以 `等待外部驗收窗` 記錄。
-- 狀態：⏳ 等待外部驗收窗（2026-11-17 已併入 main；發版與升級後執行）
+- 狀態：⏳ 等待外部驗收窗（2026-11-17 已發版 v2.40.0 並升級正式部署，等待 Android 驗收）
 - 證據：
+  - 2026-11-17 14:21（台北）升級後的部署檢查（不開 Tunnel，補上 Task 5.2 沒在 compose 裡測的容器網路連線）：
+    - 四個服務 healthy，版本 2.40.0；`[Panel] Listening on 0.0.0.0:3040`、`[TunnelManager] API listening on 0.0.0.0:8790`。
+    - telenexus 以金鑰檔查 `tunnel-manager:8790/tunnel/status` 回 200 `stopped`；不帶金鑰回 401。
+    - tunnel-manager 打 `telenexus:3040/panel/health` 回 200 `telenexus-panel`；打 `/api/health` 回 404。
+    - 主機上 `localhost:3040` 連不到；tunnel-manager 的環境變數沒有 Token、白名單 ID、runner 密鑰（0 筆）。
+  - Android 真機驗收：待使用者執行。
 
 ## 責任對照
 
