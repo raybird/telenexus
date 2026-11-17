@@ -205,6 +205,50 @@ test('SCN-005：啟動中收到停止時，不會在停止後變成就緒', asyn
   }
 });
 
+test('SCN-005：停止時 cloudflared 還在收尾、健康檢查先回成功，也不會在停止後變成就緒', async () => {
+  // review-87b6cf6 S1：真的 cloudflared 收到 SIGTERM 會收尾一段時間，exited 還是 false
+  const env = makeEnv('slow-term');
+  let release: (v: boolean) => void = () => {};
+  const manager = makeManager(env, () => new Promise<boolean>((r) => (release = r)));
+  try {
+    const starting = manager.start();
+    await waitFor(() => env.launches().length === 1);
+    await new Promise((r) => setTimeout(r, 100));
+    const stopping = manager.stop();
+    await new Promise((r) => setTimeout(r, 100));
+    release(true);
+    const result = await starting;
+    const stopped = await stopping;
+    assert.notEqual(result.status, 'ready');
+    assert.equal(stopped.status, 'stopped');
+    assert.equal(manager.status().status, 'stopped');
+    assert.equal(manager.hasChild(), false);
+  } finally {
+    await cleanup(manager, env);
+  }
+});
+
+test('SCN-001：cloudflared 錯誤訊息裡的 api.trycloudflare.com 不會被當成 Tunnel 網址', async () => {
+  // review-87b6cf6 N9
+  const env = makeEnv('api-url-first');
+  const checked: string[] = [];
+  const manager = makeManager(env, async (url) => {
+    checked.push(url);
+    return true;
+  });
+  try {
+    const state = await manager.start();
+    assert.equal(state.status, 'ready');
+    assert.match(state.url ?? '', /^https:\/\/fake-\d+\.trycloudflare\.com$/);
+    assert.equal(
+      checked.some((u) => u.includes('api.trycloudflare.com')),
+      false
+    );
+  } finally {
+    await cleanup(manager, env);
+  }
+});
+
 // ---- 內部 API ----
 
 async function withApi(

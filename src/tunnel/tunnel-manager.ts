@@ -30,7 +30,8 @@ export type TunnelManagerOptions = {
   healthIntervalMs?: number;
 };
 
-const URL_PATTERN = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/;
+// 排除 api.trycloudflare.com：cloudflared 申請失敗時的錯誤訊息會帶這個網址
+const URL_PATTERN = /https:\/\/(?!api\.)[a-z0-9-]+\.trycloudflare\.com/;
 const MAX_OUTPUT_CHARS = 64 * 1024;
 const KILL_GRACE_MS = 3000;
 

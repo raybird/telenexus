@@ -98,7 +98,7 @@ CONTEXT_REFRESH_MS=60000
 | `TUNNEL_START_TIMEOUT_MS` | tunnel-manager | `60000` | 等網址與外部健康檢查的上限，逾時就不發布入口 |
 | `CLOUDFLARED_BIN` | tunnel-manager | `cloudflared` | 映像內建 cloudflared 2026.11.0（釘版並驗 sha256） |
 
-`PANEL_*` 寫在 `.env`；`TUNNEL_*` 由 compose 設定，`tunnel-manager` 不讀 `.env`。主機要能連到 Cloudflare。
+`.env` 只放 `PANEL_ENABLED`；`PANEL_BIND`、`PANEL_PORT` 由 compose 的 `environment:` 固定，寫在 `.env` 蓋不過去。`TUNNEL_*` 也由 compose 設定，`tunnel-manager` 不讀 `.env`。主機要能連到 Cloudflare。
 
 ## ai-config.yaml（passthrough_commands）
 

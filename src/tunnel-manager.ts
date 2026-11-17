@@ -1,6 +1,7 @@
 import { parsePositiveInt } from './utils/env.js';
 import { TunnelManager } from './tunnel/tunnel-manager.js';
 import { ensureTunnelKey, startTunnelApi } from './tunnel/tunnel-api.js';
+import { HEALTH_PATH, PANEL_SERVICE } from './web/panel-paths.js';
 
 /**
  * issue 0030：tunnel-manager 服務的進入點（Compose 以同一個主映像、不同命令啟動）。
@@ -11,13 +12,13 @@ const HEALTH_TIMEOUT_MS = 5_000;
 
 async function isPanelReachable(url: string): Promise<boolean> {
   try {
-    const res = await fetch(`${url}/panel/health`, {
+    const res = await fetch(`${url}${HEALTH_PATH}`, {
       signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS),
       redirect: 'error'
     });
     if (res.status !== 200) return false;
     const body = (await res.json()) as { service?: unknown };
-    return body.service === 'telenexus-panel';
+    return body.service === PANEL_SERVICE;
   } catch {
     return false;
   }

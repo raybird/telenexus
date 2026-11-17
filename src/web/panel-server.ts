@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AddressInfo } from 'node:net';
 import { verifyInitData, type PanelSessions } from './panel-auth.js';
+import { HEALTH_PATH, PANEL_PATH, PANEL_SERVICE } from './panel-paths.js';
 import {
   applyModel,
   isModelId,
@@ -48,9 +49,7 @@ export type PanelServerOptions = {
 export type PanelServerHandle = { port: number; close(): Promise<void> };
 
 const API_PREFIX = '/panel-api/';
-export const HEALTH_PATH = '/panel/health';
 const MAX_BODY_BYTES = 16 * 1024;
-const PANEL_PREFIX = '/panel/';
 const STATIC_FILE = /^[a-z0-9-]+\.(html|js|css)$/;
 const DEFAULT_STATIC_DIR = fileURLToPath(new URL('./panel-public/', import.meta.url));
 const CONTENT_TYPES: Record<string, string> = {
@@ -115,13 +114,13 @@ async function handle(
   // tunnel-manager 經公開網址打這裡確認 Tunnel 通了；不含任何狀態資訊。
   if (pathname === HEALTH_PATH && req.method === 'GET') {
     req.resume();
-    sendJson(res, 200, { ok: true, service: 'telenexus-panel' });
+    sendJson(res, 200, { ok: true, service: PANEL_SERVICE });
     return;
   }
 
-  if (pathname.startsWith(PANEL_PREFIX) && req.method === 'GET') {
+  if (pathname.startsWith(PANEL_PATH) && req.method === 'GET') {
     req.resume();
-    serveStatic(res, pathname.slice(PANEL_PREFIX.length) || 'index.html', options);
+    serveStatic(res, pathname.slice(PANEL_PATH.length) || 'index.html', options);
     return;
   }
 
@@ -145,7 +144,9 @@ async function handle(
       nowMs: (options.now ?? Date.now)()
     });
     if (!result.ok) {
-      sendJson(res, 401, { ok: false, error: 'unauthorized', reason: result.reason });
+      // 公開面只回 unauthorized；原因只記在 log（review-87b6cf6 N6）
+      console.warn(`[Panel] 登入被拒：${result.reason}`);
+      sendJson(res, 401, { ok: false, error: 'unauthorized' });
       return;
     }
     options.onActivity?.();
@@ -172,30 +173,19 @@ async function handle(
     sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
     return;
   }
-  const { status, body } = await route.handle({ req, options, userId: session.userId });
+  const { status, body } = await route.handle({ req, options });
   sendJson(res, status, body);
 }
 
 type RouteResult = { status: number; body: Record<string, unknown> };
 type Route = {
   method: 'GET' | 'POST';
-  handle(ctx: {
-    req: http.IncomingMessage;
-    options: PanelServerOptions;
-    userId: string;
-  }): Promise<RouteResult>;
+  handle(ctx: { req: http.IncomingMessage; options: PanelServerOptions }): Promise<RouteResult>;
 };
 
 // 用 Map 而非物件字面值：`constructor`、`__proto__` 等原型上的名稱不能被當成路由
 const ROUTES = new Map<string, Route>(
   Object.entries({
-    session: {
-      method: 'GET',
-      handle: async ({ req, userId }) => {
-        req.resume();
-        return { status: 200, body: { ok: true, userId } };
-      }
-    },
     state: {
       method: 'GET',
       handle: async ({ req }) => {

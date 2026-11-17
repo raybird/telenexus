@@ -56,11 +56,11 @@ async function tokenFor(base: string): Promise<string> {
 test('SCN-002：有效 initData 登入取得憑證，憑證可存取面板 API', async () => {
   await withServer(async ({ base }) => {
     const token = await tokenFor(base);
-    const res = await fetch(`${base}/panel-api/session`, {
+    const res = await fetch(`${base}/panel-api/state`, {
       headers: { authorization: `Bearer ${token}` }
     });
     assert.equal(res.status, 200);
-    assert.deepEqual(await res.json(), { ok: true, userId: '424242' });
+    assert.equal(((await res.json()) as { ok: boolean }).ok, true);
   });
 });
 
@@ -73,6 +73,8 @@ test('SCN-002：偽造、非白名單、過期、空白的 initData 登入失敗
       const body = (await res.json()) as Record<string, unknown>;
       assert.equal(body.ok, false);
       assert.equal(body.token, undefined);
+      // review-87b6cf6 N6：公開面不透露失敗原因（例如 not-configured 會洩露設定狀態）
+      assert.deepEqual(body, { ok: false, error: 'unauthorized' });
     }
     ctx.nowSec = AUTH_DATE + 601;
     assert.equal((await login(ctx.base, VALID)).status, 401);
@@ -84,7 +86,7 @@ test('SCN-002：登入請求不是 JSON 或太大時拒絕', async () => {
     const notJson = await fetch(`${base}/panel-api/login`, { method: 'POST', body: 'initData=x' });
     assert.equal(notJson.status, 400);
     const huge = await login(base, 'a'.repeat(64 * 1024));
-    assert.ok(huge.status === 413 || huge.status === 400, `status ${huge.status}`);
+    assert.equal(huge.status, 413);
     const wrongMethod = await fetch(`${base}/panel-api/login`);
     assert.equal(wrongMethod.status, 405);
   });
@@ -94,10 +96,10 @@ test('SCN-002：沒帶憑證、偽造憑證、放在網址的憑證都被拒絕'
   await withServer(async ({ base }) => {
     const token = await tokenFor(base);
     const cases: Array<[string, Record<string, string>]> = [
-      [`${base}/panel-api/session`, {}],
-      [`${base}/panel-api/session`, { authorization: 'Bearer forged-token' }],
-      [`${base}/panel-api/session`, { authorization: token }],
-      [`${base}/panel-api/session?token=${token}`, {}]
+      [`${base}/panel-api/state`, {}],
+      [`${base}/panel-api/state`, { authorization: 'Bearer forged-token' }],
+      [`${base}/panel-api/state`, { authorization: token }],
+      [`${base}/panel-api/state?token=${token}`, {}]
     ];
     for (const [url, headers] of cases) {
       const res = await fetch(url, { headers });
@@ -115,7 +117,7 @@ test('SCN-002：本機、內網來源或 Host 不能取代憑證', async () => {
       { host: '172.18.0.3:3040' }
     ];
     for (const headers of spoofed) {
-      const res = await fetch(`${base}/panel-api/session`, { headers });
+      const res = await fetch(`${base}/panel-api/state`, { headers });
       assert.equal(res.status, 401, JSON.stringify(headers));
     }
   });
@@ -125,12 +127,12 @@ test('SCN-002：入口關閉或換網址（revokeAll）後舊憑證失效，重�
   await withServer(async ({ base, sessions }) => {
     const old = await tokenFor(base);
     sessions.revokeAll();
-    const res = await fetch(`${base}/panel-api/session`, {
+    const res = await fetch(`${base}/panel-api/state`, {
       headers: { authorization: `Bearer ${old}` }
     });
     assert.equal(res.status, 401);
     const fresh = await tokenFor(base);
-    const ok = await fetch(`${base}/panel-api/session`, {
+    const ok = await fetch(`${base}/panel-api/state`, {
       headers: { authorization: `Bearer ${fresh}` }
     });
     assert.equal(ok.status, 200);
@@ -244,12 +246,12 @@ test('SCN-005：只有經過驗證的面板請求算活動（供閒置計時）�
   });
   const base = `http://127.0.0.1:${server.port}`;
   try {
-    await fetch(`${base}/panel-api/session`, { headers: { 'x-forwarded-for': '127.0.0.1' } });
+    await fetch(`${base}/panel-api/state`, { headers: { 'x-forwarded-for': '127.0.0.1' } });
     await fetch(`${base}/panel/health`);
     await login(base, VALID.replace('424242', '424243'));
     assert.equal(activity, 0);
     const token = await tokenFor(base);
-    await fetch(`${base}/panel-api/session`, { headers: { authorization: `Bearer ${token}` } });
+    await fetch(`${base}/panel-api/state`, { headers: { authorization: `Bearer ${token}` } });
     assert.equal(activity, 2);
   } finally {
     await server.close();

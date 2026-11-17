@@ -237,6 +237,50 @@ test('SCN-003：方法不對的 API 回 405；不存在的 API（含物件原型
   });
 });
 
+test('SCN-002：只供測試的 session 路由已移除，登入後也是 404', async () => {
+  // review-87b6cf6 N7
+  await withPanel({}, async ({ api }) => {
+    assert.equal((await api('GET', '/panel-api/session')).status, 404);
+  });
+});
+
+test('SCN-002：靜態檔只服務白名單檔名：隱藏檔、子目錄、大寫、其他副檔名都是 404', async () => {
+  // review-87b6cf6 N4：這些路徑不會被 URL 正規化擋掉，只能靠檔名白名單
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'panel-static-'));
+  fs.writeFileSync(path.join(dir, 'ok.js'), 'ok');
+  fs.writeFileSync(path.join(dir, '.hidden.js'), 'secret');
+  fs.mkdirSync(path.join(dir, 'sub'));
+  fs.writeFileSync(path.join(dir, 'sub', 'x.js'), 'secret');
+  fs.writeFileSync(path.join(dir, 'Upper.js'), 'secret');
+  fs.writeFileSync(path.join(dir, 'notes.txt'), 'secret');
+  const server = await startPanelServer({
+    host: '127.0.0.1',
+    port: 0,
+    botToken: BOT_TOKEN,
+    allowedUserId: '424242',
+    sessions: new PanelSessions(),
+    staticDir: dir
+  });
+  try {
+    const base = `http://127.0.0.1:${server.port}`;
+    assert.equal((await fetch(`${base}/panel/ok.js`)).status, 200);
+    for (const p of [
+      '/panel/.hidden.js',
+      '/panel/sub/x.js',
+      '/panel/sub%2fx.js',
+      '/panel/Upper.js',
+      '/panel/notes.txt'
+    ]) {
+      const res = await fetch(`${base}${p}`);
+      assert.equal(res.status, 404, p);
+      assert.doesNotMatch(await res.text(), /secret/, p);
+    }
+  } finally {
+    await server.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('SCN-003：/panel/ 提供手機頁與同源資源，不能用 .. 讀到其他檔案', async () => {
   await withPanel({}, async ({ base }) => {
     const page = await fetch(`${base}/panel/`);

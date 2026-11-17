@@ -115,6 +115,30 @@ test('SCN-002：群組裡或非管理員輸入 /panel 不會啟動 Tunnel', asyn
   assert.deepEqual(calls, []);
 });
 
+test('SCN-002：Web Console 送來的 /panel、/panel_close 不會啟動或關閉 Tunnel（只限 Telegram 私聊）', async () => {
+  // review-87b6cf6 M1：Web Console 的 /api/chat 建立的訊息沒有 telegram 欄位，sender 是管理員 ID
+  const router = new CommandRouter();
+  const { panel, calls } = makePanel({ ok: true, url: 'https://a', reused: false });
+  router.setPanel(panel);
+  const consoleMsg = (content: string) => ({
+    id: '1',
+    chatId: 'web',
+    content,
+    sender: { id: '424242', name: 'web', platform: 'console' as const },
+    timestamp: Date.now()
+  });
+  for (const content of ['/panel', '/panel_close']) {
+    const { handled, sent } = await run(router, consoleMsg(content) as never);
+    assert.equal(handled, true, content);
+    assert.match(sent[0]![1], /私聊/, content);
+  }
+  // 平台標成 telegram 卻沒有 chatType 的訊息也一樣拒絕
+  const noChat = { ...makeMsg('/panel'), telegram: undefined };
+  const { sent } = await run(router, noChat as never);
+  assert.match(sent[0]![1], /私聊/);
+  assert.deepEqual(calls, []);
+});
+
 test('SCN-005：/panel_close 關閉入口並回覆；沒有開啟時說明', async () => {
   const router = new CommandRouter();
   const open = makePanel({ ok: true, url: 'https://a', reused: false }, true);

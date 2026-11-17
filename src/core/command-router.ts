@@ -53,7 +53,8 @@ export class CommandRouter {
   /** 不能使用面板指令時回傳原因（沒有設定、不是私聊、不是管理員）。 */
   private panelDenied(msg: UnifiedMessage, userId: string): string | null {
     if (!this.panel) return 'ℹ️ 模型設定面板未啟用。';
-    if (msg.telegram && msg.telegram.chatType !== 'private') {
+    // 只接受 Telegram 私聊；Web Console 的訊息沒有 telegram 欄位，也不能開面板（review-87b6cf6 M1）
+    if (msg.telegram?.chatType !== 'private') {
       return 'ℹ️ 模型設定面板只能在與 Bot 的私聊中使用。';
     }
     if (userId !== this.panel.adminUserId) return '❌ 只有管理員可以使用模型設定面板。';

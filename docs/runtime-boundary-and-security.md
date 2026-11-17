@@ -208,6 +208,8 @@ launcher 自身若被 SIGKILL 無法執行清理；PID/starttime 檢查不是 pi
 - `/panel-api/login`
 - 需要憑證的 `state`、`models`、`apply`、`reset`
 
+登入失敗一律只回 `unauthorized`，不說是簽章、過期、白名單還是沒設定，原因只記在 telenexus 的 log。
+
 Web Console 的頁面與 `/api/*` 不在這個伺服器上，所以 `WEB_AUTH_TOKEN`、`WEB_TRUST_PRIVATE_NETWORK` 怎麼設都不影響公開面。3040 沒有對主機開放，只在容器網路上。
 
 **授權。**

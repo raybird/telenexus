@@ -19,7 +19,7 @@ GitHub：https://github.com/raybird/telenexus/issues/30
 - 必須能在目前 Docker Compose／container 架構運作。
 - 使用者明確表示：「聊天串流與即時更新可以不用，然後主要是可以方便切換 provider 與 model」。
 - 使用者要求「根據目前這樣的討論在 github 開此 issue」。
-本 issue 記錄需求與初始規劃，尚未實作，不代表已授權發版或修改正式部署。
+本 issue 記錄需求、規劃與實作證據；實作在分支 `feat/telegram-model-panel`，不代表已授權發版或修改正式部署。
 
 ## 文件清單
 
@@ -127,7 +127,7 @@ Feature: 按需開啟的 Telegram 模型切換面板
 - **風險等級與理由**：High；暫時公開管理入口且可修改後續聊天／排程模型。
 - **首要驗證**：先建立登入與授權負向契約／整合測試，以及「公開連接埠只有面板路由」的測試；合併前用本機開發 stack 起一次真實 Quick Tunnel，從外部確認面板頁可達、既有 Web Console 的頁面與 API 取不到（合成資料，網址只開幾分鐘，不碰 Telegram）。Menu Button 與 Mini App 登入在發版、升級後以正式 Bot 於 Android 客戶端驗證（2026-11-17 Q4，沒有測試 Bot）。
 - **選擇理由**：負向契約測試比直接開放完整面板更直接覆蓋越權風險；動態網域在 Telegram 客戶端可登入不能由 mock 推定，但使用者選擇不另建測試 Bot，這段改在外部驗收窗取得，合併前以外部可達性檢查與 initData 演算法測試降低風險。
-- **完成證據**：偽造、過期、非白名單、無憑證與代理繞過均拒絕且設定未變；公開網址取不到既有 Web Console；健康新網址可開啟且換網域後可重新登入。上述均尚未執行。
+- **完成證據**：偽造、過期、非白名單、無憑證與代理繞過均拒絕且設定未變；公開網址取不到既有 Web Console；健康新網址可開啟且換網域後可重新登入。前三項由 Task 1.2、Task 5.2 取得（見 implementation-plan.md）；換網域後在 Telegram 重新登入留給 Task 5.4（發版後）。
 
 ## 實作計畫
 
@@ -147,6 +147,8 @@ Feature: 按需開啟的 Telegram 模型切換面板
 - TBD-3（已解決，2026-11-17 Q4）：不建測試 Bot。發版並升級正式部署後，以正式 Bot 在 Android 客戶端驗 /panel、登入、切換、還原、/panel_close 與換網域後重新登入；合併後這段以 `等待外部驗收窗` 記錄，判準即上列項目。發版與升級由使用者決定。
 - 工程預設（2026-11-17 隨草案核准）：initData 的 `auth_date` 超過 10 分鐘拒絕登入；登入後換發的憑證只存在記憶體，入口關閉即失效；面板連接埠不對主機開放。
 - 主機與整組 Compose 必須正在運行；不含從停機狀態遠端喚醒。
+- 審查 review-87b6cf6 M1（已解決，2026-11-17 使用者決定）：`/panel`、`/panel_close` 只允許 Telegram 私聊；Web Console 不算面板的入口，送出時回覆只能在私聊使用。維持已核准的 SCN-002 與 Task 3.2，不修訂規格。
+- 審查 review-87b6cf6 其餘發現（2026-11-17 使用者決定）：S1 與 N1～N10 在同一輪一起修正。
 
 ## 驗證策略
 實作取得 Scenario 對應的紅綠重構證據，涵蓋驗證／權限、設定安全寫入、生命週期與 Web 整合；合併前以本機開發 stack 做一次真實 Quick Tunnel 外部可達性檢查，Telegram 客戶端實測在發版後的外部驗收窗進行（TBD-3）。
@@ -181,6 +183,8 @@ Feature: 按需開啟的 Telegram 模型切換面板
 | 2026-11-17 | 依使用者要求併入 #29 的 TBD-1（`/model` 與 `loadAiConfig()` 的解析差異）：新增 SCN-006（待核准），已查證現況補上差異 | 使用者 |
 | 2026-11-17 | 逐題確認 Q1～Q4 並核准修改後的 SCN-001～006；TBD-1～4 解決；Tunnel 改接面板專用連接埠、tunnel-manager 沿用主映像；implementation-plan 拆成 Phase 1～5、Task 1.1～5.4 | 使用者 |
 | 2026-11-17 | Task 1.1～5.3 完成；經使用者核准執行真實 Quick Tunnel 外部檢查並通過；實測發現 telenexus／agent-runner 缺 `KILL` 時 `docker stop` 收不到 SIGTERM（既有問題，不在本 issue 修）；交付方式選分支＋本機獨立審查 | Claude |
+| 2026-11-17 | 獨立審查 review-87b6cf6 判定 RETURN TO execute-task；使用者決定 M1 照核准規格只允許 Telegram 私聊，S1 與 N1～N10 同一輪修正；KILL 問題另開 #31 | 使用者 |
+| 2026-11-17 | 審查修正輪完成（M1、S1、N1～N10），證據見 implementation-plan.md「審查修正輪」 | Claude |
 
 **建立日期**: 2026-11-15
 **分級**: Large

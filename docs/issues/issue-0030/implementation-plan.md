@@ -159,7 +159,7 @@
     - 不驗內部金鑰：1 支失敗
     - 就緒時不沿用：1 支失敗
 
-    「健康檢查後不檢查 attempt」沒被抓到，判定為等價變異：`stop()` 會等子程序真的結束才返回，下一行的 `exited` 檢查必定成立並走 `fail()`，而 `fail()` 本身也檢查 attempt。保留這個檢查作為防線。
+    「健康檢查後不檢查 attempt」沒被抓到，當時判定為等價變異。**這個判定不成立**（review-87b6cf6 S1）：真的 cloudflared 收到 SIGTERM 後有收尾期，健康檢查可能在 `exited` 還是 false 時先回成功，拿掉檢查就會在停止後變成就緒。原測試在子程序已結束後才放行健康檢查，所以抓不到；守門測試見「審查修正輪」。
   - 冒煙：`node dist/tunnel-manager.js`（`CLOUDFLARED_BIN=/bin/false`，不連外）。
     - 沒帶金鑰回 401；帶金鑰查狀態回 `stopped`；啟動回 502 並附「在取得網址前結束」。
     - 金鑰檔權限 600，目錄 700。
@@ -362,6 +362,41 @@
     - `CLAUDE.md`、`docs/configuration-reference.md`、`docs/installation.md` 在 HEAD 就不符合 prettier，沒有整檔重排，以免把無關的格式差異混進來。
     - 相對連結與錨點：以腳本檢查 7 份文件，沒有失效，包含新加的 `#模型面板與-quick-tunnelissue-0030`。
   - 限制：Task 5.2 的真實 Tunnel 檢查若發現行為差異，要回頭修這些文件。
+
+#### 審查修正輪（review-87b6cf6，2026-11-17）
+- 範圍：review-87b6cf6 的 M1、S1、N1～N10，使用者 2026-11-17 決定同一輪處理（README 待確認事項）。不改核准的 Scenario。
+- 紅燈（先寫測試，在 87b6cf6 的程式上跑）：`npx tsx --test tests/command-router-panel.test.ts tests/panel-controller.test.ts tests/tunnel/tunnel-manager.test.ts` 41 支 5 支失敗；`tests/web/panel-server.test.ts tests/web/panel-api.test.ts` 21 支 2 支失敗。
+  - M1：Web Console 形狀的 `/panel`、`/panel_close`（`platform: 'console'`、沒有 `telegram`），以及沒有 `chatType` 的訊息，要回覆只能在私聊使用、不呼叫 open／close。失敗。
+  - N1：`menu.show` 進行中與 `client.start` 進行中各被 `/panel_close` 一次，開啟結果要是失敗、不留下已發布的入口、選單最後是一般選單，之後的輪詢不發中斷通知。兩支都失敗。
+  - N2：沿用入口時要重送一次選單（既有測試的期望呼叫順序加一筆 show）。失敗。
+  - N9：假 cloudflared 先印含 `https://api.trycloudflare.com/...` 的錯誤訊息，再印真網址，取到的要是真網址。失敗。
+  - N6：登入失敗的回應要剛好是 `{ ok: false, error: 'unauthorized' }`。失敗。
+  - N7：`/panel-api/session` 登入後也要 404。失敗。
+  - S1、N3、N4、N5：產品程式原本就正確，新測試直接綠燈，以下方突變確認測試抓得到。
+    - S1：假 cloudflared `slow-term` 模式 `trap` SIGTERM、1 秒後才退出，stop 期間健康檢查回成功。
+    - N3：狀態查詢進行中被關閉，查詢回來後不再處理也不丟錯。
+    - N4：自訂 staticDir 放隱藏檔、子目錄、大寫、`.txt` 與含 `%2f` 的 `.js` 路徑，都要 404 且讀不到內容。
+    - N5：body 超過上限只接受 413。
+- 修正：
+  - M1：`src/core/command-router.ts` 的 `panelDenied()` 改成只看 `msg.telegram?.chatType === 'private'`，沒有 telegram 欄位的訊息一律拒絕。
+  - N1、N2：`src/services/panel-controller.ts` 加 `closes` 計數，`close()` 與 `boot()` 遞增；`doOpen()` 在 `start` 之後、`show` 之後各比對一次，被關閉就放棄並在 show 之後再還原選單。沿用時也重送 `show`；`show` 失敗一律作廢憑證與已發布狀態再停 Tunnel。
+  - N6：`src/web/panel-server.ts` 登入失敗只回 `unauthorized`，原因用 `console.warn` 記錄。
+  - N7：移除 `session` 路由與路由 context 的 `userId`；伺服器測試改用 `state` 當受保護路由。
+  - N8：新增 `src/web/panel-paths.ts`（`PANEL_PATH`、`HEALTH_PATH`、`PANEL_SERVICE`），panel-server、panel-controller、tunnel-manager 進入點共用。
+  - N9：`src/tunnel/tunnel-manager.ts` 的 `URL_PATTERN` 排除 `api.` 子網域。
+  - N10：`docs/configuration-reference.md` 改寫 `.env` 與 compose 固定值的說明；README 兩段過時文字改成現況。另在 `docs/runtime-boundary-and-security.md` 補「登入失敗不透露原因」。
+- 突變（各自還原後重跑，以 `git diff --quiet` 確認還原）：
+  - M1 條件還原成審查前的 `msg.telegram && chatType !== 'private'`：1 支失敗。
+  - N1 拿掉 start 後的比對：1 支失敗；拿掉 show 後的比對：1 支失敗；show 後被關閉時不再還原選單：1 支失敗（測試在 show 完成時才記錄呼叫，模擬 Telegram 實際套用的時間點）。
+  - N2 沿用時不重送：1 支失敗。
+  - N3 拿掉 poll 在 await 之後的重新檢查：1 支失敗。
+  - S1 拿掉健康檢查後的 attempt 比對：1 支失敗。
+  - N4 白名單放寬成 `/^[A-Za-z0-9.\/%-]+\.(html|js|css)$/`：1 支失敗。
+- 重構：Prettier 格式化；`resetMenu()` 由 `close()` 與開啟途中被關閉兩處共用。其餘 no-op。
+- 影響範圍：GitNexus 索引早於本分支，新符號查不到，改以 grep 核對。`panelDenied` 只有 `/panel`、`/panel_close` 兩個呼叫點；`PanelController.open／close` 只經 `src/main.ts` 接到 router；前端 `app.js` 沒有用到 `reason` 或 `session`。
+- 交付檢查：
+  - `npm run lint` exit 0；`npm run build` exit 0。
+  - `npm run test` exit 0，`# tests 957`、`# pass 957`，比 87b6cf6 的 949 多 8 支（router 1、controller 3、tunnel-manager 2、panel-api 2）；測試檔仍 104 個（L-01）。
 
 #### Task 5.4 — 發版後以正式 Bot 驗收（外部驗收窗）
 - 產出與範圍：使用者發版並升級正式部署後，在 Android 客戶端驗 `/panel`、登入、切換、恢復預設、`/panel_close`、再 `/panel` 換網域後重新登入；資料只記結果與統計。

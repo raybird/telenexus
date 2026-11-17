@@ -83,8 +83,82 @@ test('SCN-001：/panel 啟動 Tunnel 就緒後才設定選單按鈕；再開沿�
   assert.deepEqual(h.calls, ['start', 'show https://g1.trycloudflare.com/panel/']);
   const again = await h.controller.open();
   assert.deepEqual(again, { ok: true, url: 'https://g1.trycloudflare.com', reused: true });
-  assert.deepEqual(h.calls, ['start', 'show https://g1.trycloudflare.com/panel/', 'start']);
+  // review-87b6cf6 N2：沿用時也重送一次選單（冪等），選單被別處重設過也能恢復
+  assert.deepEqual(h.calls, [
+    'start',
+    'show https://g1.trycloudflare.com/panel/',
+    'start',
+    'show https://g1.trycloudflare.com/panel/'
+  ]);
   assert.equal(h.controller.isOpen(), true);
+});
+
+test('SCN-005：開啟途中（設定選單時）被關閉，不會留下已發布的入口，選單最後是一般選單', async () => {
+  // review-87b6cf6 N1
+  let releaseShow: () => void = () => {};
+  const h = makeHarness();
+  h.menu.show = async (url: string) => {
+    await new Promise<void>((r) => (releaseShow = r));
+    // Telegram 在這時才真正套用選單，所以在完成時記錄
+    h.calls.push(`show ${url}`);
+  };
+  const opening = h.controller.open();
+  await new Promise((r) => setTimeout(r, 20));
+  await h.controller.close('manual');
+  releaseShow();
+  const result = await opening;
+  assert.equal(result.ok, false);
+  assert.equal(h.controller.isOpen(), false);
+  assert.equal(h.calls.at(-1), 'reset', '選單最後要還原');
+  // 之後的輪詢不會誤報「Tunnel 已中斷」
+  await h.controller.poll();
+  assert.deepEqual(h.notes, []);
+});
+
+test('SCN-005：開啟途中（啟動 Tunnel 時）被關閉，不設定選單也不算開啟', async () => {
+  let releaseStart: () => void = () => {};
+  const h = makeHarness();
+  const slowStart = async (): Promise<TunnelClientResult> => {
+    h.calls.push('start');
+    await new Promise<void>((r) => (releaseStart = r));
+    return { ok: true, state: ready(1) };
+  };
+  (
+    h.controller as unknown as { options: { client: { start: typeof slowStart } } }
+  ).options.client.start = slowStart;
+  const opening = h.controller.open();
+  await new Promise((r) => setTimeout(r, 20));
+  await h.controller.close('manual');
+  releaseStart();
+  const result = await opening;
+  assert.equal(result.ok, false);
+  assert.equal(h.controller.isOpen(), false);
+  assert.equal(
+    h.calls.some((c) => c.startsWith('show')),
+    false
+  );
+});
+
+test('SCN-005：狀態查詢期間入口被關閉，查詢回來後不再處理也不丟錯', async () => {
+  // review-87b6cf6 N3
+  const h = makeHarness();
+  await h.controller.open();
+  let releaseStatus: () => void = () => {};
+  const client = (
+    h.controller as unknown as {
+      options: { client: { status: () => Promise<TunnelClientResult> } };
+    }
+  ).options.client;
+  client.status = async () => {
+    await new Promise<void>((r) => (releaseStatus = r));
+    return { ok: true, state: ready(1) };
+  };
+  const polling = h.controller.poll();
+  await new Promise((r) => setTimeout(r, 20));
+  await h.controller.close('manual');
+  releaseStatus();
+  await polling;
+  assert.deepEqual(h.notes, []);
 });
 
 test('SCN-001：並行的 /panel 只啟動一次', async () => {
